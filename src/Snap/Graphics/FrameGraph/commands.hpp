@@ -11,6 +11,8 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <optional>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -201,21 +203,151 @@ struct Callable {
   bool requiresRendering{};
 };
 
-struct BoundResources {
-  std::vector<void *> reads;
-  std::vector<void *> writes;
-};
-
-struct BoundImage {
+struct ImageSubresource {
   VkImage image;
-  VkAccessFlags2 access;
-  VkPipelineStageFlags2 pipelines;
+
+  uint16_t layerStart;
+  uint16_t layerCount;
+  uint16_t mipStart;
+  uint16_t mipCount;
+
+  ImageSubresource(const Ref<Texture> &texture);
+  ImageSubresource(VkImage image, uint16_t layerStart, uint16_t layerCount,
+                   uint16_t mipStart, uint16_t mipCount)
+      : image(image), layerCount(layerCount), layerStart(layerStart),
+        mipCount(mipCount), mipStart(mipStart) {}
+  ImageSubresource(VkImage image, VkImageSubresourceRange range)
+      : image(image), layerCount(range.layerCount),
+        layerStart(range.baseArrayLayer), mipCount(range.levelCount),
+        mipStart(range.baseMipLevel) {}
+
+  [[nodiscard]] auto Overlaps(const ImageSubresource &other) const -> bool {
+    return image == other.image &&
+           layerStart < (other.layerStart + other.layerCount) &&
+           other.layerStart < (layerStart + layerCount) &&
+           mipStart < (other.mipStart + other.mipCount) &&
+           other.mipStart < (mipStart + mipCount);
+  }
 };
 
-struct BoundBuffer {
-  VkBuffer buffer;
+struct VulkanResource {
+  enum class ResourceType : uint8_t {
+    Image,
+    Buffer,
+    AccelerationStructure,
+  };
+
+  ResourceType type;
+
+  union {
+    ImageSubresource image;
+    VkBuffer buffer;
+    VkAccelerationStructureKHR accelerationStructure;
+  };
+
+  VulkanResource(const ImageSubresource &image)
+      : type(ResourceType::Image), image(image) {}
+
+  VulkanResource(VkBuffer buffer)
+      : type(ResourceType::Buffer), buffer(buffer) {}
+
+  VulkanResource(VkAccelerationStructureKHR accelerationStructure)
+      : type(ResourceType::AccelerationStructure),
+        accelerationStructure(accelerationStructure) {}
+
+  [[nodiscard]]
+  auto Overlaps(const VulkanResource &other) const -> bool {
+    if (type != other.type) {
+      return false;
+    }
+
+    switch (type) {
+    case ResourceType::Image:
+      return image.Overlaps(other.image);
+
+    case ResourceType::Buffer:
+      return buffer == other.buffer;
+
+    case ResourceType::AccelerationStructure:
+      return accelerationStructure == other.accelerationStructure;
+
+    default:
+      assert(false && "Unreachable");
+    }
+  }
+
+  auto operator<(const VulkanResource &other) const -> bool {
+    if (type != other.type) {
+      return type < other.type;
+    }
+
+    if (type == ResourceType::AccelerationStructure) {
+      return accelerationStructure < other.accelerationStructure;
+    }
+
+    if (type == ResourceType::Buffer) {
+      return buffer < other.buffer;
+    }
+
+    return std::tie(image.image, image.layerStart, image.layerCount,
+                    image.mipStart, image.mipCount) <
+           std::tie(other.image.image, other.image.layerStart,
+                    other.image.layerCount, other.image.mipStart,
+                    other.image.mipCount);
+  }
+
+  [[nodiscard]] static auto Equals(const VulkanResource &resource,
+                                   const VulkanResource &other) -> bool {
+    if (resource.type != other.type) {
+      return false;
+    }
+
+    switch (resource.type) {
+    case ResourceType::AccelerationStructure:
+      return resource.accelerationStructure == other.accelerationStructure;
+    case ResourceType::Buffer:
+      return resource.buffer == other.buffer;
+    case ResourceType::Image:
+      return resource.image.image == other.image.image &&
+             resource.image.layerStart == other.image.layerStart &&
+             resource.image.layerCount == other.image.layerCount &&
+             resource.image.mipStart == other.image.mipStart &&
+             resource.image.mipCount == other.image.mipCount;
+    }
+  }
+
+  [[nodiscard]] auto ToString() const -> std::string {
+    switch (type) {
+    case ResourceType::AccelerationStructure:
+      return std::format("Acceleration structure {}",
+                         (void *)accelerationStructure);
+    case ResourceType::Buffer:
+      return std::format("Buffer {}", (void *)buffer);
+    case ResourceType::Image:
+      return std::format("Image {}", (void *)image.image);
+    }
+  }
+};
+
+struct BoundResources {
+  std::vector<VulkanResource> reads;
+  std::vector<VulkanResource> writes;
+};
+
+struct BoundResource {
+  VulkanResource resource;
   VkAccessFlags2 access;
   VkPipelineStageFlags2 pipelines;
+
+  [[nodiscard]]
+  auto Overlaps(const BoundResource &other) const -> bool {
+    return resource.Overlaps(other.resource);
+  }
+
+  [[nodiscard]]
+  auto Overlaps(const VulkanResource &other) const -> bool {
+    return resource.Overlaps(other);
+  }
 };
 
 struct LoadOpConfig {
@@ -227,13 +359,12 @@ struct LoadOpConfig {
 };
 
 struct DrawState {
-  std::vector<BoundImage> boundImages;
-  std::vector<BoundBuffer> boundBuffers;
-  std::vector<VkAccelerationStructureKHR> boundAccelerationStructures;
+  std::vector<BoundResource> boundImages;
+  std::vector<BoundResource> boundBuffers;
+  std::vector<BoundResource> boundASs;
 
-  // no need for a BoundImage, since usage is implied.
-  std::vector<VkImage> colorAttachments;
-  VkImage depthStencilAttachment = VK_NULL_HANDLE;
+  std::vector<BoundResource> colorAttachments;
+  std::optional<BoundResource> depthStencilAttachment;
 
   std::vector<VkBuffer> vertexBuffers;
   VkBuffer indexBuffer = VK_NULL_HANDLE;
@@ -246,13 +377,16 @@ struct DrawState {
 
   uint32_t stateID = UINT32_MAX;
 
-  auto GetStateFor(void const *resource, CommandType type) const
+  [[nodiscard]] auto GetStateFor(const VulkanResource &resource,
+                                 CommandType type) const
       -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
 
-  auto GetReadStateFor(void const *resource, CommandType type) const
+  [[nodiscard]] auto GetReadStateFor(const VulkanResource &resource,
+                                     CommandType type) const
       -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
 
-  auto GetWriteStateFor(void const *resource, CommandType type) const
+  [[nodiscard]] auto GetWriteStateFor(const VulkanResource &resource,
+                                      CommandType type) const
       -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
 
   auto Apply(const GraphicsContext &context, VirtualCommandBuffer &buffer,
@@ -401,6 +535,8 @@ struct VkCmdBlitImage : Callable, BoundResources {
   VkImageLayout dstImageLayout;
   std::vector<VkImageBlit> regions;
   VkFilter filter;
+  std::vector<VulkanResource> srcResources;
+  std::vector<VulkanResource> dstResources;
 
   VkCmdBlitImage(VkImage srcImage, VkImageLayout srcImageLayout,
                  VkImage dstImage, VkImageLayout dstImageLayout,
@@ -408,7 +544,20 @@ struct VkCmdBlitImage : Callable, BoundResources {
                  VkFilter filter)
       : srcImage(srcImage), srcImageLayout(srcImageLayout), dstImage(dstImage),
         dstImageLayout(dstImageLayout), filter(filter),
-        regions(pRegions, pRegions + regionCount) {}
+        regions(pRegions, pRegions + regionCount) {
+    srcResources.reserve(regionCount);
+    dstResources.reserve(regionCount);
+
+    for (auto &region : regions) {
+      srcResources.emplace_back(ImageSubresource(
+          srcImage, region.srcSubresource.baseArrayLayer,
+          region.srcSubresource.layerCount, region.srcSubresource.mipLevel, 1));
+
+      dstResources.emplace_back(ImageSubresource(
+          dstImage, region.dstSubresource.baseArrayLayer,
+          region.dstSubresource.layerCount, region.dstSubresource.mipLevel, 1));
+    }
+  }
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
     vkCmdBlitImage(cmdBuffer, srcImage, srcImageLayout, dstImage,
@@ -458,12 +607,28 @@ struct VkCmdCopyImage : Callable, BoundResources {
   VkImageLayout dstImageLayout;
   std::vector<VkImageCopy> regions;
 
+  std::vector<VulkanResource> srcResources;
+  std::vector<VulkanResource> dstResources;
+
   VkCmdCopyImage(VkImage srcImage, VkImageLayout srcImageLayout,
                  VkImage dstImage, VkImageLayout dstImageLayout,
                  uint32_t regionCount, const VkImageCopy *pRegions)
       : srcImage(srcImage), srcImageLayout(srcImageLayout), dstImage(dstImage),
         dstImageLayout(dstImageLayout),
-        regions(pRegions, pRegions + regionCount) {}
+        regions(pRegions, pRegions + regionCount) {
+    srcResources.reserve(regionCount);
+    dstResources.reserve(regionCount);
+
+    for (auto &region : regions) {
+      srcResources.emplace_back(ImageSubresource(
+          srcImage, region.srcSubresource.baseArrayLayer,
+          region.srcSubresource.layerCount, region.srcSubresource.mipLevel, 1));
+
+      dstResources.emplace_back(ImageSubresource(
+          dstImage, region.dstSubresource.baseArrayLayer,
+          region.dstSubresource.layerCount, region.dstSubresource.mipLevel, 1));
+    }
+  }
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
     vkCmdCopyImage(cmdBuffer, srcImage, srcImageLayout, dstImage,
@@ -479,13 +644,23 @@ struct VkCmdCopyBufferToImage : Callable, BoundResources {
   VkImage dstImage;
   VkImageLayout dstImageLayout;
   std::vector<VkBufferImageCopy> regions;
+  std::vector<VulkanResource> dstResources;
 
   VkCmdCopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage,
                          VkImageLayout dstImageLayout, uint32_t regionCount,
                          const VkBufferImageCopy *pRegions)
       : srcBuffer(srcBuffer), dstImage(dstImage),
         dstImageLayout(dstImageLayout),
-        regions(pRegions, pRegions + regionCount) {}
+        regions(pRegions, pRegions + regionCount) {
+    dstResources.reserve(regionCount);
+
+    for (auto &region : regions) {
+      dstResources.emplace_back(
+          ImageSubresource(dstImage, region.imageSubresource.baseArrayLayer,
+                           region.imageSubresource.layerCount,
+                           region.imageSubresource.mipLevel, 1));
+    }
+  }
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
     vkCmdCopyBufferToImage(cmdBuffer, srcBuffer, dstImage, dstImageLayout,
@@ -501,12 +676,22 @@ struct VkCmdCopyImageToBuffer : Callable, BoundResources {
   VkImageLayout srcImageLayout;
   VkBuffer dstBuffer;
   std::vector<VkBufferImageCopy> regions;
+  std::vector<VulkanResource> srcResources;
 
   VkCmdCopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout,
                          VkBuffer dstBuffer, uint32_t regionCount,
                          const VkBufferImageCopy *pRegions)
       : srcImage(srcImage), srcImageLayout(srcImageLayout),
-        dstBuffer(dstBuffer), regions(pRegions, pRegions + regionCount) {}
+        dstBuffer(dstBuffer), regions(pRegions, pRegions + regionCount) {
+    srcResources.reserve(regionCount);
+
+    for (auto &region : regions) {
+      srcResources.emplace_back(
+          ImageSubresource(srcImage, region.imageSubresource.baseArrayLayer,
+                           region.imageSubresource.layerCount,
+                           region.imageSubresource.mipLevel, 1));
+    }
+  }
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
     vkCmdCopyImageToBuffer(cmdBuffer, srcImage, srcImageLayout, dstBuffer,
@@ -572,12 +757,12 @@ struct VkCmdBuildAccelerationStructuresKHR : Callable, BoundResources {
     this->reads.reserve(reads.size());
     this->writes.reserve(writes.size());
 
-    for (const auto *read : reads) {
-      this->reads.emplace_back((void *)read);
+    for (auto *read : reads) {
+      this->reads.emplace_back(read);
     }
 
-    for (const auto *write : writes) {
-      this->writes.emplace_back((void *)write);
+    for (auto *write : writes) {
+      this->writes.emplace_back(write);
     }
 
     geometries.reserve(geometryCount);
@@ -977,8 +1162,8 @@ struct ImageStateUpdate {
   CommandID time;
 };
 
-auto GetReads(const Command &command) -> std::vector<void *>;
-auto GetWrites(const Command &command) -> std::vector<void *>;
+auto GetReads(const Command &command) -> std::vector<VulkanResource>;
+auto GetWrites(const Command &command) -> std::vector<VulkanResource>;
 
 struct VirtualCommandBuffer {
   friend struct FrameGraph;

@@ -9,6 +9,7 @@
 #include "Graphics/renderThread.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/snapshot.hpp"
+#include "Graphics/vkAccessHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/vector.hpp"
@@ -1281,8 +1282,9 @@ auto ImageMemory::UseAs(const GraphicsContext &context, TextureUsage newUsage,
       GetAccessFlagsForUsage(newUsage, format, loadOp, storeOp);
 
   if (state.lastUsage == TextureUsage::Swapchain) {
-    currentAccess = VK_ACCESS_2_NONE;
+    // currentAccess = VK_ACCESS_2_NONE;
     state.lastPipelineStage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    PrintAlways("Last usage was from swapchain");
   }
 
   auto range =
@@ -1308,26 +1310,26 @@ auto Texture::UseAs(const GraphicsContext &context, TextureUsage newUsage,
 
   // First usage this frame on this thread
   // Reordering thread will insert the layout transition barrier before this command buffer is submitted
-  [[unlikely]]
-  if (state.lastUsedFrame != context.currentFrame &&
-      !context.currentlyReordering && false) {
+  // [[unlikely]]
+  // if (state.lastUsedFrame != context.currentFrame &&
+  //     !context.currentlyReordering && false) {
 
-    state.lastUsedFrame = context.currentFrame;
+  //   state.lastUsedFrame = context.currentFrame;
 
-    state.lastUsage = newUsage;
-    state.lastPipelineStage = stage;
+  //   state.lastUsage = newUsage;
+  //   state.lastPipelineStage = stage;
 
-    state.currentLayout = VK_IMAGE_LAYOUT_GENERAL;
+  //   state.currentLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-    [[unlikely]]
-    if (newUsage == TextureUsage::PresentSrc) {
-      state.currentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    }
+  //   [[unlikely]]
+  //   if (newUsage == TextureUsage::PresentSrc) {
+  //     state.currentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  //   }
 
-    GetThreadContext().initialImageStates.emplace_back(imageMemory, state);
+  //   GetThreadContext().initialImageStates.emplace_back(imageMemory, state);
 
-    return Error::Success();
-  }
+  //   return Error::Success();
+  // }
 
   if (!context.currentlyReordering) {
     GetThreadContext().finalImageStates[imageMemory->getID()] = state;

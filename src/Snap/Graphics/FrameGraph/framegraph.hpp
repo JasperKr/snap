@@ -44,9 +44,21 @@ private:
   std::vector<Level> graph;
   std::unordered_map<CommandID, LoadOpConfig> loadOpConfigs;
 
-  // Direct dependencies per command, after transitive reduction.
+  // Direct dependencies per command, after transitive reduction. Used for
+  // scheduling (levels, reordering) only: a dropped edge here is redundant
+  // for ordering, but its access/stage info would be lost if barrier
+  // computation walked this list too. See commandHazardSources.
   std::vector<std::vector<CommandID>> commandParents;
   std::vector<std::vector<CommandID>> nextReady;
+
+  // Every command whose resource access this command must synchronize
+  // against, before transitive reduction. Unlike commandParents, no entry
+  // is ever dropped for being reachable through another: two commands can
+  // both be real hazard sources (e.g. a write W and a later read R of W,
+  // where a subsequent write needs W's access info even though R already
+  // orders after W). GetRequiredBarriers walks this list so no writer's
+  // access/stage flags are silently lost.
+  std::vector<std::vector<CommandID>> commandHazardSources;
 
   // Scratch data for the reachability walk in ReduceParents.
   std::vector<uint32_t> ancestorStamps;
@@ -69,18 +81,18 @@ private:
   auto BuildRenderRegions(const GraphicsContext &context)
       -> Result<std::vector<RenderingInfo>>;
 
-  auto ResourceAccessAt(CommandID commandId, const void *resource)
+  auto ResourceAccessAt(CommandID commandId, const VulkanResource &resource)
       -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-  auto ResourceReadsAt(CommandID commandId, const void *resource)
+  auto ResourceReadsAt(CommandID commandId, const VulkanResource &resource)
       -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-  auto ResourceWritesAt(CommandID commandId, const void *resource)
+  auto ResourceWritesAt(CommandID commandId, const VulkanResource &resource)
       -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
 
   auto ValidateGraph() -> Error;
   auto InsertBarriers() -> Error;
   auto BuildReadyState() -> Error;
 
-  auto GetRequiredBarriers(CommandID commandId, void const *resource,
+  auto GetRequiredBarriers(CommandID commandId, const VulkanResource &resource,
                            VkAccessFlags2 accesses,
                            VkPipelineStageFlags2 pipelines)
       -> std::vector<VkMemoryBarrier2>;

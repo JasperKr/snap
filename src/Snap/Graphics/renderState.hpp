@@ -48,7 +48,7 @@ auto CompareVkPipelineColorBlendAttachmentState(
 const static Type LuaRendertargetType = Type("RenderTarget");
 
 struct RenderTarget {
-  VkPipelineColorBlendAttachmentState blendMode = DefaultBlendMode;
+  VkPipelineColorBlendAttachmentState blendMode = BlendmodeNone;
   VkClearValue clearValue = {};
   Ref<Texture> texture;
   int location = -1; // Default to index in the render target array

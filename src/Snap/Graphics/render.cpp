@@ -291,6 +291,8 @@ auto Present(Graphics::GraphicsContext &context,
   int index = 0;
   std::vector<CmdBufferSubmitInfo> cmdBuffersToSubmit;
 
+  bool transitioned = false;
+
   for (auto &cmdBuffer : combined) {
     cmdBuffersToSubmit.push_back({
         .buffer = availableCommandBuffers.at(index),
@@ -298,13 +300,33 @@ auto Present(Graphics::GraphicsContext &context,
     });
 
     if (cmdBuffer.first == context.graphicsQueueFamily) {
+      ERR_ASSERT(!transitioned);
+
       auto &threadData = GetThreadContext();
       threadData.commandBuffer = cmdBuffer.second;
 
-      CHECK_ERR(context.swapchainInfo.textures.at(context.swapchainImageIndex)
-                    ->UseAsPresentSrc(context));
+      CHECK_ERR(swapchainManager.EndFrame(context));
+
+      VkMemoryBarrier2 barrier{
+          .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+          .pNext = nullptr,
+          .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+          .srcAccessMask =
+              VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+          .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+          .dstAccessMask =
+              VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+      };
+
+      VkDependencyInfo dep{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                           .memoryBarrierCount = 1,
+                           .pMemoryBarriers = &barrier};
+
+      CHECK_ERR(cmdBuffer.second->PipelineBarrier2({&dep}));
 
       threadData.commandBuffer = nullptr;
+
+      transitioned = true;
     }
 
     CHECK_ERR(graph.Submit(context, *cmdBuffer.second));
@@ -312,6 +334,8 @@ auto Present(Graphics::GraphicsContext &context,
 
     index++;
   }
+
+  ERR_ASSERT(transitioned);
 
   CHECK_ERR(SubmitCommandBuffers(context, cmdBuffersToSubmit));
 

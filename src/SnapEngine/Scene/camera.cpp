@@ -184,7 +184,7 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
           context, Rendertargets.PostProcessed));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {{
+      context, {Graphics::RenderState::RenderTarget{
                    .texture = OwnedTextures.PostProcessed,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                }}));

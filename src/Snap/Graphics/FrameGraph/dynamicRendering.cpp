@@ -280,12 +280,12 @@ auto PrepareRendering(const GraphicsContext &context,
 
     if (!wasRendering) {
       CHECK_ERR(BeginRendering(context, vkCommandBuffer, loadConfig));
-      // sameViewport = false;
-      // sameScissor = false;
-      // sameDepth = false;
-      // sameBlendMode = false;
-      // sameCullmode = false;
-      // sameFFWinding = false;
+      sameViewport = false;
+      sameScissor = false;
+      sameDepth = false;
+      sameBlendMode = false;
+      sameCullmode = false;
+      sameFFWinding = false;
     }
 
     if (!sameViewport) {
