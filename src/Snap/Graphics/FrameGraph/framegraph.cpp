@@ -7,6 +7,7 @@
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
 #include "Libraries/vma.hpp"
+#include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
@@ -389,8 +390,50 @@ auto FrameGraph::PreCompile() -> Error {
     std::vector<CommandID> readsSinceWrite;
   };
 
-  // TODO: Use optimised structure here. Map does not work due to matching issues.
-  std::vector<std::pair<VulkanResource, Frontier>> frontiers;
+  // Resources only ever overlap when they share the same underlying handle
+  // (same VkImage, VkBuffer, or acceleration structure) -- different handles
+  // never alias. So bucket frontiers by handle: overlap/equality scans then
+  // only cover the sub-ranges of one resource (a handful of mips/layers at
+  // most) instead of every resource touched anywhere in the command buffer.
+  struct ResourceKey {
+    VulkanResource::ResourceType type;
+    const void *handle;
+
+    auto operator==(const ResourceKey &other) const -> bool {
+      return type == other.type && handle == other.handle;
+    }
+  };
+
+  struct ResourceKeyHash {
+    auto operator()(const ResourceKey &key) const -> size_t {
+      Hash::Hasher hasher;
+      hasher.Add(static_cast<uint32_t>(key.type));
+      hasher.Add(key.handle);
+      return hasher.Get();
+    }
+  };
+
+  const auto KeyOf = [](const VulkanResource &resource) -> ResourceKey {
+    switch (resource.type) {
+    case VulkanResource::ResourceType::Image:
+      return {.type = resource.type,
+              .handle = static_cast<const void *>(resource.image.image)};
+    case VulkanResource::ResourceType::Buffer:
+      return {.type = resource.type,
+              .handle = static_cast<const void *>(resource.buffer)};
+    case VulkanResource::ResourceType::AccelerationStructure:
+      return {.type = resource.type,
+              .handle =
+                  static_cast<const void *>(resource.accelerationStructure)};
+    }
+    assert(false && "Unreachable");
+    return {};
+  };
+
+  std::unordered_map<ResourceKey,
+                     std::vector<std::pair<VulkanResource, Frontier>>,
+                     ResourceKeyHash>
+      frontiers;
   std::vector<CommandID> candidates;
 
   for (auto &command : commandBuffer.commands) {
@@ -400,7 +443,12 @@ auto FrameGraph::PreCompile() -> Error {
 
     if (bound != nullptr) {
       for (const auto &resource : bound->reads) { // RAW
-        for (auto &[existing, frontier] : frontiers) {
+        const auto bucketIt = frontiers.find(KeyOf(resource));
+        if (bucketIt == frontiers.end()) {
+          continue;
+        }
+
+        for (auto &[existing, frontier] : bucketIt->second) {
           if (!existing.Overlaps(resource)) {
             continue;
           }
@@ -412,7 +460,12 @@ auto FrameGraph::PreCompile() -> Error {
       }
 
       for (const auto &resource : bound->writes) {
-        for (auto &[existing, frontier] : frontiers) {
+        const auto bucketIt = frontiers.find(KeyOf(resource));
+        if (bucketIt == frontiers.end()) {
+          continue;
+        }
+
+        for (auto &[existing, frontier] : bucketIt->second) {
           if (!existing.Overlaps(resource)) {
             continue;
           }
@@ -447,8 +500,10 @@ auto FrameGraph::PreCompile() -> Error {
 
     if (bound != nullptr) {
       for (const auto &resource : bound->reads) {
+        auto &bucket = frontiers[KeyOf(resource)];
+
         bool found = false;
-        for (auto &[existing, frontier] : frontiers) {
+        for (auto &[existing, frontier] : bucket) {
           if (!VulkanResource::Equals(existing, resource)) {
             continue;
           }
@@ -459,17 +514,19 @@ auto FrameGraph::PreCompile() -> Error {
         }
 
         if (!found) {
-          frontiers.emplace_back(resource,
-                                 Frontier{.lastWrite = InvalidCommandID,
-                                          .readsSinceWrite = {command.id}});
+          bucket.emplace_back(resource,
+                              Frontier{.lastWrite = InvalidCommandID,
+                                       .readsSinceWrite = {command.id}});
         }
       }
 
       // Done after the reads so a read-write resource does not list this
       // command as its own parent on the next usage.
       for (const auto &resource : bound->writes) {
+        auto &bucket = frontiers[KeyOf(resource)];
+
         bool found = false;
-        for (auto &[existing, frontier] : frontiers) {
+        for (auto &[existing, frontier] : bucket) {
           if (!VulkanResource::Equals(existing, resource)) {
             continue;
           }
@@ -480,7 +537,7 @@ auto FrameGraph::PreCompile() -> Error {
           break;
         }
         if (!found) {
-          frontiers.emplace_back(resource, Frontier{.lastWrite = command.id});
+          bucket.emplace_back(resource, Frontier{.lastWrite = command.id});
         }
       }
     }
@@ -647,7 +704,6 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
                           VkAccessFlags2 dstAccess,
                           VkPipelineStageFlags2 dstPipeline)
     -> std::array<VkPipelineStageFlags2, UINT64_WIDTH> {
-  ZoneScoped;
 
   std::array<VkPipelineStageFlags2, UINT64_WIDTH> maskBits{};
   // all bits that we access.
@@ -714,27 +770,24 @@ inline auto IsHazard(const VkAccessFlags2 srcAccess,
   return ((srcAccess | dstAccess) & writeAccessBits) != 0U;
 }
 
-auto FrameGraph::GetRequiredBarriers(CommandID commandId,
-                                     const VulkanResource &resource,
-                                     VkAccessFlags2 accesses,
-                                     VkPipelineStageFlags2 pipelines)
-    -> std::vector<VkMemoryBarrier2> {
-  const auto &command = commandBuffer.commands.at(commandId);
+auto FrameGraph::GetRequiredBarriers(
+    CommandID commandId, const VulkanResource &resource,
+    VkAccessFlags2 accesses, VkPipelineStageFlags2 pipelines,
+    std::vector<VkMemoryBarrier2> &memoryBarriers) -> void {
+  const auto &command = commandBuffer.commands[commandId];
 
   if (command.level == 0) {
-    return {};
+    return;
   }
 
   // Walks every real hazard source for this resource, not just the
   // transitively-reduced commandParents: a source dropped there for being
   // reachable through another kept candidate can still be the only command
   // carrying the write access/stage info this barrier needs.
-  const auto &hazardSources = commandHazardSources.at(commandId);
-
-  std::vector<VkMemoryBarrier2> memoryBarriers;
+  const auto &hazardSources = commandHazardSources[commandId];
 
   for (const auto &parentID : hazardSources) {
-    const auto &parent = commandBuffer.commands.at(parentID);
+    const auto &parent = commandBuffer.commands[parentID];
     const auto [srcAccess, srcStage] = ResourceWritesAt(parentID, resource);
 
     // This is a VALID result. In the scenario, for example, read x, write y, and our parent writes only x / y, we will
@@ -773,8 +826,6 @@ auto FrameGraph::GetRequiredBarriers(CommandID commandId,
       memoryBarriers.emplace_back(barrier);
     }
   }
-
-  return memoryBarriers;
 }
 
 // NOLINTNEXTLINE
@@ -1113,43 +1164,43 @@ inline auto MergeBarriers(std::vector<VkMemoryBarrier2> &barriers) {
 auto FrameGraph::InsertBarriers() -> Error {
   ZoneScoped;
 
+  {
+    ZoneScopedN("Filter user barriers");
+    for (auto &level : graph) {
+      Utils::UnorderedErase(
+          level.commands, [&](const CommandID &commandId) -> bool {
+            const auto &command = commandBuffer.commands[commandId];
+
+            if (command.GetType() == CommandType::vkCmdPipelineBarrier2) {
+              level.userBarriers.emplace_back(command.id);
+
+              return true;
+            }
+            return false;
+          });
+    }
+  }
+
+  const auto addBarriers = [this](const std::vector<VulkanResource> &resources,
+                                  const CommandID commandId,
+                                  Graphics::Level &level) -> void {
+    for (const auto &resource : resources) {
+      const auto &[accesses, pipelines] = ResourceAccessAt(commandId, resource);
+
+      GetRequiredBarriers(commandId, resource, accesses, pipelines,
+                          level.barriers);
+    }
+  };
+
   for (auto &level : graph) {
-    Utils::UnorderedErase(
-        level.commands, [&](const CommandID &commandId) -> bool {
-          const auto &command = commandBuffer.commands.at(commandId);
-
-          if (command.GetType() == CommandType::vkCmdPipelineBarrier2) {
-            level.userBarriers.emplace_back(command.id);
-
-            return true;
-          }
-          return false;
-        });
-
-    const auto addBarriers = [&](const std::vector<VulkanResource> &resources,
-                                 const CommandID commandId) -> auto {
-      for (const auto &resource : resources) {
-        const auto &[accesses, pipelines] =
-            ResourceAccessAt(commandId, resource);
-
-        const auto &newBarriers =
-            GetRequiredBarriers(commandId, resource, accesses, pipelines);
-
-        level.barriers.append_range(newBarriers);
-      }
-    };
-
     for (const auto commandId : level.commands) {
-      const auto &command = commandBuffer.commands.at(commandId);
+      const auto &command = commandBuffer.commands[commandId];
 
-      const auto &reads = GetReads(command);
-      const auto &writes = GetWrites(command);
-
-      addBarriers(reads, commandId);
-      addBarriers(writes, commandId);
+      addBarriers(GetReads(command), commandId, level);
+      addBarriers(GetWrites(command), commandId, level);
     }
 
-    // MergeBarriers(level.barriers);
+    MergeBarriers(level.barriers);
   }
 
   return {};
@@ -1844,6 +1895,7 @@ auto FrameGraph::Reset() -> void {
   commandHazardSources.clear();
   nextReady.clear();
   loadOpConfigs.clear();
+  CommandStateManager::StateToIndex.clear();
 }
 
 } // namespace Graphics

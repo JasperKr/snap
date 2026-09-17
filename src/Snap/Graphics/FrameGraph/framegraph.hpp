@@ -94,8 +94,9 @@ private:
 
   auto GetRequiredBarriers(CommandID commandId, const VulkanResource &resource,
                            VkAccessFlags2 accesses,
-                           VkPipelineStageFlags2 pipelines)
-      -> std::vector<VkMemoryBarrier2>;
+                           VkPipelineStageFlags2 pipelines,
+                           std::vector<VkMemoryBarrier2> &memoryBarriers)
+      -> void;
   auto SyncMask(CommandLevel start, CommandLevel end,
                 VkAccessFlags2 lastWriteAccess,
                 VkPipelineStageFlags2 lastWritePipeline,

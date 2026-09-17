@@ -196,7 +196,7 @@ auto DrawState::GetWriteStateFor(const VulkanResource &resource,
     VkPipelineStageFlags2 pipelines = 0;
 
     for (const auto &bound : boundResources) {
-      if (bound.Overlaps(resource) && IsAccessFlagReadOnly(bound.access)) {
+      if (bound.Overlaps(resource) && IsAccessFlagReadWrite(bound.access)) {
         access |= bound.access;
         pipelines |= bound.pipelines;
       }
@@ -484,24 +484,26 @@ auto DrawState::Initialize(const GraphicsContext &context, CommandType type)
   return {};
 }
 
-auto GetReads(const Command &command) -> std::vector<VulkanResource> {
+auto GetReads(const Command &command) -> const std::vector<VulkanResource> & {
+  static const std::vector<VulkanResource> empty{};
   const auto *bound = get_if_derived<BoundResources>(command.data);
 
   if (bound != nullptr) {
     return bound->reads;
   }
 
-  return {};
+  return empty;
 }
 
-auto GetWrites(const Command &command) -> std::vector<VulkanResource> {
+auto GetWrites(const Command &command) -> const std::vector<VulkanResource> & {
+  static const std::vector<VulkanResource> empty{};
   const auto *bound = get_if_derived<BoundResources>(command.data);
 
   if (bound != nullptr) {
     return bound->writes;
   }
 
-  return {};
+  return empty;
 }
 
 auto VirtualCommandBuffer::AddCommand(const Command &command) -> Error {

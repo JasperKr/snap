@@ -9,7 +9,6 @@
 #include "Graphics/renderThread.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/snapshot.hpp"
-#include "Graphics/vkAccessHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/vector.hpp"
@@ -766,10 +765,10 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
       destinationStage));
 #endif
 
-  if (sourceStage == destinationStage && srcAccessMask == dstAccessMask &&
-      state.currentLayout == layout) {
-    return Error::Success();
-  }
+  // if (sourceStage == destinationStage && srcAccessMask == dstAccessMask &&
+  //     state.currentLayout == layout) {
+  //   return Error::Success();
+  // }
 
   VkImageMemoryBarrier2 barrier = {};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -1210,21 +1209,21 @@ inline auto GetAccessFlagsForUsage(
     VkAccessFlagBits2 accessFlags = VK_ACCESS_2_NONE;
 
     if (isDepthStencil) {
-      if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
-        accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-      }
+      // if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
+      accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+      // }
 
-      if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
-        accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      }
+      // if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
+      accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      // }
     } else {
-      if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
-        accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
-      }
+      // if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
+      accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
+      // }
 
-      if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
-        accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-      }
+      // if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
+      accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+      // }
     }
 
     return accessFlags;
@@ -1282,9 +1281,8 @@ auto ImageMemory::UseAs(const GraphicsContext &context, TextureUsage newUsage,
       GetAccessFlagsForUsage(newUsage, format, loadOp, storeOp);
 
   if (state.lastUsage == TextureUsage::Swapchain) {
-    // currentAccess = VK_ACCESS_2_NONE;
     state.lastPipelineStage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    PrintAlways("Last usage was from swapchain");
+    currentAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
   }
 
   auto range =
@@ -1307,33 +1305,6 @@ auto Texture::UseAs(const GraphicsContext &context, TextureUsage newUsage,
                     VkPipelineStageFlags2 stage, VkAttachmentLoadOp loadOp,
                     VkAttachmentStoreOp storeOp) -> Error {
   auto &state = imageMemory->GetState();
-
-  // First usage this frame on this thread
-  // Reordering thread will insert the layout transition barrier before this command buffer is submitted
-  // [[unlikely]]
-  // if (state.lastUsedFrame != context.currentFrame &&
-  //     !context.currentlyReordering && false) {
-
-  //   state.lastUsedFrame = context.currentFrame;
-
-  //   state.lastUsage = newUsage;
-  //   state.lastPipelineStage = stage;
-
-  //   state.currentLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-  //   [[unlikely]]
-  //   if (newUsage == TextureUsage::PresentSrc) {
-  //     state.currentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-  //   }
-
-  //   GetThreadContext().initialImageStates.emplace_back(imageMemory, state);
-
-  //   return Error::Success();
-  // }
-
-  if (!context.currentlyReordering) {
-    GetThreadContext().finalImageStates[imageMemory->getID()] = state;
-  }
 
   return imageMemory->UseAs(context, newUsage, stage, loadOp, storeOp);
 }

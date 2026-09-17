@@ -1162,8 +1162,8 @@ struct ImageStateUpdate {
   CommandID time;
 };
 
-auto GetReads(const Command &command) -> std::vector<VulkanResource>;
-auto GetWrites(const Command &command) -> std::vector<VulkanResource>;
+auto GetReads(const Command &command) -> const std::vector<VulkanResource> &;
+auto GetWrites(const Command &command) -> const std::vector<VulkanResource> &;
 
 struct VirtualCommandBuffer {
   friend struct FrameGraph;

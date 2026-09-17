@@ -157,8 +157,6 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   tcontext.recordingIdentifier = cmdBufferIdentifierCounter.fetch_add(1);
 
   threadInfo->threadData.cmdBufferTimelineValue = tcontext.timelineValue;
-  tcontext.initialImageStates.clear();
-  tcontext.finalImageStates.clear();
   tcontext.queueFamily = info.queueFamily;
   threadInfo->threadData.queueFamily = info.queueFamily;
 

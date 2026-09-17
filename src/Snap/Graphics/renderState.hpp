@@ -64,6 +64,15 @@ struct RenderTarget {
       return false;
     }
 
+    if (loadOp != other.loadOp) {
+      return false;
+    }
+
+    if (!CompareVkPipelineColorBlendAttachmentState(blendMode,
+                                                    other.blendMode)) {
+      return false;
+    }
+
     return location == other.location;
   }
 };

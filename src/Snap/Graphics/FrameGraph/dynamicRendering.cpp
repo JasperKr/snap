@@ -4,6 +4,7 @@
 #include "Graphics/renderState.hpp"
 #include "pipelineState.hpp"
 #include <public/tracy/Tracy.hpp>
+#include <vulkan/vulkan_core.h>
 
 namespace Graphics {
 
@@ -44,19 +45,6 @@ auto compareViewports(const RenderState::State &first,
          first.viewport.height == second.viewport.height;
 }
 
-auto CompareVkPipelineColorBlendAttachmentState(
-    const VkPipelineColorBlendAttachmentState &first,
-    const VkPipelineColorBlendAttachmentState &second) -> bool {
-  return first.blendEnable == second.blendEnable &&
-         first.srcColorBlendFactor == second.srcColorBlendFactor &&
-         first.dstColorBlendFactor == second.dstColorBlendFactor &&
-         first.colorBlendOp == second.colorBlendOp &&
-         first.srcAlphaBlendFactor == second.srcAlphaBlendFactor &&
-         first.dstAlphaBlendFactor == second.dstAlphaBlendFactor &&
-         first.alphaBlendOp == second.alphaBlendOp &&
-         first.colorWriteMask == second.colorWriteMask;
-}
-
 auto compareDepthConfigs(const RenderState::State &first,
                          const RenderState::State &second) -> bool {
   return first.depthTestEnable == second.depthTestEnable &&
@@ -71,7 +59,7 @@ auto compareBlendmodes(const RenderState::State &first,
   }
 
   for (size_t i = 0; i < first.colorAttachments.size(); i++) {
-    if (!CompareVkPipelineColorBlendAttachmentState(
+    if (!RenderState::CompareVkPipelineColorBlendAttachmentState(
             first.colorAttachments.at(i).blendMode,
             second.colorAttachments.at(i).blendMode)) {
       return false;
@@ -128,8 +116,8 @@ inline auto BeginRendering(const GraphicsContext &context,
        i++) {
     const auto &rendertarget =
         RecordingState::CurrentState.colorAttachments.at(i);
-    CHECK_ERR(
-        rendertarget.texture->UseAsAttachment(context, rendertarget.loadOp));
+    CHECK_ERR(rendertarget.texture->UseAsAttachment(context,
+                                                    loadConfig.loadOps.at(i)));
 
     VkRenderingAttachmentInfo attachmentInfo = {};
     attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;

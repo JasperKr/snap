@@ -34,6 +34,19 @@ thread_local State *TopOfStack = nullptr;
 
 thread_local Stats CurrentStats;
 
+auto CompareVkPipelineColorBlendAttachmentState(
+    const VkPipelineColorBlendAttachmentState &first,
+    const VkPipelineColorBlendAttachmentState &second) -> bool {
+  return first.blendEnable == second.blendEnable &&
+         first.srcColorBlendFactor == second.srcColorBlendFactor &&
+         first.dstColorBlendFactor == second.dstColorBlendFactor &&
+         first.colorBlendOp == second.colorBlendOp &&
+         first.srcAlphaBlendFactor == second.srcAlphaBlendFactor &&
+         first.dstAlphaBlendFactor == second.dstAlphaBlendFactor &&
+         first.alphaBlendOp == second.alphaBlendOp &&
+         first.colorWriteMask == second.colorWriteMask;
+}
+
 inline auto SetupDefaultState(const GraphicsContext &context) -> Result<State> {
   auto defaultState = State();
 
