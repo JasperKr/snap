@@ -141,7 +141,7 @@ auto DrawState::GetReadStateFor(const VulkanResource &resource,
     VkPipelineStageFlags2 pipelines = 0;
 
     for (const auto &bound : boundResources) {
-      if (bound.Overlaps(resource) && IsAccessFlagReadOnly(bound.access)) {
+      if (bound.Overlaps(resource) && IsReadAccess(bound.access)) {
         access |= bound.access;
         pipelines |= bound.pipelines;
       }
@@ -196,7 +196,7 @@ auto DrawState::GetWriteStateFor(const VulkanResource &resource,
     VkPipelineStageFlags2 pipelines = 0;
 
     for (const auto &bound : boundResources) {
-      if (bound.Overlaps(resource) && IsAccessFlagReadWrite(bound.access)) {
+      if (bound.Overlaps(resource) && IsWriteAccess(bound.access)) {
         access |= bound.access;
         pipelines |= bound.pipelines;
       }

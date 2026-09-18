@@ -10,5 +10,6 @@ auto IsAccessFlagReadOnly(VkAccessFlags2 flags) -> bool;
 auto IsAccessFlagWriteOnly(VkAccessFlags2 flags) -> bool;
 auto IsAccessFlagReadWrite(VkAccessFlags2 flags) -> bool;
 auto IsWriteAccess(VkAccessFlags2 flags) -> bool;
+auto IsReadAccess(VkAccessFlags2 flags) -> bool;
 
 } // namespace Graphics

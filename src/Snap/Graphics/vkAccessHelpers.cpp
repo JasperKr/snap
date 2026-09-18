@@ -134,4 +134,8 @@ auto IsWriteAccess(VkAccessFlags2 flags) -> bool {
   return (flags | writeAccesses) != 0U;
 }
 
+auto IsReadAccess(VkAccessFlags2 flags) -> bool {
+  return (flags | readAccesses) != 0U;
+}
+
 } // namespace Graphics

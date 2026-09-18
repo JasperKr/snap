@@ -1435,9 +1435,10 @@ auto FrameGraph::BuildReadyState() -> Error {
 
   nextReady.clear();
   nextReady.resize(commandCount);
+  std::vector<CommandID> batch;
 
   while (scheduledCount < commandCount) {
-    std::vector<CommandID> batch;
+    batch.clear();
 
     for (const auto &command : commandBuffer.commands) {
       if (scheduled[command.id]) {
