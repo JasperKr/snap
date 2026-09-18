@@ -7,7 +7,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#define OUTPUT_DEBUG_GRAPH 0
+#define OUTPUT_DEBUG_GRAPH 1
 
 namespace Graphics {
 
@@ -40,6 +40,7 @@ struct FrameGraph {
 
 private:
   VirtualCommandBuffer commandBuffer;
+  std::vector<Command> commands;
 
   std::vector<Level> graph;
   std::unordered_map<CommandID, LoadOpConfig> loadOpConfigs;
@@ -78,6 +79,7 @@ private:
   auto MarkAncestors(CommandID from, CommandID floor, uint32_t stamp) -> void;
   auto ReduceParents(CommandID idx, const std::vector<CommandID> &candidates)
       -> void;
+  auto CompactRenderPasses() -> Error;
   auto BuildRenderRegions(const GraphicsContext &context)
       -> Result<std::vector<RenderingInfo>>;
 

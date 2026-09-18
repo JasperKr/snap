@@ -61,6 +61,8 @@ enum class CommandType : uint8_t {
 
   vkCmdClearAttachments,
   vkCmdPipelineBarrier2,
+
+  renderPass,
 };
 
 static const Utils::EnumStringHelper<CommandType> CommandTypeEnumHelper{{
@@ -368,6 +370,10 @@ struct DrawState {
 
   std::vector<VkBuffer> vertexBuffers;
   VkBuffer indexBuffer = VK_NULL_HANDLE;
+
+  std::vector<VkDeviceSize> vertexBufferOffsets;
+  VkIndexType indexType = VK_INDEX_TYPE_MAX_ENUM;
+  VkDeviceSize indexBufferOffset{};
 
   // Copied from graph state.
   std::vector<char> pushConstants;
@@ -1081,6 +1087,17 @@ struct VkCmdPipelineBarrier2 : Callable, BoundResources {
 // NOLINTEND(cppcoreguidelines-special-member-functions, hicpp-special-member-functions)
 } // namespace Args
 
+using RenderPassCommands =
+    std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed,
+                 Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect>;
+
+struct RenderPass : BoundResources {
+  static const CommandType type = CommandType::renderPass;
+
+  uint32_t stateID;
+  std::vector<CommandID> commands;
+};
+
 template <typename T, typename... Ts>
 auto get_if_derived(std::variant<Ts...> &variant) -> T * {
   T *result = nullptr;
@@ -1124,7 +1141,7 @@ using ArgVariants = std::variant<
     Args::VkCmdBuildAccelerationStructuresKHR,
     Args::VkCmdCopyAccelerationStructureKHR, Args::VkCmdResetQueryPool,
     Args::VkCmdWriteAccelerationStructuresPropertiesKHR,
-    Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2>;
+    Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2, RenderPass>;
 
 struct Command {
   CommandID id = InvalidCommandID;

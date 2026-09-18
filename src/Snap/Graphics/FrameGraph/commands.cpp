@@ -262,18 +262,6 @@ auto GraphState::GetHash() const -> uint64_t {
     hasher.Add(scissor.offset.x);
     hasher.Add(scissor.offset.y);
 
-    for (auto *buffer : vertexBuffers) {
-      hasher.Add(buffer);
-    }
-
-    hasher.Add(indexBuffer);
-    hasher.Add(indexType);
-
-    for (auto offset : vertexBufferOffsets) {
-      hasher.Add(offset);
-    }
-    hasher.Add(indexBufferOffset);
-
     for (const auto &equation : colorBlendEquations) {
       hasher.Add(equation.srcColorBlendFactor);
       hasher.Add(equation.dstColorBlendFactor);
@@ -470,9 +458,14 @@ auto DrawState::Initialize(const GraphicsContext &context, CommandType type)
     });
   }
 
-  vertexBuffers.insert(vertexBuffers.begin(), ctx.boundVertexBuffers.begin(),
-                       ctx.boundVertexBuffers.end());
-  indexBuffer = ctx.boundIndexBuffer;
+  vertexBuffers.insert(vertexBuffers.begin(), graphState.vertexBuffers.begin(),
+                       graphState.vertexBuffers.end());
+  indexBuffer = graphState.indexBuffer;
+  vertexBufferOffsets.insert(vertexBufferOffsets.begin(),
+                             graphState.vertexBufferOffsets.begin(),
+                             graphState.vertexBufferOffsets.end());
+  indexBufferOffset = graphState.indexBufferOffset;
+  indexType = graphState.indexType;
 
   stateID = ctx.commandBuffer->GetStateID();
 
@@ -780,15 +773,14 @@ auto DrawState::Apply(const GraphicsContext &context,
                            state.attributeDescriptions.size(),
                            state.attributeDescriptions.data());
 
-    if (!state.vertexBuffers.empty()) {
-      vkCmdBindVertexBuffers(cmdBuffer, 0, state.vertexBuffers.size(),
-                             state.vertexBuffers.data(),
-                             state.vertexBufferOffsets.data());
+    if (!vertexBuffers.empty()) {
+      vkCmdBindVertexBuffers(cmdBuffer, 0, vertexBuffers.size(),
+                             vertexBuffers.data(), vertexBufferOffsets.data());
     }
 
-    if (state.indexBuffer != VK_NULL_HANDLE) {
-      vkCmdBindIndexBuffer(cmdBuffer, state.indexBuffer,
-                           state.indexBufferOffset, state.indexType);
+    if (indexBuffer != VK_NULL_HANDLE) {
+      vkCmdBindIndexBuffer(cmdBuffer, indexBuffer, indexBufferOffset,
+                           indexType);
     }
   }
 

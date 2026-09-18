@@ -200,7 +200,6 @@ auto SubmitCommands(Graphics::GraphicsContext &context)
   }
 
   threadContext.commandBuffer = VK_NULL_HANDLE;
-  threadContext.currentMesh = UINT64_MAX;
 
   threadContext.queueFamily = UINT32_MAX;
   threadContext.queueFlags = VK_QUEUE_FLAG_BITS_MAX_ENUM;

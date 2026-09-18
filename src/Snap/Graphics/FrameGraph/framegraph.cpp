@@ -9,6 +9,7 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/Math/vector.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -1753,11 +1754,86 @@ auto FrameGraph::BuildLoadOpModes() -> void {
   }
 }
 
+auto FrameGraph::CompactRenderPasses() -> Error {
+  bool inRange{};
+
+  // Amount of items merged, excluding one per range since the range object becomes a command
+  int count = 0;
+
+  for (const auto &command : commandBuffer.commands) {
+    const auto type = command.GetType();
+
+    if (type == CommandType::vkCmdDraw ||
+        type == CommandType::vkCmdDrawIndexed ||
+        type == CommandType::vkCmdDrawIndexedIndirect ||
+        type == CommandType::vkCmdDrawIndirect) {
+      if (!inRange) {
+        inRange = true;
+      } else {
+        count++;
+      }
+    } else {
+      inRange = false;
+    }
+  }
+
+  commands.reserve(commandBuffer.commands.size() - count);
+
+  if (count == 0) {
+    commands = commandBuffer.commands;
+    return {};
+  }
+
+  RenderPass currentPass;
+  inRange = false;
+  int drawStateMismatches = 0;
+
+  for (const auto &command : commandBuffer.commands) {
+    const auto type = command.GetType();
+
+    if (type == CommandType::vkCmdDraw ||
+        type == CommandType::vkCmdDrawIndexed ||
+        type == CommandType::vkCmdDrawIndexedIndirect ||
+        type == CommandType::vkCmdDrawIndirect) {
+      uint32_t stateID = command.GetDrawState()->stateID;
+
+      if (!inRange) {
+        currentPass = {.stateID = stateID};
+        inRange = true;
+      }
+
+      if (currentPass.stateID != stateID) {
+        commands.emplace_back(currentPass);
+        currentPass = {.stateID = stateID};
+        drawStateMismatches++;
+      }
+
+      currentPass.commands.emplace_back(command.id);
+      currentPass.reads.append_range(GetReads(command));
+      currentPass.writes.append_range(GetWrites(command));
+    } else {
+      if (inRange) {
+        commands.emplace_back(currentPass);
+      }
+
+      inRange = false;
+      commands.emplace_back(command);
+    }
+  }
+
+  PrintAlways(
+      "Starting command count: {}, reduced: {}, draw state mismatches {}",
+      commandBuffer.commands.size(), commands.size(), drawStateMismatches);
+
+  return {};
+}
+
 // NOLINTNEXTLINE
 auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   ZoneScoped;
 
   CHECK_ERR(ValidateGraph());
+  CHECK_ERR(CompactRenderPasses());
   CHECK_ERR(MapResourceUsages());
   CHECK_ERR(BuildGraph());
   CHECK_ERR(BuildReadyState());
@@ -1765,6 +1841,9 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   const auto &reordered = CHECK_RES(Reorder());
   CHECK_ERR(UpdateLevels(reordered));
   CHECK_ERR(InsertBarriers());
+
+  PrintAlways("Command count: {}", commandBuffer.commands.size());
+  PrintAlways("Level count: {}", graph.size());
 
   const auto &regions = CHECK_RES(BuildRenderRegions(context));
 
@@ -1896,6 +1975,7 @@ auto FrameGraph::Reset() -> void {
   commandHazardSources.clear();
   nextReady.clear();
   loadOpConfigs.clear();
+  commands.clear();
   CommandStateManager::StateToIndex.clear();
 }
 

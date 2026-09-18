@@ -164,31 +164,17 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
 
     assert(indexBuffer->handle != VK_NULL_HANDLE);
 
-    if (threadContext.currentMesh != mesh.getID()) {
-      threadContext.boundIndexBuffer = indexBuffer->handle;
-
-      commandBuffer->BindIndexBuffer(
-          {indexBuffer->handle, 0, mesh.GetIndexFormat()});
-    }
+    commandBuffer->BindIndexBuffer(
+        {indexBuffer->handle, 0, mesh.GetIndexFormat()});
   } else {
-    threadContext.boundIndexBuffer = VK_NULL_HANDLE;
+    commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
   }
 
-  if (threadContext.currentMesh != mesh.getID()) {
-    const auto &bindings = mesh.GetBindingRanges();
-    threadContext.boundVertexBuffers.clear();
-
-    for (const auto &buffer : mesh.GetVertexBuffers()) {
-      threadContext.boundVertexBuffers.emplace_back(buffer->handle);
-    }
-
-    for (const auto &binding : bindings) {
-      commandBuffer->BindVertexBuffers({binding.firstBinding,
-                                        binding.bindingCount, binding.bindings,
-                                        binding.offsets});
-    }
-
-    threadContext.currentMesh = mesh.getID();
+  const auto &bindings = mesh.GetBindingRanges();
+  for (const auto &binding : bindings) {
+    commandBuffer->BindVertexBuffers({binding.firstBinding,
+                                      binding.bindingCount, binding.bindings,
+                                      binding.offsets});
   }
 
   return Error::Success();

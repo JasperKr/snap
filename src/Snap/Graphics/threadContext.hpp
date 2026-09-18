@@ -26,10 +26,6 @@ struct ThreadContext {
 
   // unique identifier to not the frame, but recording of command buffer
   uint64_t recordingIdentifier = 0;
-  ObjectID currentMesh;
-
-  VkBuffer boundIndexBuffer;
-  Math::StackVector<VkBuffer, MAX_BOUND_VERTEX_BUFFERS> boundVertexBuffers;
 
   std::vector<DescriptorPoolInfo> descriptorPools;  // Descriptor pool info
   VkDescriptorPool descriptorPool = VK_NULL_HANDLE; // Current descriptor pool
