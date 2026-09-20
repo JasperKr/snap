@@ -80,6 +80,15 @@ auto SetBindingToSlot(uint32_t set, uint32_t binding) -> uint64_t;
 
 auto SlotToSetBinding(uint64_t slot) -> std::pair<uint32_t, uint32_t>;
 
+template <typename T, typename Comp_lt, typename Comp_Eq>
+auto DeDuplicate(std::vector<T> &data,
+                 Comp_lt compare_less_than = std::less<T>(),
+                 Comp_Eq compare_equals = std::equal_to<T>()) {
+  std::ranges::sort(data, compare_less_than);
+  auto [first, last] = std::ranges::unique(data, compare_equals);
+  data.erase(first, last);
+}
+
 template <class T, class F> constexpr void ForEachBit(T mask, F &&func) {
   static_assert(std::is_unsigned_v<T>, "mask must be unsigned");
   while (mask) {

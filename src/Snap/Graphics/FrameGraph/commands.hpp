@@ -331,6 +331,46 @@ struct VulkanResource {
       return std::format("Image {}", (void *)image.image);
     }
   }
+
+  auto operator==(const VulkanResource &other) const noexcept -> bool {
+    if (type != other.type) {
+      return false;
+    }
+
+    switch (type) {
+    case ResourceType::AccelerationStructure:
+      return accelerationStructure == other.accelerationStructure;
+    case ResourceType::Buffer:
+      return buffer == other.buffer;
+    case ResourceType::Image:
+      return image.image == other.image.image;
+    }
+
+    return false;
+  }
+};
+
+struct VulkanResourceHash {
+  auto operator()(const VulkanResource &resource) const noexcept -> uint64_t {
+    Hash::Hasher hasher;
+    hasher.Add(static_cast<uint32_t>(resource.type));
+
+    switch (resource.type) {
+    case VulkanResource::ResourceType::Image:
+      hasher.Add(resource.image.image);
+      break;
+    case VulkanResource::ResourceType::Buffer:
+      hasher.Add(resource.buffer);
+      break;
+    case VulkanResource::ResourceType::AccelerationStructure:
+      hasher.Add(resource.accelerationStructure);
+      break;
+    default:
+      assert(false && "Unreachable");
+    }
+
+    return hasher.Get();
+  }
 };
 
 struct BoundResources {

@@ -3,6 +3,7 @@
 #include "Graphics/buffer.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -15,6 +16,14 @@ struct BufferUploadManager {
       : buffer(buffer), elementStride(elementStride) {
     assert(buffer.isValid());
     data.resize(buffer->size);
+  }
+
+  auto SetNewBuffer(const Ref<Graphics::Buffer> &newBuffer) -> Error {
+    ERR_ASSERT(newBuffer->size > buffer->size);
+    data.resize(newBuffer->size);
+    buffer = newBuffer;
+
+    return {};
   }
 
   auto MarkUpdated(uint32_t elementIndex) -> void {

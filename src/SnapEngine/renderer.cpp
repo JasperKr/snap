@@ -128,8 +128,7 @@ auto Renderer::GetNewMaterialIndex() -> Result<size_t> {
     MaterialsBuffer = CHECK_RES(MaterialsBuffer->Grow(
         *Graphics::GetCurrentGraphicsContext(), newElementCount));
 
-    MaterialUploadManager = BufferUploadManager(MaterialsBuffer->GetBuffer(),
-                                                MaterialsBuffer->GetStride());
+    CHECK_ERR(MaterialUploadManager.SetNewBuffer(MaterialsBuffer->GetBuffer()));
   }
 
   return newIndex;

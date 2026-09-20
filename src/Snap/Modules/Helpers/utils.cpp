@@ -6,8 +6,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <span>
 #include <unistd.h>
+#include <vector>
 
 namespace Utils {
 

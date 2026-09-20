@@ -14,6 +14,7 @@
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include <cstddef>
+#include <functional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -300,6 +301,10 @@ auto FrameGraph::MapResourceUsages() -> Error {
       auto [first, last] = std::ranges::unique(writes, VulkanResource::Equals);
       writes.erase(first, last);
       boundState->writes = std::move(writes);
+
+      for (const auto &write : writes) {
+        resourcesWritesInFrame.emplace(write);
+      }
     }
   }
 
@@ -430,45 +435,44 @@ auto FrameGraph::PreCompile() -> Error {
   std::vector<CommandID> candidates;
 
   for (auto &command : commands) {
-    const auto *bound = get_if_derived<BoundResources>(command.data);
+    // Hot path. 800/1200 microseconds for large calls (depth prepass & material pass)
+    ZoneScopedN("Determine command parents");
 
     candidates.clear();
 
-    if (bound != nullptr) {
-      for (const auto &resource : bound->reads) { // RAW
-        const auto bucketIt = frontiers.find(KeyOf(resource));
-        if (bucketIt == frontiers.end()) {
-          continue;
-        }
-
-        for (auto &[existing, frontier] : bucketIt->second) {
-          if (!existing.Overlaps(resource)) {
-            continue;
-          }
-
-          if (frontier.lastWrite != InvalidCommandID) {
-            candidates.emplace_back(frontier.lastWrite);
-          }
-        }
+    for (const auto &resource : GetReads(command)) { // RAW
+      const auto bucketIt = frontiers.find(KeyOf(resource));
+      if (bucketIt == frontiers.end()) {
+        continue;
       }
 
-      for (const auto &resource : bound->writes) {
-        const auto bucketIt = frontiers.find(KeyOf(resource));
-        if (bucketIt == frontiers.end()) {
+      for (auto &[existing, frontier] : bucketIt->second) {
+        if (!existing.Overlaps(resource)) {
           continue;
         }
 
-        for (auto &[existing, frontier] : bucketIt->second) {
-          if (!existing.Overlaps(resource)) {
-            continue;
-          }
-
-          if (frontier.lastWrite != InvalidCommandID) { // WAW
-            candidates.emplace_back(frontier.lastWrite);
-          }
-
-          candidates.append_range(frontier.readsSinceWrite); // WAR
+        if (frontier.lastWrite != InvalidCommandID) {
+          candidates.emplace_back(frontier.lastWrite);
         }
+      }
+    }
+
+    for (const auto &resource : GetWrites(command)) {
+      const auto bucketIt = frontiers.find(KeyOf(resource));
+      if (bucketIt == frontiers.end()) {
+        continue;
+      }
+
+      for (auto &[existing, frontier] : bucketIt->second) {
+        if (!existing.Overlaps(resource)) {
+          continue;
+        }
+
+        if (frontier.lastWrite != InvalidCommandID) { // WAW
+          candidates.emplace_back(frontier.lastWrite);
+        }
+
+        candidates.append_range(frontier.readsSinceWrite); // WAR
       }
     }
 
@@ -491,47 +495,49 @@ auto FrameGraph::PreCompile() -> Error {
 
     ReduceParents(command.id, candidates);
 
-    if (bound != nullptr) {
-      for (const auto &resource : bound->reads) {
-        auto &bucket = frontiers[KeyOf(resource)];
-
-        bool found = false;
-        for (auto &[existing, frontier] : bucket) {
-          if (!VulkanResource::Equals(existing, resource)) {
-            continue;
-          }
-
-          frontier.readsSinceWrite.emplace_back(command.id);
-          found = true;
-          break;
-        }
-
-        if (!found) {
-          bucket.emplace_back(resource,
-                              Frontier{.lastWrite = InvalidCommandID,
-                                       .readsSinceWrite = {command.id}});
-        }
+    for (const auto &resource : GetReads(command)) {
+      if (!resourcesWritesInFrame.contains(resource)) {
+        continue;
       }
 
-      // Done after the reads so a read-write resource does not list this
-      // command as its own parent on the next usage.
-      for (const auto &resource : bound->writes) {
-        auto &bucket = frontiers[KeyOf(resource)];
+      auto &bucket = frontiers[KeyOf(resource)];
 
-        bool found = false;
-        for (auto &[existing, frontier] : bucket) {
-          if (!VulkanResource::Equals(existing, resource)) {
-            continue;
-          }
+      bool found = false;
+      for (auto &[existing, frontier] : bucket) {
+        if (!VulkanResource::Equals(existing, resource)) {
+          continue;
+        }
 
-          frontier.lastWrite = command.id;
-          frontier.readsSinceWrite.clear();
-          found = true;
-          break;
+        frontier.readsSinceWrite.emplace_back(command.id);
+        found = true;
+        break;
+      }
+
+      if (!found) {
+        bucket.emplace_back(resource,
+                            Frontier{.lastWrite = InvalidCommandID,
+                                     .readsSinceWrite = {command.id}});
+      }
+    }
+
+    // Done after the reads so a read-write resource does not list this
+    // command as its own parent on the next usage.
+    for (const auto &resource : GetWrites(command)) {
+      auto &bucket = frontiers[KeyOf(resource)];
+
+      bool found = false;
+      for (auto &[existing, frontier] : bucket) {
+        if (!VulkanResource::Equals(existing, resource)) {
+          continue;
         }
-        if (!found) {
-          bucket.emplace_back(resource, Frontier{.lastWrite = command.id});
-        }
+
+        frontier.lastWrite = command.id;
+        frontier.readsSinceWrite.clear();
+        found = true;
+        break;
+      }
+      if (!found) {
+        bucket.emplace_back(resource, Frontier{.lastWrite = command.id});
       }
     }
   }
@@ -710,7 +716,7 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
   }
 
   // mask bits are now all unsynced bits
-  for (auto level = start + 1; level <= end; level++) {
+  for (auto level = end; level >= start + 1; level--) {
     const auto &barriers = graph.at(level).barriers;
 
     for (const auto &barrier : barriers) {
@@ -728,6 +734,17 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
         if (srcMatch) {
           // Remove the accesses that are now satisfied
           maskBits.at(bitIndex) &= ~barrier.dstAccessMask;
+
+          // All synced
+          if (maskBits.at(bitIndex) == 0UL) {
+            // Remove this pipeline to be checked
+            dstPipeline &= ~mask;
+
+            // No more pipelines to be checked, early return.
+            if (dstPipeline == 0) {
+              return maskBits;
+            }
+          }
         }
       }
     }
@@ -1039,9 +1056,9 @@ auto FrameGraph::ResourceWritesAt(CommandID commandId,
 
   if (drawState != nullptr) {
     const auto &pair = drawState->GetWriteStateFor(resource, command.GetType());
-    if (pair.first != 0U && pair.second != 0U) {
-      return pair;
-    }
+    // if (pair.first != 0U && pair.second != 0U) {
+    return pair;
+    // }
   }
 
   std::pair<VkAccessFlags2, VkPipelineStageFlags2> flags{};
@@ -1177,19 +1194,27 @@ auto FrameGraph::InsertBarriers() -> Error {
                                   const CommandID commandId,
                                   Graphics::Level &level) -> void {
     for (const auto &resource : resources) {
-      const auto &[accesses, pipelines] = ResourceAccessAt(commandId, resource);
+      if (!resourcesWritesInFrame.contains(resource)) {
+        continue;
+      }
 
+      const auto &[accesses, pipelines] = ResourceAccessAt(commandId, resource);
       GetRequiredBarriers(commandId, resource, accesses, pipelines,
                           level.barriers);
     }
   };
 
   for (auto &level : graph) {
+    ZoneScopedN("level barriers");
     for (const auto commandId : level.commands) {
       const auto &command = commands[commandId];
 
+      // if (command.GetType() == CommandType::renderPass) {
+
+      // } else {
       addBarriers(GetReads(command), commandId, level);
       addBarriers(GetWrites(command), commandId, level);
+      // }
     }
 
     MergeBarriers(level.barriers);
@@ -1814,6 +1839,10 @@ auto FrameGraph::CompactRenderPasses() -> Error {
       inRange = true;
 
       if (currentPass.stateID != stateID) {
+        Utils::DeDuplicate(currentPass.reads, std::less<VulkanResource>{},
+                           VulkanResource::Equals);
+        Utils::DeDuplicate(currentPass.writes, std::less<VulkanResource>{},
+                           VulkanResource::Equals);
         commands.emplace_back(currentPass);
         currentPass = {.stateID = stateID};
         drawStateMismatches++;
@@ -2024,6 +2053,7 @@ auto FrameGraph::Reset() -> void {
   nextReady.clear();
   loadOpConfigs.clear();
   commands.clear();
+  resourcesWritesInFrame.clear();
   CommandStateManager::StateToIndex.clear();
 }
 

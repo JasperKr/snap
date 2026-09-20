@@ -4,6 +4,7 @@
 #include "Modules/error.hpp"
 #include <cstdint>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -51,6 +52,9 @@ private:
   // computation walked this list too. See commandHazardSources.
   std::vector<std::vector<CommandID>> commandParents;
   std::vector<std::vector<CommandID>> nextReady;
+
+  // Quick early-out to see if resources were edited.
+  std::unordered_set<VulkanResource, VulkanResourceHash> resourcesWritesInFrame;
 
   // Every command whose resource access this command must synchronize
   // against, before transitive reduction. Unlike commandParents, no entry
