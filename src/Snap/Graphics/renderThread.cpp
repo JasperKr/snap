@@ -71,13 +71,9 @@ inline auto CreateDescriptorPool(ThreadContext &tcontext)
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
 
-    Error error = Error::Create(
-        vkCreateDescriptorPool(tcontext.graphicsContext->device, &poolInfo,
-                               GetAllocationCallbacks(), &descriptorPool));
-
-    if (Error::IsError(error)) {
-      return error;
-    }
+    CHECK_NEW_ERR(vkCreateDescriptorPool(tcontext.graphicsContext->device,
+                                         &poolInfo, GetAllocationCallbacks(),
+                                         &descriptorPool));
   }
 
   return descriptorPool;
@@ -105,6 +101,8 @@ inline auto GetDescriptorPool(ThreadContext &tcontext) -> Error {
 
   if (pool == VK_NULL_HANDLE) {
     pool = CHECK_RES(CreateDescriptorPool(tcontext));
+
+    PrintAlways("New pool");
 
     tcontext.descriptorPools.push_back(
         {pool, Graphics::SemaphoreManager::GetSemaphoreValue()});

@@ -9,7 +9,7 @@ struct GraphicsContext;
 
 auto PrepareRendering(const GraphicsContext &context,
                       VkCommandBuffer vkCommandBuffer,
-                      const LoadOpConfig &loadConfig) -> Error;
+                      const LoadOpConfig *loadConfig) -> Error;
 auto EndRendering(const GraphicsContext &context,
                   VkCommandBuffer vkCommandBuffer) -> void;
 

@@ -2,7 +2,7 @@ function snap.config(config)
   config.window.width = 1800
   config.window.height = 1200
 
-  config.window.title = "Configured Title"
+  config.window.title = "snap"
   config.window.resizable = true
 
   -- "linear" | "gammacorrect" | "hdr"
@@ -23,7 +23,7 @@ function snap.config(config)
     sourceDir .. "Graphics/Shaders/Lighting/Lights/",
   }
 
-  config.filesystem.identity = "ConfiguredIdentity"
+  config.filesystem.identity = "snap"
 
   -- "debug" > "info" > "warning" > "error" > "fatal"
   config.loglevel = "warning"

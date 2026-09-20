@@ -261,6 +261,16 @@ auto Present(Graphics::GraphicsContext &context,
     }
   }
 
+  std::vector<uint64_t> orderedSemaphoreValues = {};
+
+  orderedSemaphoreValues.reserve(commands.size());
+  for (const auto &command : commands) {
+    orderedSemaphoreValues.emplace_back(
+        command->threadData.cmdBufferTimelineValue);
+  }
+
+  Graphics::semaphoreManager.QueueTimelineValues(orderedSemaphoreValues);
+
   static FrameGraph graph;
 
   auto &availableCommandBuffers =

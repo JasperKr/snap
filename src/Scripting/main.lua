@@ -101,7 +101,7 @@ function snap.draw()
       snap.event.quit()
       return
     end
-    local buffer = commandsChannel:demand(0.5)
+    local buffer = commandsChannel:demand(50)
     while buffer do
       table.insert(commandBuffers, buffer)
       buffer = commandsChannel:pop()

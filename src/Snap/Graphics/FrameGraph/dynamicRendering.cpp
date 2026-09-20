@@ -2,6 +2,8 @@
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/renderState.hpp"
+#include "Modules/console.hpp"
+#include "Modules/error.hpp"
 #include "pipelineState.hpp"
 #include <public/tracy/Tracy.hpp>
 #include <vulkan/vulkan_core.h>
@@ -224,7 +226,7 @@ auto EndRendering(const GraphicsContext &context,
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto PrepareRendering(const GraphicsContext &context,
                       VkCommandBuffer vkCommandBuffer,
-                      const LoadOpConfig &loadConfig) -> Error {
+                      const LoadOpConfig *loadConfig) -> Error {
   ZoneScoped;
 
   bool sameViewport = false;
@@ -267,13 +269,8 @@ auto PrepareRendering(const GraphicsContext &context,
     ZoneScopedN("Dynamic state setup");
 
     if (!wasRendering) {
-      CHECK_ERR(BeginRendering(context, vkCommandBuffer, loadConfig));
-      sameViewport = false;
-      sameScissor = false;
-      sameDepth = false;
-      sameBlendMode = false;
-      sameCullmode = false;
-      sameFFWinding = false;
+      CHECK_NULL(loadConfig);
+      CHECK_ERR(BeginRendering(context, vkCommandBuffer, *loadConfig));
     }
 
     if (!sameViewport) {

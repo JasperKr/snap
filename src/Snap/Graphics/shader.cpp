@@ -155,11 +155,10 @@ void UnloadShaderModule(const Graphics::GraphicsContext &context) {
   DefaultShaderModule.reset();
 
   for (auto *session : SessionStorage) {
-    if (session != nullptr) {
-      session->release();
-    }
+    session->release();
   }
 
+  SessionStorage.clear();
   slang::shutdown();
 }
 

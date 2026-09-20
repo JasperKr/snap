@@ -810,6 +810,11 @@ Scene::Scene(std::string name) : name(std::move(name)) {
             transform.UpdateWorldMatrix(parentTransform);
           });
 
+  auto postTransformSystem = world.system<Engine::Transform>().each(
+      [](Transform &transform) -> auto { transform.MarkChildrenUpdated(); });
+
+  postTransformSystem.depends_on(transformSystem);
+
   auto preBoundsCascadeSystem = world.system<Engine::WorldBounds>().each(
       [](Engine::WorldBounds &bbox) -> auto { bbox.Bounds.Reset(); });
 

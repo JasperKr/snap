@@ -655,8 +655,6 @@ auto Flush(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer)
       RecordingState::CurrentState.GetHash() ==
           RecordingState::LastState->GetHash() &&
       RecordingState::CurrentState == *RecordingState::LastState) {
-    PrintDebug("Flush early-out");
-
     return false;
   }
 

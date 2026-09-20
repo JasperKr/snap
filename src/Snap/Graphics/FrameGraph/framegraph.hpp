@@ -7,7 +7,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#define OUTPUT_DEBUG_GRAPH 1
+#define OUTPUT_DEBUG_GRAPH 0
 
 namespace Graphics {
 

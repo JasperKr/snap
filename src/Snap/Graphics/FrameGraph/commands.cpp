@@ -17,6 +17,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <public/tracy/Tracy.hpp>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -718,10 +719,9 @@ auto ResetCommandBuffer(VirtualCommandBuffer &buffer) -> void {
   buffer.Reset();
 }
 
-auto LoadOpConfig::FromDrawState(struct DrawState const *state,
-                                 bool forceLoadOpLoad) -> LoadOpConfig {
+auto LoadOpConfig::FromGraphState(const GraphState &graphState,
+                                  bool forceLoadOpLoad) -> LoadOpConfig {
   LoadOpConfig config{};
-  const auto &graphState = state->GetGraphState();
 
   for (const auto &attachment : graphState.colorAttachments) {
     config.loadOps.emplace_back(forceLoadOpLoad ? VK_ATTACHMENT_LOAD_OP_LOAD
@@ -737,9 +737,8 @@ auto LoadOpConfig::FromDrawState(struct DrawState const *state,
   return config;
 }
 
-auto DrawState::Apply(const GraphicsContext &context,
-                      VirtualCommandBuffer &buffer, VkCommandBuffer cmdBuffer,
-                      const LoadOpConfig &loadConfig) const -> Error {
+auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
+                      const LoadOpConfig *loadConfig) const -> Error {
   ERR_ASSERT(stateID != UINT32_MAX);
 
   const auto &state = CommandStateManager::States.at(stateID);

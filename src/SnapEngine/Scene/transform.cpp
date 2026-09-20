@@ -247,6 +247,10 @@ auto Transform::UpdateLocalMatrix() -> void {
 }
 
 auto Transform::UpdateWorldMatrix(const Transform *parent) -> void {
+  if (parent != nullptr && parent->ChildrenDirty) {
+    WorldDirty = true;
+  }
+
   if (!WorldDirty) {
     return;
   }
@@ -260,7 +264,10 @@ auto Transform::UpdateWorldMatrix(const Transform *parent) -> void {
   NormalMatrix = Math::Matrix3x3(WorldMatrix).InverseTranspose();
 
   WorldDirty = false;
+  ChildrenDirty = true;
 }
+
+auto Transform::MarkChildrenUpdated() -> void { ChildrenDirty = false; }
 
 enum class RotationMode : uint8_t {
   EulerRadians,

@@ -89,6 +89,8 @@ static const Utils::EnumStringHelper<CommandType> CommandTypeEnumHelper{{
 
     "vkCmdClearAttachments",
     "vkCmdPipelineBarrier2",
+
+    "renderPass",
 }};
 
 struct GraphState {
@@ -356,7 +358,7 @@ struct LoadOpConfig {
   std::vector<VkAttachmentLoadOp> loadOps;
   VkAttachmentLoadOp depthStencilLoadOp;
 
-  static auto FromDrawState(struct DrawState const *state, bool forceLoadOpLoad)
+  static auto FromGraphState(const GraphState &graphState, bool forceLoadOpLoad)
       -> LoadOpConfig;
 };
 
@@ -395,9 +397,8 @@ struct DrawState {
                                       CommandType type) const
       -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
 
-  auto Apply(const GraphicsContext &context, VirtualCommandBuffer &buffer,
-             VkCommandBuffer cmdBuffer, const LoadOpConfig &loadConfig) const
-      -> Error;
+  auto Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
+             const LoadOpConfig *loadConfig) const -> Error;
 
   auto Initialize(const GraphicsContext &context, CommandType type) -> Error;
 
