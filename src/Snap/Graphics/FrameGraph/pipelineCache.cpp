@@ -130,6 +130,13 @@ auto PipelineCache::GetPipelineLayout(const GraphicsContext &context,
                                       Shader *shader)
     -> Result<PipelineLayout> {
   ZoneScoped;
+
+  auto layoutIter = layouts.find(shader->getID());
+
+  if (layoutIter != layouts.end()) {
+    return layoutIter->second;
+  }
+
   auto pushConstantRanges = std::vector<VkPushConstantRange>{};
 
   CHECK_NULL(shader);
@@ -204,6 +211,8 @@ auto PipelineCache::GetPipelineLayout(const GraphicsContext &context,
   VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 
   {
+    ZoneScopedN("Create pipeline layout");
+
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
     CHECK_NEW_ERR(vkCreatePipelineLayout(context.device, &pipelineLayoutInfo,
                                          GetAllocationCallbacks(),
@@ -214,6 +223,11 @@ auto PipelineCache::GetPipelineLayout(const GraphicsContext &context,
     std::lock_guard<std::mutex> lock(mutex);
     pipelineLayouts.emplace_back(pipelineLayout);
   }
+
+  layouts.emplace(shader->getID(), PipelineLayout{
+                                       .layout = pipelineLayout,
+                                       .descriptorSetLayouts = setLayouts,
+                                   });
 
   return PipelineLayout{
       .layout = pipelineLayout,

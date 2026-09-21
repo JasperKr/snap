@@ -49,10 +49,9 @@ auto FrameGraph::Submit(const GraphicsContext &context,
 
 auto FrameGraph::ValidateGraph() -> Error { return {}; } // NOLINT
 
-inline auto GetReadsFromDrawState(DrawState &state)
+inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets)
     -> std::vector<VulkanResource> {
-  static std::vector<VulkanResource> reads;
-  snap_defer(reads.clear());
+  std::vector<VulkanResource> reads;
 
   for (const auto &image : state.boundImages) {
     if (image.access != SLANG_RESOURCE_ACCESS_WRITE) {
@@ -70,9 +69,7 @@ inline auto GetReadsFromDrawState(DrawState &state)
     reads.emplace_back(accel.resource);
   }
 
-  const auto &pipelineState = CommandStateManager::States.at(state.stateID);
-
-  if (pipelineState.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
+  if (!getRendertargets) {
     return reads;
   }
 
@@ -101,7 +98,10 @@ inline auto GetReadsInternal(Command &command) -> std::vector<VulkanResource> {
   auto *drawState = get_if_derived<DrawState>(command.data);
 
   if (drawState != nullptr) {
-    return GetReadsFromDrawState(*drawState);
+    bool getRendertargets =
+        drawState->GetGraphState().bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+    return GetReadsFromDrawState(*drawState, getRendertargets);
   }
 
   if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
@@ -164,7 +164,7 @@ inline auto GetReadsInternal(Command &command) -> std::vector<VulkanResource> {
   return {};
 }
 
-inline auto GetWritesFromDrawState(DrawState &state)
+inline auto GetWritesFromDrawState(DrawState &state, bool getRendertargets)
     -> std::vector<VulkanResource> {
   std::vector<VulkanResource> writes;
 
@@ -182,9 +182,7 @@ inline auto GetWritesFromDrawState(DrawState &state)
     }
   }
 
-  const auto &pipelineState = CommandStateManager::States.at(state.stateID);
-
-  if (pipelineState.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
+  if (!getRendertargets) {
     return writes;
   }
 
@@ -203,7 +201,12 @@ inline auto GetWritesInternal(Command &command) -> std::vector<VulkanResource> {
   auto *drawState = get_if_derived<DrawState>(command.data);
 
   if (drawState != nullptr) {
-    return GetWritesFromDrawState(*drawState);
+    bool getRendertargets =
+        drawState->GetGraphState().bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;
+    getRendertargets = getRendertargets ||
+                       command.GetType() == CommandType::vkCmdClearAttachments;
+
+    return GetWritesFromDrawState(*drawState, getRendertargets);
   }
 
   if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
@@ -302,10 +305,23 @@ auto FrameGraph::MapResourceUsages() -> Error {
       writes.erase(first, last);
       boundState->writes = std::move(writes);
 
-      for (const auto &write : writes) {
+      for (const auto &write : boundState->writes) {
         resourcesWritesInFrame.emplace(write);
       }
     }
+  }
+
+  for (auto &command : commandBuffer.commands) {
+    auto *boundState = get_if_derived<BoundResources>(command.data);
+
+    if (boundState == nullptr) {
+      continue;
+    }
+
+    Utils::UnorderedErase(boundState->reads,
+                          [this](const VulkanResource &resource) -> bool {
+                            return !resourcesWritesInFrame.contains(resource);
+                          });
   }
 
   return {};
@@ -441,6 +457,10 @@ auto FrameGraph::PreCompile() -> Error {
     candidates.clear();
 
     for (const auto &resource : GetReads(command)) { // RAW
+      if (!resourcesWritesInFrame.contains(resource)) {
+        continue;
+      }
+
       const auto bucketIt = frontiers.find(KeyOf(resource));
       if (bucketIt == frontiers.end()) {
         continue;
@@ -1872,9 +1892,9 @@ auto FrameGraph::CompactRenderPasses() -> Error {
     ERR_ASSERT(idx != UINT16_MAX);
   }
 
-  PrintAlways(
-      "Starting command count: {}, reduced: {}, draw state mismatches {}",
-      commandBuffer.commands.size(), commands.size(), drawStateMismatches);
+  // PrintAlways(
+  //     "Starting command count: {}, reduced: {}, draw state mismatches {}",
+  //     commandBuffer.commands.size(), commands.size(), drawStateMismatches);
 
   return {};
 }
@@ -1901,8 +1921,8 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   CHECK_ERR(UpdateLevels(reordered));
   CHECK_ERR(InsertBarriers());
 
-  PrintAlways("Command count: {}", commands.size());
-  PrintAlways("Level count: {}", graph.size());
+  // PrintAlways("Command count: {}", commands.size());
+  // PrintAlways("Level count: {}", graph.size());
 
   const auto &regions = CHECK_RES(BuildRenderRegions(context));
 

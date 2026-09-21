@@ -3,10 +3,12 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
+#include "Graphics/shader.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include <cstddef>
 #include <mutex>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
@@ -120,6 +122,7 @@ struct PipelineCache {
   std::mutex mutex;
   LRUCache<StateKey, std::pair<VkPipeline, PipelineLayout>, StateKeyHash> cache{
       1};
+  std::unordered_map<ObjectID, PipelineLayout> layouts;
 
   PipelineLayout currentLayout;
   std::vector<VkPipeline> pipelines;
