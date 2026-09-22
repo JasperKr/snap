@@ -739,38 +739,48 @@ auto LoadOpConfig::FromGraphState(const GraphState &graphState,
 
 auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
                       const LoadOpConfig *loadConfig) const -> Error {
+  ZoneScoped;
   ERR_ASSERT(stateID != UINT32_MAX);
 
   const auto &state = CommandStateManager::States.at(stateID);
 
   RecordingState::CurrentState.bindPoint = state.bindPoint;
-
   RecordingState::CurrentState.shader = CHECK_NULL(state.shader);
+
+  if (CommandStateManager::CurrentStateID != stateID) {
+    RecordingState::CurrentState.MarkUpdated();
+  }
 
   if (RecordingState::CurrentState.bindPoint ==
       VK_PIPELINE_BIND_POINT_GRAPHICS) {
-    RecordingState::CurrentState.colorAttachments = state.colorAttachments;
-    RecordingState::CurrentState.depthStencilAttachment =
-        state.depthStencilAttachment;
-    RecordingState::CurrentState.hasDepthStencilAttachment =
-        state.hasDepthStencilAttachment;
-    RecordingState::CurrentState.primitiveTopology = state.primitiveTopology;
-    RecordingState::CurrentState.colorBlendEquations =
-        state.colorBlendEquations;
-    RecordingState::CurrentState.cullMode = state.cullMode;
-    RecordingState::CurrentState.frontFace = state.frontFace;
-    RecordingState::CurrentState.depthTestEnable = state.depthTestEnable;
-    RecordingState::CurrentState.depthWriteEnable = state.depthWriteEnable;
-    RecordingState::CurrentState.depthCompareOp = state.depthCompareOp;
-    RecordingState::CurrentState.stencilTestEnable = state.stencilTestEnable;
-    RecordingState::CurrentState.polygonMode = state.polygonMode;
-    RecordingState::CurrentState.viewport = state.viewport;
-    RecordingState::CurrentState.scissor = state.scissor;
+    ZoneScopedN("Set vertex input");
 
-    vkCmdSetVertexInputEXT(cmdBuffer, state.bindingDescriptions.size(),
-                           state.bindingDescriptions.data(),
-                           state.attributeDescriptions.size(),
-                           state.attributeDescriptions.data());
+    if (CommandStateManager::CurrentStateID != stateID) {
+      ZoneScopedN("Update state");
+
+      RecordingState::CurrentState.colorAttachments = state.colorAttachments;
+      RecordingState::CurrentState.depthStencilAttachment =
+          state.depthStencilAttachment;
+      RecordingState::CurrentState.hasDepthStencilAttachment =
+          state.hasDepthStencilAttachment;
+      RecordingState::CurrentState.primitiveTopology = state.primitiveTopology;
+      RecordingState::CurrentState.colorBlendEquations =
+          state.colorBlendEquations;
+      RecordingState::CurrentState.cullMode = state.cullMode;
+      RecordingState::CurrentState.frontFace = state.frontFace;
+      RecordingState::CurrentState.depthTestEnable = state.depthTestEnable;
+      RecordingState::CurrentState.depthWriteEnable = state.depthWriteEnable;
+      RecordingState::CurrentState.depthCompareOp = state.depthCompareOp;
+      RecordingState::CurrentState.stencilTestEnable = state.stencilTestEnable;
+      RecordingState::CurrentState.polygonMode = state.polygonMode;
+      RecordingState::CurrentState.viewport = state.viewport;
+      RecordingState::CurrentState.scissor = state.scissor;
+
+      vkCmdSetVertexInputEXT(cmdBuffer, state.bindingDescriptions.size(),
+                             state.bindingDescriptions.data(),
+                             state.attributeDescriptions.size(),
+                             state.attributeDescriptions.data());
+    }
 
     if (!vertexBuffers.empty()) {
       vkCmdBindVertexBuffers(cmdBuffer, 0, vertexBuffers.size(),
@@ -783,10 +793,11 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
     }
   }
 
-  RecordingState::CurrentState.MarkUpdated();
-  CommandStateManager::CurrentStateID = stateID;
+  if (CommandStateManager::CurrentStateID != stateID) {
+    CHECK_ERR(PrepareRendering(context, cmdBuffer, loadConfig));
+  }
 
-  CHECK_ERR(PrepareRendering(context, cmdBuffer, loadConfig));
+  CommandStateManager::CurrentStateID = stateID;
 
   if (state.shader->pushBuffer) {
     ZoneScopedN("Flush push buffer data");
@@ -798,6 +809,8 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
   }
 
   if (!descriptorSets.empty()) {
+    ZoneScopedN("Bind descriptor sets");
+
     vkCmdBindDescriptorSets(cmdBuffer, state.bindPoint,
                             GetPipelineCache().currentLayout.layout, 0,
                             descriptorSets.size(), descriptorSets.data(),

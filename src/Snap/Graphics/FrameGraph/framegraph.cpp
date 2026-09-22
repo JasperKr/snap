@@ -15,6 +15,7 @@
 #include "Modules/stackVector.hpp"
 #include <cstddef>
 #include <functional>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -281,29 +282,43 @@ inline auto GetWritesInternal(Command &command) -> std::vector<VulkanResource> {
 auto FrameGraph::MapResourceUsages() -> Error {
   ZoneScoped;
 
-  for (auto &command : commandBuffer.commands) {
-    auto *boundState = get_if_derived<BoundResources>(command.data);
+  Utils::ParallelFor(
+      commandBuffer.commands.size() * 2, [this](size_t commandIdx) -> void {
+        Command &command = commandBuffer.commands.at(commandIdx / 2);
+        auto *boundState = get_if_derived<BoundResources>(command.data);
 
-    if (boundState == nullptr) {
-      continue;
-    }
+        if (boundState == nullptr) {
+          return;
+        }
 
-    {
-      auto reads = std::move(GetReadsInternal(command));
+        if (commandIdx & 1UL) { // Odd
+          auto reads = std::move(GetReadsInternal(command));
 
-      std::ranges::sort(reads, std::less{});
-      auto [first, last] = std::ranges::unique(reads, VulkanResource::Equals);
-      reads.erase(first, last);
-      boundState->reads = std::move(reads);
-    }
+          std::ranges::sort(reads, std::less{});
+          auto [first, last] =
+              std::ranges::unique(reads, VulkanResource::Equals);
+          reads.erase(first, last);
+          boundState->reads = std::move(reads);
+        } else {
+          auto writes = std::move(GetWritesInternal(command));
 
-    {
-      auto writes = std::move(GetWritesInternal(command));
+          std::ranges::sort(writes, std::less{});
+          auto [first, last] =
+              std::ranges::unique(writes, VulkanResource::Equals);
+          writes.erase(first, last);
+          boundState->writes = std::move(writes);
+        }
+      });
 
-      std::ranges::sort(writes, std::less{});
-      auto [first, last] = std::ranges::unique(writes, VulkanResource::Equals);
-      writes.erase(first, last);
-      boundState->writes = std::move(writes);
+  {
+    ZoneScopedN("Map writes");
+
+    for (const auto &command : commandBuffer.commands) {
+      const auto *boundState = get_if_derived<BoundResources>(command.data);
+
+      if (boundState == nullptr) {
+        continue;
+      }
 
       for (const auto &write : boundState->writes) {
         resourcesWritesInFrame.emplace(write);
@@ -311,17 +326,22 @@ auto FrameGraph::MapResourceUsages() -> Error {
     }
   }
 
-  for (auto &command : commandBuffer.commands) {
-    auto *boundState = get_if_derived<BoundResources>(command.data);
+  {
+    ZoneScopedN("Erase irrelevant data");
+    Utils::ParallelFor(
+        commandBuffer.commands, [this](Command &command) -> void {
+          auto *boundState = get_if_derived<BoundResources>(command.data);
 
-    if (boundState == nullptr) {
-      continue;
-    }
+          if (boundState == nullptr) {
+            return;
+          }
 
-    Utils::UnorderedErase(boundState->reads,
-                          [this](const VulkanResource &resource) -> bool {
-                            return !resourcesWritesInFrame.contains(resource);
-                          });
+          Utils::UnorderedErase(boundState->reads,
+                                [this](const VulkanResource &resource) -> bool {
+                                  return !resourcesWritesInFrame.contains(
+                                      resource);
+                                });
+        });
   }
 
   return {};
@@ -644,13 +664,13 @@ auto FrameGraph::DebugOutput() -> Error {
     for (const auto commandId : level.commands) {
       const auto &command = commands.at(commandId);
       if (ExportRWLabels) {
-        auto reads = GetReads(command);
-        auto writes = GetWrites(command);
+        const auto &reads = GetReads(command);
+        const auto &writes = GetWrites(command);
 
         std::stringstream readStr;
         std::stringstream writeStr;
 
-        for (auto &resource : reads) {
+        for (const auto &resource : reads) {
           readStr << resource.ToString();
 
           if (!VulkanResource::Equals(resource, reads.back())) {
@@ -658,7 +678,7 @@ auto FrameGraph::DebugOutput() -> Error {
           }
         }
 
-        for (auto &resource : writes) {
+        for (const auto &resource : writes) {
           writeStr << resource.ToString();
 
           if (!VulkanResource::Equals(resource, writes.back())) {
@@ -1810,6 +1830,7 @@ auto FrameGraph::BuildLoadOpModes() -> void {
 }
 
 auto FrameGraph::CompactRenderPasses() -> Error {
+  ZoneScoped;
   bool inRange{};
 
   // Amount of items merged, excluding one per range since the range object becomes a command
@@ -1841,6 +1862,8 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   }
 
   RenderPass currentPass;
+  std::unordered_set<VulkanResource, VulkanResourceHash> knownReads;
+  std::unordered_set<VulkanResource, VulkanResourceHash> knownWrites;
   inRange = false;
   int drawStateMismatches = 0;
 
@@ -1859,21 +1882,31 @@ auto FrameGraph::CompactRenderPasses() -> Error {
       inRange = true;
 
       if (currentPass.stateID != stateID) {
-        Utils::DeDuplicate(currentPass.reads, std::less<VulkanResource>{},
-                           VulkanResource::Equals);
-        Utils::DeDuplicate(currentPass.writes, std::less<VulkanResource>{},
-                           VulkanResource::Equals);
+        currentPass.reads = {knownReads.begin(), knownReads.end()};
+        currentPass.writes = {knownWrites.begin(), knownWrites.end()};
         commands.emplace_back(currentPass);
         currentPass = {.stateID = stateID};
+        knownReads.clear();
+        knownWrites.clear();
         drawStateMismatches++;
       }
 
       currentPass.commands.emplace_back(command.id);
-      currentPass.reads.append_range(GetReads(command));
-      currentPass.writes.append_range(GetWrites(command));
+      // currentPass.reads.append_range(GetReads(command));
+      // currentPass.writes.append_range(GetWrites(command));
+      for (const auto &read : GetReads(command)) {
+        knownReads.emplace(read);
+      }
+      for (const auto &write : GetWrites(command)) {
+        knownWrites.emplace(write);
+      }
     } else {
       if (inRange) {
+        currentPass.reads = {knownReads.begin(), knownReads.end()};
+        currentPass.writes = {knownWrites.begin(), knownWrites.end()};
         commands.emplace_back(currentPass);
+        knownReads.clear();
+        knownWrites.clear();
       }
 
       inRange = false;
@@ -1882,14 +1915,32 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   }
 
   if (inRange) {
+    currentPass.reads = {knownReads.begin(), knownReads.end()};
+    currentPass.writes = {knownWrites.begin(), knownWrites.end()};
     commands.emplace_back(currentPass);
   }
 
   CommandID idx{};
 
-  for (auto &command : commands) {
-    command.id = idx++;
-    ERR_ASSERT(idx != UINT16_MAX);
+  {
+    ZoneScopedN("De-Duplicate resources");
+    for (auto &command : commands) {
+      command.id = idx++;
+      ERR_ASSERT(idx != UINT16_MAX);
+
+      auto *bound = get_if_derived<BoundResources>(command.data);
+
+      if (bound == nullptr) {
+        continue;
+      }
+
+      size_t readsBefore = bound->reads.size();
+      size_t writesBefore = bound->writes.size();
+      Utils::DeDuplicate(bound->reads, std::less<VulkanResource>{},
+                         VulkanResource::Equals);
+      Utils::DeDuplicate(bound->writes, std::less<VulkanResource>{},
+                         VulkanResource::Equals);
+    }
   }
 
   // PrintAlways(
@@ -2055,6 +2106,7 @@ auto FrameGraph::Write(const GraphicsContext &context,
   EndRendering(context, cmdBuffer);
   GetThreadContext().workingCommandBuffer = nullptr;
   vkEndCommandBuffer(cmdBuffer);
+  CommandStateManager::CurrentStateID = UINT32_MAX;
 
   Reset();
 

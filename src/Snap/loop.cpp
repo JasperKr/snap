@@ -7,6 +7,7 @@
 #include "Graphics/render.hpp"
 #include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
+#include "Graphics/snapshot.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/config.hpp"
 #include "Modules/console.hpp"
@@ -307,6 +308,8 @@ auto MainLoop(const std::vector<std::string> &arguments) -> Error {
       mainLoopResult = Error::Create(luaErrorMessage);
     }
     FrameMarkEnd("Frame");
+
+    Graphics::Snapshot::Update();
 
     // returned value nil == continue, non-nil == exit with code
     if (lua_isnoneornil(state, -1)) {

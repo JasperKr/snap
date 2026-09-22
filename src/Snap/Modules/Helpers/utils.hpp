@@ -207,6 +207,18 @@ template <typename F> void ParallelFor(size_t count, F &&func) {
                 std::forward<F>(func));
 }
 
+template <typename T, typename F>
+  requires(std::same_as<std::invoke_result_t<F &, T &>, void>)
+void ParallelFor(std::vector<T> &data, F &&func) {
+  std::vector<size_t> indices(data.size());
+  std::ranges::iota(indices, 0);
+
+  std::for_each(std::execution::par, indices.begin(), indices.end(),
+                [&](const size_t index) -> void {
+                  std::forward<F>(func)(data.at(index));
+                });
+}
+
 template <typename F>
   requires(std::same_as<std::invoke_result_t<F &, size_t>, Error>)
 auto ParallelFor(size_t count, F &&func) -> Error {

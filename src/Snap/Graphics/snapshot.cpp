@@ -7,7 +7,9 @@
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/packedColor.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/console.hpp"
 #include "Modules/object.hpp"
+#include "Modules/timer.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -917,6 +919,22 @@ auto LayoutTransitionEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
 //   }
 //   ImGui::Unindent();
 // };
+
+//
+auto Update() -> void {
+#if Enable_Snapshots
+  static double time = 0.0F;
+  static const double WarningInterval = 30.0F;
+
+  time -= Timer::GetDelta();
+
+  if (time < 0.0F) {
+    time += WarningInterval;
+
+    PrintWarning("Snapshots are enabled; Performance penalty.");
+  }
+#endif
+}
 
 //
 } // namespace Graphics::Snapshot

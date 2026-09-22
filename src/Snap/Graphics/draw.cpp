@@ -361,7 +361,7 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
         static_cast<uint64_t>(mesh.GetIndexCount() * instanceCount);
     RenderState::CurrentStats.instanceCount += instanceCount;
 
-    MeshDrawRange range = mesh.GetDrawRange();
+    const MeshDrawRange &range = mesh.GetDrawRange();
 
     if (mesh.GetIndexCount() > 0) {
       CHECK_ERR(commandBuffer->DrawIndexed(

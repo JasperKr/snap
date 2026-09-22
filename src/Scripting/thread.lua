@@ -217,8 +217,8 @@ local startupSequence = {
 
     local env = scene:newEnvironment("Test environment", texture)
     scene:setEnvironment(env)
-    snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
-    -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
   end,
   function()
   end

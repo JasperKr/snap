@@ -18,7 +18,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#define Enable_Snapshots 1
+#define Enable_Snapshots 0
 
 namespace Graphics::Snapshot {
 
@@ -796,5 +796,6 @@ auto Load(const std::string &filename) -> ThreadSnapshot;
 auto StartSnapshot() -> void;
 auto EndSnapshot() -> void;
 auto RenderSnapshot(const ThreadSnapshot &snapshot) -> void;
+auto Update() -> void;
 
 } // namespace Graphics::Snapshot
