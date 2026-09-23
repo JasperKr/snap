@@ -296,7 +296,7 @@ auto Editor::PickEntity(const Graphics::GraphicsContext &context,
   CHECK_ERR(Graphics::UniformWriter::Send(
       shader, Graphics::ResourceKey{"PushConstants", "uv"}, mousePos));
 
-  Graphics::DynamicRendering::SetShader(shader);
+  Graphics::RenderState::SetShader(shader);
 
   CHECK_ERR(Graphics::Dispatch(context, {1, 1, 1}));
 

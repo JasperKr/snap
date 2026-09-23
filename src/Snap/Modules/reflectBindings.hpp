@@ -10,6 +10,7 @@
 #include <ostream>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 namespace Bindings {
@@ -301,7 +302,14 @@ inline void EmitLuaEnums(std::ostream &out,
   out << "-- See reflectBindings.hpp or the lua_stub_gen target.\n\n";
   out << "error(\"Do not require this file.\")\n\n";
 
+  std::unordered_set<std::string> found;
+
   for (const auto &luaEnum : enums) {
+    if (found.contains(luaEnum.name)) {
+      continue;
+    }
+    found.emplace(luaEnum.name);
+
     out << "---@alias snap." << luaEnum.name << " ";
     bool first = true;
     for (const auto &option : luaEnum.options) {

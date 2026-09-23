@@ -14,6 +14,7 @@
 #include "reflect.hpp"
 #include "slang/slang.h"
 #include <cstdint>
+#include <memory>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string>
@@ -114,7 +115,7 @@ struct Shader : Object, Identifiable {
       bindingInfos;
 
   Reflect::ShaderReflection reflection;
-  std::vector<PushBuffer> pushBuffers;
+  std::unique_ptr<PushBuffer> pushBuffer;
 
   std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
 

@@ -1,5 +1,4 @@
 #include "material.hpp"
-#include "Graphics/Buffers/structured.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Wrap/Helpers/lua_enum.hpp"
@@ -151,6 +150,7 @@ auto LuaMaterial::wrap_getAlphaMode(lua_State *state) -> int {
   return 1;
 }
 
+// NOLINTNEXTLINE
 auto Material::DrawGUI(flecs::entity entity) -> void {
   // ImGui::Text("Cull Mode: %s", LuaCullModeEnum.ToString(cullMode).c_str());
   // ImGui::Text("Alpha Mode: %s", LuaAlphaModeEnum.ToString(alphaMode).c_str());
@@ -280,12 +280,10 @@ auto Material::Update(Graphics::GraphicsContext &context) -> Error {
     obtainedSSBOIndex = true;
   }
 
-  return WriteToBuffer(context, RendererInstance.GetMaterialsBuffer());
+  return Write(context);
 }
 
-auto Material::WriteToBuffer(Graphics::GraphicsContext &context,
-                             const Ref<Graphics::StructuredBuffer> &buffer)
-    -> Error {
+auto Material::Write(Graphics::GraphicsContext &context) -> Error {
 
   // NOLINTBEGIN (hicppp-avoid-c-arrays)
   struct MaterialData {
@@ -326,10 +324,17 @@ auto Material::WriteToBuffer(Graphics::GraphicsContext &context,
   materialData.textureUVIndices[0] = packedIndices & ~0U;
   materialData.textureUVIndices[1] = (packedIndices >> UINT32_WIDTH) & ~0U;
 
-  auto span = std::span<MaterialData>(&materialData, 1);
+  // auto span = std::span<MaterialData>(&materialData, 1);
 
-  return buffer->GetBuffer()->SetData(context, span,
-                                      materialSSBOIndex * buffer->GetStride());
+  // return buffer->GetBuffer()->SetData(context, span,
+  //                                     materialSSBOIndex * buffer->GetStride());
+
+  auto *ptr =
+      RendererInstance.GetMaterialUploadManager().GetPtrAt(materialSSBOIndex);
+  memcpy(ptr, &materialData, sizeof(MaterialData));
+  RendererInstance.GetMaterialUploadManager().MarkUpdated(materialSSBOIndex);
+
+  return {};
 }
 
 } // namespace Engine::Renderer

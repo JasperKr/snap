@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Graphics/buffer.hpp"
-#include "Graphics/dynamicRendering.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"

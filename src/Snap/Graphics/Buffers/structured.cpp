@@ -25,18 +25,12 @@ auto StructuredBuffer::Create(const GraphicsContext &context,
       .debugName = info.debugName,
   };
 
-  auto result = Buffer::Create(context, bufferCreateInfo);
-
-  if (Error::IsError(result)) {
-    return result.error();
-  }
-
   auto buffer = Ref<StructuredBuffer>::Make();
 
   buffer->format = format;
   buffer->elementCount = elementCount;
   buffer->elementStride = format.GetStride();
-  buffer->buffer = result.value();
+  buffer->buffer = CHECK_RES(Buffer::Create(context, bufferCreateInfo));
 
   return buffer;
 }

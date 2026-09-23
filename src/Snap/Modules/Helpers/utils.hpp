@@ -80,6 +80,15 @@ auto SetBindingToSlot(uint32_t set, uint32_t binding) -> uint64_t;
 
 auto SlotToSetBinding(uint64_t slot) -> std::pair<uint32_t, uint32_t>;
 
+template <typename T, typename Comp_lt, typename Comp_Eq>
+auto DeDuplicate(std::vector<T> &data,
+                 Comp_lt compare_less_than = std::less<T>(),
+                 Comp_Eq compare_equals = std::equal_to<T>()) {
+  std::ranges::sort(data, compare_less_than);
+  auto [first, last] = std::ranges::unique(data, compare_equals);
+  data.erase(first, last);
+}
+
 template <class T, class F> constexpr void ForEachBit(T mask, F &&func) {
   static_assert(std::is_unsigned_v<T>, "mask must be unsigned");
   while (mask) {
@@ -196,6 +205,18 @@ template <typename F> void ParallelFor(size_t count, F &&func) {
 
   std::for_each(std::execution::par, indices.begin(), indices.end(),
                 std::forward<F>(func));
+}
+
+template <typename T, typename F>
+  requires(std::same_as<std::invoke_result_t<F &, T &>, void>)
+void ParallelFor(std::vector<T> &data, F &&func) {
+  std::vector<size_t> indices(data.size());
+  std::ranges::iota(indices, 0);
+
+  std::for_each(std::execution::par, indices.begin(), indices.end(),
+                [&](const size_t index) -> void {
+                  std::forward<F>(func)(data.at(index));
+                });
 }
 
 template <typename F>

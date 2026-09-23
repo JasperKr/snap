@@ -1,10 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <utility>
+#include <vector>
 
 namespace Math {
 
@@ -23,6 +26,14 @@ template <typename T, size_t N> struct StackVector {
 
   StackVector(StackVector &&) = default;
   StackVector(const StackVector &) = default;
+  explicit constexpr StackVector(std::vector<T> data)
+      : currentSize(std::min(data.size(), N)) {
+    memcpy(storage.data(), data.data(), sizeof(T) * currentSize);
+  }
+
+  constexpr auto asVector() -> std::vector<T> {
+    return {storage.data(), storage.data() + currentSize};
+  }
 
   auto operator=(StackVector &&) -> StackVector & = default;
   auto operator=(const StackVector &) -> StackVector & = default;
@@ -115,6 +126,8 @@ template <typename T, size_t N> struct StackVector {
     }
     currentSize = 0;
   }
+
+  constexpr auto fastclear() -> void { currentSize = 0; }
 
   constexpr auto pop_back() -> void {
     assert(currentSize > 0 && "Cannot pop from an empty StackVector");

@@ -217,7 +217,8 @@ local startupSequence = {
 
     local env = scene:newEnvironment("Test environment", texture)
     scene:setEnvironment(env)
-    snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
   end,
   function()
   end
@@ -226,7 +227,7 @@ local startupSequence = {
 local frameIndex = 0
 
 while true do
-  if not (canStartChannel:demand(1)) then
+  if not (canStartChannel:demand(100)) then
     print("Render thread received stop signal")
     break
   end
@@ -241,7 +242,7 @@ while true do
     print("Requesting snapshot creation")
   end
 
-  snap.graphics.acquireGraphics(nil, nil, createSnapshot)
+  snap.graphics.acquireGraphics(nil, nil, "Graphics", createSnapshot)
 
   createSnapshot = false
 
@@ -256,6 +257,8 @@ while true do
   end
 
   update(delta)
+
+  -- assert(frameIndex < 4)
 
   snap.graphics.setWindingOrder("cw")
 

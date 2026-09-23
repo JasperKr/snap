@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Graphics/barrier.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/semaphoreManager.hpp"

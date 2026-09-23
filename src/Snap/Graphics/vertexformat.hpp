@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Graphics/format.hpp"
-#include "Graphics/graphics.hpp"
+#include "Graphics/graphicsState.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include <algorithm>
 #include <cassert>
@@ -26,8 +26,6 @@ struct VertexComponent {
 };
 
 struct VertexFormat {
-  constexpr static size_t MaxBindings = 8;
-
   explicit VertexFormat(std::vector<VertexComponent> attributes)
       : Attributes(std::move(attributes)) {
     ConstructBindings();
@@ -120,25 +118,8 @@ public:
     return result;
   }
 
-  auto BindDynamicInputState(VkCommandBuffer commandBuffer) -> void {
-    auto currentHash = GetHash();
-    auto &threadContext = GetThreadContext();
-
-    [[likely]]
-    if (threadContext.currentVertexFormatHash == currentHash) {
-      return; // Already bound this format, skip
-    }
-
-    ZoneScoped;
-
-    threadContext.currentVertexFormatHash = currentHash;
-
-    const auto &bindings = GetBindings();
-    const auto &attributes = GetVkAttributes2();
-
-    vkCmdSetVertexInputEXT(commandBuffer, bindings.size(), bindings.data(),
-                           attributes.size(), attributes.data());
-  }
+  auto BindDynamicInputState(struct VirtualCommandBuffer *commandBuffer)
+      -> void;
 
   [[nodiscard]] auto GetBindingCount() const -> size_t {
     return BindingIndices.size();
@@ -202,6 +183,7 @@ private:
   bool constructedBindings = false;
   std::vector<VertexComponent> Attributes;
 
+  // NOLINTNEXTLINE
   void ConstructBindings() {
     std::ranges::sort(Attributes,
                       [](const VertexComponent &first,
@@ -213,12 +195,12 @@ private:
                       });
 
     for (auto &component : Attributes) {
-      assert(component.binding < MaxBindings &&
+      assert(component.binding < MAX_BOUND_VERTEX_BUFFERS &&
              "Vertex attribute binding exceeds maximum");
     }
 
     VkAttributes2.reserve(Attributes.size());
-    BindingIndices.reserve(MaxBindings);
+    BindingIndices.reserve(MAX_BOUND_VERTEX_BUFFERS);
 
     auto lastBinding = 0UL;
     for (const auto &component : Attributes) {
@@ -236,7 +218,7 @@ private:
 
     Bindings.reserve(BindingIndices.size());
     std::vector<uint32_t> bindingToBindingIndex{};
-    bindingToBindingIndex.resize(MaxBindings);
+    bindingToBindingIndex.resize(MAX_BOUND_VERTEX_BUFFERS);
 
     for (auto binding : BindingIndices) {
       bindingToBindingIndex.at(binding) = Bindings.size();

@@ -6,7 +6,6 @@
 #include <string>
 #include <sys/types.h>
 
-#include "Graphics/barrier.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -31,12 +30,6 @@ auto Mesh::UploadVertices(const GraphicsContext &context, uint32_t binding,
                           uint64_t offset) -> Error {
   ZoneScoped;
 
-  Barrier::UpdateUsage(context, *VertexBuffers.at(binding),
-                       Barrier::ResourceState{
-                           .stages = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                           .access = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                       });
-
   std::lock_guard<std::mutex> lock(VertexBuffers.at(binding)->mutex);
 
   return VertexBuffers.at(binding)->SetData(context, vertices, offset);
@@ -46,11 +39,6 @@ auto Mesh::UploadIndices(const GraphicsContext &context,
                          const std::span<uint8_t> &indices, uint64_t offset,
                          VkIndexType format) -> Error {
   ZoneScoped;
-  Barrier::UpdateUsage(context, *IndexBuffer,
-                       Barrier::ResourceState{
-                           .stages = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                           .access = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                       });
 
   std::lock_guard<std::mutex> lock(IndexBuffer->mutex);
 

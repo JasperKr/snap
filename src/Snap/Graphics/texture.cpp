@@ -1,14 +1,15 @@
 #include "texture.hpp"
+#include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/allocations.hpp"
-#include "Graphics/barrier.hpp"
+
 #include "Graphics/buffer.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/format.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/renderThread.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/snapshot.hpp"
+#include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/color.hpp"
@@ -479,7 +480,8 @@ auto Texture::FromFile(const GraphicsContext &context, const char *path,
 
   if (mipmaps == TextureMipmapOption::Init &&
       !Image::IsCompressedTexture(imageData->GetFormat())) {
-    CHECK_ERR(texture->GenerateMipmaps(context));
+    auto &ctx = GetThreadContext();
+    CHECK_ERR(ctx.commandBuffer->MipmapTexture({texture.get()}));
   }
 
   return texture;
@@ -519,7 +521,8 @@ auto Texture::FromMemory(const GraphicsContext &context,
   CHECK_ERR(texture->SetPixels(context, imageData, 0, 0));
 
   if (mipmaps == TextureMipmapOption::Init) {
-    CHECK_ERR(texture->GenerateMipmaps(context));
+    auto &ctx = GetThreadContext();
+    CHECK_ERR(ctx.commandBuffer->MipmapTexture({texture.get()}));
   }
 
   return texture;
@@ -583,12 +586,6 @@ auto Texture::FromMemory(const GraphicsContext &context,
   bufferCreationInfo.debugName = "Texture Staging Buffer for SetPixels";
   auto buffer = CHECK_RES(Buffer::Create(context, bufferCreationInfo));
 
-  Graphics::Barrier::UpdateUsage(context, *texture.get(),
-                                 Graphics::Barrier::ResourceState{
-                                     .stages = VK_PIPELINE_STAGE_2_HOST_BIT,
-                                     .access = VK_ACCESS_2_HOST_WRITE_BIT,
-                                 });
-
   size_t offset = 0;
 
   for (int mip = 0; mip < mipLevelCount; ++mip) {
@@ -643,18 +640,11 @@ auto Texture::FromMemory(const GraphicsContext &context,
 
   CHECK_ERR(texture->UseAsTransferDst(context));
 
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for SetPixels.");
-  }
-
-  DynamicRendering::EndRendering(context);
-
-  vkCmdCopyBufferToImage(commandBuffer, buffer->handle,
-                         texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
-                         static_cast<uint32_t>(copyRegions.size()),
-                         copyRegions.data());
+  CHECK_ERR(commandBuffer->CopyBufferToImage(
+      {buffer->handle, texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
+       static_cast<uint32_t>(copyRegions.size()), copyRegions.data()}));
 
   // TODO: Check lifetime
   buffer->MarkUse();
@@ -775,12 +765,10 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
       destinationStage));
 #endif
 
-  if (sourceStage == destinationStage && srcAccessMask == dstAccessMask &&
-      state.currentLayout == layout) {
-    return Error::Success();
-  }
-
-  auto *commandBuffer = CHECK_NULL(GetCommandBuffer());
+  // if (sourceStage == destinationStage && srcAccessMask == dstAccessMask &&
+  //     state.currentLayout == layout) {
+  //   return Error::Success();
+  // }
 
   VkImageMemoryBarrier2 barrier = {};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -802,9 +790,15 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
                        .imageMemoryBarrierCount = 1,
                        .pImageMemoryBarriers = &barrier};
 
-  DynamicRendering::EndRendering(context);
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
-  vkCmdPipelineBarrier2(commandBuffer, &dep);
+  if (commandBuffer != nullptr) {
+    CHECK_ERR(commandBuffer->PipelineBarrier2({&dep}));
+  } else {
+    VkCommandBuffer cmdBuffer = CHECK_NULL(GetVkCommandBuffer());
+
+    vkCmdPipelineBarrier2(cmdBuffer, &dep);
+  }
 
   state.currentLayout = layout;
 
@@ -954,17 +948,11 @@ inline auto WriteSimplifiedPixelData(const Ref<Texture> &texture,
 
   CHECK_ERR(texture->UseAsTransferDst(context));
 
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for SetPixels.");
-  }
-
-  DynamicRendering::EndRendering(context);
-
-  vkCmdCopyBufferToImage(commandBuffer, buffer->handle,
-                         texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
-                         1, &region);
+  CHECK_ERR(commandBuffer->CopyBufferToImage(
+      {buffer->handle, texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, 1,
+       &region}));
 
   CHECK_ERR(
       texture->UseAsSampler(context, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT));
@@ -1058,12 +1046,6 @@ auto Texture::SetPixels(const GraphicsContext &context,
   bufferCreationInfo.debugName = "Texture Staging Buffer for SetPixels";
   auto buffer = CHECK_RES(Buffer::Create(context, bufferCreationInfo));
 
-  Graphics::Barrier::UpdateUsage(context, *this,
-                                 Graphics::Barrier::ResourceState{
-                                     .stages = VK_PIPELINE_STAGE_2_HOST_BIT,
-                                     .access = VK_ACCESS_2_HOST_WRITE_BIT,
-                                 });
-
   std::vector<uint8_t> tempBuffer(uploadSize);
   auto formatSize = Format::GetSize(imageMemory->format);
   auto *dstPtr = tempBuffer.data();
@@ -1107,16 +1089,11 @@ auto Texture::SetPixels(const GraphicsContext &context,
 
   CHECK_ERR(UseAsTransferDst(context));
 
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for SetPixels.");
-  }
-
-  DynamicRendering::EndRendering(context);
-
-  vkCmdCopyBufferToImage(commandBuffer, buffer->handle, imageMemory->image,
-                         VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+  CHECK_ERR(
+      commandBuffer->CopyBufferToImage({buffer->handle, imageMemory->image,
+                                        VK_IMAGE_LAYOUT_GENERAL, 1, &region}));
 
   // TODO: Check lifetime
   buffer->MarkUse();
@@ -1232,21 +1209,21 @@ inline auto GetAccessFlagsForUsage(
     VkAccessFlagBits2 accessFlags = VK_ACCESS_2_NONE;
 
     if (isDepthStencil) {
-      if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
-        accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-      }
+      // if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
+      accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+      // }
 
-      if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
-        accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      }
+      // if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
+      accessFlags |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      // }
     } else {
-      if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
-        accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
-      }
+      // if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) {
+      accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
+      // }
 
-      if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
-        accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-      }
+      // if (storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
+      accessFlags |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+      // }
     }
 
     return accessFlags;
@@ -1304,8 +1281,8 @@ auto ImageMemory::UseAs(const GraphicsContext &context, TextureUsage newUsage,
       GetAccessFlagsForUsage(newUsage, format, loadOp, storeOp);
 
   if (state.lastUsage == TextureUsage::Swapchain) {
-    currentAccess = VK_ACCESS_2_NONE;
     state.lastPipelineStage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    currentAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
   }
 
   auto range =
@@ -1328,33 +1305,6 @@ auto Texture::UseAs(const GraphicsContext &context, TextureUsage newUsage,
                     VkPipelineStageFlags2 stage, VkAttachmentLoadOp loadOp,
                     VkAttachmentStoreOp storeOp) -> Error {
   auto &state = imageMemory->GetState();
-
-  // First usage this frame on this thread
-  // Reordering thread will insert the layout transition barrier before this command buffer is submitted
-  [[unlikely]]
-  if (state.lastUsedFrame != context.currentFrame &&
-      !context.currentlyReordering) {
-
-    state.lastUsedFrame = context.currentFrame;
-
-    state.lastUsage = newUsage;
-    state.lastPipelineStage = stage;
-
-    state.currentLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    [[unlikely]]
-    if (newUsage == TextureUsage::PresentSrc) {
-      state.currentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    }
-
-    GetThreadContext().initialImageStates.emplace_back(imageMemory, state);
-
-    return Error::Success();
-  }
-
-  if (!context.currentlyReordering) {
-    GetThreadContext().finalImageStates[imageMemory->getID()] = state;
-  }
 
   return imageMemory->UseAs(context, newUsage, stage, loadOp, storeOp);
 }
@@ -1444,10 +1394,7 @@ auto Texture::CopyTo(const GraphicsContext &context, Texture &dstTexture,
         "dimensions.");
   }
 
-  auto *commandBuffer = GetCommandBuffer();
-  if (commandBuffer == nullptr) {
-    return Error::Create("CopyTo: Failed to get command buffer for copying.");
-  }
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   CHECK_ERR(UseAsTransferSrc(context));
   CHECK_ERR(dstTexture.UseAsTransferDst(context));
@@ -1467,21 +1414,10 @@ auto Texture::CopyTo(const GraphicsContext &context, Texture &dstTexture,
   copyRegion.dstOffset = region.dstOffset;
   copyRegion.extent = region.extent;
 
-  // TODO: Check if this is needed after UseAsTransferSrc and UseAsTransferDst
-  // Barrier::UpdateUsage(context, *this,
-  //                      Barrier::ResourceState{
-  //                          .stages = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-  //                          .access = VK_ACCESS_2_TRANSFER_READ_BIT,
-  //                      });
-  // Barrier::UpdateUsage(context, dstTexture,
-  //                      Barrier::ResourceState{
-  //                          .stages = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-  //                          .access = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-  //                      });
-
-  vkCmdCopyImage(commandBuffer, imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
-                 dstTexture.imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, 1,
-                 &copyRegion);
+  CHECK_ERR(
+      commandBuffer->CopyImage({imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
+                                dstTexture.imageMemory->image,
+                                VK_IMAGE_LAYOUT_GENERAL, 1, &copyRegion}));
 
   MarkUse();
   dstTexture.MarkUse();
@@ -1503,10 +1439,7 @@ auto Texture::CopyTo(const GraphicsContext &context, Buffer &dstBuffer,
   copyRegion.imageOffset = region.srcOffset;
   copyRegion.imageExtent = region.extent;
 
-  auto *commandBuffer = GetCommandBuffer();
-  if (commandBuffer == nullptr) {
-    return Error::Create("CopyTo: Failed to get command buffer for copying.");
-  }
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   CHECK_ERR(UseAsTransferSrc(context));
 
@@ -1516,14 +1449,10 @@ auto Texture::CopyTo(const GraphicsContext &context, Buffer &dstBuffer,
                          "usage flag.");
   }
 
-  Barrier::UpdateUsage(context, dstBuffer,
-                       Barrier::ResourceState{
-                           .stages = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                           .access = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                       });
-  vkCmdCopyImageToBuffer(commandBuffer, imageMemory->image,
-                         VK_IMAGE_LAYOUT_GENERAL, dstBuffer.handle, 1,
-                         &copyRegion);
+  CHECK_ERR(commandBuffer->CopyImageToBuffer(
+      {imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, dstBuffer.handle, 1,
+       &copyRegion}));
+
   dstBuffer.MarkUse();
   MarkUse();
   return Error::Success();
@@ -1544,13 +1473,13 @@ Texture::~Texture() {
 
 std::atomic<VkDeviceSize> Texture::TotalAllocatedMemory{};
 
-auto Texture::GenerateMipmaps(const GraphicsContext &context) const -> Error {
+auto Texture::GenerateMipmaps(const GraphicsContext &context,
+                              VkCommandBuffer commandBuffer) const -> Error {
   if (levelCount <= 1) {
     return Error::Create("Texture does not have multiple mip levels for "
                          "mipmap generation.");
   }
 
-  auto *commandBuffer = GetCommandBuffer();
   if (commandBuffer == nullptr) {
     return Error::Create("Failed to get command buffer for mipmap generation.");
   }
@@ -1559,8 +1488,6 @@ auto Texture::GenerateMipmaps(const GraphicsContext &context) const -> Error {
     return Error::Create("Automatic mipmap generation is not supported for "
                          "compressed texture formats.");
   }
-
-  DynamicRendering::EndRendering(context);
 
   auto mipWidth = static_cast<int32_t>(imageMemory->size.width);
   auto mipHeight = static_cast<int32_t>(imageMemory->size.height);

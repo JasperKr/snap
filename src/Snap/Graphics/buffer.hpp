@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Graphics/barrier.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/bytedata.hpp"
@@ -49,11 +48,11 @@ struct BufferReadback : Object {
   std::condition_variable conditionVar;
 };
 
-auto FlushBufferUploads(const GraphicsContext &context) -> Error;
+auto FlushBufferUploads(const struct GraphicsContext &context) -> Error;
 
 static const Type LuaInternalBufferType = Type("InternalBuffer");
 
-struct Buffer : Object, Barrier::BarrierSynced {
+struct Buffer : Object, Identifiable {
   Buffer() = default;
   Buffer(const Buffer &) = delete;
   auto operator=(const Buffer &) -> Buffer & = delete;
@@ -115,7 +114,7 @@ struct Buffer : Object, Barrier::BarrierSynced {
   auto CopyTo(const GraphicsContext &context, Buffer &dstBuffer,
               size_t srcIndex, size_t dstIndex, size_t size) -> Error;
 
-  auto CopyTo(const GraphicsContext &context, Texture &dstTexture,
+  auto CopyTo(const GraphicsContext &context, struct Texture &dstTexture,
               VkBufferImageCopy region) const -> Error;
 
   auto Grow(const GraphicsContext &context, size_t newSize)

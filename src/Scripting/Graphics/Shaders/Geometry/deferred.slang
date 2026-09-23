@@ -5,8 +5,6 @@ import Lighting.pixel;
 import Lighting.physicallyBased;
 import constants;
 
-import Lighting.Lights.directionalLight;
-
 import transform;
 struct PushConstantBuffer {
   uint MaterialBufferIndex;

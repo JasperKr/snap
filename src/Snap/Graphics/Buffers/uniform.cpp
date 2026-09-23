@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -126,12 +127,6 @@ auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
 
     buffer = CHECK_RES(Graphics::Buffer::Create(context, info));
   }
-
-  Barrier::UpdateUsage(context, *buffer,
-                       Graphics::Barrier::ResourceState{
-                           .stages = VK_PIPELINE_STAGE_2_HOST_BIT,
-                           .access = VK_ACCESS_2_HOST_WRITE_BIT,
-                       });
 
   CHECK_ERR(buffer->SetData(context, stagingBuffer, 0, offset));
 

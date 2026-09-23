@@ -1,7 +1,7 @@
 #include "bvh.hpp"
+#include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/mesh.hpp"
@@ -9,7 +9,7 @@
 #include "Modules/error.hpp"
 #include <cstdint>
 #include <functional>
-#include <utility>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
@@ -232,47 +232,22 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh)
 
   const VkAccelerationStructureBuildRangeInfoKHR *rangePtr = &range;
 
-  DynamicRendering::EndRendering(context);
-
-  auto *cmdBuffer = GetCommandBuffer();
+  auto *cmdBuffer = GetVirtualCommandBuffer();
   ERR_ASSERT(cmdBuffer != nullptr);
 
   scratchBuffer->MarkUse();
-  Barrier::UpdateUsage(
-      context, *scratchBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
 
-  Barrier::UpdateUsage(
-      context, *bvh->accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
+  std::vector<VkBuffer> reads{mesh.GetVertexBuffer()->handle,
+                              scratchBuffer->handle};
+  std::vector<VkBuffer> writes{bvh->accelerationStructureBuffer->handle,
+                               scratchBuffer->handle};
 
-  Barrier::UpdateUsage(
-      context, *bvh->vertexBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                 VK_ACCESS_2_SHADER_READ_BIT});
-
-  if (bvh->indexBuffer != nullptr && bvh->indexCount > 0) {
-    Barrier::UpdateUsage(
-        context, *bvh->indexBuffer,
-        {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-         .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                   VK_ACCESS_2_SHADER_READ_BIT});
+  if (mesh.GetIndexBuffer() != nullptr) {
+    reads.emplace_back(mesh.GetIndexBuffer()->handle);
   }
 
-  vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
-
-  Barrier::UpdateUsage(
-      context, *bvh->accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
-
-  Barrier::UpdateUsage(
-      context, *scratchBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
+  CHECK_ERR(cmdBuffer->BuildAccelerationStructuresKHR(
+      {1, &buildInfo, &rangePtr, reads, writes}));
 
   bvh->accelerationStructureBuffer->MarkUse();
 
@@ -422,7 +397,7 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
 
   const auto *rangePtr = &range;
 
-  auto *cmdBuffer = GetCommandBuffer();
+  auto *cmdBuffer = GetVirtualCommandBuffer();
   ERR_ASSERT(cmdBuffer != nullptr);
 
   scratchBuffer->MarkUse();
@@ -431,36 +406,16 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
     indexBuffer->MarkUse();
   }
 
-  Barrier::UpdateUsage(
-      context, *scratchBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
-
-  Barrier::UpdateUsage(
-      context, *vertexBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                 VK_ACCESS_2_SHADER_READ_BIT});
-
+  std::vector<VkBuffer> reads{vertexBuffer->handle, scratchBuffer->handle};
   if (indexBuffer != nullptr && indexCount > 0) {
-    Barrier::UpdateUsage(
-        context, *indexBuffer,
-        {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-         .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                   VK_ACCESS_2_SHADER_READ_BIT});
+    reads.push_back(indexBuffer->handle);
   }
+  std::vector<VkBuffer> writes{accelerationStructureBuffer->handle,
+                               scratchBuffer->handle};
 
-  Barrier::UpdateUsage(
-      context, *accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
-
-  vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
-
-  Barrier::UpdateUsage(
-      context, *accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
+  // vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
+  CHECK_ERR(cmdBuffer->BuildAccelerationStructuresKHR(
+      {1, &buildInfo, &rangePtr, reads, writes}));
 
   VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
@@ -551,7 +506,7 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
 
   const auto *rangePtr = &range;
 
-  auto *cmdBuffer = GetCommandBuffer();
+  auto *cmdBuffer = GetVirtualCommandBuffer();
   ERR_ASSERT(cmdBuffer != nullptr);
 
   vertexBuffer->MarkUse();
@@ -559,32 +514,15 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
     indexBuffer->MarkUse();
   }
 
-  Barrier::UpdateUsage(
-      context, *vertexBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                 VK_ACCESS_2_SHADER_READ_BIT});
-
+  std::vector<VkBuffer> reads{vertexBuffer->handle};
   if (indexBuffer != nullptr && indexCount > 0) {
-    Barrier::UpdateUsage(
-        context, *indexBuffer,
-        {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-         .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                   VK_ACCESS_2_SHADER_READ_BIT});
+    reads.push_back(indexBuffer->handle);
   }
+  std::vector<VkBuffer> writes{accelerationStructureBuffer->handle};
 
-  Barrier::UpdateUsage(
-      context, *accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                 VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
-
-  vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
-
-  Barrier::UpdateUsage(
-      context, *accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
+  // vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
+  CHECK_ERR(cmdBuffer->BuildAccelerationStructuresKHR(
+      {1, &buildInfo, &rangePtr, reads, writes}));
 
   VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
@@ -616,12 +554,13 @@ auto BLAS::Compact(const GraphicsContext &context) -> Error {
                                     GetAllocationCallbacks(), &queryPool));
   }
 
-  auto *commandbuffer = CHECK_NULL(GetCommandBuffer());
+  auto *commandbuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
-  vkCmdResetQueryPool(commandbuffer, queryPool, 0, 1);
-  vkCmdWriteAccelerationStructuresPropertiesKHR(
-      commandbuffer, 1, &accelerationStructure,
-      VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, 0);
+  CHECK_ERR(commandbuffer->ResetQueryPool({queryPool, 0, 1}));
+  CHECK_ERR(commandbuffer->WriteAccelerationStructuresPropertiesKHR(
+      {1, &accelerationStructure,
+       VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, 0}));
+
   uint64_t queryTimelineValue = Graphics::SemaphoreManager::GetSemaphoreValue();
 
   // Lambda that wraps a function and prints any errors it returns
@@ -727,9 +666,9 @@ auto BLAS::FinalizeCompaction(const GraphicsContext &context,
       .mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR,
   };
 
-  auto *commandbuffer = CHECK_NULL(GetCommandBuffer());
+  auto *commandbuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
-  vkCmdCopyAccelerationStructureKHR(commandbuffer, &copyInfo);
+  CHECK_ERR(commandbuffer->CopyAccelerationStructureKHR({&copyInfo}));
 
   ScheduleDestruction(
       AccelerationStructureMemory{
@@ -886,33 +825,19 @@ auto TLAS::Create(const GraphicsContext &context,
 
   const VkAccelerationStructureBuildRangeInfoKHR *rangePtr = &range;
 
-  DynamicRendering::EndRendering(context);
-
-  auto *cmdBuffer = GetCommandBuffer();
+  auto *cmdBuffer = GetVirtualCommandBuffer();
   ERR_ASSERT(cmdBuffer != nullptr);
 
   scratchBuffer->MarkUse();
-  Barrier::UpdateUsage(
-      context, *scratchBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
 
-  Barrier::UpdateUsage(
-      context, *tlas->accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
+  std::vector<VkBuffer> reads{tlas->instanceBuffer->handle,
+                              scratchBuffer->handle};
+  std::vector<VkBuffer> writes{tlas->accelerationStructureBuffer->handle,
+                               scratchBuffer->handle};
 
-  vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
-
-  Barrier::UpdateUsage(
-      context, *tlas->accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
-
-  Barrier::UpdateUsage(
-      context, *scratchBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
+  // vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
+  CHECK_ERR(cmdBuffer->BuildAccelerationStructuresKHR(
+      {1, &buildInfo, &rangePtr, reads, writes}));
 
   tlas->accelerationStructureBuffer->MarkUse();
 
@@ -1048,24 +973,14 @@ auto TLAS::Refit(const GraphicsContext &context) -> Error {
   scratchBuffer->MarkUse();
   instanceBuffer->MarkUse();
 
-  Barrier::UpdateUsage(
-      context, *scratchBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
+  std::vector<VkBuffer> reads{instanceBuffer->handle, scratchBuffer->handle};
+  std::vector<VkBuffer> writes{accelerationStructureBuffer->handle,
+                               scratchBuffer->handle};
 
-  Barrier::UpdateUsage(
-      context, *instanceBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
-
-  Barrier::UpdateUsage(
-      context, *accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                 VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
-
-  vkCmdBuildAccelerationStructuresKHR(GetCommandBuffer(), 1, &buildInfo,
-                                      &rangePtr);
+  // vkCmdBuildAccelerationStructuresKHR(GetCommandBuffer(), 1, &buildInfo,
+  //                                     &rangePtr);
+  CHECK_ERR(GetVirtualCommandBuffer()->BuildAccelerationStructuresKHR(
+      {1, &buildInfo, &rangePtr, reads, writes}));
 
   instanceCount = static_cast<uint32_t>(instances.size());
 
@@ -1196,29 +1111,14 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
   scratchBuffer->MarkUse();
   instanceBuffer->MarkUse();
 
-  Barrier::UpdateUsage(
-      context, *scratchBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
+  std::vector<VkBuffer> reads{instanceBuffer->handle, scratchBuffer->handle};
+  std::vector<VkBuffer> writes{accelerationStructureBuffer->handle,
+                               scratchBuffer->handle};
 
-  Barrier::UpdateUsage(
-      context, *instanceBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
-
-  Barrier::UpdateUsage(
-      context, *accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                 VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
-
-  vkCmdBuildAccelerationStructuresKHR(GetCommandBuffer(), 1, &buildInfo,
-                                      &rangePtr);
-
-  Barrier::UpdateUsage(
-      context, *accelerationStructureBuffer,
-      {.stages = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR});
+  // vkCmdBuildAccelerationStructuresKHR(GetCommandBuffer(), 1, &buildInfo,
+  //                                     &rangePtr);
+  CHECK_ERR(GetVirtualCommandBuffer()->BuildAccelerationStructuresKHR(
+      {1, &buildInfo, &rangePtr, reads, writes}));
 
   VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,

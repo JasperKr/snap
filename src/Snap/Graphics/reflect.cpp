@@ -318,6 +318,8 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout,
     samplerInfo.binding = variableLayout->getBindingIndex();
     samplerInfo.shape = shape;
     samplerInfo.access = access;
+    samplerInfo.accessFlags =
+        SlangResourceAccessToVkAccessFlags_Sampler(access);
     samplerInfo.format =
         SlangImageFormatToVkFormat(variableLayout->getImageFormat());
 
@@ -336,22 +338,7 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout,
     bufferInfo.binding = variableLayout->getBindingIndex();
     bufferInfo.access = access;
 
-    switch (access) {
-    case SLANG_RESOURCE_ACCESS_READ:
-      bufferInfo.accessFlags = VK_ACCESS_2_SHADER_READ_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_READ_WRITE:
-      bufferInfo.accessFlags =
-          VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_WRITE:
-      bufferInfo.accessFlags = VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    default:
-      bufferInfo.accessFlags = VK_ACCESS_2_SHADER_READ_BIT;
-      break;
-    }
-
+    bufferInfo.accessFlags = SlangResourceAccessToVkAccessFlags_Buffer(access);
     bufferInfo.bufferType = BufferType::Storage;
 
     auto *bufferLayout = variableLayout->getTypeLayout();
@@ -406,21 +393,7 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout,
     asInfo.shape = shape;
     asInfo.access = access;
 
-    switch (access) {
-    case SLANG_RESOURCE_ACCESS_READ:
-      asInfo.accessFlags = VK_ACCESS_2_SHADER_READ_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_READ_WRITE:
-      asInfo.accessFlags =
-          VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_WRITE:
-      asInfo.accessFlags = VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    default:
-      asInfo.accessFlags = VK_ACCESS_2_SHADER_READ_BIT;
-      break;
-    }
+    asInfo.accessFlags = SlangResourceAccessToVkAccessFlags_Buffer(access);
 
     resourceInfo.name = variableLayout->getName();
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
@@ -493,21 +466,7 @@ auto SetupFromType(slang::VariableLayoutReflection *variableLayout,
     bufferInfo.binding = variableLayout->getBindingIndex();
     bufferInfo.access = access;
 
-    switch (access) {
-    case SLANG_RESOURCE_ACCESS_READ:
-      bufferInfo.accessFlags = VK_ACCESS_2_SHADER_READ_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_READ_WRITE:
-      bufferInfo.accessFlags =
-          VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_WRITE:
-      bufferInfo.accessFlags = VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    default:
-      bufferInfo.accessFlags = VK_ACCESS_2_SHADER_READ_BIT;
-      break;
-    }
+    bufferInfo.accessFlags = SlangResourceAccessToVkAccessFlags_Buffer(access);
 
     bufferInfo.bufferType =
         isPushConstant ? BufferType::PushConstant : BufferType::Uniform;

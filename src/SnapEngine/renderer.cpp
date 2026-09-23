@@ -15,6 +15,7 @@
 #include "Scene/Lights/rectangleLight.hpp"
 #include "Scene/Lights/sphereLight.hpp"
 #include "Scene/Lights/spotLight.hpp"
+#include "bufferUploadManager.hpp"
 #include "material.hpp"
 #include <cassert>
 #include <cstdint>
@@ -126,6 +127,8 @@ auto Renderer::GetNewMaterialIndex() -> Result<size_t> {
 
     MaterialsBuffer = CHECK_RES(MaterialsBuffer->Grow(
         *Graphics::GetCurrentGraphicsContext(), newElementCount));
+
+    CHECK_ERR(MaterialUploadManager.SetNewBuffer(MaterialsBuffer->GetBuffer()));
   }
 
   return newIndex;
@@ -156,6 +159,8 @@ auto Renderer::InitializeMaterialBuffer(Graphics::GraphicsContext &context,
 
   MaterialsBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(
       context, format, initialSize, materialBufferCreateInfo));
+  MaterialUploadManager = BufferUploadManager(MaterialsBuffer->GetBuffer(),
+                                              MaterialsBuffer->GetStride());
 
   return {};
 }
@@ -295,6 +300,7 @@ void Renderer::Deinitialize() {
   SceneTLAS = nullptr;
 
   BlueNoiseTexture = nullptr;
+  PMJ02bnSamples = nullptr;
 }
 
 } // namespace Engine::Renderer

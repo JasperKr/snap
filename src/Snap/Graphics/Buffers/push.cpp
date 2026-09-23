@@ -1,7 +1,12 @@
 #include "push.hpp"
+#include "Graphics/FrameGraph/commands.hpp"
+#include "Graphics/graphics.hpp"
 #include "Graphics/reflect.hpp"
+#include "Modules/console.hpp"
+#include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -20,11 +25,17 @@ auto PushBuffer::GetLayout() const -> const Reflect::FlattenedReflection & {
   return layout;
 }
 
-auto PushBuffer::FlushData(FlushInfo &info) -> void {
+auto PushBuffer::FlushData(VkPipelineLayout layout, VkCommandBuffer cmdBuffer)
+    -> void {
   auto bufferSize = GetBufferSize();
 
-  vkCmdPushConstants(info.commandBuffer, info.pipelineLayout, stageFlags,
-                     GetBufferOffset(), bufferSize, data.data());
+  // GetVirtualCommandBuffer()->PushConstants(
+  //     {layout, stageFlags, static_cast<uint32_t>(GetBufferOffset()),
+  //      static_cast<uint32_t>(bufferSize), data.data()});
+
+  vkCmdPushConstants(cmdBuffer, layout, stageFlags,
+                     static_cast<uint32_t>(GetBufferOffset()),
+                     static_cast<uint32_t>(bufferSize), data.data());
 }
 
 auto PushBuffer::ContainsUniform(const ResourceKey &key) const -> bool {
@@ -80,5 +91,19 @@ auto PushBuffer::SetData(const ResourceKey &key,
 
   return Error::Success();
 }
+
+auto PushBuffer::SetData(const std::span<const uint8_t> &values) -> Error {
+  std::memcpy(data.data(), values.data(), values.size());
+
+  return {};
+}
+
+auto PushBuffer::SetData(const std::span<const char> &values) -> Error {
+  std::memcpy(data.data(), values.data(), values.size());
+
+  return {};
+}
+
+auto PushBuffer::GetData() -> std::span<const uint8_t> { return data; }
 
 } // namespace Graphics

@@ -1,11 +1,14 @@
 #include "graphics.hpp"
+#include "Graphics/FrameGraph/commands.hpp"
+#include "Graphics/FrameGraph/descriptorCache.hpp"
+#include "Graphics/FrameGraph/pipelineCache.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/deviceSettings.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/render.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/shader.hpp"
 #include "Libraries/vma.hpp"
@@ -18,7 +21,9 @@
 #include "SDL3/SDL_vulkan.h"
 
 #include "vulkan/vulkan_core.h"
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <mutex>
 #include <string>
@@ -194,16 +199,39 @@ auto ExtensionListSupported(
 static auto CreateDevice(GraphicsContext &context,
                          const DeviceSettings &settings) -> Error {
   float queuePriority = 1.0F;
-  VkDeviceQueueCreateInfo queueCreateInfo{};
-  queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queueCreateInfo.queueFamilyIndex = context.graphicsQueueFamily;
-  queueCreateInfo.queueCount = 1;
-  queueCreateInfo.pQueuePriorities = &queuePriority;
+  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
+
+  if (context.graphicsQueueFamily != UINT32_MAX) {
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = context.graphicsQueueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfos.emplace_back(queueCreateInfo);
+  }
+
+  if (context.computeQueueFamily != UINT32_MAX) {
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = context.computeQueueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfos.emplace_back(queueCreateInfo);
+  }
+
+  if (context.transferQueueFamily != UINT32_MAX) {
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = context.transferQueueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfos.emplace_back(queueCreateInfo);
+  }
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  createInfo.pQueueCreateInfos = &queueCreateInfo;
-  createInfo.queueCreateInfoCount = 1;
+  createInfo.pQueueCreateInfos = queueCreateInfos.data();
+  createInfo.queueCreateInfoCount = queueCreateInfos.size();
   createInfo.pEnabledFeatures = nullptr;
 
   VkPhysicalDeviceIndexTypeUint8FeaturesEXT indexTypeUint8Features{};
@@ -264,13 +292,13 @@ static auto CreateDevice(GraphicsContext &context,
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
       .pNext = &features13,
       .shaderFloat16 = VK_TRUE,
+      .shaderInt8 = VK_TRUE,
       .descriptorIndexing = VK_TRUE,
       .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
       .shaderStorageBufferArrayNonUniformIndexing = VK_TRUE,
       .runtimeDescriptorArray = VK_TRUE,
       .timelineSemaphore = VK_TRUE,
       .bufferDeviceAddress = VK_TRUE,
-      .shaderInt8 = VK_TRUE,
   };
 
   PrintDebug(
@@ -367,15 +395,25 @@ static auto CreateDevice(GraphicsContext &context,
   PrintDebug("Loading Vulkan device with Volk...");
   volkLoadDevice(context.device);
 
+  PrintAlways("graphics: {}, compute: {}, transfer: {}",
+              context.graphicsQueueFamily, context.computeQueueFamily,
+              context.transferQueueFamily);
+
+  context.queues.resize(
+      std::max<size_t>(context.graphicsQueueFamily + 1, context.queues.size()));
   vkGetDeviceQueue(context.device, context.graphicsQueueFamily, 0,
                    &context.queues.at(context.graphicsQueueFamily));
 
   if (context.computeQueueFamily != UINT32_MAX) {
+    context.queues.resize(std::max<size_t>(context.computeQueueFamily + 1,
+                                           context.queues.size()));
     vkGetDeviceQueue(context.device, context.computeQueueFamily, 0,
                      &context.queues.at(context.computeQueueFamily));
   }
 
   if (context.transferQueueFamily != UINT32_MAX) {
+    context.queues.resize(std::max<size_t>(context.transferQueueFamily + 1,
+                                           context.queues.size()));
     vkGetDeviceQueue(context.device, context.transferQueueFamily, 0,
                      &context.queues.at(context.transferQueueFamily));
   }
@@ -389,13 +427,18 @@ auto GetThreadContext() -> ThreadContext & {
 }
 
 // May be null
-auto GetCommandBuffer() -> VkCommandBuffer {
-  auto &threadContext = GetThreadContext();
-  return threadContext.commandBuffer;
+auto GetVirtualCommandBuffer() -> VirtualCommandBuffer * {
+  const auto &threadContext = GetThreadContext();
+  return threadContext.commandBuffer.get();
+}
+
+auto GetVkCommandBuffer() -> VkCommandBuffer {
+  const auto &threadContext = GetThreadContext();
+  return threadContext.workingCommandBuffer;
 }
 
 auto PushDebugMarker(const std::string_view &name, const Color *color) -> void {
-  auto *cmdBuffer = GetCommandBuffer();
+  auto *cmdBuffer = GetVirtualCommandBuffer();
   if (cmdBuffer == nullptr) {
     PrintWarning("PushDebugMarker called with null command buffer.");
     return;
@@ -413,21 +456,22 @@ auto PushDebugMarker(const std::string_view &name, const Color *color) -> void {
   }
   // NOLINTEND
 
-  vkCmdBeginDebugUtilsLabelEXT(cmdBuffer, &labelInfo);
+  cmdBuffer->BeginDebugUtilsLabelEXT(
+      Args::VkCmdBeginDebugUtilsLabelEXT{&labelInfo});
 }
 
 auto PopDebugMarker() -> void {
-  auto *cmdBuffer = GetCommandBuffer();
+  auto *cmdBuffer = GetVirtualCommandBuffer();
   if (cmdBuffer == nullptr) {
     PrintWarning("PopDebugMarker called with null command buffer.");
     return;
   }
 
-  vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
+  cmdBuffer->EndDebugUtilsLabelEXT({});
 }
 
 auto PushDebugLabel(const std::string_view &name, const Color *color) -> void {
-  auto *cmdBuffer = GetCommandBuffer();
+  auto *cmdBuffer = GetVirtualCommandBuffer();
   if (cmdBuffer == nullptr) {
     PrintWarning("PushDebugLabel called with null command buffer.");
     return;
@@ -445,7 +489,8 @@ auto PushDebugLabel(const std::string_view &name, const Color *color) -> void {
   }
   // NOLINTEND
 
-  vkCmdInsertDebugUtilsLabelEXT(cmdBuffer, &labelInfo);
+  cmdBuffer->InsertDebugUtilsLabelEXT(
+      Args::VkCmdInsertDebugUtilsLabelEXT{&labelInfo});
 }
 
 static auto CreateSemaphores(GraphicsContext &context) -> Error {
@@ -462,19 +507,13 @@ static auto CreateSemaphores(GraphicsContext &context) -> Error {
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
     for (int i = 0; i < FRAMES_IN_FLIGHT; i++) {
-      Error error = Error::Create(vkCreateSemaphore(
-          context.device, &semaphoreInfo, GetAllocationCallbacks(),
-          &context.imageAvailable.at(i)));
-      if (Error::IsError(error)) {
-        return error;
-      }
+      CHECK_NEW_ERR(vkCreateSemaphore(context.device, &semaphoreInfo,
+                                      GetAllocationCallbacks(),
+                                      &context.imageAvailable.at(i)));
 
-      error = Error::Create(vkCreateFence(context.device, &fenceInfo,
-                                          GetAllocationCallbacks(),
-                                          &context.inFlight.at(i)));
-      if (Error::IsError(error)) {
-        return error;
-      }
+      CHECK_NEW_ERR(vkCreateFence(context.device, &fenceInfo,
+                                  GetAllocationCallbacks(),
+                                  &context.inFlight.at(i)));
     }
   }
 
@@ -496,17 +535,12 @@ static auto CreateVmaAllocator(GraphicsContext &context) -> Error {
                         VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
   VmaVulkanFunctions vulkanFunctions;
-  Error error = Error::Create(
+  CHECK_NEW_ERR(
       vmaImportVulkanFunctionsFromVolk(&allocatorInfo, &vulkanFunctions));
 
   allocatorInfo.pVulkanFunctions = &vulkanFunctions;
 
-  error =
-      Error::Create(vmaCreateAllocator(&allocatorInfo, &context.vmaAllocator));
-
-  if (Error::IsError(error)) {
-    return error;
-  }
+  CHECK_NEW_ERR(vmaCreateAllocator(&allocatorInfo, &context.vmaAllocator));
 
   return Error::Success();
 }
@@ -519,13 +553,9 @@ inline auto CreateCommandPool(ThreadContext &tcontext) -> Error {
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    Error error = Error::Create(
-        vkCreateCommandPool(tcontext.graphicsContext->device, &poolInfo,
-                            GetAllocationCallbacks(), &tcontext.commandPool));
-
-    if (Error::IsError(error)) {
-      return error;
-    }
+    CHECK_NEW_ERR(vkCreateCommandPool(tcontext.graphicsContext->device,
+                                      &poolInfo, GetAllocationCallbacks(),
+                                      &tcontext.commandPool));
   }
 
   {
@@ -550,14 +580,10 @@ auto Initialize(GraphicsContext &context, Window::WindowContext &wcontext,
     return Error::Create(SDL_GetError());
   }
 
-  SDL_Window *window = SDL_CreateWindow(
+  SDL_Window *window = CHECK_NULL(SDL_CreateWindow(
       wcontext.initialSettings.title.c_str(), wcontext.initialSettings.width,
       wcontext.initialSettings.height,
-      SDL_WINDOW_VULKAN | wcontext.initialSettings.GetSDLWindowFlags());
-
-  if (window == nullptr) {
-    return Error::Create("Failed to create SDL window.");
-  }
+      SDL_WINDOW_VULKAN | wcontext.initialSettings.GetSDLWindowFlags()));
 
   context.sdlWindow = window;
 
@@ -566,15 +592,11 @@ auto Initialize(GraphicsContext &context, Window::WindowContext &wcontext,
   // Get vulkan instance extensions required by SDL
   unsigned int extensionCount = 0;
   SDL_Vulkan_GetInstanceExtensions(&extensionCount);
-  if (extensionCount == 0) {
-    return Error::Create("Failed to get Vulkan instance extension count.");
-  }
+  ERR_ASSERT(extensionCount != 0)
 
   Uint32 extCount = 0;
-  const char *const *extensions = SDL_Vulkan_GetInstanceExtensions(&extCount);
-  if (extensions == nullptr) {
-    return Error::Create("Failed to get Vulkan instance extensions.");
-  }
+  const char *const *extensions =
+      CHECK_NULL(SDL_Vulkan_GetInstanceExtensions(&extCount));
 
   std::vector<const char *> extensionList;
 
@@ -608,19 +630,13 @@ auto Initialize(GraphicsContext &context, Window::WindowContext &wcontext,
   volkLoadInstance(context.instance);
 
   // Create Vulkan surface for the SDL window
-  if (!SDL_Vulkan_CreateSurface(window, context.instance, nullptr,
-                                &context.surface)) {
-    return Error::Create("Failed to create Vulkan surface.");
-  }
+  ERR_ASSERT(SDL_Vulkan_CreateSurface(window, context.instance, nullptr,
+                                      &context.surface));
 
   CHECK_ERR(FindPhysicalDevice(context));
   CHECK_ERR(FindQueueFamilies(context));
 
-  auto *windowContext = Window::GetWindowContext();
-
-  if (windowContext == nullptr) {
-    return Error::Create("No current window context found.");
-  }
+  auto *windowContext = CHECK_NULL(Window::GetWindowContext());
 
   CHECK_ERR(CreateDevice(context, deviceSettings));
   PrintDebug("called: CreateDevice...");
@@ -633,6 +649,8 @@ auto Initialize(GraphicsContext &context, Window::WindowContext &wcontext,
   PrintDebug("called: CreateCommandPool...");
   CHECK_ERR(CreateSemaphores(context));
   PrintDebug("called: CreateSemaphores...");
+  CHECK_ERR(GetPipelineCache().Initialize(context));
+  CHECK_ERR(GetDescriptorCache().Initialize(context));
 
   return Error::Success();
 }
@@ -647,14 +665,16 @@ void Deinitialize(GraphicsContext &context) {
 
   Graphics::UploadBuffers.clear();
 
-  Graphics::Barrier::ResetModule();
+  // Graphics::Barrier::ResetModule();
   Graphics::UnloadShaderModule(context);
   Graphics::DeinitializeRendering(context);
-  Graphics::DynamicRendering::Shutdown(context);
+  Graphics::RenderState::Shutdown(context);
   Graphics::semaphoreManager.Deinitialize(context);
   Graphics::DestroySamplers(context);
-  Graphics::DynamicRendering::Destroy(context);
+  Graphics::RenderState::Destroy(context);
   Graphics::DeInitializeBVHModule();
+  GetPipelineCache().DeInitialize(context);
+  GetDescriptorCache().DeInitialize(context);
 
   // (BEFORE device, allocator lock)
   Graphics::ProcessReleasedResources(context);

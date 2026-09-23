@@ -2,10 +2,10 @@
 #include "Editor/editor.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/draw.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
@@ -203,7 +203,7 @@ inline auto RenderDrawItem(const DrawItem &item,
     return Error::Create("Invalid geometry mesh");
   }
 
-  Graphics::DynamicRendering::SetCullMode(item.material->cullMode);
+  Graphics::RenderState::SetCullMode(item.material->cullMode);
 
   CHECK_ERR(Graphics::Draw(ctx, *item.geometry.mesh));
 
@@ -400,11 +400,11 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, rendertargets.Depth));
 
-  Graphics::DynamicRendering::SetDepthMode(true, true, VK_COMPARE_OP_GREATER);
-  Graphics::DynamicRendering::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
-  Graphics::DynamicRendering::SetShader(depthOpaque);
+  Graphics::RenderState::SetDepthMode(true, true, VK_COMPARE_OP_GREATER);
+  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  Graphics::RenderState::SetShader(depthOpaque);
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       ctx, {{
                .clearValue = VkClearValue{0.0F, 0},
                .texture = textures.Depth,
@@ -429,7 +429,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       .bindMaterialTextures = 1,
       .bindMaterialBuffer = true,
   };
-  Graphics::DynamicRendering::SetShader(depthMasked);
+  Graphics::RenderState::SetShader(depthMasked);
   for (const auto &item : MaskedDrawItems) {
     CHECK_ERR(RenderDrawItem(item, depthMasked, ctx, maskedConfig));
   }
@@ -452,10 +452,10 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, rendertargets.Motion));
 
-  Graphics::DynamicRendering::SetDepthMode(true, false, VK_COMPARE_OP_EQUAL);
-  Graphics::DynamicRendering::SetShader(deferred);
+  Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_EQUAL);
+  Graphics::RenderState::SetShader(deferred);
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       ctx, {{
                 .texture = textures.Depth,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -508,7 +508,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   Graphics::PushDebugMarker("Lighting");
 
   if (OpaqueDrawItems.empty() && MaskedDrawItems.empty()) {
-    CHECK_ERR(Graphics::DynamicRendering::Clear(
+    CHECK_ERR(Graphics::RenderState::Clear(
         ctx, {
                  .colors =
                      {
@@ -621,11 +621,11 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   auto width = textures.ShadowHitFlags->GetWidth();
   auto height = textures.ShadowHitFlags->GetHeight();
 
-  Graphics::DynamicRendering::SetShader(shadowsReset);
+  Graphics::RenderState::SetShader(shadowsReset);
 
   CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width / 4, height / 4, 1)));
 
-  Graphics::DynamicRendering::SetShader(shadowDirectional);
+  Graphics::RenderState::SetShader(shadowDirectional);
 
   CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
@@ -648,7 +648,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   CHECK_ERR(
       shadowDenoise->Send(RayHitFlagsTextureKey, textures.ShadowHitFlags));
 
-  Graphics::DynamicRendering::SetShader(shadowDenoise);
+  Graphics::RenderState::SetShader(shadowDenoise);
 
   CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
@@ -678,7 +678,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   CHECK_ERR(Graphics::UniformWriter::Send(ambientOcclusionShader, rndStateKey,
                                           frameRandomState));
 
-  Graphics::DynamicRendering::SetShader(ambientOcclusionShader);
+  Graphics::RenderState::SetShader(ambientOcclusionShader);
 
   CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
@@ -699,7 +699,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
                                   textures.PreviousAmbientOcclusion));
   CHECK_ERR(aoDenoiseShader->Send(OutputTextureKey, textures.AmbientOcclusion));
 
-  Graphics::DynamicRendering::SetShader(aoDenoiseShader);
+  Graphics::RenderState::SetShader(aoDenoiseShader);
 
   CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
@@ -712,7 +712,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   textures.PreviousShadowVisibility = textures.ShadowVisibility;
   textures.PreviousAmbientOcclusion = textures.AmbientOcclusion;
 
-  Graphics::DynamicRendering::SetShader(lightingShader);
+  Graphics::RenderState::SetShader(lightingShader);
   static Graphics::ResourceKey ShadowVisibilityTextureKey = {
       "ShadowVisibilityTexture"};
   CHECK_ERR(lightingShader->Send(ShadowVisibilityTextureKey,
@@ -722,7 +722,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, rendertargets.DirectLighting));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {{
                    .texture = textures.DirectLighting,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -739,11 +739,11 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   // Now left: IncomingLight and Depth
 
-  Graphics::DynamicRendering::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
+  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       ctx, {{
                 .texture = textures.Depth,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -762,19 +762,19 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   Graphics::PopDebugMarker();
   Graphics::PushDebugMarker("Transparent Materials");
 
-  Graphics::DynamicRendering::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
   // Skybox should be drawn before transparent objects, this is currently wrong.
-  Graphics::DynamicRendering::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
-  Graphics::DynamicRendering::SetShader(forward);
-  Graphics::DynamicRendering::SetCullMode(VK_CULL_MODE_NONE);
+  Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
+  Graphics::RenderState::SetShader(forward);
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
   for (const auto &item : TransparentDrawItems) {
     CHECK_ERR(RenderDrawItem(item, forward, ctx, forwardConfig));
   }
 
   Graphics::PopDebugMarker();
 
-  Graphics::DynamicRendering::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
+  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
   // Otherwise meshes won't be destroyed due to living in these vectors
   OpaqueDrawItems.clear();
@@ -809,6 +809,11 @@ Scene::Scene(std::string name) : name(std::move(name)) {
             transform.UpdateLocalMatrix();
             transform.UpdateWorldMatrix(parentTransform);
           });
+
+  auto postTransformSystem = world.system<Engine::Transform>().each(
+      [](Transform &transform) -> auto { transform.MarkChildrenUpdated(); });
+
+  postTransformSystem.depends_on(transformSystem);
 
   auto preBoundsCascadeSystem = world.system<Engine::WorldBounds>().each(
       [](Engine::WorldBounds &bbox) -> auto { bbox.Bounds.Reset(); });
@@ -1005,6 +1010,12 @@ Scene::Scene(std::string name) : name(std::move(name)) {
 
         error = buffers.SphereLightsBuffer->GetBuffer()->SetData(
             ctx, buffers.SphereLightData);
+        if (Error::IsError(error)) {
+          lastUpdateResult = error;
+          return;
+        }
+
+        error = renderer.GetMaterialUploadManager().Flush(ctx);
         if (Error::IsError(error)) {
           lastUpdateResult = error;
           return;

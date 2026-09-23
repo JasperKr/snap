@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "Graphics/barrier.hpp"
 #include "Graphics/bufferformat.hpp"
-#include "Graphics/dynamicRendering.hpp"
+#include "Graphics/renderState.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/object.hpp"
 #include "Modules/timer.hpp"
@@ -19,7 +18,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#define Enable_Snapshots 1
+#define Enable_Snapshots 0
 
 namespace Graphics::Snapshot {
 
@@ -626,17 +625,17 @@ struct SetPushConstantsEvent : public Event {
       -> void override;
 };
 
-struct BarrierEvent : public Event {
-  Barrier::ResourceSync sync{};
-  ObjectID resourceId{};
+// struct BarrierEvent : public Event {
+//   Barrier::ResourceSync sync{};
+//   ObjectID resourceId{};
 
-  BarrierEvent() : Event(EventType::Barrier) {}
-  explicit BarrierEvent(const Barrier::ResourceSync &sync, ObjectID resourceId)
-      : Event(EventType::Barrier), sync(sync), resourceId(resourceId) {}
+//   BarrierEvent() : Event(EventType::Barrier) {}
+//   explicit BarrierEvent(const Barrier::ResourceSync &sync, ObjectID resourceId)
+//       : Event(EventType::Barrier), sync(sync), resourceId(resourceId) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
-};
+//   auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
+//       -> void override;
+// };
 
 struct LayoutTransitionEvent : public Event {
   VkImageLayout srcLayout{};
@@ -722,7 +721,7 @@ static const Type ThreadSnapshotType = Type("ThreadSnapshot");
 
 struct ThreadSnapshot : Object, Identifiable {
   std::vector<std::shared_ptr<Event>> events;
-  std::vector<DynamicRendering::State> renderStates;
+  std::vector<RenderState::State> renderStates;
 
   uint64_t threadId;
   std::string threadName;
@@ -747,7 +746,7 @@ struct ThreadSnapshot : Object, Identifiable {
   }
 
   ThreadSnapshot(std::vector<std::shared_ptr<Event>> events,
-                 std::vector<DynamicRendering::State> renderStates,
+                 std::vector<RenderState::State> renderStates,
                  uint64_t threadId, std::string threadName, bool active)
       : events(std::move(events)), renderStates(std::move(renderStates)),
         threadId(threadId), threadName(std::move(threadName)), active(active) {}
@@ -797,5 +796,6 @@ auto Load(const std::string &filename) -> ThreadSnapshot;
 auto StartSnapshot() -> void;
 auto EndSnapshot() -> void;
 auto RenderSnapshot(const ThreadSnapshot &snapshot) -> void;
+auto Update() -> void;
 
 } // namespace Graphics::Snapshot

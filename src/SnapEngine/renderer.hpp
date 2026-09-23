@@ -3,16 +3,19 @@
 #include "Editor/lineDrawer.hpp"
 #include "Editor/primitiveDrawer.hpp"
 #include "Graphics/Buffers/structured.hpp"
+#include "Graphics/buffer.hpp"
 #include "Graphics/bufferformat.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
+#include "Modules/filesystem.hpp"
 #include "Modules/object.hpp"
 #include "Renderer/bloomManager.hpp"
 #include "Renderer/prefilterManager.hpp"
 #include "Renderer/shaderManager.hpp"
+#include "bufferUploadManager.hpp"
 #include "material.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -144,6 +147,21 @@ struct Renderer {
                                   VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                   VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
+    auto samples = CHECK_RES(
+        Filesystem::ReadFile("src/Snap/Graphics/Assets/pmj_samples.bin"));
+    Graphics::BufferCreationInfo info = {
+        .size = samples.size(),
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .stagingBuffer = false,
+        .persistentMapping = false,
+        .debugName = "Progressive Multi-Jittered (0,2) Blue Noise Samples",
+    };
+
+    PMJ02bnSamples = CHECK_RES(Graphics::Buffer::Create(context, info));
+    CHECK_ERR(PMJ02bnSamples->SetData(context, samples))
+
     CHECK_ERR(ShaderManager.Preload());
 
     initialized = true;
@@ -211,6 +229,14 @@ struct Renderer {
   auto GetBlueNoiseTexture() const -> const Ref<Graphics::Texture> & {
     return BlueNoiseTexture;
   }
+  auto GetSamplesBuffer() -> Ref<Graphics::Buffer> & { return PMJ02bnSamples; }
+  auto GetSamplesBuffer() const -> const Ref<Graphics::Buffer> & {
+    return PMJ02bnSamples;
+  }
+
+  auto GetMaterialUploadManager() -> BufferUploadManager & {
+    return MaterialUploadManager;
+  }
 
 private:
   Material NoMaterial;
@@ -218,6 +244,7 @@ private:
 
   Ref<Graphics::StructuredBuffer> MaterialsBuffer;
   std::unordered_set<size_t> UsedMaterialIndices;
+  BufferUploadManager MaterialUploadManager;
 
   Ref<Graphics::StructuredBuffer> ModelTransformsBuffer;
   size_t ModelTransformBufferElementCount = 0;
@@ -238,6 +265,7 @@ private:
 
   bool initialized = false;
   Ref<Graphics::Texture> BlueNoiseTexture;
+  Ref<Graphics::Buffer> PMJ02bnSamples;
 
   auto InitializeMaterialBuffer(Graphics::GraphicsContext &context,
                                 size_t initialSize) -> Error;

@@ -1,7 +1,7 @@
 #include "lineDrawer.hpp"
 #include "Graphics/draw.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/mesh.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/uniformWriter.hpp"
 #include "Modules/error.hpp"
 #include "Scene/camera.hpp"
@@ -130,8 +130,8 @@ auto LineDrawer::Render(const Graphics::GraphicsContext &context,
     return {};
   }
 
-  Graphics::DynamicRendering::SetShader(Shader);
-  Graphics::DynamicRendering::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
+  Graphics::RenderState::SetShader(Shader);
+  Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
 
   static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
   CHECK_ERR(Shader->Send(cameraBufferKey, camera.GetBuffer()));
@@ -156,7 +156,7 @@ auto LineDrawer::Render(const Graphics::GraphicsContext &context,
 
   CHECK_ERR(GenerateMesh(context, OverlayLines));
 
-  Graphics::DynamicRendering::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   CHECK_ERR(Graphics::Draw(context, *Mesh, OverlayLines.size()));
   OverlayLines.clear();
 

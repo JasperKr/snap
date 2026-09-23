@@ -1,6 +1,6 @@
 #include "primitiveDrawer.hpp"
 #include "Graphics/draw.hpp"
-#include "Graphics/dynamicRendering.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/uniformWriter.hpp"
 
 namespace Engine::Renderer {
@@ -93,8 +93,8 @@ auto PrimitiveDrawer::Render(const Graphics::GraphicsContext &context,
     return {};
   }
 
-  Graphics::DynamicRendering::SetShader(Shader);
-  Graphics::DynamicRendering::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
+  Graphics::RenderState::SetShader(Shader);
+  Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
 
   static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
   CHECK_ERR(Shader->Send(cameraBufferKey, camera.GetBuffer()));
@@ -118,7 +118,7 @@ auto PrimitiveDrawer::Render(const Graphics::GraphicsContext &context,
   Mesh->SetDrawRange(
       {.Offset = 0, .Count = static_cast<uint32_t>(Overlaid.size())});
 
-  Graphics::DynamicRendering::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   CHECK_ERR(Graphics::Draw(context, *Mesh));
   Overlaid.clear();
 

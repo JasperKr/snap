@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Graphics/Buffers/structured.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
@@ -119,8 +118,7 @@ struct Material : Identifiable {
   auto Update(Graphics::GraphicsContext &context) -> Error;
 
 private:
-  auto WriteToBuffer(Graphics::GraphicsContext &context,
-                     const Ref<Graphics::StructuredBuffer> &buffer) -> Error;
+  auto Write(Graphics::GraphicsContext &context) -> Error;
 };
 
 struct LuaMaterial : LuaWrap::LuaECSObject {

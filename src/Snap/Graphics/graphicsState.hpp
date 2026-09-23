@@ -2,6 +2,7 @@
 
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/stackVector.hpp"
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -85,6 +86,7 @@ constexpr VkPipelineColorBlendAttachmentState BlendmodeMultiply = {
 constexpr uint32_t FRAMES_IN_FLIGHT = 3;
 constexpr uint32_t SWAPCHAIN_IMAGE_COUNT = 3;
 constexpr uint32_t MAX_SWAPCHAIN_IMAGES = 8;
+constexpr uint32_t MAX_BOUND_VERTEX_BUFFERS = 8;
 
 struct KeyElement {
   KeyElement() = default;

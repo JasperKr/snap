@@ -1,4 +1,5 @@
 #include "Wrap/Graphics/wrap_texture.hpp"
+#include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/format.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsState.hpp"
@@ -652,7 +653,7 @@ static inline auto TextureFromWidthHeightAndOptions(lua_State *state)
     return Error::Unexpected("mipmapstart is not yet implemented.");
   }
 
-  auto result = CHECK_RES(::Graphics::Texture::Create(
+  auto texture = CHECK_RES(::Graphics::Texture::Create(
       *ctx, ::Graphics::TextureCreationInfo{
                 .size = {width, height},
                 .format = options.format,
@@ -663,10 +664,11 @@ static inline auto TextureFromWidthHeightAndOptions(lua_State *state)
             }));
 
   if (options.mipmaps == ::Graphics::TextureMipmapOption::Init) {
-    CHECK_ERR(result->GenerateMipmaps(*ctx));
+    auto &tctx = ::Graphics::GetThreadContext();
+    CHECK_ERR(tctx.commandBuffer->MipmapTexture({texture.get()}));
   }
 
-  return result;
+  return texture;
 }
 
 static inline auto
@@ -706,7 +708,7 @@ TextureFromWidthHeightDepthOrLayersAndOptions(lua_State *state)
   auto layers =
       (options.type == ::Graphics::TextureType::ARRAY) ? depthOrLayers : 1;
 
-  auto result = CHECK_RES(::Graphics::Texture::Create(
+  auto texture = CHECK_RES(::Graphics::Texture::Create(
       *ctx, ::Graphics::TextureCreationInfo{
                 .size = {width, height, depth},
                 .arrayLayers = layers,
@@ -719,10 +721,11 @@ TextureFromWidthHeightDepthOrLayersAndOptions(lua_State *state)
             }));
 
   if (options.mipmaps == ::Graphics::TextureMipmapOption::Init) {
-    CHECK_ERR(result->GenerateMipmaps(*ctx));
+    auto &tctx = ::Graphics::GetThreadContext();
+    CHECK_ERR(tctx.commandBuffer->MipmapTexture({texture.get()}));
   }
 
-  return result;
+  return texture;
 }
 
 // Variants:

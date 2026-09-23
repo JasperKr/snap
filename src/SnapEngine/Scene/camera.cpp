@@ -2,15 +2,16 @@
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/bufferformat.hpp"
 #include "Graphics/draw.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/mathTypes.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/window.hpp"
@@ -176,14 +177,14 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
   auto shader =
       CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
           Renderer::ShaderKey::PostProcessing));
-  Graphics::DynamicRendering::SetShader(shader);
+  Graphics::RenderState::SetShader(shader);
 
   OwnedTextures.PostProcessed =
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, Rendertargets.PostProcessed));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-      context, {{
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
                    .texture = OwnedTextures.PostProcessed,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                }}));
@@ -232,10 +233,10 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
 
 auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
                           const Environment &environment) -> Error {
-  Graphics::DynamicRendering::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {{
                     .texture = OwnedTextures.DirectLighting,
                     .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -257,7 +258,7 @@ auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
   static auto skyboxKey = Graphics::ResourceKey{"SkyboxTexture"};
   CHECK_ERR(shader->Send(skyboxKey, environment.SkyboxTexture));
 
-  Graphics::DynamicRendering::SetShader(shader);
+  Graphics::RenderState::SetShader(shader);
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
   return {};
@@ -265,10 +266,10 @@ auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
 
 auto Camera::FillSkybox(const Graphics::GraphicsContext &context,
                         const Environment &environment) -> Error {
-  Graphics::DynamicRendering::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {{
                    .texture = OwnedTextures.DirectLighting,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -283,7 +284,7 @@ auto Camera::FillSkybox(const Graphics::GraphicsContext &context,
   static auto skyboxKey = Graphics::ResourceKey{"SkyboxTexture"};
   CHECK_ERR(shader->Send(skyboxKey, environment.SkyboxTexture));
 
-  Graphics::DynamicRendering::SetShader(shader);
+  Graphics::RenderState::SetShader(shader);
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
   return {};
@@ -352,7 +353,7 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context,
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, rendertargets.Irradiance));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {{
                     .blendMode = Graphics::BlendmodeAdditive,
                     .texture = textures.DirectLighting,
@@ -367,9 +368,9 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context,
   auto shader =
       CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
           Renderer::ShaderKey::ApplyEnvironmentMap));
-  Graphics::DynamicRendering::SetShader(shader);
-  Graphics::DynamicRendering::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
-  Graphics::DynamicRendering::SetCullMode(VK_CULL_MODE_NONE);
+  Graphics::RenderState::SetShader(shader);
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
 
   static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
   CHECK_ERR(shader->Send(cameraBufferKey, CameraBuffer));
@@ -440,25 +441,27 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
           context, Rendertargets.IncomingLight));
 
   const auto &entity = scene->currentEnvironment;
-  const auto *environment = entity.try_get<Environment>();
+  if (entity.is_valid()) {
+    const auto *environment = entity.try_get<Environment>();
 
-  if (environment != nullptr) {
-    Graphics::PushDebugMarker("Render Skybox");
+    if (environment != nullptr) {
+      Graphics::PushDebugMarker("Render Skybox");
 
-    CHECK_ERR(RenderSkybox(context, *environment));
+      CHECK_ERR(RenderSkybox(context, *environment));
 
-    Graphics::PopDebugMarker();
+      Graphics::PopDebugMarker();
+    }
   }
 
   CHECK_ERR(ApplyLightProbes(context, drawData, scene));
   Graphics::PushDebugMarker("Write Lighting to Incoming Light");
 
-  Graphics::DynamicRendering::SetShader({});
-  Graphics::DynamicRendering::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
-  Graphics::DynamicRendering::SetCullMode(VK_CULL_MODE_NONE);
+  Graphics::RenderState::SetShader({});
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-      context, {Graphics::DynamicRendering::RenderTarget{
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
                    .blendMode = Graphics::BlendmodeNone,
                    .texture = OwnedTextures.IncomingLight,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -466,8 +469,8 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
 
   CHECK_ERR(Graphics::Draw(context, *OwnedTextures.DirectLighting));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-      context, {Graphics::DynamicRendering::RenderTarget{
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
                    .blendMode = Graphics::BlendmodeAdditive,
                    .texture = OwnedTextures.IncomingLight,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -475,13 +478,13 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
 
   CHECK_ERR(Graphics::Draw(context, *OwnedTextures.Irradiance));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-      context, {Graphics::DynamicRendering::RenderTarget{
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
                     .blendMode = Graphics::DefaultBlendMode,
                     .texture = OwnedTextures.IncomingLight,
                     .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                 },
-                Graphics::DynamicRendering::RenderTarget{
+                Graphics::RenderState::RenderTarget{
                     .blendMode = Graphics::DefaultBlendMode,
                     .texture = OwnedTextures.Depth,
                     .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -503,7 +506,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, Rendertargets.TemporalAntiAliasing));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {{
                    .blendMode = Graphics::BlendmodeNone,
                    .texture = OwnedTextures.TAA,
@@ -516,7 +519,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
             context, Rendertargets.TemporalAntiAliasing));
   }
 
-  Graphics::DynamicRendering::SetShader(taaShader);
+  Graphics::RenderState::SetShader(taaShader);
   CHECK_ERR(taaShader->Send({"IncomingLight"}, OwnedTextures.IncomingLight));
   CHECK_ERR(
       taaShader->Send({"PreviousIncomingLight"}, OwnedTextures.PreviousTAA));

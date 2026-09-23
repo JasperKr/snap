@@ -1,12 +1,14 @@
 #include "draw.hpp"
 #include "Graphics/Buffers/uniform.hpp"
-#include "Graphics/barrier.hpp"
+
+#include "Graphics/FrameGraph/commands.hpp"
+#include "Graphics/FrameGraph/dynamicRendering.hpp"
 #include "Graphics/buffer.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/mesh.hpp"
 #include "Graphics/reflect.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/snapshot.hpp"
 #include "Modules/Helpers/utils.hpp"
@@ -110,13 +112,13 @@ auto CreateQuad01Mesh(const Graphics::GraphicsContext &context)
 using namespace Snapshot;
 
 // NOLINTNEXTLINE
-auto BindMesh(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
-              const Mesh &mesh) -> Error {
+auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
   ZoneScoped;
+
+#ifndef NDEBUG
   auto count =
       mesh.GetIndexCount() > 0 ? mesh.GetIndexCount() : mesh.GetVertexCount();
 
-#ifndef NDEBUG
   switch (mesh.GetTopology()) {
   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
     if (count % 2 != 0) {
@@ -147,46 +149,20 @@ auto BindMesh(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
   }
 #endif
   auto &threadContext = GetThreadContext();
-  auto vertexBuffer = mesh.GetVertexBuffer();
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
-  assert(vertexBuffer.isValid());
-  ASSUME(vertexBuffer.isValid());
-
-  Barrier::UpdateUsage(context, *vertexBuffer,
-                       Barrier::ResourceState{
-                           .stages = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT,
-                           .access = VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
-                       });
   if (mesh.GetIndexCount() > 0) {
-    auto indexBuffer = mesh.GetIndexBuffer();
-
-    assert(indexBuffer.isValid());
-
-    Barrier::UpdateUsage(context, *indexBuffer,
-                         Barrier::ResourceState{
-                             .stages = VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT,
-                             .access = VK_ACCESS_2_INDEX_READ_BIT,
-                         });
-
-    std::lock_guard<std::mutex> lock(indexBuffer->mutex);
-
-    assert(indexBuffer->handle != VK_NULL_HANDLE);
-
-    if (threadContext.currentMesh != mesh.getID()) {
-      vkCmdBindIndexBuffer(cmdBuffer, indexBuffer->handle, 0,
-                           mesh.GetIndexFormat());
-    }
+    commandBuffer->BindIndexBuffer(
+        {mesh.GetIndexBuffer()->handle, 0, mesh.GetIndexFormat()});
+  } else {
+    commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
   }
 
-  if (threadContext.currentMesh != mesh.getID()) {
-    const auto &bindings = mesh.GetBindingRanges();
-    for (const auto &binding : bindings) {
-      vkCmdBindVertexBuffers(cmdBuffer, binding.firstBinding,
-                             binding.bindingCount, binding.bindings,
-                             binding.offsets);
-    }
-
-    threadContext.currentMesh = mesh.getID();
+  const auto &bindings = mesh.GetBindingRanges();
+  for (const auto &binding : bindings) {
+    commandBuffer->BindVertexBuffers({binding.firstBinding,
+                                      binding.bindingCount, binding.bindings,
+                                      binding.offsets});
   }
 
   return Error::Success();
@@ -240,24 +216,7 @@ inline auto InsertTextureBarriers(const GraphicsContext &context,
 
     const auto &info = infoResult->GetInfo<Reflect::SamplerInfo>();
 
-    VkAccessFlags2 access = 0;
-
-    switch (info.access) {
-    case SLANG_RESOURCE_ACCESS_NONE:
-    case SLANG_RESOURCE_ACCESS_READ:
-      access = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_READ_WRITE:
-      access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    case SLANG_RESOURCE_ACCESS_WRITE:
-      access = VK_ACCESS_2_SHADER_WRITE_BIT;
-      break;
-    default:
-      break;
-    }
-
-    if (access == 0) {
+    if (info.accessFlags == 0) {
       PrintWarning("Texture access type is Unknown for slang access: {}, "
                    "skipping barrier.",
                    static_cast<uint32_t>(info.access));
@@ -265,8 +224,8 @@ inline auto InsertTextureBarriers(const GraphicsContext &context,
     }
 
 #ifndef NDEBUG
-    if (DynamicRendering::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS) {
-      const auto &targets = DynamicRendering::GetRenderTargets();
+    if (RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+      const auto &targets = RenderState::GetRenderTargets();
       for (const auto &target : targets) {
         if (IsHazard(texture.first, target.texture)) {
           auto debugname = texture.first->GetDebugName();
@@ -280,12 +239,6 @@ inline auto InsertTextureBarriers(const GraphicsContext &context,
       }
     }
 #endif
-
-    Barrier::UpdateUsage(context, *texture.first,
-                         {
-                             .stages = shader->combinedPipelineStages,
-                             .access = access,
-                         });
   }
 
   return {};
@@ -321,23 +274,11 @@ inline auto InsertBufferBarriers(const GraphicsContext &context,
     }
 
     auto stages = shader->combinedPipelineStages;
-
-    Barrier::UpdateUsage(context, *buffer.first,
-                         {
-                             .stages = stages,
-                             .access = access,
-                         });
   }
 
   const auto &globalUBO =
       GetGlobalUniformBuffer(context.frameIndex).GetBuffer();
   globalUBO->MarkUse();
-
-  Barrier::UpdateUsage(context, *globalUBO,
-                       {
-                           .stages = shader->combinedPipelineStages,
-                           .access = VK_ACCESS_2_UNIFORM_READ_BIT,
-                       });
 
   return {};
 }
@@ -369,28 +310,13 @@ inline auto InsertAccelerationStructureBarriers(const GraphicsContext &context,
     VkAccessFlags2 access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
 
     auto stages = shader->combinedPipelineStages;
-
-    Barrier::UpdateUsage(context, *structure.first->GetInstanceBuffer(),
-                         {
-                             .stages = stages,
-                             .access = access,
-                         });
-
-    Barrier::UpdateUsage(context, *structure.first->GetTLASBuffer(),
-                         {
-                             .stages = stages,
-                             .access = access,
-                         });
   }
 
   return {};
 }
 
 inline auto InsertResourceBarriers(const GraphicsContext &context) -> Error {
-  auto shader = DynamicRendering::GetShader();
-  if (shader == nullptr) {
-    shader = DefaultShaderModule;
-  }
+  auto shader = RenderState::GetShader();
 
   CHECK_ERR(InsertTextureBarriers(context, shader));
   CHECK_ERR(InsertBufferBarriers(context, shader));
@@ -403,42 +329,43 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
     -> Error {
   ZoneScoped;
 
-  auto *commandBuffer = CHECK_NULL(GetCommandBuffer());
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
-  CHECK_ERR(BindMesh(context, commandBuffer, mesh));
+  CHECK_ERR(BindMesh(context, mesh));
 
-  DynamicRendering::SetTopology(mesh.GetTopology());
+  RenderState::SetTopology(mesh.GetTopology());
 
   auto &vertexFormat = mesh.GetVertexFormat();
   vertexFormat.BindDynamicInputState(commandBuffer);
 
+#ifndef NDEBUG
   CHECK_ERR(InsertResourceBarriers(context));
-
-  CHECK_ERR(DynamicRendering::PrepareRendering(context));
-
-  auto vertexCount = mesh.GetVertexCount();
+#endif
 
   {
     ZoneScopedN("Vk Draw");
-    DynamicRendering::CurrentStats.drawCalls++;
-    DynamicRendering::CurrentStats.triangleCount +=
+    RenderState::CurrentStats.drawCalls++;
+    RenderState::CurrentStats.triangleCount +=
         static_cast<uint64_t>(mesh.GetIndexCount() * instanceCount);
-    DynamicRendering::CurrentStats.instanceCount += instanceCount;
+    RenderState::CurrentStats.instanceCount += instanceCount;
 
-    MeshDrawRange range = mesh.GetDrawRange();
+    const MeshDrawRange &range = mesh.GetDrawRange();
 
     if (mesh.GetIndexCount() > 0) {
-      vkCmdDrawIndexed(commandBuffer, range.Count, instanceCount, range.Offset,
-                       0, 0);
+      CHECK_ERR(commandBuffer->DrawIndexed(
+          {range.Count, instanceCount, range.Offset, 0, 0}));
 
 #if Enable_Snapshots
       CaptureEvent(DrawIndexedEvent(mesh.GetIndexCount(), instanceCount,
                                     range.Offset, 0, 0));
 #endif
     } else {
-      vkCmdDraw(commandBuffer, range.Count, instanceCount, range.Offset, 0);
+      CHECK_ERR(
+          commandBuffer->Draw({range.Count, instanceCount, range.Offset, 0}));
 
 #if Enable_Snapshots
+      auto vertexCount = mesh.GetVertexCount();
+
       CaptureEvent(DrawEvent(vertexCount, instanceCount, 0, 0));
 #endif
     }
@@ -471,11 +398,7 @@ auto Draw(const GraphicsContext &context, Texture &texture,
     QuadMesh = CHECK_RES(CreateQuad01Mesh(context));
   }
 
-  auto shader = DynamicRendering::GetShader();
-
-  if (shader == nullptr) {
-    shader = DefaultShaderModule;
-  }
+  auto shader = RenderState::GetShader();
 
   CHECK_ERR(shader->Send({"MainTexture"}, Ref<Texture>(&texture)));
 
@@ -485,23 +408,19 @@ auto Draw(const GraphicsContext &context, Texture &texture,
 auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups)
     -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
   ERR_ASSERT(commandBuffer != nullptr);
 
-  ERR_ASSERT(DynamicRendering::GetBindPoint() ==
-             VK_PIPELINE_BIND_POINT_COMPUTE);
-  CHECK_ERR(DynamicRendering::PrepareRendering(context));
-  DynamicRendering::EndRendering(context);
-
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_COMPUTE);
   CHECK_ERR(InsertResourceBarriers(context));
 
   {
     ZoneScopedN("Vk Dispatch");
 
-    DynamicRendering::CurrentStats.dispatchCalls++;
-    vkCmdDispatch(commandBuffer, threadgroups.x, threadgroups.y,
-                  threadgroups.z);
+    RenderState::CurrentStats.dispatchCalls++;
+    CHECK_ERR(commandBuffer->Dispatch(
+        {threadgroups.x, threadgroups.y, threadgroups.z}));
   }
 
 #if Enable_Snapshots
@@ -515,7 +434,7 @@ auto DispatchWithin(const GraphicsContext &context, Math::Uvec3 dimensions)
     -> Error {
   ZoneScoped;
 
-  const auto &shader = DynamicRendering::GetShader();
+  const auto &shader = RenderState::GetUserShader();
   if (shader == nullptr) {
     return Error::Create("No shader bound for dispatch call.");
   }
@@ -540,21 +459,20 @@ auto DispatchIndirect(const GraphicsContext &context,
                       const Ref<Buffer> &indirectBuffer, VkDeviceSize offset)
     -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
   if (commandBuffer == nullptr) {
     return Error::Create("Failed to get command buffer for dispatch indirect.");
   }
 
-  ERR_ASSERT(DynamicRendering::GetBindPoint() ==
-             VK_PIPELINE_BIND_POINT_COMPUTE);
-  CHECK_ERR(DynamicRendering::PrepareRendering(context));
-  DynamicRendering::EndRendering(context);
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_COMPUTE);
+
+  // Also stops rendering if we are bound to a compute shader.
 
   CHECK_ERR(InsertResourceBarriers(context));
 
-  DynamicRendering::CurrentStats.dispatchCalls++;
-  vkCmdDispatchIndirect(commandBuffer, indirectBuffer->handle, offset);
+  RenderState::CurrentStats.dispatchCalls++;
+  CHECK_ERR(commandBuffer->DispatchIndirect({indirectBuffer->handle, offset}));
 
 #if Enable_Snapshots
   CaptureEvent(DispatchIndirectEvent(indirectBuffer->handle, offset));
@@ -568,35 +486,32 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
                   VkDeviceSize offset, // NOLINT
                   uint32_t count) -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
   if (commandBuffer == nullptr) {
     return Error::Create("Failed to get command buffer for draw indirect.");
   }
 
-  CHECK_ERR(BindMesh(context, commandBuffer, mesh));
-  ERR_ASSERT(DynamicRendering::GetBindPoint() ==
-             VK_PIPELINE_BIND_POINT_GRAPHICS);
+  CHECK_ERR(BindMesh(context, mesh));
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
   auto &vertexFormat = mesh.GetVertexFormat();
   vertexFormat.BindDynamicInputState(commandBuffer);
-  DynamicRendering::SetTopology(mesh.GetTopology());
+  RenderState::SetTopology(mesh.GetTopology());
 
   CHECK_ERR(InsertResourceBarriers(context));
-
-  CHECK_ERR(DynamicRendering::PrepareRendering(context));
 
   if (offset % 4 != 0) {
     return Error::Create(
         "Offset for vkCmdDrawIndirect must be a multiple of 4.");
   }
 
-  DynamicRendering::CurrentStats.drawCalls++;
-  DynamicRendering::CurrentStats.triangleCount +=
+  RenderState::CurrentStats.drawCalls++;
+  RenderState::CurrentStats.triangleCount +=
       static_cast<uint64_t>(mesh.GetIndexCount() * count);
-  DynamicRendering::CurrentStats.instanceCount += count;
+  RenderState::CurrentStats.instanceCount += count;
 
-  vkCmdDrawIndirect(commandBuffer, indirectBuffer->handle, offset, count,
-                    sizeof(VkDrawIndirectCommand));
+  CHECK_ERR(commandBuffer->DrawIndirect(
+      {indirectBuffer->handle, offset, count, sizeof(VkDrawIndirectCommand)}));
 
 #if Enable_Snapshots
   CaptureEvent(DrawIndirectEvent(indirectBuffer->handle, offset, count,
@@ -624,28 +539,26 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
 auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology,
           uint32_t vertexCount, uint32_t instanceCount) -> Error { // NOLINT
   ZoneScoped;
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
   if (commandBuffer == nullptr) {
     return Error::Create("Failed to get command buffer for draw call.");
   }
 
-  ERR_ASSERT(DynamicRendering::GetBindPoint() ==
-             VK_PIPELINE_BIND_POINT_GRAPHICS);
-  vkCmdSetVertexInputEXT(commandBuffer, 0, nullptr, 0, nullptr);
-  GetThreadContext().currentVertexFormatHash = 0; // No vertex format
-  DynamicRendering::SetTopology(topology);
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  commandBuffer->SetVertexInputEXT({0, nullptr, 0, nullptr});
+  commandBuffer->BindVertexBuffers({0, 0, nullptr, nullptr});
+  commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
+  RenderState::SetTopology(topology);
 
   CHECK_ERR(InsertResourceBarriers(context));
 
-  CHECK_ERR(DynamicRendering::PrepareRendering(context));
-
-  DynamicRendering::CurrentStats.drawCalls++;
-  DynamicRendering::CurrentStats.triangleCount +=
+  RenderState::CurrentStats.drawCalls++;
+  RenderState::CurrentStats.triangleCount +=
       static_cast<uint64_t>(vertexCount * instanceCount);
-  DynamicRendering::CurrentStats.instanceCount += instanceCount;
+  RenderState::CurrentStats.instanceCount += instanceCount;
 
-  vkCmdDraw(commandBuffer, vertexCount, instanceCount, 0, 0);
+  CHECK_ERR(commandBuffer->Draw({vertexCount, instanceCount, 0, 0}));
 
 #if Enable_Snapshots
   CaptureEvent(DrawEvent(vertexCount, instanceCount, 0, 0));
@@ -658,42 +571,33 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer,
           const VkPrimitiveTopology &topology, uint32_t indexCount, // NOLINT
           uint32_t instanceCount) -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetCommandBuffer();
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
   if (commandBuffer == nullptr) {
     return Error::Create("Failed to get command buffer for draw call.");
   }
 
-  ERR_ASSERT(DynamicRendering::GetBindPoint() ==
-             VK_PIPELINE_BIND_POINT_GRAPHICS);
-  vkCmdSetVertexInputEXT(commandBuffer, 0, nullptr, 0, nullptr);
-  GetThreadContext().currentVertexFormatHash = 0; // No vertex format
-  DynamicRendering::SetTopology(topology);
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  commandBuffer->SetVertexInputEXT({0, nullptr, 0, nullptr});
+  commandBuffer->BindVertexBuffers({0, 0, nullptr, nullptr});
+  RenderState::SetTopology(topology);
 
   CHECK_ERR(InsertResourceBarriers(context));
 
-  CHECK_ERR(DynamicRendering::PrepareRendering(context));
-
   {
-    Barrier::UpdateUsage(context, *indexBuffer,
-                         Barrier::ResourceState{
-                             .stages = VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT,
-                             .access = VK_ACCESS_2_INDEX_READ_BIT,
-                         });
-
     std::lock_guard<std::mutex> lock(indexBuffer->mutex);
 
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer->handle, 0,
-                         VK_INDEX_TYPE_UINT32);
+    commandBuffer->BindIndexBuffer(
+        {indexBuffer->handle, 0, VK_INDEX_TYPE_UINT32});
     indexBuffer->MarkUse();
   }
 
-  DynamicRendering::CurrentStats.drawCalls++;
-  DynamicRendering::CurrentStats.triangleCount +=
+  RenderState::CurrentStats.drawCalls++;
+  RenderState::CurrentStats.triangleCount +=
       static_cast<uint64_t>(indexCount * instanceCount);
-  DynamicRendering::CurrentStats.instanceCount += instanceCount;
+  RenderState::CurrentStats.instanceCount += instanceCount;
 
-  vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, 0, 0, 0);
+  CHECK_ERR(commandBuffer->DrawIndexed({indexCount, instanceCount, 0, 0, 0}));
 
 #if Enable_Snapshots
   CaptureEvent(DrawIndexedEvent(indexCount, instanceCount, 0, 0, 0));

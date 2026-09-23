@@ -178,6 +178,9 @@ struct SamplerInfo : ResourceBase {
 
   SlangResourceShape shape;
   SlangResourceAccess access;
+
+  VkAccessFlags2 accessFlags;
+
   VkFormat format;
 };
 
@@ -427,6 +430,37 @@ struct ResourceInfo {
   }
 };
 
+constexpr auto
+SlangResourceAccessToVkAccessFlags_Buffer(SlangResourceAccess access)
+    -> VkAccessFlags2 {
+  switch (access) {
+  case SLANG_RESOURCE_ACCESS_READ:
+    return VK_ACCESS_2_SHADER_READ_BIT;
+  case SLANG_RESOURCE_ACCESS_READ_WRITE:
+    return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+  case SLANG_RESOURCE_ACCESS_WRITE:
+    return VK_ACCESS_2_SHADER_WRITE_BIT;
+  default:
+    return VK_ACCESS_2_SHADER_READ_BIT;
+  }
+}
+
+constexpr auto
+SlangResourceAccessToVkAccessFlags_Sampler(SlangResourceAccess access)
+    -> VkAccessFlags2 {
+  switch (access) {
+  case SLANG_RESOURCE_ACCESS_NONE:
+  case SLANG_RESOURCE_ACCESS_READ:
+    return VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+  case SLANG_RESOURCE_ACCESS_READ_WRITE:
+    return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+  case SLANG_RESOURCE_ACCESS_WRITE:
+    return VK_ACCESS_2_SHADER_WRITE_BIT;
+  default:
+    return 0;
+  }
+}
+
 auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std)
     -> Result<std::variant<Graphics::BufferFormat, Graphics::BufferComponent>>;
 
@@ -436,6 +470,7 @@ struct FlattenedReflection {
 
   uint32_t size{}; // Not stride
 };
+
 struct ShaderReflection {
   std::vector<ResourceInfo> resources;
   std::unordered_map<uint64_t, ResourceInfo> slotToInfo;

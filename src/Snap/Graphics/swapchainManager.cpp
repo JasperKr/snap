@@ -1,7 +1,7 @@
 #include "swapchainManager.hpp"
 
 #include "Graphics/allocations.hpp"
-#include "Graphics/barrier.hpp"
+
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/texture.hpp"

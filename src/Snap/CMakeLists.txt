@@ -222,12 +222,11 @@ add_library(snap_core OBJECT
     Graphics/render.cpp
     Graphics/shader.cpp
     Graphics/sampler.cpp
-    Graphics/dynamicRendering.cpp
+    Graphics/renderState.cpp
     Graphics/reflect.cpp
     Graphics/resource.cpp
     Graphics/mesh.cpp
     Graphics/draw.cpp
-    Graphics/barrier.cpp
     Graphics/renderThread.cpp
     Graphics/semaphoreManager.cpp
     Graphics/bufferformat.cpp
@@ -239,6 +238,20 @@ add_library(snap_core OBJECT
     Graphics/allocations.cpp
     Graphics/bvh.cpp
     Graphics/shaderCache.cpp
+    Graphics/vertexformat.cpp
+    Graphics/vkAccessHelpers.cpp
+    Graphics/vkPipelineHelpers.cpp
+
+# Frame Graph
+    Graphics/FrameGraph/framegraph.cpp
+    Graphics/FrameGraph/commands.cpp
+    Graphics/FrameGraph/resourceUsage.cpp
+    Graphics/FrameGraph/descriptorCache.cpp
+    Graphics/FrameGraph/descriptorState.cpp
+    Graphics/FrameGraph/pipelineCache.cpp
+    Graphics/FrameGraph/pipelineState.cpp
+    Graphics/FrameGraph/dynamicRendering.cpp
+    Graphics/FrameGraph/recordingState.cpp
 
 # Graphics Buffers
     Graphics/Buffers/push.cpp

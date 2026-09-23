@@ -1,6 +1,5 @@
 #include <functional>
 #include <list>
-#include <mutex>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -11,6 +10,12 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>>
 class LRUCache {
 public:
   using EvictionCallback = std::function<void(const Key &, Value &)>;
+
+  LRUCache(const LRUCache &) = default;
+  LRUCache(LRUCache &&) = default;
+  auto operator=(const LRUCache &) -> LRUCache & = default;
+  auto operator=(LRUCache &&) -> LRUCache & = default;
+  ~LRUCache() = default;
 
   explicit LRUCache(size_t capacity, EvictionCallback onEvict = {})
       : m_capacity(capacity), m_onEvict(std::move(onEvict)) {}
@@ -27,17 +32,14 @@ private:
 
 public:
   void setEvictionCallback(EvictionCallback onEvict) {
-    std::lock_guard lock(m_mutex);
     m_onEvict = std::move(onEvict);
   }
 
   auto contains(const Key &key) const -> bool {
-    std::lock_guard lock(m_mutex);
     return m_map.find(key) != m_map.end();
   }
 
   auto get(const Key &key) -> Value * {
-    std::lock_guard rlock(m_mutex);
 
     auto iterator = m_map.find(key);
     if (iterator == m_map.end()) {
@@ -48,7 +50,6 @@ public:
   }
 
   auto operator[](const Key &key) -> Value & {
-    std::lock_guard lock(m_mutex);
     auto iterator = m_map.find(key);
     if (iterator != m_map.end()) {
       touch(iterator);
@@ -68,7 +69,6 @@ public:
   auto emplace(const Key &key, F &&constructor) -> Value &
     requires(std::is_invocable_v<F>)
   {
-    std::lock_guard lock(m_mutex);
     auto iterator = m_map.find(key);
     if (iterator != m_map.end()) {
       touch(iterator);
@@ -84,7 +84,6 @@ public:
 
   // Value version
   auto emplace(const Key &key, Value &&value) -> Value & {
-    std::lock_guard lock(m_mutex);
     auto iterator = m_map.find(key);
     if (iterator != m_map.end()) {
       touch(iterator);
@@ -99,7 +98,6 @@ public:
   }
 
   auto emplace(const Key &key, const Value &value) -> Value & {
-    std::lock_guard lock(m_mutex);
     auto iterator = m_map.find(key);
     if (iterator != m_map.end()) {
       touch(iterator);
@@ -114,43 +112,21 @@ public:
   }
 
   void clear() {
-    std::lock_guard lock(m_mutex);
     m_map.clear();
     m_list.clear();
   }
 
-  [[nodiscard]] auto size() const -> size_t {
-    std::lock_guard lock(m_mutex);
-    return m_map.size();
-  }
+  [[nodiscard]] auto size() const -> size_t { return m_map.size(); }
 
   // Begin iterator (most recently used)
-  auto begin() -> iterator {
-    std::lock_guard lock(m_mutex);
-    return m_list.begin();
-  }
-  auto begin() const -> const_iterator {
-    std::lock_guard lock(m_mutex);
-    return m_list.begin();
-  }
-  auto cbegin() const -> const_iterator {
-    std::lock_guard lock(m_mutex);
-    return m_list.cbegin();
-  }
+  auto begin() -> iterator { return m_list.begin(); }
+  auto begin() const -> const_iterator { return m_list.begin(); }
+  auto cbegin() const -> const_iterator { return m_list.cbegin(); }
 
   // End iterator
-  auto end() -> iterator {
-    std::lock_guard lock(m_mutex);
-    return m_list.end();
-  }
-  auto end() const -> const_iterator {
-    std::lock_guard lock(m_mutex);
-    return m_list.end();
-  }
-  auto cend() const -> const_iterator {
-    std::lock_guard lock(m_mutex);
-    return m_list.cend();
-  }
+  auto end() -> iterator { return m_list.end(); }
+  auto end() const -> const_iterator { return m_list.end(); }
+  auto cend() const -> const_iterator { return m_list.cend(); }
 
 private:
   void
@@ -173,5 +149,4 @@ private:
   std::list<Entry> m_list; // MRU front, LRU back
   std::unordered_map<Key, ListIt, Hash> m_map;
   EvictionCallback m_onEvict;
-  mutable std::mutex m_mutex;
 };

@@ -1,8 +1,8 @@
 #include "wrap_rendertarget.hpp"
 
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsState.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
 #include "Wrap/Graphics/wrap_color.hpp"
@@ -13,7 +13,7 @@
 #include "vulkan/vulkan_core.h"
 #include <cstring>
 #include <vector>
-namespace Graphics::DynamicRendering {
+namespace Graphics::RenderState {
 auto inline ConvertStringToBlendOp(const char *string) -> VkBlendOp {
   // add, sub, revsub, min, max
 
@@ -241,7 +241,7 @@ auto inline FromLuaState(lua_State *state)
 }
 
 auto RenderTargetsFromTexture(lua_State *state, int index)
-    -> Graphics::DynamicRendering::RenderTarget {
+    -> Graphics::RenderState::RenderTarget {
   luaL_checktype(state, index, LUA_TUSERDATA);
 
   auto texture = LuaWrap::ObjectFromLua<Graphics::Texture>(state, index);
@@ -252,7 +252,7 @@ auto RenderTargetsFromTexture(lua_State *state, int index)
     texture = ctx->swapchainInfo.textures[ctx->swapchainImageIndex];
   }
 
-  Graphics::DynamicRendering::RenderTarget rendertarget{};
+  Graphics::RenderState::RenderTarget rendertarget{};
   rendertarget.texture = Ref<Graphics::Texture>(texture);
   rendertarget.blendMode = DefaultBlendMode;
   rendertarget.clearValue = {0.0F, 0.0F, 0.0F, 1.0F};
@@ -263,11 +263,11 @@ auto RenderTargetsFromTexture(lua_State *state, int index)
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto RenderTargetsFromOptions(lua_State *state, int index)
-    -> Result<Graphics::DynamicRendering::RenderTarget> {
+    -> Result<Graphics::RenderState::RenderTarget> {
 
   luaL_checktype(state, index, LUA_TTABLE);
 
-  Graphics::DynamicRendering::RenderTarget rendertarget{};
+  Graphics::RenderState::RenderTarget rendertarget{};
 
   // check if element table[1] is a texture, if so, error,
   // as we expect it to be a named field
@@ -425,12 +425,12 @@ auto IsOptionsTable(lua_State *state, int index) -> bool {
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto wrap_SetRenderTargets(lua_State *state) -> int {
   auto *ctx = Graphics::GetCurrentGraphicsContext();
-  std::vector<Graphics::DynamicRendering::RenderTarget> renderTargets;
+  std::vector<Graphics::RenderState::RenderTarget> renderTargets;
 
   if (lua_gettop(state) == 0) {
     // No arguments, reset to default
 
-    Graphics::DynamicRendering::RenderTarget rendertarget{};
+    Graphics::RenderState::RenderTarget rendertarget{};
 
     rendertarget.blendMode = DefaultBlendMode;
     rendertarget.clearValue = {0.0F, 0.0F, 0.0F, 1.0F};
@@ -440,7 +440,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
     rendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
     auto setResult =
-        Graphics::DynamicRendering::SetRenderTargets(*ctx, {rendertarget});
+        Graphics::RenderState::SetRenderTargets(*ctx, {rendertarget});
 
     if (Error::IsError(setResult)) {
       return luaL_error(state, setResult.message.c_str());
@@ -521,11 +521,10 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
                       "Invalid arguments to RenderTarget.setRenderTargets");
   }
 
-  auto setResult =
-      Graphics::DynamicRendering::SetRenderTargets(*ctx, renderTargets);
+  auto setResult = Graphics::RenderState::SetRenderTargets(*ctx, renderTargets);
   if (Error::IsError(setResult)) {
     return luaL_error(state, setResult.message.c_str());
   }
   return 0;
 }
-} // namespace Graphics::DynamicRendering
+} // namespace Graphics::RenderState

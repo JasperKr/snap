@@ -1,9 +1,9 @@
 #include "prefilterManager.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/draw.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
@@ -262,7 +262,7 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
       CHECK_RES(RendererInstance.GetShaderManager().GetShader(
           ShaderKey::DownsampleEnvironmentMap));
 
-  Graphics::DynamicRendering::SetShader(downsampleShader);
+  Graphics::RenderState::SetShader(downsampleShader);
 
   for (uint32_t level = 0; level < ProbeReflectionMipLevels - 1; level++) {
     auto &params = levelParameters.at(level);
@@ -285,7 +285,7 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
                                           PrefilteredRadianceCoeffsBuffer));
   CHECK_ERR(prefilterRadianceShader->Send({"InputTexture"}, envMap));
 
-  Graphics::DynamicRendering::SetShader(prefilterRadianceShader);
+  Graphics::RenderState::SetShader(prefilterRadianceShader);
 
   for (uint32_t level = 0; level < ProbeReflectionMipLevels; level++) {
     auto key = std::format("OutputTexture{}", level);
@@ -320,7 +320,7 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
   CHECK_ERR(Graphics::UniformWriter::Send(storeEnvironmentMapShader, {"Slice"},
                                           lightProbe.EnvironmentMapIndex));
 
-  Graphics::DynamicRendering::SetShader(storeEnvironmentMapShader);
+  Graphics::RenderState::SetShader(storeEnvironmentMapShader);
 
   constexpr static uint64_t FullPixelCount = Image::GetTexelCount(
       VkExtent2D{
@@ -355,7 +355,7 @@ auto LightprobePrefilterManager::PrefilterIrradianceMap(
   }
   // NOLINTEND
 
-  Graphics::DynamicRendering::SetShader(prefilterIrradianceShader);
+  Graphics::RenderState::SetShader(prefilterIrradianceShader);
 
   CHECK_ERR(
       Graphics::DispatchWithin(context, {PrefilteredIrradianceMapsSize,
@@ -450,11 +450,11 @@ auto LightprobePrefilterManager::PrefilterLightProbe(
 
     CHECK_ERR(Camera.Render(context, drawData, scene));
 
-    Graphics::DynamicRendering::SetShader({});
+    Graphics::RenderState::SetShader({});
 
-    CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+    CHECK_ERR(Graphics::RenderState::SetRenderTargets(
         context, {
-                     Graphics::DynamicRendering::RenderTarget{
+                     Graphics::RenderState::RenderTarget{
                          .blendMode = Graphics::BlendmodeNone,
                          .texture = EnvMapArrayViews.at(i),
                          .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -497,11 +497,11 @@ auto LightprobePrefilterManager::PrefilterEnvironment(
     CHECK_ERR(Camera.RenderSkyboxOnly(
         context, Environment{.SkyboxTexture = skyboxTexture}));
 
-    Graphics::DynamicRendering::SetShader({});
+    Graphics::RenderState::SetShader({});
 
-    CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
+    CHECK_ERR(Graphics::RenderState::SetRenderTargets(
         context, {
-                     Graphics::DynamicRendering::RenderTarget{
+                     Graphics::RenderState::RenderTarget{
                          .blendMode = Graphics::BlendmodeNone,
                          .texture = EnvMapArrayViews.at(i),
                          .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,

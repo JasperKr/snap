@@ -1,8 +1,8 @@
 #include "bloomManager.hpp"
 #include "Graphics/draw.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
@@ -50,16 +50,16 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
       CHECK_RES(GlobalRenderTargetManager.GetRendertarget(
           context, renderTargets.BloomDownsampleChain));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-      context, {Graphics::DynamicRendering::RenderTarget{
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
                    .blendMode = Graphics::BlendmodeNone,
                    .texture = textures.BloomDownsampleChain,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                }}));
 
-  Graphics::DynamicRendering::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
 
-  Graphics::DynamicRendering::SetShader(ThresholdShader);
+  Graphics::RenderState::SetShader(ThresholdShader);
   const static Graphics::ResourceKey ThresholdKey = {"PushConstants",
                                                      "threshold"};
 
@@ -70,7 +70,7 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
 
   CHECK_ERR(DrawFullScreen(context));
 
-  Graphics::DynamicRendering::SetShader(DownsampleShader);
+  Graphics::RenderState::SetShader(DownsampleShader);
 
   auto mipCount = textures.BloomDownsampleChain->levelCount;
   if (mipCount < 2) {
@@ -113,8 +113,8 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
     assert(mipLevel < DownsampleChainViews.size());
     auto &view = DownsampleChainViews.at(mipLevel);
 
-    CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-        context, {Graphics::DynamicRendering::RenderTarget{
+    CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+        context, {Graphics::RenderState::RenderTarget{
                      .blendMode = Graphics::BlendmodeNone,
                      .texture = view,
                      .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -133,7 +133,7 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
     CHECK_ERR(DrawFullScreen(context));
   }
 
-  Graphics::DynamicRendering::SetShader(UpsampleShader);
+  Graphics::RenderState::SetShader(UpsampleShader);
 
   const static Graphics::ResourceKey IntensityKey = {"PushConstants",
                                                      "intensity"};
@@ -151,8 +151,8 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
     assert(mipLevel < DownsampleChainViews.size());
     auto &view = DownsampleChainViews.at(mipLevel);
 
-    CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-        context, {Graphics::DynamicRendering::RenderTarget{
+    CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+        context, {Graphics::RenderState::RenderTarget{
                      .blendMode = Graphics::BlendmodeAdditive,
                      .texture = DownsampleChainViews.at(mipLevel - 1),
                      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -164,12 +164,12 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
     CHECK_ERR(DrawFullScreen(context));
   }
 
-  Graphics::DynamicRendering::SetShader(DirtShader);
+  Graphics::RenderState::SetShader(DirtShader);
   const static Graphics::ResourceKey DirtTextureKey = {"mainScene"};
   CHECK_ERR(DirtShader->Send(DirtTextureKey, DirtTexture));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-      context, {Graphics::DynamicRendering::RenderTarget{
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
                    .blendMode = Graphics::BlendmodeMultiply,
                    .texture = DownsampleChainViews.at(1),
                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -180,14 +180,14 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
   textures.BloomFinal = CHECK_RES(GlobalRenderTargetManager.GetRendertarget(
       context, renderTargets.IncomingLight));
 
-  CHECK_ERR(Graphics::DynamicRendering::SetRenderTargets(
-      context, {Graphics::DynamicRendering::RenderTarget{
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
                    .blendMode = Graphics::BlendmodeAdditive,
                    .texture = textures.BloomFinal,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                }}));
 
-  Graphics::DynamicRendering::SetShader({});
+  Graphics::RenderState::SetShader({});
   CHECK_ERR(Graphics::Draw(context, *textures.TAA));
   CHECK_ERR(Graphics::Draw(context, *DownsampleChainViews.at(1)));
 

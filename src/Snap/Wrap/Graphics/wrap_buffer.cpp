@@ -1,5 +1,5 @@
 #include "Wrap/Graphics/wrap_buffer.hpp"
-#include "Graphics/barrier.hpp"
+
 #include "Graphics/snapshot.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"
@@ -162,12 +162,6 @@ auto wrap_SetData(lua_State *state) -> int {
 
   thread_local std::vector<uint8_t> data{};
   snap_defer(data.clear());
-
-  ::Graphics::Barrier::UpdateUsage(*ctx, *buffer->GetBuffer(),
-                                   ::Graphics::Barrier::ResourceState{
-                                       .stages = VK_PIPELINE_STAGE_2_HOST_BIT,
-                                       .access = VK_ACCESS_2_HOST_WRITE_BIT,
-                                   });
 
   VkDeviceSize offset = 0;
   if (lua_gettop(state) >= 3) {

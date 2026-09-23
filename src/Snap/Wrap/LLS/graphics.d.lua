@@ -191,7 +191,9 @@ function snap.graphics.setRenderTarget(...) end
 --- Acquires a local graphics context for the current thread.
 --- @param identifier string | integer | nil The identifier of the graphics context to acquire.
 --- @param priority number? The priority, Tie-breaker for commands with matching identifiers. Higher priority contexts are executed first.
-function snap.graphics.acquireGraphics(identifier, priority) end
+--- @param queue snap.DeviceQueue?
+--- @param createSnapshot boolean?
+function snap.graphics.acquireGraphics(identifier, priority, queue, createSnapshot) end
 
 --- Submits the current thread's graphics commands.
 function snap.graphics.submitGraphics() end

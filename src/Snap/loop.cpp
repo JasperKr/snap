@@ -3,10 +3,11 @@
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/deviceInfo.hpp"
-#include "Graphics/dynamicRendering.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/render.hpp"
+#include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
+#include "Graphics/snapshot.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/config.hpp"
 #include "Modules/console.hpp"
@@ -267,7 +268,7 @@ auto MainLoop(const std::vector<std::string> &arguments) -> Error {
   CHECK_ERR(Graphics::LoadShaderModule());
 
   CHECK_ERR(Graphics::InitializeRendering(context, wcontext));
-  CHECK_ERR(Graphics::DynamicRendering::Load(context));
+  CHECK_ERR(Graphics::RenderState::Load(context));
   CHECK_ERR(Graphics::InitializeBVHModule(context));
 
   CHECK_ERR(InitializeUniformBufferModule(context));
@@ -307,6 +308,8 @@ auto MainLoop(const std::vector<std::string> &arguments) -> Error {
       mainLoopResult = Error::Create(luaErrorMessage);
     }
     FrameMarkEnd("Frame");
+
+    Graphics::Snapshot::Update();
 
     // returned value nil == continue, non-nil == exit with code
     if (lua_isnoneornil(state, -1)) {

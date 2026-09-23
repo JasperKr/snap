@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Graphics/bvh.hpp"
+#include "Graphics/graphicsState.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -116,7 +117,7 @@ struct Mesh : Object, Identifiable {
   };
 
   auto GetBindingRanges() const
-      -> Math::StackVector<VertexBindingRange, VertexFormat::MaxBindings> const
+      -> Math::StackVector<VertexBindingRange, MAX_BOUND_VERTEX_BUFFERS> const
           & {
     return BindingRanges;
   }
@@ -141,11 +142,9 @@ private:
                      VkIndexType format) -> Error;
   auto ConstructBindingRanges() -> void;
 
-  std::array<VkBuffer, VertexFormat::MaxBindings> Bindings;
-  std::array<VkDeviceSize, VertexFormat::MaxBindings> BindingOffsets;
-
-  Math::StackVector<VertexBindingRange, VertexFormat::MaxBindings>
-      BindingRanges;
+  std::array<VkBuffer, MAX_BOUND_VERTEX_BUFFERS> Bindings;
+  std::array<VkDeviceSize, MAX_BOUND_VERTEX_BUFFERS> BindingOffsets;
+  Math::StackVector<VertexBindingRange, MAX_BOUND_VERTEX_BUFFERS> BindingRanges;
 
   std::unique_ptr<VertexFormat> Format;
 

@@ -16,6 +16,7 @@ private:
 
   bool LocalDirty = true;
   bool WorldDirty = true;
+  bool ChildrenDirty = true;
 
   Math::Quaternion Rotation;
 
@@ -80,6 +81,7 @@ public:
 
   auto UpdateLocalMatrix() -> void;
   auto UpdateWorldMatrix(const Transform *parent) -> void;
+  auto MarkChildrenUpdated() -> void;
 
   constexpr explicit Transform(Math::Vec3 position = {},
                                Math::Quaternion rotation = {0.0F, 0.0F, 0.0F,

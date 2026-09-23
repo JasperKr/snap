@@ -80,7 +80,7 @@ static const std::vector<luaL_Reg> GraphicsLib = {
     {"setScissor", wrap_SetScissor},
     {"clipScissor", wrap_ClipScissor},
     {"setShader", wrap_SetShader},
-    {"setRenderTarget", ::Graphics::DynamicRendering::wrap_SetRenderTargets},
+    {"setRenderTarget", ::Graphics::RenderState::wrap_SetRenderTargets},
     {"setWindingOrder", wrap_SetWindingOrder},
     {"getDepthMode", wrap_GetDepthMode},
     {"getCullMode", wrap_GetCullMode},

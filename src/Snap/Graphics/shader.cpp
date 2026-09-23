@@ -20,6 +20,7 @@
 #include <condition_variable>
 #include <cstring>
 #include <format>
+#include <memory>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string_view>
@@ -154,11 +155,10 @@ void UnloadShaderModule(const Graphics::GraphicsContext &context) {
   DefaultShaderModule.reset();
 
   for (auto *session : SessionStorage) {
-    if (session != nullptr) {
-      session->release();
-    }
+    session->release();
   }
 
+  SessionStorage.clear();
   slang::shutdown();
 }
 
@@ -549,9 +549,11 @@ auto Shader::Create(
   CHECK_ERR(LoadSlang(context, shader));
 
   CHECK_ERR(ReflectShader(context, shader->programLayout, shader->reflection));
+  ERR_ASSERT(shader->reflection.pushBuffers.size() <= 1);
 
-  for (auto &layout : shader->reflection.pushBuffers) {
-    shader->pushBuffers.emplace_back(layout);
+  if (!shader->reflection.pushBuffers.empty()) {
+    shader->pushBuffer =
+        std::make_unique<PushBuffer>(shader->reflection.pushBuffers.front());
   }
 
 #if Enable_Snapshots
@@ -631,12 +633,10 @@ void append(ResourceKey &dest, const ResourceKey &src) {
 
 auto Shader::GetUniform(const ResourceKey &key) const
     -> const Reflect::ResourceInfo * {
-  for (const auto &pushBuffer : pushBuffers) {
-    const auto *info = pushBuffer.GetUniform(key);
-    if (info == nullptr) {
-      continue;
+  if (pushBuffer != nullptr) {
+    if (const auto *info = pushBuffer->GetUniform(key)) {
+      return info;
     }
-    return info;
   }
 
   const auto &globalInfo = reflection.flattened.at(reflection.globals.set);
@@ -651,10 +651,8 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
     -> Error {
   ZoneScopedN("Shader::Send data span");
 
-  for (auto &pushBuffer : pushBuffers) {
-    if (pushBuffer.ContainsUniform(key)) {
-      return pushBuffer.SetData(key, data);
-    }
+  if (pushBuffer && pushBuffer->ContainsUniform(key)) {
+    return pushBuffer->SetData(key, data);
   }
 
   const auto *info = GetUniform(key);

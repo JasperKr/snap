@@ -2,6 +2,7 @@
 
 #include "Modules/error.hpp"
 #include "lua.hpp"
+#include <lua.h>
 #include <unordered_map>
 #include <vector>
 
@@ -104,7 +105,7 @@ public:
   }
 
   auto FromLua(lua_State *state, int index, T defaultValue) const -> T {
-    if (lua_isnoneornil(state, index)) {
+    if (lua_type(state, index) != LUA_TSTRING) {
       return defaultValue;
     }
     auto result = EnumFromLua(state, index, EnumMap);
