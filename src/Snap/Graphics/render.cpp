@@ -259,6 +259,8 @@ auto Present(Graphics::GraphicsContext &context,
     } else {
       CHECK_ERR(iter->second->Append(*commandBuffer));
     }
+
+    command->threadData.commandBuffer = nullptr;
   }
 
   std::vector<uint64_t> orderedSemaphoreValues = {};
@@ -341,6 +343,7 @@ auto Present(Graphics::GraphicsContext &context,
 
     CHECK_ERR(graph.Submit(context, *cmdBuffer.second));
     CHECK_ERR(graph.Write(context, availableCommandBuffers.at(index)));
+    graph = {};
 
     index++;
   }

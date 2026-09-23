@@ -157,8 +157,8 @@ float3 fragmentMain(float2 texCoords: TEXCOORDS) {
       currentColor * currentWeight + clampedHistoryColor * previousWeight;
 
   // Recover some local detail without destabilizing static regions.
-  float sharpenAmount = lerp(0.06, 0.0, motionFactor);
-  finalColor += (currentColor - neighbourMean) * sharpenAmount;
+  // float sharpenAmount = lerp(0.06, 0.0, motionFactor);
+  // finalColor += (currentColor - neighbourMean) * sharpenAmount;
 
   return finalColor;
 }

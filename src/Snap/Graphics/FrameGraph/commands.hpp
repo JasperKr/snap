@@ -6,12 +6,14 @@
 #include "Graphics/renderState.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/stackVector.hpp"
 #include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <public/tracy/Tracy.hpp>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -440,7 +442,7 @@ struct DrawState {
   auto Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
              const LoadOpConfig *loadConfig) const -> Error;
 
-  auto Initialize(const GraphicsContext &context, CommandType type) -> Error;
+  auto Initialize(CommandType type) -> Error;
 
   [[nodiscard]] auto GetGraphState() const -> GraphState {
     return CommandStateManager::States.at(stateID);
@@ -1295,6 +1297,7 @@ struct VirtualCommandBuffer {
   auto Reset() -> void;
 
   auto GetStateID() -> uint32_t {
+    ZoneScoped;
     auto iter = CommandStateManager::StateToIndex.find(currentState);
 
     if (iter == CommandStateManager::StateToIndex.end()) {
@@ -1311,7 +1314,6 @@ struct VirtualCommandBuffer {
 
   auto GetGraphState() -> GraphState & { return currentState; }
 
-protected:
   // NOLINTBEGIN
 
   uint64_t time;

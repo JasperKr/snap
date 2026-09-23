@@ -114,10 +114,11 @@ using namespace Snapshot;
 // NOLINTNEXTLINE
 auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
   ZoneScoped;
+
+#ifndef NDEBUG
   auto count =
       mesh.GetIndexCount() > 0 ? mesh.GetIndexCount() : mesh.GetVertexCount();
 
-#ifndef NDEBUG
   switch (mesh.GetTopology()) {
   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
     if (count % 2 != 0) {
@@ -148,24 +149,11 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
   }
 #endif
   auto &threadContext = GetThreadContext();
-  auto vertexBuffer = mesh.GetVertexBuffer();
-
-  assert(vertexBuffer.isValid());
-  ASSUME(vertexBuffer.isValid());
-
-  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
+  auto *commandBuffer = GetVirtualCommandBuffer();
 
   if (mesh.GetIndexCount() > 0) {
-    auto indexBuffer = mesh.GetIndexBuffer();
-
-    assert(indexBuffer.isValid());
-
-    std::lock_guard<std::mutex> lock(indexBuffer->mutex);
-
-    assert(indexBuffer->handle != VK_NULL_HANDLE);
-
     commandBuffer->BindIndexBuffer(
-        {indexBuffer->handle, 0, mesh.GetIndexFormat()});
+        {mesh.GetIndexBuffer()->handle, 0, mesh.GetIndexFormat()});
   } else {
     commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
   }
@@ -350,9 +338,9 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
   auto &vertexFormat = mesh.GetVertexFormat();
   vertexFormat.BindDynamicInputState(commandBuffer);
 
+#ifndef NDEBUG
   CHECK_ERR(InsertResourceBarriers(context));
-
-  auto vertexCount = mesh.GetVertexCount();
+#endif
 
   {
     ZoneScopedN("Vk Draw");
@@ -376,6 +364,8 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
           commandBuffer->Draw({range.Count, instanceCount, range.Offset, 0}));
 
 #if Enable_Snapshots
+      auto vertexCount = mesh.GetVertexCount();
+
       CaptureEvent(DrawEvent(vertexCount, instanceCount, 0, 0));
 #endif
     }

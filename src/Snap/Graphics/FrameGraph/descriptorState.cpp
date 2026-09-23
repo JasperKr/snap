@@ -8,6 +8,7 @@
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/console.hpp"
 #include "Modules/object.hpp"
+#include <cassert>
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables, readability-function-cognitive-complexity, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
@@ -22,7 +23,7 @@ inline auto BindBufferDesciptors(DescriptorKey &key, Ref<Shader> &shader,
   }
 
   for (const auto &location : iter->second) {
-    const auto &[set, binding] = Utils::SlotToSetBinding(location);
+    const auto [set, binding] = Utils::SlotToSetBinding(location);
     auto iter = state.userBoundBuffers.find(location);
 
     [[unlikely]]
@@ -51,8 +52,8 @@ inline auto BindAccelerationStructureDescriptors(DescriptorKey &key,
 
   for (const auto &location :
        shader->reflection.accelerationStructureSlotsBySet.at(setIndex)) {
-    const auto &[set, binding] = Utils::SlotToSetBinding(location);
-    ERR_ASSERT(set == setIndex);
+    const auto [set, binding] = Utils::SlotToSetBinding(location);
+    assert(set == setIndex);
     auto iter = state.userBoundAccelerationStructures.find(location);
 
     [[unlikely]]
@@ -61,11 +62,9 @@ inline auto BindAccelerationStructureDescriptors(DescriptorKey &key,
       continue;
     }
 
-    const auto &accelStruct = iter->second;
-
     key.bindings.emplace_back(ResourceBinding{
         .binding = binding,
-        .resource = accelStruct.first->getID(),
+        .resource = iter->second.first->getID(),
     });
   }
 
@@ -84,11 +83,13 @@ inline auto BindTextureDescriptors(const GraphicsContext &context,
   for (const auto &location :
        shader->reflection.textureSlotsBySet.at(setIndex)) {
 
-    ERR_ASSERT(shader->GetState().userBoundTextures.contains(location));
-    auto iter = shader->GetState().userBoundTextures.find(location);
+    const auto &state = shader->GetState();
+
+    assert(state.userBoundTextures.contains(location));
+    auto iter = state.userBoundTextures.find(location);
 
     [[unlikely]]
-    if (iter == shader->GetState().userBoundTextures.end() ||
+    if (iter == state.userBoundTextures.end() ||
         !iter->second.first.isValid()) {
       continue;
     }
@@ -96,7 +97,7 @@ inline auto BindTextureDescriptors(const GraphicsContext &context,
     const auto &pair = iter->second;
     const auto &texture = pair.first;
     const auto *samplerInfo = pair.second;
-    const auto &[set, binding] = Utils::SlotToSetBinding(location);
+    const auto [set, binding] = Utils::SlotToSetBinding(location);
 
     key.bindings.emplace_back(ResourceBinding{
         .binding = binding,
@@ -108,20 +109,23 @@ inline auto BindTextureDescriptors(const GraphicsContext &context,
 }
 
 inline auto BindGlobalsDescriptor(
-    const GraphicsContext &context, DescriptorKey &key, auto &shader,
+    const GraphicsContext &context, DescriptorKey &key, Ref<Shader> &shader,
     int setIndex, Math::StackVector<uint32_t, 16> &dynamicOffsets) -> Error {
   ZoneScoped;
 
+  [[unlikely]]
   if (!shader->reflection.hasGlobals) {
     return Error::Success();
   }
 
   const auto set = shader->reflection.globals.set;
-  const auto binding = shader->reflection.globals.binding;
 
+  [[likely]]
   if (set != setIndex) {
     return Error::Success();
   }
+
+  const auto binding = shader->reflection.globals.binding;
 
   auto &buffer = GetGlobalUniformBuffer(context.frameIndex);
   auto offset = buffer.GetOffset();
@@ -326,18 +330,18 @@ auto GetDescriptorSets(const GraphicsContext &context)
 
   const auto &pipelineLayout =
       CHECK_RES(GetPipelineCache().GetPipelineLayout(context, shader.get()));
+  auto &descriptorCache = GetDescriptorCache();
+  Math::StackVector<uint32_t, 16> currentDynamicOffsets{};
+  DescriptorKey key = {
+      .bindings = {},
+  };
 
   int setIndex = 0;
   for (const auto &layout : pipelineLayout.descriptorSetLayouts) {
     ZoneScopedN("BindDescriptorSets loop");
 
-    thread_local DescriptorKey key = {
-        .bindings = {},
-    };
-
     key.bindings.clear();
-
-    Math::StackVector<uint32_t, 16> currentDynamicOffsets{};
+    currentDynamicOffsets.fastclear();
 
     {
       ZoneScopedN("BindDescriptorSets Bind Resources");
@@ -350,11 +354,9 @@ auto GetDescriptorSets(const GraphicsContext &context)
                                       currentDynamicOffsets));
     }
 
-    VkDescriptorSet *entry = GetDescriptorCache().descriptorSetCache.get(key);
+    VkDescriptorSet *entry = descriptorCache.descriptorSetCache.get(key);
     if (entry != nullptr) {
-      VkDescriptorSet cached = *entry;
-
-      descriptorSets.emplace_back(cached);
+      descriptorSets.emplace_back(*entry);
       dynamicOffsets.insert(dynamicOffsets.end(), currentDynamicOffsets.begin(),
                             currentDynamicOffsets.end());
     } else {
@@ -365,7 +367,7 @@ auto GetDescriptorSets(const GraphicsContext &context)
       dynamicOffsets.insert(dynamicOffsets.end(), currentDynamicOffsets.begin(),
                             currentDynamicOffsets.end());
 
-      GetDescriptorCache().descriptorSetCache[key] = descriptorSet;
+      descriptorCache.descriptorSetCache[key] = descriptorSet;
     }
 
     setIndex++;

@@ -13,10 +13,6 @@ struct DescriptorKey {
   Math::StackVector<ResourceBinding, 16> bindings; // sorted by binding NOLINT
 
   auto operator==(const DescriptorKey &other) const -> bool {
-    if (bindings.size() != other.bindings.size()) {
-      return false;
-    }
-
     return bindings == other.bindings;
   }
 };

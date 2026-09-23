@@ -6,19 +6,17 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
+#include "Graphics/vkAccessHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include <cstddef>
 #include <functional>
-#include <mutex>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <unordered_set>
 #if OUTPUT_DEBUG_GRAPH
 #include "Modules/filesystem.hpp"
@@ -30,7 +28,6 @@
 #include <cassert>
 #include <cstdint>
 #include <public/tracy/Tracy.hpp>
-#include <slang/slang.h>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -50,18 +47,17 @@ auto FrameGraph::Submit(const GraphicsContext &context,
 
 auto FrameGraph::ValidateGraph() -> Error { return {}; } // NOLINT
 
-inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets)
-    -> std::vector<VulkanResource> {
-  std::vector<VulkanResource> reads;
+inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets,
+                                  std::vector<VulkanResource> &reads) -> void {
 
   for (const auto &image : state.boundImages) {
-    if (image.access != SLANG_RESOURCE_ACCESS_WRITE) {
+    if (VkAccessHelpers::IsReadAccess(image.access)) {
       reads.emplace_back(image.resource);
     }
   }
 
   for (const auto &buffer : state.boundBuffers) {
-    if (buffer.access != SLANG_RESOURCE_ACCESS_WRITE) {
+    if (VkAccessHelpers::IsReadAccess(buffer.access)) {
       reads.emplace_back(buffer.resource);
     }
   }
@@ -71,7 +67,7 @@ inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets)
   }
 
   if (!getRendertargets) {
-    return reads;
+    return;
   }
 
   for (const auto &vertexBuffer : state.vertexBuffers) {
@@ -91,60 +87,53 @@ inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets)
   if (state.depthStencilAttachment.has_value()) {
     reads.emplace_back(state.depthStencilAttachment->resource);
   }
-
-  return reads;
 }
 
-inline auto GetReadsInternal(Command &command) -> std::vector<VulkanResource> {
+inline auto GetReadsInternal(Command &command,
+                             std::vector<VulkanResource> &reads) -> void {
   auto *drawState = get_if_derived<DrawState>(command.data);
 
   if (drawState != nullptr) {
     bool getRendertargets =
         drawState->GetGraphState().bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-    return GetReadsFromDrawState(*drawState, getRendertargets);
-  }
-
-  if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
+    GetReadsFromDrawState(*drawState, getRendertargets, reads);
+  } else if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
     const auto &args = std::get<Args::VkCmdBlitImage>(command.data);
-    return args.srcResources;
-  }
-
-  if (std::holds_alternative<Args::MipmapTexture>(command.data)) {
+    reads.append_range(args.srcResources);
+  } else if (std::holds_alternative<Args::MipmapTexture>(command.data)) {
     const auto &args = std::get<Args::MipmapTexture>(command.data);
-    return {
+    reads = {
         VulkanResource(ImageSubresource(args.texture->imageMemory->image, 0, 1,
                                         0, args.texture->GetMipmapCount()))};
-  }
-
-  if (std::holds_alternative<Args::VkCmdCopyBuffer>(command.data)) {
+  } else if (std::holds_alternative<Args::VkCmdCopyBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
-    return {args.srcBuffer};
+    reads = {args.srcBuffer};
   }
 
-  if (std::holds_alternative<Args::VkCmdCopyImage>(command.data)) {
+  else if (std::holds_alternative<Args::VkCmdCopyImage>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyImage>(command.data);
-    return args.srcResources;
+    reads.append_range(args.srcResources);
   }
 
-  if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(command.data)) {
+  else if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command.data);
-    return {args.srcBuffer};
+    reads = {args.srcBuffer};
   }
 
-  if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(command.data)) {
+  else if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
-    return args.srcResources;
+    reads.append_range(args.srcResources);
   }
 
-  if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
-          command.data)) {
+  else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
+               command.data)) {
     const auto &args =
         std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
-    return args.reads;
+    reads.append_range(args.reads);
   }
 
-  if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(command.data)) {
+  else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(command.data)) {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
     std::vector<VulkanResource> resources{};
     resources.reserve(args.imageMemoryBarriers.size() +
@@ -159,32 +148,27 @@ inline auto GetReadsInternal(Command &command) -> std::vector<VulkanResource> {
       resources.emplace_back(barrier.buffer);
     }
 
-    return resources;
+    reads.append_range(resources);
   }
-
-  return {};
 }
 
-inline auto GetWritesFromDrawState(DrawState &state, bool getRendertargets)
-    -> std::vector<VulkanResource> {
-  std::vector<VulkanResource> writes;
-
+inline auto GetWritesFromDrawState(DrawState &state, bool getRendertargets,
+                                   std::vector<VulkanResource> &writes)
+    -> void {
   for (const auto &buffer : state.boundBuffers) {
-    if (buffer.access == SLANG_RESOURCE_ACCESS_WRITE ||
-        buffer.access == SLANG_RESOURCE_ACCESS_READ_WRITE) {
+    if (VkAccessHelpers::IsWriteAccess(buffer.access)) {
       writes.emplace_back(buffer.resource);
     }
   }
 
   for (const auto &image : state.boundImages) {
-    if (image.access == SLANG_RESOURCE_ACCESS_WRITE ||
-        image.access == SLANG_RESOURCE_ACCESS_READ_WRITE) {
+    if (VkAccessHelpers::IsWriteAccess(image.access)) {
       writes.emplace_back(image.resource);
     }
   }
 
   if (!getRendertargets) {
-    return writes;
+    return;
   }
 
   for (const auto &colorAttachment : state.colorAttachments) {
@@ -194,11 +178,10 @@ inline auto GetWritesFromDrawState(DrawState &state, bool getRendertargets)
   if (state.depthStencilAttachment.has_value()) {
     writes.emplace_back(state.depthStencilAttachment->resource);
   }
-
-  return writes;
 }
 
-inline auto GetWritesInternal(Command &command) -> std::vector<VulkanResource> {
+inline auto GetWritesInternal(Command &command,
+                              std::vector<VulkanResource> &writes) -> void {
   auto *drawState = get_if_derived<DrawState>(command.data);
 
   if (drawState != nullptr) {
@@ -207,76 +190,52 @@ inline auto GetWritesInternal(Command &command) -> std::vector<VulkanResource> {
     getRendertargets = getRendertargets ||
                        command.GetType() == CommandType::vkCmdClearAttachments;
 
-    return GetWritesFromDrawState(*drawState, getRendertargets);
-  }
-
-  if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
+    GetWritesFromDrawState(*drawState, getRendertargets, writes);
+  } else if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
     const auto &args = std::get<Args::VkCmdBlitImage>(command.data);
-    return args.dstResources;
-  }
-
-  if (std::holds_alternative<Args::MipmapTexture>(command.data)) {
+    writes = args.dstResources;
+  } else if (std::holds_alternative<Args::MipmapTexture>(command.data)) {
     const auto &args = std::get<Args::MipmapTexture>(command.data);
-    return {
+    writes = {
         VulkanResource(ImageSubresource(args.texture->imageMemory->image, 0, 1,
                                         0, args.texture->GetMipmapCount()))};
-  }
-
-  if (std::holds_alternative<Args::VkCmdCopyBuffer>(command.data)) {
+  } else if (std::holds_alternative<Args::VkCmdCopyBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
-    return {args.dstBuffer};
-  }
-
-  if (std::holds_alternative<Args::VkCmdCopyImage>(command.data)) {
+    writes = {args.dstBuffer};
+  } else if (std::holds_alternative<Args::VkCmdCopyImage>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyImage>(command.data);
-    return args.dstResources;
-  }
-
-  if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(command.data)) {
+    writes = args.dstResources;
+  } else if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(
+                 command.data)) {
     const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command.data);
-    return args.dstResources;
-  }
-
-  if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(command.data)) {
+    writes = args.dstResources;
+  } else if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(
+                 command.data)) {
     const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
-    return {args.dstBuffer};
-  }
-
-  if (std::holds_alternative<Args::VkCmdFillBuffer>(command.data)) {
+    writes = {args.dstBuffer};
+  } else if (std::holds_alternative<Args::VkCmdFillBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdFillBuffer>(command.data);
-    return {args.dstBuffer};
-  }
-
-  if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
-          command.data)) {
+    writes = {args.dstBuffer};
+  } else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
+                 command.data)) {
     const auto &args =
         std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
-    return args.writes;
-  }
-
-  if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(command.data)) {
+    writes = args.writes;
+  } else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(
+                 command.data)) {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
-    std::vector<VulkanResource> resources{};
-    resources.reserve(args.imageMemoryBarriers.size() +
-                      args.bufferMemoryBarriers.size());
+    writes.reserve(args.imageMemoryBarriers.size() +
+                   args.bufferMemoryBarriers.size());
 
     for (const auto &barrier : args.imageMemoryBarriers) {
-      resources.emplace_back(
+      writes.emplace_back(
           ImageSubresource(barrier.image, barrier.subresourceRange));
     }
 
     for (const auto &barrier : args.bufferMemoryBarriers) {
-      resources.emplace_back(barrier.buffer);
+      writes.emplace_back(barrier.buffer);
     }
-
-    return resources;
   }
-
-  // if (std::holds_alternative<Args::VkCmdClearAttachments>(command.data)) {
-  //   const auto &args = std::get<Args::VkCmdClearAttachments>(command.data);
-  // }
-
-  return {};
 }
 
 auto FrameGraph::MapResourceUsages() -> Error {
@@ -292,21 +251,9 @@ auto FrameGraph::MapResourceUsages() -> Error {
         }
 
         if (commandIdx & 1UL) { // Odd
-          auto reads = std::move(GetReadsInternal(command));
-
-          std::ranges::sort(reads, std::less{});
-          auto [first, last] =
-              std::ranges::unique(reads, VulkanResource::Equals);
-          reads.erase(first, last);
-          boundState->reads = std::move(reads);
+          GetReadsInternal(command, boundState->reads);
         } else {
-          auto writes = std::move(GetWritesInternal(command));
-
-          std::ranges::sort(writes, std::less{});
-          auto [first, last] =
-              std::ranges::unique(writes, VulkanResource::Equals);
-          writes.erase(first, last);
-          boundState->writes = std::move(writes);
+          GetWritesInternal(command, boundState->writes);
         }
       });
 
@@ -1836,34 +1783,13 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   // Amount of items merged, excluding one per range since the range object becomes a command
   int count = 0;
 
-  for (const auto &command : commandBuffer.commands) {
-    const auto type = command.GetType();
-
-    if (type == CommandType::vkCmdDraw ||
-        type == CommandType::vkCmdDrawIndexed ||
-        type == CommandType::vkCmdDrawIndexedIndirect ||
-        type == CommandType::vkCmdDrawIndirect) {
-      if (!inRange) {
-        inRange = true;
-      } else {
-        count++;
-      }
-    } else {
-      inRange = false;
-    }
-  }
-
-  commands.reserve(commandBuffer.commands.size() - count);
-
-  if (count == 0) {
-    PrintAlways("No render passes, skipping compacting.");
-    commands = commandBuffer.commands;
-    return {};
-  }
-
   RenderPass currentPass;
-  std::unordered_set<VulkanResource, VulkanResourceHash> knownReads;
-  std::unordered_set<VulkanResource, VulkanResourceHash> knownWrites;
+  static std::unordered_set<VulkanResource, VulkanResourceHash> knownReads;
+  static std::unordered_set<VulkanResource, VulkanResourceHash> knownWrites;
+
+  snap_defer(knownReads.clear());
+  snap_defer(knownWrites.clear());
+
   inRange = false;
   int drawStateMismatches = 0;
 
@@ -2127,6 +2053,8 @@ auto FrameGraph::Reset() -> void {
   commands.clear();
   resourcesWritesInFrame.clear();
   CommandStateManager::StateToIndex.clear();
+  CommandStateManager::States.clear();
+  commandBuffer = {};
 }
 
 } // namespace Graphics

@@ -127,6 +127,8 @@ template <typename T, size_t N> struct StackVector {
     currentSize = 0;
   }
 
+  constexpr auto fastclear() -> void { currentSize = 0; }
+
   constexpr auto pop_back() -> void {
     assert(currentSize > 0 && "Cannot pop from an empty StackVector");
     --currentSize;

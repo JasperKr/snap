@@ -1326,7 +1326,7 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context,
     CHECK_ERR(mesh->SetIndices(context, info.Indices, info.IndexType));
   }
 
-  // CHECK_ERR(mesh->CreateBLAS(context));
+  CHECK_ERR(mesh->CreateBLAS(context));
 
   auto geometry = world->entity(GetUniqueName("Geometry").c_str());
   geometry.set<Engine::Geometry>(Engine::Geometry{.mesh = mesh});

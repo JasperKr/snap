@@ -864,12 +864,12 @@ auto LayoutTransitionEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
 
   ImGui::SeparatorText("Source access mask");
   for (const auto &access : Utils::BitMaskRange(srcAccessMask)) {
-    ImGui::Text("%s", AccessFlags2ToString(access).c_str());
+    ImGui::Text("%s", VkAccessHelpers::AccessFlags2ToString(access).c_str());
   }
 
   ImGui::SeparatorText("Destination access mask");
   for (const auto &access : Utils::BitMaskRange(dstAccessMask)) {
-    ImGui::Text("%s", AccessFlags2ToString(access).c_str());
+    ImGui::Text("%s", VkAccessHelpers::AccessFlags2ToString(access).c_str());
   }
 
   ImGui::SeparatorText("Source pipeline stages");

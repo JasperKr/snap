@@ -142,7 +142,8 @@ auto DrawState::GetReadStateFor(const VulkanResource &resource,
     VkPipelineStageFlags2 pipelines = 0;
 
     for (const auto &bound : boundResources) {
-      if (bound.Overlaps(resource) && IsReadAccess(bound.access)) {
+      if (bound.Overlaps(resource) &&
+          VkAccessHelpers::IsReadAccess(bound.access)) {
         access |= bound.access;
         pipelines |= bound.pipelines;
       }
@@ -197,7 +198,8 @@ auto DrawState::GetWriteStateFor(const VulkanResource &resource,
     VkPipelineStageFlags2 pipelines = 0;
 
     for (const auto &bound : boundResources) {
-      if (bound.Overlaps(resource) && IsWriteAccess(bound.access)) {
+      if (bound.Overlaps(resource) &&
+          VkAccessHelpers::IsWriteAccess(bound.access)) {
         access |= bound.access;
         pipelines |= bound.pipelines;
       }
@@ -356,12 +358,20 @@ auto BindDefaultTextures(const GraphicsContext &context, Shader *shader)
   return Error::Success();
 }
 
-auto DrawState::Initialize(const GraphicsContext &context, CommandType type)
-    -> Error {
+auto DrawState::Initialize(CommandType type) -> Error {
+  ZoneScoped;
+
   const auto &shader = RenderState::GetShader();
+  const auto &context = *GetCurrentGraphicsContext();
 
   const auto &ctx = GetThreadContext();
   auto &graphState = ctx.commandBuffer->GetGraphState();
+
+  if (graphState.shader != shader ||
+      graphState.bindPoint != RenderState::GetBindPoint()) {
+    graphState.MarkUpdated();
+  }
+
   graphState.shader = shader;
   graphState.bindPoint = RenderState::GetBindPoint();
 
@@ -395,12 +405,10 @@ auto DrawState::Initialize(const GraphicsContext &context, CommandType type)
         RenderState::TopOfStack->depthStencilAttachment;
     graphState.hasDepthStencilAttachment =
         RenderState::TopOfStack->hasDepthStencilAttachment;
+    graphState.MarkUpdated();
   }
-  graphState.MarkUpdated();
 
   if (!isCompute) {
-    const auto &rendertargets = RenderState::GetRenderTargets();
-
     VkAccessFlags2 depthAccess = VK_ACCESS_2_NONE;
     VkPipelineStageFlags2 depthPipelines = VK_PIPELINE_STAGE_2_NONE;
 
@@ -412,26 +420,34 @@ auto DrawState::Initialize(const GraphicsContext &context, CommandType type)
     depthPipelines |= (graphState.depthWriteEnable != 0U) ? VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT : 0U;
     // clang-format on
 
-    for (const auto &target : rendertargets) {
-      if (Image::IsDepthOrStencilTexture(target.texture->GetFormat())) {
-        depthStencilAttachment =
-            BoundResource{.resource = ImageSubresource{target.texture},
-                          .access = depthAccess,
-                          .pipelines = depthPipelines};
-      } else {
-        colorAttachments.emplace_back(BoundResource{
-            .resource = ImageSubresource{target.texture},
-            // clang-format off
+    colorAttachments.reserve(RenderState::TopOfStack->colorAttachments.size());
+
+    for (const auto &target : RenderState::TopOfStack->colorAttachments) {
+      colorAttachments.emplace_back(BoundResource{
+          .resource = ImageSubresource{target.texture},
+          // clang-format off
             .access = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | ((target.blendMode.blendEnable != 0U) ? VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT : 0U),
             .pipelines = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            // clang-format on
-        });
-      }
+          // clang-format on
+      });
+    }
+
+    if (RenderState::TopOfStack->hasDepthStencilAttachment) {
+      depthStencilAttachment = BoundResource{
+          .resource =
+              ImageSubresource{
+                  RenderState::TopOfStack->depthStencilAttachment.texture},
+          .access = depthAccess,
+          .pipelines = depthPipelines};
     }
   }
 
   const auto &shaderState = shader->GetState();
   const auto &pipelines = shader->combinedPipelineStages;
+
+  boundImages.reserve(shaderState.userBoundTextures.size());
+  boundBuffers.reserve(shaderState.userBoundBuffers.size());
+  boundASs.reserve(shaderState.userBoundAccelerationStructures.size());
 
   for (const auto &texture : shaderState.userBoundTextures) {
     boundImages.emplace_back(BoundResource{
@@ -468,7 +484,16 @@ auto DrawState::Initialize(const GraphicsContext &context, CommandType type)
   indexBufferOffset = graphState.indexBufferOffset;
   indexType = graphState.indexType;
 
-  stateID = ctx.commandBuffer->GetStateID();
+  thread_local uint32_t lastID{};
+  thread_local GraphState lastState;
+
+  if (ctx.commandBuffer->currentState == lastState) {
+    stateID = lastID;
+  } else {
+    stateID = ctx.commandBuffer->GetStateID();
+    lastID = stateID;
+    lastState = ctx.commandBuffer->currentState;
+  }
 
   CHECK_ERR(BindDefaultTextures(context, shader.get()));
 
@@ -506,7 +531,7 @@ auto VirtualCommandBuffer::AddCommand(const Command &command) -> Error {
 
   auto *state = commands.back().GetDrawState();
   if (state != nullptr) {
-    return state->Initialize(*GetCurrentGraphicsContext(), command.GetType());
+    return state->Initialize(command.GetType());
   }
 
   return {};
@@ -799,9 +824,11 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
 
   CommandStateManager::CurrentStateID = stateID;
 
+  assert(GetPipelineCache().currentLayout.layout);
+  assert(cmdBuffer);
+
   if (state.shader->pushBuffer) {
     ZoneScopedN("Flush push buffer data");
-    CHECK_NULL(GetPipelineCache().currentLayout.layout);
 
     auto &pushBuffer = state.shader->pushBuffer;
     CHECK_ERR(pushBuffer->SetData(pushConstants));

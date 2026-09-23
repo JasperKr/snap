@@ -3,7 +3,7 @@
 #include <sstream>
 #include <string_view>
 
-namespace Graphics {
+namespace Graphics::VkAccessHelpers {
 
 inline auto AccessFlags2ToStringInternal(VkAccessFlags2 flag)
     -> std::string_view {
@@ -138,4 +138,4 @@ auto IsReadAccess(VkAccessFlags2 flags) -> bool {
   return (flags | readAccesses) != 0U;
 }
 
-} // namespace Graphics
+} // namespace Graphics::VkAccessHelpers

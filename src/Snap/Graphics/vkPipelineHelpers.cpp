@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vulkan/vulkan_core.h>
 
-namespace Graphics {
+namespace Graphics::VkPipelineHelpers {
 
 inline auto PipelineStage2ToStringInternal(VkPipelineStageFlags2 pipeline)
     -> std::string_view {
@@ -58,4 +58,4 @@ auto PipelineStage2ToString(VkPipelineStageFlags2 pipelines) -> std::string {
   return pipelineStr;
 }
 
-} // namespace Graphics
+} // namespace Graphics::VkPipelineHelpers

@@ -168,7 +168,7 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   GetThreadContext().commandBuffer = threadInfo->threadData.commandBuffer;
   CurrentRenderThreadInfo = threadInfo;
 
-  if (GetVirtualCommandBuffer() == VK_NULL_HANDLE) {
+  if (GetVirtualCommandBuffer() == nullptr) {
     return Error::Unexpected("Failed to acquire command buffer.");
   }
 
@@ -185,7 +185,7 @@ auto SubmitCommands(Graphics::GraphicsContext &context)
   CHECK_ERR(RenderState::FinalizeFrame(context));
   CHECK_ERR(FlushBufferUploads(context));
   if (!CurrentRenderThreadInfo.isValid() ||
-      CurrentRenderThreadInfo->threadData.commandBuffer == VK_NULL_HANDLE) {
+      CurrentRenderThreadInfo->threadData.commandBuffer == nullptr) {
     return Error::Unexpected("No command buffer to submit.");
   }
   auto &threadContext = GetThreadContext();
@@ -197,7 +197,7 @@ auto SubmitCommands(Graphics::GraphicsContext &context)
     }
   }
 
-  threadContext.commandBuffer = VK_NULL_HANDLE;
+  threadContext.commandBuffer = nullptr;
 
   threadContext.queueFamily = UINT32_MAX;
   threadContext.queueFlags = VK_QUEUE_FLAG_BITS_MAX_ENUM;

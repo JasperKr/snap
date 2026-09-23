@@ -227,7 +227,7 @@ local startupSequence = {
 local frameIndex = 0
 
 while true do
-  if not (canStartChannel:demand(50)) then
+  if not (canStartChannel:demand(100)) then
     print("Render thread received stop signal")
     break
   end
