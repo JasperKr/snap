@@ -39,6 +39,31 @@ struct CameraMatrices {
                       InverseViewMatrix.At(3, 2)};
   }
 
+  [[nodiscard]] auto Project(Math::Vec3 position) const -> Math::Vec3 {
+    Math::Vec4 clip = ViewProjectionMatrix * Math::Vec4(position, 1.0F);
+    clip /= clip.w;
+    clip *= 0.5F;
+    clip += 0.5F;
+    return Math::Vec3(clip);
+  }
+
+  [[nodiscard]] auto InverseProject(Math::Vec3 uvs) const -> Math::Vec3 {
+    uvs *= 2.0F;
+    uvs -= 1.0F;
+    Math::Vec4 world = InverseViewProjectionMatrix * Math::Vec4(uvs, 1.0F);
+    world /= world.w;
+    return Math::Vec3(world);
+  }
+
+  [[nodiscard]] auto InverseProject_Rotation(Math::Vec3 uvs) const
+      -> Math::Vec3 {
+    uvs *= 2.0F;
+    uvs -= 1.0F;
+    Math::Vec4 world = InverseRotationProjectionMatrix * Math::Vec4(uvs, 1.0F);
+    world /= world.w;
+    return Math::Vec3(world);
+  }
+
   [[nodiscard]] auto GetFrustum() const -> struct Frustum;
   auto Update() -> void;
 };

@@ -16,7 +16,9 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   -cppcoreguidelines-pro-type-union-access,
   -hicpp-static-assert,
-  -readability-function-cognitive-complexity
+  -readability-function-cognitive-complexity,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers
 
 # -cppcoreguidelines-pro-type-reinterpret-cast
 # -hicpp-no-array-decay

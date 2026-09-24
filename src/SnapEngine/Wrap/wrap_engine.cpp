@@ -1,3 +1,4 @@
+#include "Wrap/wrap_editor.hpp"
 #include "Wrap/wrap_imgui.hpp"
 #include "Wrap/wrap_renderer.hpp"
 // #include "Wrap/wrap_scene.hpp"
@@ -11,6 +12,7 @@ static const std::vector<luaL_Reg> SnapModules = {
     {"gui", Wrap::Imgui::luaopen_gui},
     {"scene", Wrap::Engine::luaopen_scene},
     {"renderer", Engine::Renderer::luaopen_renderer},
+    {"editor", Engine::Wrap_Editor::luaopen_editor},
 };
 
 auto RegisterModules(lua_State *state) -> void {

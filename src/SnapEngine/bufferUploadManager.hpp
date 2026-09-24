@@ -42,8 +42,6 @@ struct BufferUploadManager {
       const auto start = range.x * elementStride;
       const auto end = range.y * elementStride;
 
-      PrintAlways("Flushing range {} - {}", start, end);
-
       // NOLINTNEXTLINE
       return buffer->SetData(context, {data.data() + start, data.data() + end},
                              start);

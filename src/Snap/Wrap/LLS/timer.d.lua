@@ -4,6 +4,8 @@ error("Do not require this file")
 
 -- Timer module for snap
 
+snap.timer = {}
+
 --- Gets the current time in seconds.
 --- @return number Current time in seconds.
 function snap.timer.getTime() end

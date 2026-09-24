@@ -2,6 +2,8 @@
 
 error("Do not require this file")
 
+snap.math = {}
+
 --- Converts an euler angle to a quaternion
 --- @param pitch number
 --- @param yaw number

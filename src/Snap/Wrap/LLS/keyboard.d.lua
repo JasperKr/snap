@@ -2,6 +2,7 @@
 
 error("Do not require this file")
 
+snap.keyboard = {}
 
 --- Checks if a key is currently being pressed
 ---@param ... string

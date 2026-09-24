@@ -50,6 +50,7 @@ add_library(SnapEngine
   Wrap/wrap_renderer.cpp
   Wrap/wrap_imgui.cpp
   Wrap/wrap_engine.cpp
+  Wrap/wrap_editor.cpp
 
   # MikkTSpace
   ${MikkTSpace_INCLUDE_DIR}/mikktspace.c

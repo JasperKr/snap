@@ -10,16 +10,12 @@ auto wrap_NewMaterial(lua_State *state) -> int;
 auto wrap_DrawEverything(lua_State *state) -> int;
 auto wrap_Initialize(lua_State *state) -> int;
 auto wrap_ReloadShaders(lua_State *state) -> int;
-auto wrap_PickObject(lua_State *state) -> int;
-auto wrap_SetEditorCamera(lua_State *state) -> int;
 
 static const std::vector<luaL_Reg> RendererLib = {
     {"newMaterial", wrap_NewMaterial},
     {"drawEverything", wrap_DrawEverything},
     {"initialize", wrap_Initialize},
     {"reloadShaders", wrap_ReloadShaders},
-    {"pickObject", wrap_PickObject},
-    {"setEditorCamera", wrap_SetEditorCamera},
 };
 
 static const std::vector<lua_CFunction> childrenInitFunctions{};

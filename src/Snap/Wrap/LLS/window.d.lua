@@ -2,6 +2,8 @@
 
 error("Do not require this file")
 
+snap.window = {}
+
 --- Hides the window.
 function snap.window.hide() end
 

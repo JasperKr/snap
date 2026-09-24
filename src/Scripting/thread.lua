@@ -1,10 +1,11 @@
 require("init")
+require("registerBindings");
+
 local ffi = require("ffi")
 local buffer = require("string.buffer")
 
 local lastDrawTime = 0
 local lastImDrawTime = 0
-local lastShownTime = 0
 local lastShownImDrawTime = 0
 local count = 0
 local viewport = { offset = vec2(), size = vec2() }
@@ -17,7 +18,11 @@ camera:setPersistentTextureSettings({
   PostProcessed = true,
 })
 
-snap.renderer.setEditorCamera(camera)
+SnapEngine.editor = {
+  camera = camera,
+}
+
+snap.editor.setCamera(camera)
 
 local probe = scene:newLightProbe()
 
@@ -99,7 +104,6 @@ local function draw()
   lastDrawTime = lastDrawTime + snap.timer.getTime() - startTime
   count = count + 1
   if (count >= 50) then
-    lastShownTime = lastDrawTime / count
     lastShownImDrawTime = lastImDrawTime / count
     count = 0
     lastDrawTime = 0
@@ -109,36 +113,45 @@ end
 
 local createSnapshot = false
 
-local isDown = {}
-function snap.mousepressed(x, y, button)
-  isDown[button] = true
+function CreateSnapshot()
+  createSnapshot = true
+end
 
+---@return number x
+---@return number y
+function GetViewportRelativeMousePosition()
   local mx, my = snap.mouse.getPosition()
   mx = mx - viewport.offset.x
   my = my - viewport.offset.y
   mx = mx / viewport.size.x
   my = my / viewport.size.y
 
-  if button == 1 and mx >= 0 and mx <= 1 and my >= 0 and my <= 1 then
-    snap.renderer.pickObject(mx, my)
-  end
+  return mx, my
+end
+
+local isDown = {}
+function snap.mousepressed(x, y, button)
+  isDown[button] = true
+
+  SnapEngine.keybindings.pressed(button)
 end
 
 function snap.mousereleased(x, y, button)
   isDown[button] = false
+
+  SnapEngine.keybindings.released(button)
 end
 
 function snap.keypressed(key)
   isDown[key] = true
-  if key == "f5" then
-    snap.renderer.reloadShaders()
-  elseif key == "f6" then
-    createSnapshot = true
-  end
+
+  SnapEngine.keybindings.pressed(key)
 end
 
 function snap.keyreleased(key)
   isDown[key] = false
+
+  SnapEngine.keybindings.released(key)
 end
 
 function snap.mousemoved(x, y, dx, dy)
@@ -164,46 +177,7 @@ function snap.mousemoved(x, y, dx, dy)
 end
 
 function update(dt)
-  local speed = dt * 10
 
-  if (isDown["a"]) then
-    local leftX, leftY, leftZ = camera:getRight()
-    leftX, leftY, leftZ = -leftX, -leftY, -leftZ
-    local x, y, z = camera:getPosition()
-    camera:setPosition(x + leftX * speed, y + leftY * speed, z + leftZ * speed)
-  end
-
-  if (isDown["d"]) then
-    local rightX, rightY, rightZ = camera:getRight()
-    local x, y, z = camera:getPosition()
-    camera:setPosition(x + rightX * speed, y + rightY * speed, z + rightZ * speed)
-  end
-
-  if (isDown["w"]) then
-    local forwardX, forwardY, forwardZ = camera:getForward()
-    local x, y, z = camera:getPosition()
-    camera:setPosition(x + forwardX * speed, y + forwardY * speed, z + forwardZ * speed)
-  end
-
-  if (isDown["s"]) then
-    local backX, backY, backZ = camera:getForward()
-    backX, backY, backZ = -backX, -backY, -backZ
-    local x, y, z = camera:getPosition()
-    camera:setPosition(x + backX * speed, y + backY * speed, z + backZ * speed)
-  end
-
-  if (isDown["space"]) then
-    local upX, upY, upZ = camera:getUp()
-    local x, y, z = camera:getPosition()
-    camera:setPosition(x + upX * speed, y + upY * speed, z + upZ * speed)
-  end
-
-  if (isDown["lctrl"]) then
-    local downX, downY, downZ = camera:getUp()
-    downX, downY, downZ = -downX, -downY, -downZ
-    local x, y, z = camera:getPosition()
-    camera:setPosition(x + downX * speed, y + downY * speed, z + downZ * speed)
-  end
 end
 
 local deltaTimestamp = snap.timer.getTime()
@@ -217,17 +191,13 @@ local startupSequence = {
 
     local env = scene:newEnvironment("Test environment", texture)
     scene:setEnvironment(env)
-    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
-    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
-  end,
-  function()
   end
 }
 
 local frameIndex = 0
 
 while true do
-  if not (canStartChannel:demand(100)) then
+  if not (canStartChannel:demand(10)) then
     print("Render thread received stop signal")
     break
   end
@@ -256,6 +226,9 @@ while true do
     data = events:pop()
   end
 
+  snap.editor.setRelativeMousePosition(GetViewportRelativeMousePosition())
+  SnapEngine.keybindings.runCallbacks();
+
   update(delta)
 
   -- assert(frameIndex < 4)
@@ -269,6 +242,10 @@ while true do
   snap.gui.newFrame(delta)
 
   draw()
+
+  if frameIndex == 1 then
+    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+  end
 
   local commands, newSnapshot = snap.graphics.submitGraphics()
   if newSnapshot then

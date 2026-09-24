@@ -2,6 +2,8 @@
 
 error("Do not require this file")
 
+snap.gui = {}
+
 --- Creates a new frame
 --- @param dt number Delta time
 function snap.gui.newFrame(dt) end

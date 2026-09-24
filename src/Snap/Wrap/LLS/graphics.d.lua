@@ -2,6 +2,8 @@
 
 error("Do not require this file")
 
+snap.graphics = {}
+
 ---@class snap.SimpleBlendMode
 ---@field blendmode "none"|"alpha"|"add"|"sub"|"mul" The blend mode to use.
 ---@field alphamode "alphamultiply"|"premultiplied" The alpha mode to use.

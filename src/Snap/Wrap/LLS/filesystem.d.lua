@@ -2,6 +2,8 @@
 
 error("Do not require this file")
 
+snap.filesystem = {}
+
 --[[
 auto Wrap_Read(lua_State *state) -> int;
 auto Wrap_Append(lua_State *state) -> int;

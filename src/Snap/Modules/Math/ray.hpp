@@ -5,8 +5,8 @@
 namespace Math {
 
 struct Ray {
-  Math::Vec3 Origin{};
-  Math::Vec3 Direction{};
+  Math::Vec3 Origin;
+  Math::Vec3 Direction;
 
   explicit Ray(const Math::Vec3 &origin, const Math::Vec3 &direction)
       : Origin(origin), Direction(direction.Normalize()) {}

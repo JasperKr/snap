@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Graphics/buffer.hpp"
+#include "Modules/Math/quaternion.hpp"
 #include "Modules/Math/ray.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
@@ -54,40 +55,56 @@ enum class TransformMode : uint8_t {
 };
 
 struct MoveData {
-  std::vector<flecs::entity> Entities;
+  std::vector<Transform *> Transforms;
+  Math::Vec3 Origin;
+
   TransformAxis Axis = TransformAxis::None;
   TransformMode Mode = TransformMode::None;
+
   Math::Ray OriginalRay;
   float OriginalDistance = 0.0F;
-  Math::Vec3 Origin;
   float Distance{};
+
   Math::Vec2 StartMousePosition;
   Math::Vec2 CurrentMousePosition;
+
+  bool UpdatedTransformAxis;
+  bool StartedTransforming;
+
+  Math::Vec3 CurrentTranslation;
+  Math::Quaternion CurrentRotation;
+  Math::Vec3 CurrentScale;
+
+  auto Update() -> void;
+  auto Apply() -> void;
 };
 
 struct Editor {
-  std::queue<PickEntityReadback> PickedEntities;
-  MoveData CurrentMoveData;
+  static std::queue<PickEntityReadback> PickedEntities;
+  static MoveData MoveInfo;
 
-  flecs::entity SelectedEntity;
-  flecs::entity EditorCamera;
+  static flecs::entity SelectedEntity;
+  static std::vector<flecs::entity> SelectedEntities;
+  static flecs::entity EditorCamera;
 
-  void GizmoTranslation(const Math::Ray &currentRay, Transform &transform);
-  void GizmoRotation(const Math::Ray &currentRay, Transform &transform);
-  void GizmoScale(Transform &transform);
-  void TransformGizmo(const Math::Ray &currentRay, Transform &transform);
-  auto DrawGizmo() -> void;
+  static void GizmoTranslation(const Math::Ray &currentRay,
+                               Transform &transform);
+  static void GizmoRotation(const Math::Ray &currentRay, Transform &transform);
+  static void GizmoScale(Transform &transform);
+  static void TransformGizmo(const Math::Ray &currentRay, Transform &transform);
+  static auto DrawGizmo() -> void;
 
   // Mouse position is expected to be within the range [0, 1]
-  auto PickEntity(const Graphics::GraphicsContext &context, Math::Vec2 mousePos)
-      -> Error;
+  static auto PickEntity(const Graphics::GraphicsContext &context,
+                         Math::Vec2 mousePos) -> Error;
 
-  auto PopEntityPickResult() -> Result<std::optional<PickEntityResult>>;
+  static auto PopEntityPickResult() -> Result<std::optional<PickEntityResult>>;
 
-  static auto GetEditorInstance() -> Editor & {
-    static Editor instance;
-    return instance;
-  }
+  static auto StartTranslating() -> void;
+  static auto StartRotating() -> void;
+  static auto StartScaling() -> void;
+  static auto SetTransformAxis(TransformAxis axis) -> void;
+  static auto FinalizeTransform() -> void;
 };
 
 } // namespace Engine

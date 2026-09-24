@@ -16,6 +16,7 @@ require("Modules.helpers")
 require("Modules.pooledObjects")
 require("Modules.stringHelpers")
 require("Modules.tables")
+require("Modules.keybindings")
 
 table.clear = require("table.clear")
 table.new = require("table.new")

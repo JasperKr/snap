@@ -6,6 +6,8 @@ error("Do not require this file")
 ---@class snap.Data
 Data = {}
 
+snap.data = {}
+
 --- Releases the data from memory.
 function Data:release() end
 
