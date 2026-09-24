@@ -10,7 +10,6 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/error.hpp"
-#include "Modules/image.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include "dynamicRendering.hpp"
