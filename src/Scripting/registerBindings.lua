@@ -22,6 +22,7 @@ SnapEngine.keybindings.addBinding({
   falling = "f6",
 })
 
+-- MARK: Editor camera
 
 SnapEngine.keybindings.addAction("move editor camera left", function()
   local speed = snap.timer.getDelta() * 10
@@ -103,3 +104,7 @@ SnapEngine.keybindings.addBinding({
   action = "move editor camera down",
   high = "lctrl",
 })
+
+-- MARK: Gizmo
+
+-- SnapEngine.keybindings.addAction("Gizmo - Translate x", snap.editor.)

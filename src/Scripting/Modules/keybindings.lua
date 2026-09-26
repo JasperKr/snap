@@ -25,12 +25,49 @@ local keybindings = SnapEngine.keybindings
 ---@alias Key string
 ---@alias MouseButton number
 
+--- Default state is any
+---@alias snap.KeyModState "pressed"|"released"|"any"?
+
 ---@class snap.Keybinding
 ---@field action string
 ---@field rising (Key|MouseButton)[]|Key|MouseButton|nil # AKA: On pressed (rising edge)
 ---@field falling (Key|MouseButton)[]|Key|MouseButton|nil # AKA: On released (falling edge)
 ---@field high (Key|MouseButton)[]|Key|MouseButton|nil # AKA: While pressed
 ---@field low (Key|MouseButton)[]|Key|MouseButton|nil # AKA: While released
+---
+---@field lshift snap.KeyModState
+---@field lalt snap.KeyModState
+---@field lctrl snap.KeyModState
+---@field lfn snap.KeyModState
+---
+---@field rctrl snap.KeyModState
+---@field rshift snap.KeyModState
+---@field ralt snap.KeyModState
+---@field rfn snap.KeyModState
+
+local modStateNames = {
+  ["lctrl"] = true,
+  ["rctrl"] = true,
+  ["lshift"] = true,
+  ["rshift"] = true,
+  ["lalt"] = true,
+  ["ralt"] = true,
+  ["lfn"] = true,
+  ["rfn"] = true,
+}
+
+---@param binding snap.Keybinding
+local function bindingModstatesMatch(binding)
+  for name, expected in pairs(binding) do
+    if expected ~= "any" and modStateNames[name] then
+      if modStateNames[name] ~= expected then
+        return false
+      end
+    end
+  end
+
+  return true
+end
 
 --- Registers a key binding
 --- @param binding snap.Keybinding
@@ -92,6 +129,10 @@ function SnapEngine.keybindings.pressed(key)
   if keybindings.map_rising[key] == nil then return end
 
   for _, binding in ipairs(keybindings.map_rising[key]) do
+    if not modStateNames(binding) then
+      goto continue
+    end
+
     local callbacks = keybindings.actions[binding.action]
 
     if callbacks == nil then
@@ -112,6 +153,10 @@ function SnapEngine.keybindings.released(key)
   if keybindings.map_falling[key] == nil then return end
 
   for _, binding in ipairs(keybindings.map_falling[key]) do
+    if not modStateNames(binding) then
+      goto continue
+    end
+
     local callbacks = keybindings.actions[binding.action]
 
     if callbacks == nil then
@@ -133,6 +178,10 @@ function SnapEngine.keybindings.runCallbacks()
     end
 
     for _, binding in ipairs(bindings) do
+      if not modStateNames(binding) then
+        goto continue
+      end
+
       for _, callback in pairs(SnapEngine.keybindings.actions[binding.action]) do
         callback();
       end
@@ -147,6 +196,10 @@ function SnapEngine.keybindings.runCallbacks()
     end
 
     for _, binding in ipairs(bindings) do
+      if not modStateNames(binding) then
+        goto continue
+      end
+
       for _, callback in pairs(SnapEngine.keybindings.actions[binding.action]) do
         callback();
       end
