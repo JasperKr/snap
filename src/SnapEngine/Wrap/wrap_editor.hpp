@@ -23,6 +23,11 @@ static const std::vector<luaL_Reg> EditorLib = {
     {"pickObject", wrap_PickObject},
     {"setCamera", wrap_SetCamera},
     {"setRelativeMousePosition", wrap_SetRelativeMousePosition},
+    {"startTranslating", wrap_StartTranslating},
+    {"startRotating", wrap_StartRotating},
+    {"startScaling", wrap_StartScaling},
+    {"setTransformAxis", wrap_SetTransformAxis},
+    {"applyTransform", wrap_ApplyTransform},
 };
 
 static const ::LuaWrap::LuaEnum<TransformAxis> TransformAxisEnum{

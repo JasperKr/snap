@@ -244,7 +244,8 @@ while true do
   draw()
 
   if frameIndex == 1 then
-    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+    snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
   end
 
   local commands, newSnapshot = snap.graphics.submitGraphics()

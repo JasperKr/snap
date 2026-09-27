@@ -1,24 +1,14 @@
 SnapEngine.keybindings = {}
 
 ---@type snap.Keybinding[]
-SnapEngine.keybindings.storage = {}
+SnapEngine.keybindings.bindings = {}
 
----@type table<string, snap.Keybinding[]>
-SnapEngine.keybindings.map_rising = {}
-
----@type table<string, snap.Keybinding[]>
-SnapEngine.keybindings.map_falling = {}
-
----@type table<string, snap.Keybinding[]>
-SnapEngine.keybindings.map_high = {}
-
----@type table<string, snap.Keybinding[]>
-SnapEngine.keybindings.map_low = {}
-
----@type table<string, function[]>
+---@type table<string, {[1]:function, [2]:any}[]>
 SnapEngine.keybindings.actions = {}
 
 SnapEngine.keybindings.keysDown = {}
+SnapEngine.keybindings.keysRising = {}
+SnapEngine.keybindings.keysFalling = {}
 
 local keybindings = SnapEngine.keybindings
 
@@ -34,37 +24,15 @@ local keybindings = SnapEngine.keybindings
 ---@field falling (Key|MouseButton)[]|Key|MouseButton|nil # AKA: On released (falling edge)
 ---@field high (Key|MouseButton)[]|Key|MouseButton|nil # AKA: While pressed
 ---@field low (Key|MouseButton)[]|Key|MouseButton|nil # AKA: While released
----
----@field lshift snap.KeyModState
----@field lalt snap.KeyModState
----@field lctrl snap.KeyModState
----@field lfn snap.KeyModState
----
----@field rctrl snap.KeyModState
----@field rshift snap.KeyModState
----@field ralt snap.KeyModState
----@field rfn snap.KeyModState
 
-local modStateNames = {
-  ["lctrl"] = true,
-  ["rctrl"] = true,
-  ["lshift"] = true,
-  ["rshift"] = true,
-  ["lalt"] = true,
-  ["ralt"] = true,
-  ["lfn"] = true,
-  ["rfn"] = true,
-}
-
+--- Check if a binding should be ran
 ---@param binding snap.Keybinding
-local function bindingModstatesMatch(binding)
-  for name, expected in pairs(binding) do
-    if expected ~= "any" and modStateNames[name] then
-      if modStateNames[name] ~= expected then
-        return false
-      end
-    end
-  end
+---@return boolean
+local function bindingActive(binding)
+  for i, key in ipairs(binding.high) do if not keybindings.keysDown[key] then return false end end
+  for i, key in ipairs(binding.low) do if keybindings.keysDown[key] then return false end end
+  for i, key in ipairs(binding.rising) do if not keybindings.keysRising[key] then return false end end
+  for i, key in ipairs(binding.falling) do if not keybindings.keysFalling[key] then return false end end
 
   return true
 end
@@ -72,139 +40,62 @@ end
 --- Registers a key binding
 --- @param binding snap.Keybinding
 function SnapEngine.keybindings.addBinding(binding)
-  table.insert(keybindings.storage, binding);
-
-  if type(binding.rising) == "table" then
-    for _, key in ipairs(binding.rising or {}) do
-      keybindings.map_rising[key] = keybindings.map_rising[key] or {}
-      table.insert(keybindings.map_rising[key], binding)
-    end
-  elseif binding.rising then
-    keybindings.map_rising[binding.rising] = binding
-    table.insert(keybindings.map_rising[binding.rising], binding)
+  if binding.falling and type(binding.falling) ~= "table" then
+    binding.falling = { binding.falling }
+  else
+    binding.falling = {}
   end
 
-  if type(binding.falling) == "table" then
-    for _, key in ipairs(binding.falling or {}) do
-      keybindings.map_falling[key] = keybindings.map_falling[key] or {}
-      table.insert(keybindings.map_falling[key], binding)
-    end
-  elseif binding.falling then
-    keybindings.map_falling[binding.falling] = binding
-    table.insert(keybindings.map_falling[binding.falling], binding)
+  if binding.rising and type(binding.rising) ~= "table" then
+    binding.rising = { binding.rising }
+  else
+    binding.rising = {}
   end
 
-  if type(binding.high) == "table" then
-    for _, key in ipairs(binding.high or {}) do
-      keybindings.map_high[key] = keybindings.map_high[key] or {}
-      table.insert(keybindings.map_high[key], binding)
-    end
-  elseif binding.high then
-    keybindings.map_high[binding.high] = binding
-    table.insert(keybindings.map_high[binding.high], binding)
+  if binding.high and type(binding.high) ~= "table" then
+    binding.high = { binding.high }
+  else
+    binding.high = {}
   end
 
-  if type(binding.low) == "table" then
-    for _, key in ipairs(binding.low or {}) do
-      keybindings.map_low[key] = keybindings.map_low[key] or {}
-      table.insert(keybindings.map_low[key], binding)
-    end
-  elseif binding.low then
-    keybindings.map_low[binding.low] = binding
-    table.insert(keybindings.map_low[binding.low], binding)
+  if binding.low and type(binding.low) ~= "table" then
+    binding.low = { binding.low }
+  else
+    binding.low = {}
   end
+
+  table.insert(keybindings.bindings, binding);
 end
 
 --- Adds a callback to be called for a given string match
 ---@param action string
 ---@param callback function
-function SnapEngine.keybindings.addAction(action, callback)
+---@param ... any
+function SnapEngine.keybindings.addAction(action, callback, ...)
+  assert(callback, action)
   keybindings.actions[action] = keybindings.actions[action] or {}
-  table.insert(keybindings.actions[action], callback)
+  table.insert(keybindings.actions[action], { callback, ... })
 end
 
 function SnapEngine.keybindings.pressed(key)
   keybindings.keysDown[key] = true
-
-  if keybindings.map_rising[key] == nil then return end
-
-  for _, binding in ipairs(keybindings.map_rising[key]) do
-    if not modStateNames(binding) then
-      goto continue
-    end
-
-    local callbacks = keybindings.actions[binding.action]
-
-    if callbacks == nil then
-      goto continue
-    end
-
-    for _, callback in ipairs(callbacks) do
-      callback()
-    end
-
-    ::continue::
-  end
+  keybindings.keysRising[key] = true
 end
 
 function SnapEngine.keybindings.released(key)
   keybindings.keysDown[key] = nil
-
-  if keybindings.map_falling[key] == nil then return end
-
-  for _, binding in ipairs(keybindings.map_falling[key]) do
-    if not modStateNames(binding) then
-      goto continue
-    end
-
-    local callbacks = keybindings.actions[binding.action]
-
-    if callbacks == nil then
-      goto continue
-    end
-
-    for _, callback in ipairs(callbacks) do
-      callback()
-    end
-
-    ::continue::
-  end
+  keybindings.keysFalling[key] = true
 end
 
 function SnapEngine.keybindings.runCallbacks()
-  for index, bindings in pairs(SnapEngine.keybindings.map_low) do
-    if keybindings.keysDown[index] then
-      goto continue
-    end
-
-    for _, binding in ipairs(bindings) do
-      if not modStateNames(binding) then
-        goto continue
-      end
-
-      for _, callback in pairs(SnapEngine.keybindings.actions[binding.action]) do
-        callback();
+  for index, binding in pairs(SnapEngine.keybindings.bindings) do
+    if bindingActive(binding) then
+      for _, action in ipairs(SnapEngine.keybindings.actions[binding.action] or {}) do
+        action[1](unpack(action, 2))
       end
     end
-
-    ::continue::
   end
 
-  for index, bindings in pairs(SnapEngine.keybindings.map_high) do
-    if not keybindings.keysDown[index] then
-      goto continue
-    end
-
-    for _, binding in ipairs(bindings) do
-      if not modStateNames(binding) then
-        goto continue
-      end
-
-      for _, callback in pairs(SnapEngine.keybindings.actions[binding.action]) do
-        callback();
-      end
-    end
-
-    ::continue::
-  end
+  table.clear(keybindings.keysFalling)
+  table.clear(keybindings.keysRising)
 end

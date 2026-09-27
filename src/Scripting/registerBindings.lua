@@ -16,11 +16,11 @@ SnapEngine.keybindings.addBinding({
   falling = "f5",
 })
 
-SnapEngine.keybindings.addAction("create snapshot", CreateSnapshot)
-SnapEngine.keybindings.addBinding({
-  action = "create snapshot",
-  falling = "f6",
-})
+-- SnapEngine.keybindings.addAction("create snapshot", CreateSnapshot)
+-- SnapEngine.keybindings.addBinding({
+--   action = "create snapshot",
+--   falling = "f6",
+-- })
 
 -- MARK: Editor camera
 
@@ -77,34 +77,64 @@ end)
 
 SnapEngine.keybindings.addBinding({
   action = "move editor camera left",
-  high = "a",
+  high = { "a", 3 },
 })
 
 SnapEngine.keybindings.addBinding({
   action = "move editor camera right",
-  high = "d",
+  high = { "d", 3 },
 })
 
 SnapEngine.keybindings.addBinding({
   action = "move editor camera forward",
-  high = "w",
+  high = { "w", 3 },
 })
 
 SnapEngine.keybindings.addBinding({
   action = "move editor camera backward",
-  high = "s",
+  high = { "s", 3 },
 })
 
 SnapEngine.keybindings.addBinding({
   action = "move editor camera up",
-  high = "space",
+  high = { "space", 3 },
 })
 
 SnapEngine.keybindings.addBinding({
   action = "move editor camera down",
-  high = "lctrl",
+  high = { "lctrl", 3 },
 })
 
 -- MARK: Gizmo
 
--- SnapEngine.keybindings.addAction("Gizmo - Translate x", snap.editor.)
+SnapEngine.keybindings.addAction("Gizmo - Translate", snap.editor.startTranslating)
+SnapEngine.keybindings.addAction("Gizmo - Rotate", snap.editor.startRotating)
+SnapEngine.keybindings.addAction("Gizmo - Scale", snap.editor.startScaling)
+
+SnapEngine.keybindings.addAction("Gizmo - x-axis", snap.editor.setTransformAxis, "x")
+SnapEngine.keybindings.addAction("Gizmo - y-axis", snap.editor.setTransformAxis, "y")
+SnapEngine.keybindings.addAction("Gizmo - z-axis", snap.editor.setTransformAxis, "z")
+
+SnapEngine.keybindings.addAction("Gizmo - yz-plane", snap.editor.setTransformAxis, "yz")
+SnapEngine.keybindings.addAction("Gizmo - xz-plane", snap.editor.setTransformAxis, "xz")
+SnapEngine.keybindings.addAction("Gizmo - xy-plane", snap.editor.setTransformAxis, "xy")
+
+SnapEngine.keybindings.addAction("Gizmo - xyz freeform", snap.editor.setTransformAxis, "xyz")
+
+SnapEngine.keybindings.addBinding({
+  action = "Gizmo - Translate",
+  rising = "g",
+  low = 3
+})
+
+SnapEngine.keybindings.addBinding({
+  action = "Gizmo - Rotate",
+  rising = "r",
+  low = 3
+})
+
+SnapEngine.keybindings.addBinding({
+  action = "Gizmo - Scale",
+  rising = "s",
+  low = 3
+})
