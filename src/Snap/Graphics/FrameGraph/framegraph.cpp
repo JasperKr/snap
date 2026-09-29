@@ -268,7 +268,7 @@ auto FrameGraph::MapResourceUsages() -> Error {
       }
 
       for (const auto &write : boundState->writes) {
-        resourcesWritesInFrame.emplace(write);
+        resourcesWritesInFrame.emplace(write.Ptr());
       }
     }
   }
@@ -286,7 +286,7 @@ auto FrameGraph::MapResourceUsages() -> Error {
           Utils::UnorderedErase(boundState->reads,
                                 [this](const VulkanResource &resource) -> bool {
                                   return !resourcesWritesInFrame.contains(
-                                      resource);
+                                      resource.Ptr());
                                 });
         });
   }
@@ -376,46 +376,28 @@ auto FrameGraph::PreCompile() -> Error {
   // never alias. So bucket frontiers by handle: overlap/equality scans then
   // only cover the sub-ranges of one resource (a handful of mips/layers at
   // most) instead of every resource touched anywhere in the command buffer.
-  struct ResourceKey {
-    VulkanResource::ResourceType type;
-    const void *handle;
 
-    auto operator==(const ResourceKey &other) const -> bool {
-      return type == other.type && handle == other.handle;
+  struct FrontierKey {
+    VulkanResource key;
+
+    FrontierKey(const VulkanResource &key) : key(key) {} // NOLINT
+
+    auto operator==(const FrontierKey &other) const noexcept -> bool {
+      return key.Overlaps(other.key);
     }
   };
 
-  struct ResourceKeyHash {
-    auto operator()(const ResourceKey &key) const -> size_t {
-      Hash::Hasher hasher;
-      hasher.Add(static_cast<uint32_t>(key.type));
-      hasher.Add(key.handle);
-      return hasher.Get();
+  struct FrontierKeyHash {
+    auto operator()(const FrontierKey &item) const -> uint64_t {
+      return reinterpret_cast<uint64_t>(item.key.Ptr()); // NOLINT
     }
   };
 
-  const auto KeyOf = [](const VulkanResource &resource) -> ResourceKey {
-    switch (resource.type) {
-    case VulkanResource::ResourceType::Image:
-      return {.type = resource.type,
-              .handle = static_cast<const void *>(resource.image.image)};
-    case VulkanResource::ResourceType::Buffer:
-      return {.type = resource.type,
-              .handle = static_cast<const void *>(resource.buffer)};
-    case VulkanResource::ResourceType::AccelerationStructure:
-      return {.type = resource.type,
-              .handle =
-                  static_cast<const void *>(resource.accelerationStructure)};
-    }
-    assert(false && "Unreachable");
-    return {};
-  };
-
-  std::unordered_map<ResourceKey,
+  std::unordered_map<FrontierKey,
                      std::vector<std::pair<VulkanResource, Frontier>>,
-                     ResourceKeyHash>
+                     FrontierKeyHash>
       frontiers;
-  std::vector<CommandID> candidates;
+  static std::vector<CommandID> candidates;
 
   for (auto &command : commands) {
     // Hot path. 800/1200 microseconds for large calls (depth prepass & material pass)
@@ -424,11 +406,11 @@ auto FrameGraph::PreCompile() -> Error {
     candidates.clear();
 
     for (const auto &resource : GetReads(command)) { // RAW
-      if (!resourcesWritesInFrame.contains(resource)) {
+      if (!resourcesWritesInFrame.contains(resource.Ptr())) {
         continue;
       }
 
-      const auto bucketIt = frontiers.find(KeyOf(resource));
+      const auto bucketIt = frontiers.find(resource);
       if (bucketIt == frontiers.end()) {
         continue;
       }
@@ -445,7 +427,7 @@ auto FrameGraph::PreCompile() -> Error {
     }
 
     for (const auto &resource : GetWrites(command)) {
-      const auto bucketIt = frontiers.find(KeyOf(resource));
+      const auto bucketIt = frontiers.find(resource);
       if (bucketIt == frontiers.end()) {
         continue;
       }
@@ -483,15 +465,15 @@ auto FrameGraph::PreCompile() -> Error {
     ReduceParents(command.id, candidates);
 
     for (const auto &resource : GetReads(command)) {
-      if (!resourcesWritesInFrame.contains(resource)) {
+      if (!resourcesWritesInFrame.contains(resource.Ptr())) {
         continue;
       }
 
-      auto &bucket = frontiers[KeyOf(resource)];
+      auto &bucket = frontiers[resource];
 
       bool found = false;
       for (auto &[existing, frontier] : bucket) {
-        if (!VulkanResource::Equals(existing, resource)) {
+        if (existing != resource) {
           continue;
         }
 
@@ -510,11 +492,11 @@ auto FrameGraph::PreCompile() -> Error {
     // Done after the reads so a read-write resource does not list this
     // command as its own parent on the next usage.
     for (const auto &resource : GetWrites(command)) {
-      auto &bucket = frontiers[KeyOf(resource)];
+      auto &bucket = frontiers[resource];
 
       bool found = false;
       for (auto &[existing, frontier] : bucket) {
-        if (!VulkanResource::Equals(existing, resource)) {
+        if (existing != resource) {
           continue;
         }
 
@@ -528,6 +510,8 @@ auto FrameGraph::PreCompile() -> Error {
       }
     }
   }
+
+  candidates.clear();
 
   return {};
 }
@@ -1181,7 +1165,7 @@ auto FrameGraph::InsertBarriers() -> Error {
                                   const CommandID commandId,
                                   Graphics::Level &level) -> void {
     for (const auto &resource : resources) {
-      if (!resourcesWritesInFrame.contains(resource)) {
+      if (!resourcesWritesInFrame.contains(resource.Ptr())) {
         continue;
       }
 
@@ -1784,8 +1768,10 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   int count = 0;
 
   RenderPass currentPass;
-  static std::unordered_set<VulkanResource, VulkanResourceHash> knownReads;
-  static std::unordered_set<VulkanResource, VulkanResourceHash> knownWrites;
+  static std::unordered_set<VulkanResource, VulkanResourceHash<true>>
+      knownReads;
+  static std::unordered_set<VulkanResource, VulkanResourceHash<true>>
+      knownWrites;
 
   snap_defer(knownReads.clear());
   snap_defer(knownWrites.clear());
@@ -1818,8 +1804,6 @@ auto FrameGraph::CompactRenderPasses() -> Error {
       }
 
       currentPass.commands.emplace_back(command.id);
-      // currentPass.reads.append_range(GetReads(command));
-      // currentPass.writes.append_range(GetWrites(command));
       for (const auto &read : GetReads(command)) {
         knownReads.emplace(read);
       }
@@ -1863,9 +1847,9 @@ auto FrameGraph::CompactRenderPasses() -> Error {
       size_t readsBefore = bound->reads.size();
       size_t writesBefore = bound->writes.size();
       Utils::DeDuplicate(bound->reads, std::less<VulkanResource>{},
-                         VulkanResource::Equals);
+                         &VulkanResource::operator==);
       Utils::DeDuplicate(bound->writes, std::less<VulkanResource>{},
-                         VulkanResource::Equals);
+                         &VulkanResource::operator==);
     }
   }
 

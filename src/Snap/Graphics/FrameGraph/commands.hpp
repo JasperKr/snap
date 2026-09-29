@@ -5,8 +5,8 @@
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
 #include "Libraries/vma.hpp"
+#include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/stackVector.hpp"
 #include <cassert>
@@ -228,6 +228,8 @@ struct ImageSubresource {
         mipStart(range.baseMipLevel) {}
 
   [[nodiscard]] auto Overlaps(const ImageSubresource &other) const -> bool {
+    assert(mipCount != 0);
+    assert(other.mipCount != 0);
     return image == other.image &&
            layerStart < (other.layerStart + other.layerCount) &&
            other.layerStart < (layerStart + layerCount) &&
@@ -261,6 +263,30 @@ struct VulkanResource {
       : type(ResourceType::AccelerationStructure),
         accelerationStructure(accelerationStructure) {}
 
+  [[nodiscard]] auto Hash() const -> uint64_t {
+    Hash::Hasher hasher{};
+
+    hasher.Add((uint32_t)type);
+
+    if (type == ResourceType::AccelerationStructure) {
+      hasher.Add(accelerationStructure);
+      return hasher.Get();
+    }
+
+    if (type == ResourceType::Buffer) {
+      hasher.Add(buffer);
+      return hasher.Get();
+    }
+
+    hasher.Add(image.image);
+    hasher.Add(image.layerStart);
+    hasher.Add(image.layerCount);
+    hasher.Add(image.mipStart);
+    hasher.Add(image.mipCount);
+
+    return hasher.Get();
+  }
+
   [[nodiscard]]
   auto Overlaps(const VulkanResource &other) const -> bool {
     if (type != other.type) {
@@ -270,13 +296,10 @@ struct VulkanResource {
     switch (type) {
     case ResourceType::Image:
       return image.Overlaps(other.image);
-
     case ResourceType::Buffer:
       return buffer == other.buffer;
-
     case ResourceType::AccelerationStructure:
       return accelerationStructure == other.accelerationStructure;
-
     default:
       assert(false && "Unreachable");
     }
@@ -302,26 +325,6 @@ struct VulkanResource {
                     other.image.mipCount);
   }
 
-  [[nodiscard]] static auto Equals(const VulkanResource &resource,
-                                   const VulkanResource &other) -> bool {
-    if (resource.type != other.type) {
-      return false;
-    }
-
-    switch (resource.type) {
-    case ResourceType::AccelerationStructure:
-      return resource.accelerationStructure == other.accelerationStructure;
-    case ResourceType::Buffer:
-      return resource.buffer == other.buffer;
-    case ResourceType::Image:
-      return resource.image.image == other.image.image &&
-             resource.image.layerStart == other.image.layerStart &&
-             resource.image.layerCount == other.image.layerCount &&
-             resource.image.mipStart == other.image.mipStart &&
-             resource.image.mipCount == other.image.mipCount;
-    }
-  }
-
   [[nodiscard]] auto ToString() const -> std::string {
     switch (type) {
     case ResourceType::AccelerationStructure:
@@ -345,33 +348,50 @@ struct VulkanResource {
     case ResourceType::Buffer:
       return buffer == other.buffer;
     case ResourceType::Image:
-      return image.image == other.image.image;
+      return image.image == other.image.image &&
+             image.layerStart == other.image.layerStart &&
+             image.layerCount == other.image.layerCount &&
+             image.mipStart == other.image.mipStart &&
+             image.mipCount == other.image.mipCount;
     }
+  }
 
-    return false;
+  [[nodiscard]] auto Ptr() const -> void * {
+    switch (type) {
+    case ResourceType::AccelerationStructure:
+      return accelerationStructure;
+    case ResourceType::Buffer:
+      return buffer;
+    case ResourceType::Image:
+      return image.image;
+    }
   }
 };
 
-struct VulkanResourceHash {
+template <bool precise> struct VulkanResourceHash {
   auto operator()(const VulkanResource &resource) const noexcept -> uint64_t {
-    Hash::Hasher hasher;
-    hasher.Add(static_cast<uint32_t>(resource.type));
+    if constexpr (precise) {
+      return resource.Hash();
+    } else {
+      Hash::Hasher hasher;
+      hasher.Add(static_cast<uint32_t>(resource.type));
 
-    switch (resource.type) {
-    case VulkanResource::ResourceType::Image:
-      hasher.Add(resource.image.image);
-      break;
-    case VulkanResource::ResourceType::Buffer:
-      hasher.Add(resource.buffer);
-      break;
-    case VulkanResource::ResourceType::AccelerationStructure:
-      hasher.Add(resource.accelerationStructure);
-      break;
-    default:
-      assert(false && "Unreachable");
+      switch (resource.type) {
+      case VulkanResource::ResourceType::Image:
+        hasher.Add(resource.image.image);
+        break;
+      case VulkanResource::ResourceType::Buffer:
+        hasher.Add(resource.buffer);
+        break;
+      case VulkanResource::ResourceType::AccelerationStructure:
+        hasher.Add(resource.accelerationStructure);
+        break;
+      default:
+        assert(false && "Unreachable");
+      }
+
+      return hasher.Get();
     }
-
-    return hasher.Get();
   }
 };
 

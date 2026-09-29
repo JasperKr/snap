@@ -54,7 +54,7 @@ private:
   std::vector<std::vector<CommandID>> nextReady;
 
   // Quick early-out to see if resources were edited.
-  std::unordered_set<VulkanResource, VulkanResourceHash> resourcesWritesInFrame;
+  std::unordered_set<void *> resourcesWritesInFrame;
 
   // Every command whose resource access this command must synchronize
   // against, before transitive reduction. Unlike commandParents, no entry
