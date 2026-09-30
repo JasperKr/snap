@@ -27,6 +27,9 @@ inline auto FromSDLEvent(const SDL_Event &sdlEvent) -> Event {
     event.Name = "keypressed";
     auto keyCode = Keyboard::KeycodeToString(sdlEvent.key.key);
     auto scanCode = Keyboard::ScancodeToString(sdlEvent.key.scancode);
+    if (sdlEvent.key.repeat && !Keyboard::KeyRepeatEnabled) {
+      return event;
+    }
     event.Values.emplace_back(keyCode);
     event.Values.emplace_back(scanCode);
     event.Values.emplace_back(static_cast<bool>(sdlEvent.key.repeat));

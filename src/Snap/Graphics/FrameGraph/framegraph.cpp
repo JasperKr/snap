@@ -2,18 +2,20 @@
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/dynamicRendering.hpp"
 #include "Graphics/FrameGraph/pipelineState.hpp"
+#include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
 #include "Graphics/vkAccessHelpers.hpp"
+#include "Graphics/vkPipelineHelpers.hpp"
 #include "Libraries/vma.hpp"
-#include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include <cstddef>
+#include <cstring>
 #include <functional>
 #include <sstream>
 #include <string>
@@ -91,7 +93,7 @@ inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets,
 
 inline auto GetReadsInternal(Command &command,
                              std::vector<VulkanResource> &reads) -> void {
-  auto *drawState = get_if_derived<DrawState>(command.data);
+  auto *drawState = command.GetDrawState();
 
   if (drawState != nullptr) {
     bool getRendertargets =
@@ -126,12 +128,12 @@ inline auto GetReadsInternal(Command &command,
     reads.append_range(args.srcResources);
   }
 
-  else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
-               command.data)) {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
-    reads.append_range(args.reads);
-  }
+  // else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
+  //              command.data)) {
+  //   const auto &args =
+  //       std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+  //   reads.append_range(args.reads);
+  // }
 
   else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(command.data)) {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
@@ -182,7 +184,7 @@ inline auto GetWritesFromDrawState(DrawState &state, bool getRendertargets,
 
 inline auto GetWritesInternal(Command &command,
                               std::vector<VulkanResource> &writes) -> void {
-  auto *drawState = get_if_derived<DrawState>(command.data);
+  auto *drawState = command.GetDrawState();
 
   if (drawState != nullptr) {
     bool getRendertargets =
@@ -216,11 +218,11 @@ inline auto GetWritesInternal(Command &command,
   } else if (std::holds_alternative<Args::VkCmdFillBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdFillBuffer>(command.data);
     writes = {args.dstBuffer};
-  } else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
-                 command.data)) {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
-    writes = args.writes;
+    // } else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
+    //                command.data)) {
+    //   const auto &args =
+    //       std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+    //   writes = args.writes;
   } else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(
                  command.data)) {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
@@ -406,10 +408,6 @@ auto FrameGraph::PreCompile() -> Error {
     candidates.clear();
 
     for (const auto &resource : GetReads(command)) { // RAW
-      if (!resourcesWritesInFrame.contains(resource.Ptr())) {
-        continue;
-      }
-
       const auto bucketIt = frontiers.find(resource);
       if (bucketIt == frontiers.end()) {
         continue;
@@ -445,11 +443,7 @@ auto FrameGraph::PreCompile() -> Error {
       }
     }
 
-    std::ranges::sort(candidates, std::greater{});
-    {
-      auto [first, last] = std::ranges::unique(candidates);
-      candidates.erase(first, last);
-    }
+    Utils::DeDuplicate(candidates);
 
     CommandLevel level = 0;
     for (const auto parent : candidates) {
@@ -464,11 +458,27 @@ auto FrameGraph::PreCompile() -> Error {
 
     ReduceParents(command.id, candidates);
 
-    for (const auto &resource : GetReads(command)) {
-      if (!resourcesWritesInFrame.contains(resource.Ptr())) {
-        continue;
-      }
+    for (const auto &resource : GetWrites(command)) {
+      auto &bucket = frontiers[resource];
 
+      bool found = false;
+      for (auto &[existing, frontier] : bucket) {
+        if (existing != resource) {
+          continue;
+        }
+
+        frontier.lastWrite = command.id;
+        frontier.readsSinceWrite.clear();
+        found = true;
+        break;
+      }
+      if (!found) {
+        bucket.emplace_back(
+            resource, Frontier{.lastWrite = command.id, .readsSinceWrite = {}});
+      }
+    }
+
+    for (const auto &resource : GetReads(command)) {
       auto &bucket = frontiers[resource];
 
       bool found = false;
@@ -486,27 +496,6 @@ auto FrameGraph::PreCompile() -> Error {
         bucket.emplace_back(resource,
                             Frontier{.lastWrite = InvalidCommandID,
                                      .readsSinceWrite = {command.id}});
-      }
-    }
-
-    // Done after the reads so a read-write resource does not list this
-    // command as its own parent on the next usage.
-    for (const auto &resource : GetWrites(command)) {
-      auto &bucket = frontiers[resource];
-
-      bool found = false;
-      for (auto &[existing, frontier] : bucket) {
-        if (existing != resource) {
-          continue;
-        }
-
-        frontier.lastWrite = command.id;
-        frontier.readsSinceWrite.clear();
-        found = true;
-        break;
-      }
-      if (!found) {
-        bucket.emplace_back(resource, Frontier{.lastWrite = command.id});
       }
     }
   }
@@ -564,6 +553,20 @@ auto FrameGraph::BuildGraph() -> Error {
   return {};
 }
 
+auto MemoryBarrierToString(const VkMemoryBarrier2 &barrier) -> std::string {
+  std::stringstream stream{};
+
+  stream << VkAccessHelpers::AccessFlags2ToString(barrier.srcAccessMask)
+         << " at "
+         << VkPipelineHelpers::PipelineStage2ToString(barrier.srcStageMask)
+         << " -> "
+         << VkAccessHelpers::AccessFlags2ToString(barrier.dstAccessMask)
+         << " at "
+         << VkPipelineHelpers::PipelineStage2ToString(barrier.dstStageMask);
+
+  return stream.str();
+}
+
 #if OUTPUT_DEBUG_GRAPH
 // NOLINTNEXTLINE
 auto FrameGraph::DebugOutput() -> Error {
@@ -604,7 +607,7 @@ auto FrameGraph::DebugOutput() -> Error {
         for (const auto &resource : reads) {
           readStr << resource.ToString();
 
-          if (!VulkanResource::Equals(resource, reads.back())) {
+          if (resource != reads.back()) {
             readStr << "\n";
           }
         }
@@ -612,7 +615,7 @@ auto FrameGraph::DebugOutput() -> Error {
         for (const auto &resource : writes) {
           writeStr << resource.ToString();
 
-          if (!VulkanResource::Equals(resource, writes.back())) {
+          if (resource != writes.back()) {
             writeStr << "\n";
           }
         }
@@ -629,10 +632,15 @@ auto FrameGraph::DebugOutput() -> Error {
     }
 
     stream << std::format("barriers_{} [\n", level.level);
-    // for (const auto &barrier : level.barriers) {
-    // }
+
+    std::stringstream barriers{};
+
+    for (const auto &barrier : level.barriers) {
+      barriers << MemoryBarrierToString(barrier) << "\n";
+    }
+
     stream << std::format("shape=note,\nlabel=\"{} Barriers\"\n",
-                          level.barriers.size());
+                          barriers.str());
     stream << "];\n}\n";
   }
 
@@ -674,7 +682,10 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
                           VkPipelineStageFlags2 dstPipeline)
     -> std::array<VkPipelineStageFlags2, UINT64_WIDTH> {
 
-  std::array<VkPipelineStageFlags2, UINT64_WIDTH> maskBits{};
+  // It is illegal to use frame graphs in other threads, and so we can keep this static
+  static std::array<VkPipelineStageFlags2, UINT64_WIDTH> maskBits{};
+  memset(maskBits.data(), 0, (UINT64_WIDTH * sizeof(VkPipelineStageFlags2)));
+
   // all bits that we access.
   // the for loop than iterates over all barriers
   // checks if the destination stages match
@@ -687,34 +698,35 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
   }
 
   // mask bits are now all unsynced bits
-  for (auto level = end; level >= start + 1; level--) {
+  for (CommandLevel level = end; level >= start + 1U; level--) {
     const auto &barriers = graph.at(level).barriers;
 
     for (const auto &barrier : barriers) {
-      for (const auto bitIndex :
-           Utils::BitIndexRange(barrier.dstStageMask & dstPipeline)) {
+      if (dstPipeline == 0ULL) {
+        return maskBits;
+      }
+
+      const VkPipelineStageFlags2 sharedPipelines =
+          barrier.dstStageMask & dstPipeline;
+
+      for (const uint32_t bitIndex : Utils::BitIndexRange(sharedPipelines)) {
         // If this stage bit is active in this sync and we still need it
-        const auto mask = 1ULL << bitIndex;
+        const uint64_t mask = 1ULL << bitIndex;
 
         const bool srcMatch =
             // Match the sync's source stage with our current bit
-            (barrier.srcStageMask & lastWritePipeline) != 0U &&
+            (barrier.srcStageMask & lastWritePipeline) != 0ULL &&
             // Match the sync's source access with our resource's last usage
-            (barrier.srcAccessMask & lastWriteAccess) != 0U;
+            (barrier.srcAccessMask & lastWriteAccess) != 0ULL;
 
         if (srcMatch) {
           // Remove the accesses that are now satisfied
           maskBits.at(bitIndex) &= ~barrier.dstAccessMask;
 
           // All synced
-          if (maskBits.at(bitIndex) == 0UL) {
+          if (maskBits.at(bitIndex) == 0ULL) {
             // Remove this pipeline to be checked
             dstPipeline &= ~mask;
-
-            // No more pipelines to be checked, early return.
-            if (dstPipeline == 0) {
-              return maskBits;
-            }
           }
         }
       }
@@ -738,18 +750,6 @@ inline auto ResourceListToString(const std::vector<void *> &resources)
   return str.str();
 }
 
-inline auto IsHazard(const VkAccessFlags2 srcAccess,
-                     const VkAccessFlags2 dstAccess) -> bool {
-  static constexpr VkAccessFlagBits2 writeAccessBits =
-      VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT |
-      VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
-      VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-      VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT |
-      VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
-
-  return ((srcAccess | dstAccess) & writeAccessBits) != 0U;
-}
-
 auto FrameGraph::GetRequiredBarriers(
     CommandID commandId, const VulkanResource &resource,
     VkAccessFlags2 accesses, VkPipelineStageFlags2 pipelines,
@@ -768,7 +768,7 @@ auto FrameGraph::GetRequiredBarriers(
 
   for (const auto &parentID : hazardSources) {
     const auto &parent = commands[parentID];
-    const auto [srcAccess, srcStage] = ResourceWritesAt(parentID, resource);
+    const auto [srcAccess, srcStage] = ResourceAccessAt(parentID, resource);
 
     // This is a VALID result. In the scenario, for example, read x, write y, and our parent writes only x / y, we will
     // loop over the parent for both x, y, and notice in one scenario that either x or y is not viewed by the parent and thus
@@ -783,9 +783,10 @@ auto FrameGraph::GetRequiredBarriers(
                                 srcStage, accesses, pipelines);
 
     for (const auto bit : Utils::BitIndexRange(pipelines)) {
-      const auto unsyncedAccesses = mask.at(bit);
+      const VkPipelineStageFlags2 unsyncedAccesses = mask.at(bit);
 
-      if (unsyncedAccesses == 0U || !IsHazard(unsyncedAccesses, srcAccess)) {
+      if (unsyncedAccesses == 0ULL ||
+          !VkAccessHelpers::IsWriteAccess(unsyncedAccesses | srcAccess)) {
         continue;
       }
 
@@ -814,7 +815,7 @@ auto FrameGraph::ResourceAccessAt(CommandID commandId,
     -> std::pair<VkAccessFlags2, VkPipelineStageFlags2> {
   const auto &command = commands.at(commandId);
 
-  const auto *drawState = get_if_derived<DrawState>(command.data);
+  const auto *drawState = command.GetDrawState();
 
   if (drawState != nullptr) {
     const auto &pair = drawState->GetStateFor(resource, command.GetType());
@@ -915,7 +916,8 @@ auto FrameGraph::ResourceAccessAt(CommandID commandId,
         std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
     for (const auto &read : args.reads) {
       if (resource.Overlaps(read)) {
-        addToFlags({VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+        addToFlags({VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
+                        VK_ACCESS_2_SHADER_READ_BIT,
                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR});
       }
     }
@@ -936,7 +938,7 @@ auto FrameGraph::ResourceReadsAt(CommandID commandId,
     -> std::pair<VkAccessFlags2, VkPipelineStageFlags2> {
   const auto &command = commands.at(commandId);
 
-  const auto *drawState = get_if_derived<DrawState>(command.data);
+  const auto *drawState = command.GetDrawState();
 
   if (drawState != nullptr) {
     const auto &pair = drawState->GetReadStateFor(resource, command.GetType());
@@ -1008,7 +1010,8 @@ auto FrameGraph::ResourceReadsAt(CommandID commandId,
         std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
     for (const auto &read : args.reads) {
       if (resource.Overlaps(read)) {
-        addToFlags({VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+        addToFlags({VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
+                        VK_ACCESS_2_SHADER_READ_BIT,
                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR});
       }
     }
@@ -1023,13 +1026,10 @@ auto FrameGraph::ResourceWritesAt(CommandID commandId,
     -> std::pair<VkAccessFlags2, VkPipelineStageFlags2> {
   const auto &command = commandBuffer.commands.at(commandId);
 
-  const auto *drawState = get_if_derived<DrawState>(command.data);
+  const auto *drawState = command.GetDrawState();
 
   if (drawState != nullptr) {
-    const auto &pair = drawState->GetWriteStateFor(resource, command.GetType());
-    // if (pair.first != 0U && pair.second != 0U) {
-    return pair;
-    // }
+    return drawState->GetWriteStateFor(resource, command.GetType());
   }
 
   std::pair<VkAccessFlags2, VkPipelineStageFlags2> flags{};
@@ -1903,7 +1903,7 @@ auto WriteCommand(const std::vector<Command> &commands, CommandID commandId,
                   const LoadOpConfig *loadOpConfig) -> Error {
   const auto &command = commands.at(commandId);
   const auto *callable = get_if_derived<Callable>(command.data);
-  const auto *state = get_if_derived<DrawState>(command.data);
+  const auto *state = command.GetDrawState();
 
   if (callable != nullptr && callable->requiresRendering) {
     if (state != nullptr) {
@@ -2039,6 +2039,8 @@ auto FrameGraph::Reset() -> void {
   CommandStateManager::StateToIndex.clear();
   CommandStateManager::States.clear();
   commandBuffer = {};
+  RecordingState::CurrentState = {};
+  RecordingState::LastStateStorage = {};
 }
 
 } // namespace Graphics

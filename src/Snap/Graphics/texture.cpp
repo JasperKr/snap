@@ -51,17 +51,20 @@ ImageMemory::~ImageMemory() {
     return;
   }
 
-  // {
-  //   std::lock_guard<std::mutex> lock(Barrier::GraphicsResourcesMutex);
-  //   Utils::UnorderedErase(Barrier::GraphicsResources, this);
-  // }
+  struct Info {
+    VkImage image;
+    VmaAllocation memory;
+  };
 
-  ScheduleDestruction(
-      TextureMemory{
-          .allocation = memory,
-          .image = image,
+  ScheduleDestruction<Info>(
+      [](const GraphicsContext &context, Info &info) -> auto {
+        vmaDestroyImage(context.vmaAllocator, info.image, info.memory);
       },
-      lastUsedTimestamp);
+      lastUsedTimestamp,
+      Info{
+          .image = image,
+          .memory = memory,
+      });
 
   Texture::TotalAllocatedMemory -= sizeInBytes;
 }
@@ -765,10 +768,10 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
       destinationStage));
 #endif
 
-  // if (sourceStage == destinationStage && srcAccessMask == dstAccessMask &&
-  //     state.currentLayout == layout) {
-  //   return Error::Success();
-  // }
+  if (sourceStage == destinationStage && srcAccessMask == dstAccessMask &&
+      state.currentLayout == layout) {
+    return Error::Success();
+  }
 
   VkImageMemoryBarrier2 barrier = {};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -791,6 +794,11 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
                        .pImageMemoryBarriers = &barrier};
 
   auto *commandBuffer = GetVirtualCommandBuffer();
+
+  // PrintAlways("Image transition: {} -> {}, immediate? {}",
+  //             Image::ImageLayoutToString(state.currentLayout),
+  //             Image::ImageLayoutToString(layout),
+  //             commandBuffer == nullptr ? "yes" : "no");
 
   if (commandBuffer != nullptr) {
     CHECK_ERR(commandBuffer->PipelineBarrier2({&dep}));
@@ -1464,11 +1472,11 @@ Texture::~Texture() {
     return;
   }
 
-  ScheduleDestruction(
-      TextureViewMemory{
-          .imageView = view,
+  ScheduleDestruction<VkImageView>(
+      [](const GraphicsContext &context, VkImageView &view) -> auto {
+        vkDestroyImageView(context.device, view, GetAllocationCallbacks());
       },
-      imageMemory->lastUsedTimestamp);
+      imageMemory->lastUsedTimestamp, view);
 }
 
 std::atomic<VkDeviceSize> Texture::TotalAllocatedMemory{};

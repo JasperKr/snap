@@ -142,7 +142,9 @@ function snap.mousereleased(x, y, button)
   SnapEngine.keybindings.released(button)
 end
 
-function snap.keypressed(key)
+function snap.keypressed(key, scancode, isrepeat)
+  if isrepeat then return end
+
   isDown[key] = true
 
   SnapEngine.keybindings.pressed(key)
@@ -220,7 +222,7 @@ while true do
   while data do
     local event = buffer.decode(data)
     if snap[event[1]] then
-      snap[event[1]](unpack(event, 2))
+      snap[event[1]](unpack(event, 2, 8))
     end
 
     data = events:pop()
@@ -245,7 +247,7 @@ while true do
 
   if frameIndex == 1 then
     -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
-    snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
   end
 
   local commands, newSnapshot = snap.graphics.submitGraphics()

@@ -5,6 +5,7 @@
 
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/console.hpp"
+#include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 #include <atomic>
 #include <condition_variable>
@@ -85,6 +86,8 @@ auto SemaphoreManager::UpdateSemaphoreValues(const GraphicsContext &context)
 
     return erase;
   });
+
+  ERR_ASSERT(uncompletedTimelineValues.size() < 1e3);
 
   {
     std::lock_guard lock(timelineCompletionMutex);

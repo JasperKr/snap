@@ -52,7 +52,7 @@ if [ "$2" == "profile" ]; then
   #rmv radeon memory visualizer. Needs /opt/radeon-gpu-profiler/scripts/setup.sh to be run beforehand
   #rgp for radeon gpu profiler.
   #rra for radeon raytracing analyzer.
-  AMD_VULKAN_ICD=AMDVLK SDL_VIDEODRIVER=x11 MESA_VK_TRACE=rgp MESA_VK_TRACE_TRIGGER=/tmp/trigger ./build/snap src/Scripting/main.lua
+  AMD_VULKAN_ICD=AMDVLK SDL_VIDEODRIVER=x11 MESA_VK_TRACE=rmv MESA_VK_TRACE_TRIGGER=/tmp/trigger ./build/snap src/Scripting/main.lua
 fi
 
 # if second argument is "run", run the built executable

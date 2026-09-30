@@ -537,8 +537,7 @@ auto VirtualCommandBuffer::AddCommand(const Command &command) -> Error {
 }
 
 auto VirtualCommandBuffer::Draw(const Args::VkCmdDraw &arguments) -> Error {
-  auto command = Command(arguments);
-  return AddCommand(command);
+  return AddCommand(Command(arguments));
 }
 
 auto VirtualCommandBuffer::DrawIndexed(const Args::VkCmdDrawIndexed &arguments)

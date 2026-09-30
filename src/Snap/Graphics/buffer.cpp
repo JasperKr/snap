@@ -7,6 +7,7 @@
 #include "Graphics/resource.hpp"
 #include "Graphics/semaphoreManager.hpp"
 #include "Graphics/snapshot.hpp"
+#include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/bytedata.hpp"
 #include "Modules/console.hpp"
@@ -693,17 +694,16 @@ auto Buffer::Readback(const GraphicsContext &context,
 Buffer::~Buffer() {
   auto *context = GetCurrentGraphicsContext();
 
-  // {
-  //   std::lock_guard<std::mutex> lock(Barrier::GraphicsResourcesMutex);
-  //   Utils::UnorderedErase(Barrier::GraphicsResources, this);
-  // }
+  struct Info {
+    VkBuffer buffer;
+    VmaAllocation allocation;
+  };
 
-  ScheduleDestruction(
-      BufferMemory{
-          .allocation = memory,
-          .buffer = handle,
+  ScheduleDestruction<Info>(
+      [](const GraphicsContext &context, Info &info) -> auto {
+        vmaDestroyBuffer(context.vmaAllocator, info.buffer, info.allocation);
       },
-      lastUsedTimestamp);
+      lastUsedTimestamp, Info{.buffer = handle, .allocation = memory});
 
   if (persistentMapping && mappedData != nullptr) {
     vmaUnmapMemory(context->vmaAllocator, memory);

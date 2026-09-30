@@ -292,6 +292,7 @@ void Renderer::Deinitialize() {
   NoMaterial = Material();
   DefaultMaterial = Material();
   MaterialsBuffer.reset();
+  MaterialUploadManager = {};
   ModelTransformsBuffer.reset();
 
   SceneLightBuffers = Lights();

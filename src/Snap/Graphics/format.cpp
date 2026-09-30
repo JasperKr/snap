@@ -270,7 +270,7 @@ auto ImageFormatToString(VkFormat format) -> std::string_view {
       {VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, "e5b9g9r9uf"},
       {VK_FORMAT_D16_UNORM, "depth16"},
       {VK_FORMAT_X8_D24_UNORM_PACK32, "depth24"},
-      {VK_FORMAT_D32_SFLOAT, "d32f"},
+      {VK_FORMAT_D32_SFLOAT, "depth32f"},
       {VK_FORMAT_S8_UINT, "s8ui"},
       {VK_FORMAT_D16_UNORM_S8_UINT, "depth16stencil8"},
       {VK_FORMAT_D24_UNORM_S8_UINT, "depth24stencil8"},

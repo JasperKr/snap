@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/semaphoreManager.hpp"
@@ -73,11 +74,13 @@ struct BLAS : Object, Identifiable {
       TotalAllocatedMemory.fetch_sub(accelerationStructureBuffer->size);
     }
 
-    ScheduleDestruction(
-        AccelerationStructureMemory{
-            .accelerationStructure = accelerationStructure,
+    ScheduleDestruction<VkAccelerationStructureKHR>(
+        [](const GraphicsContext &context,
+           VkAccelerationStructureKHR accelerationStructure) -> auto {
+          vkDestroyAccelerationStructureKHR(
+              context.device, accelerationStructure, GetAllocationCallbacks());
         },
-        SemaphoreManager::GetSemaphoreValue());
+        SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
   }
 
   static auto Create(const GraphicsContext &context, const struct Mesh &mesh)
@@ -131,11 +134,13 @@ struct TLAS : Object, Identifiable {
       TotalAllocatedMemory.fetch_sub(accelerationStructureBuffer->size);
     }
 
-    ScheduleDestruction(
-        AccelerationStructureMemory{
-            .accelerationStructure = accelerationStructure,
+    ScheduleDestruction<VkAccelerationStructureKHR>(
+        [](const GraphicsContext &context,
+           VkAccelerationStructureKHR accelerationStructure) -> auto {
+          vkDestroyAccelerationStructureKHR(
+              context.device, accelerationStructure, GetAllocationCallbacks());
         },
-        SemaphoreManager::GetSemaphoreValue());
+        SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
   }
 
   static auto Create(const GraphicsContext &context,

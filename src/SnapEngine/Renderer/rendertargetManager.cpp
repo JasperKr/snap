@@ -5,6 +5,7 @@
 #include "Graphics/texture.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/image.hpp"
 #include "Modules/object.hpp"
@@ -218,11 +219,12 @@ auto RenderTargetManager::GetRendertarget(
 
   auto texture = CHECK_RES(::Graphics::Texture::Create(context, info));
 
-  Rendertargets.push_back(
-      {.descriptor = descriptor,
-       .inUse = true,
-       .texture = texture,
-       .lastUsedFrame = Graphics::GetCurrentGraphicsContext()->currentFrame});
+  Rendertargets.push_back({
+      .descriptor = descriptor,
+      .inUse = true,
+      .texture = texture,
+      .lastUsedFrame = Graphics::GetCurrentGraphicsContext()->currentFrame,
+  });
 
   return texture;
 }
@@ -289,11 +291,6 @@ auto RenderTargetManager::Cleanup(bool evictAll) -> void {
 
 auto RenderTargetManager::Update() -> void { Cleanup(); }
 
-auto RenderTargetManager::Deinitialize() -> void {
-  for (auto &entry : Rendertargets) {
-    entry.texture = nullptr;
-  }
-  Rendertargets.clear();
-}
+auto RenderTargetManager::Deinitialize() -> void { Rendertargets.clear(); }
 
 } // namespace Engine::Renderer

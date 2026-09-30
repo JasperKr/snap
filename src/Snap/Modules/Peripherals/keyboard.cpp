@@ -8,6 +8,7 @@
 namespace Keyboard {
 
 constexpr int MaxKeycode = 512;
+bool KeyRepeatEnabled = true; // NOLINT
 
 inline auto Register(std::unordered_map<uint32_t, std::string> &vector,
                      uint32_t scancode, const std::string &name) -> void {
@@ -587,5 +588,7 @@ auto StringToScancode(const std::string &scancodeName) -> SDL_Scancode {
   }
   return static_cast<SDL_Scancode>(iterator->second);
 }
+
+auto EnableKeyRepeat(bool repeat) -> void { KeyRepeatEnabled = repeat; }
 
 } // namespace Keyboard

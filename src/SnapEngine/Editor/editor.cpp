@@ -653,15 +653,15 @@ void TransformGizmo(MoveData &moveData, const Math::Ray &currentRay) {
 }
 
 auto MoveData::Update() -> void {
-  if ((UpdatedTransformAxis || StartedTransforming) && !Transforms.empty()) {
+  if ((UpdatedTransformAxis || !StartedTransforming) && !Transforms.empty()) {
     StartMousePosition = CurrentMousePosition;
 
     Origin = {};
     for (const auto *transform : Transforms) {
-      Origin += transform->GetPosition();
+      Origin += transform->GetWorldMatrix().GetTranslation();
     }
 
-    StartedTransforming = false;
+    UpdatedTransformAxis = false;
   }
 
   if (Transforms.empty()) {
@@ -683,7 +683,6 @@ auto MoveData::Update() -> void {
 
 auto MoveData::Apply() -> void {
   for (auto *transform : Transforms) {
-
     transform->ApplyTranslation(CurrentTranslation);
     transform->ApplyRotation(CurrentRotation);
     transform->ApplyScaling(CurrentScale);

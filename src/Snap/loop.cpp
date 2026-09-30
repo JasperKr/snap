@@ -16,6 +16,7 @@
 #include "Modules/thread.hpp"
 #include "Modules/window.hpp"
 #include "Wrap/wrap_engine.hpp"
+#include <cstddef>
 #include <filesystem>
 #include <lua.hpp>
 #include <public/tracy/Tracy.hpp>

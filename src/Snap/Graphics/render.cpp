@@ -350,6 +350,8 @@ auto Present(Graphics::GraphicsContext &context,
 
   ERR_ASSERT(transitioned);
 
+  CHECK_ERR(EndRecording(context, context.frameIndex));
+
   CHECK_ERR(SubmitCommandBuffers(context, cmdBuffersToSubmit));
 
   CHECK_ERR(PresentFrame(context));

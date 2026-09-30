@@ -5,6 +5,7 @@
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/mesh.hpp"
+#include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"
 #include <cstdint>
@@ -349,11 +350,13 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
   if (accelerationStructureBuffer->size < sizeInfo.accelerationStructureSize) {
     auto oldSize = accelerationStructureBuffer->size;
 
-    ScheduleDestruction(
-        AccelerationStructureMemory{
-            .accelerationStructure = accelerationStructure,
+    ScheduleDestruction<VkAccelerationStructureKHR>(
+        [](const GraphicsContext &context,
+           VkAccelerationStructureKHR accelerationStructure) -> auto {
+          vkDestroyAccelerationStructureKHR(
+              context.device, accelerationStructure, GetAllocationCallbacks());
         },
-        SemaphoreManager::GetSemaphoreValue());
+        SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
 
     accelerationStructureBuffer = CHECK_RES(Buffer::Create(
         context,
@@ -670,11 +673,13 @@ auto BLAS::FinalizeCompaction(const GraphicsContext &context,
 
   CHECK_ERR(commandbuffer->CopyAccelerationStructureKHR({&copyInfo}));
 
-  ScheduleDestruction(
-      AccelerationStructureMemory{
-          .accelerationStructure = accelerationStructure,
+  ScheduleDestruction<VkAccelerationStructureKHR>(
+      [](const GraphicsContext &context,
+         VkAccelerationStructureKHR accelerationStructure) -> auto {
+        vkDestroyAccelerationStructureKHR(context.device, accelerationStructure,
+                                          GetAllocationCallbacks());
       },
-      SemaphoreManager::GetSemaphoreValue());
+      SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
 
   BLAS::TotalAllocatedMemory.fetch_sub(accelerationStructureBuffer->size);
   BLAS::TotalAllocatedMemory.fetch_add(compactedSize);
@@ -1047,11 +1052,13 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
   if (accelerationStructureBuffer->size < sizeInfo.accelerationStructureSize) {
     auto oldSize = accelerationStructureBuffer->size;
 
-    ScheduleDestruction(
-        AccelerationStructureMemory{
-            .accelerationStructure = accelerationStructure,
+    ScheduleDestruction<VkAccelerationStructureKHR>(
+        [](const GraphicsContext &context,
+           VkAccelerationStructureKHR accelerationStructure) -> auto {
+          vkDestroyAccelerationStructureKHR(
+              context.device, accelerationStructure, GetAllocationCallbacks());
         },
-        SemaphoreManager::GetSemaphoreValue());
+        SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
 
     accelerationStructureBuffer->MarkUse();
 

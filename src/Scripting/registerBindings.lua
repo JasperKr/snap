@@ -138,3 +138,55 @@ SnapEngine.keybindings.addBinding({
   rising = "s",
   low = 3
 })
+
+SnapEngine.keybindings.addBinding(
+  {
+    action = "Gizmo - x-axis",
+    rising = "x",
+  }
+)
+
+SnapEngine.keybindings.addBinding(
+  {
+    action = "Gizmo - y-axis",
+    rising = "y",
+  }
+)
+
+SnapEngine.keybindings.addBinding(
+  {
+    action = "Gizmo - z-axis",
+    rising = "z",
+  }
+)
+
+SnapEngine.keybindings.addBinding(
+  {
+    action = "Gizmo - yz-plane",
+    rising = "x",
+    high = "lshift"
+  }
+)
+
+SnapEngine.keybindings.addBinding(
+  {
+    action = "Gizmo - xz-plane",
+    rising = "y",
+    high = "lshift"
+  }
+)
+
+SnapEngine.keybindings.addBinding(
+  {
+    action = "Gizmo - xy-plane",
+    rising = "z",
+    high = "lshift"
+  }
+)
+
+-- SnapEngine.keybindings.addBinding(
+--   {
+--     action = "Gizmo - xyz freeform",
+--     rising = "xyz",
+--   }
+-- )

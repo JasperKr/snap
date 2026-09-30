@@ -2,6 +2,7 @@
 #include "Graphics/FrameGraph/descriptorCache.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/graphicsContext.hpp"
+#include "Libraries/vma.hpp"
 #include "Modules/error.hpp"
 #include <utility>
 
@@ -15,12 +16,13 @@ auto PipelineCache::Initialize(const GraphicsContext &context) -> Error {
           PipelineCacheSize,
           [](const StateKey &key,
              std::pair<VkPipeline, PipelineLayout> &value) -> void {
-            PipelineMemory pipelineMemory{
-                .pipeline = value.first,
-            };
-            ScheduleDestruction(
-                pipelineMemory,
-                Graphics::SemaphoreManager::GetSemaphoreValue());
+            ScheduleDestruction<VkPipeline>(
+                [](const GraphicsContext &context,
+                   VkPipeline &pipeline) -> auto {
+                  vkDestroyPipeline(context.device, pipeline,
+                                    GetAllocationCallbacks());
+                },
+                Graphics::SemaphoreManager::GetSemaphoreValue(), value.first);
           }));
 
   return {};
@@ -34,6 +36,8 @@ auto PipelineCache::DeInitialize(const GraphicsContext &context) -> void {
       vkDestroyPipeline(context.device, pipeline, GetAllocationCallbacks());
     }
   }
+
+  cache.clear();
 
   for (const auto &layout : pipelineLayouts) {
     vkDestroyPipelineLayout(context.device, layout.layout,

@@ -1,6 +1,7 @@
 #include "Wrap/Graphics/wrap_mesh.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/format.hpp"
+#include "Graphics/graphics.hpp"
 #include "Graphics/mesh.hpp"
 #include "Graphics/vertexformat.hpp"
 #include "Modules/bytedata.hpp"

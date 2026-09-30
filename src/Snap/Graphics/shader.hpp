@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Graphics/Buffers/push.hpp"
+#include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/texture.hpp"
+#include "Libraries/vma.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/localState.hpp"
@@ -138,11 +140,12 @@ struct Shader : Object, Identifiable {
 
     BoundStateManager.EraseState(*this);
 
-    ScheduleDestruction(
-        ShaderModuleMemory{
-            .shaderModule = module,
+    ScheduleDestruction<VkShaderModule>(
+        [](const GraphicsContext &context, VkShaderModule &module) -> auto {
+          vkDestroyShaderModule(context.device, module,
+                                GetAllocationCallbacks());
         },
-        Graphics::SemaphoreManager::GetSemaphoreValue());
+        SemaphoreManager::GetSemaphoreValue(), module);
   }
 
   static auto Create(const GraphicsContext &context,

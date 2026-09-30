@@ -89,6 +89,20 @@ auto DeDuplicate(std::vector<T> &data,
   data.erase(first, last);
 }
 
+template <typename T, typename Comp_lt>
+auto DeDuplicate(std::vector<T> &data,
+                 Comp_lt compare_less_than = std::less<T>()) {
+  std::ranges::sort(data, compare_less_than);
+  auto [first, last] = std::ranges::unique(data);
+  data.erase(first, last);
+}
+
+template <typename T> auto DeDuplicate(std::vector<T> &data) {
+  std::ranges::sort(data);
+  auto [first, last] = std::ranges::unique(data);
+  data.erase(first, last);
+}
+
 template <class T, class F> constexpr void ForEachBit(T mask, F &&func) {
   static_assert(std::is_unsigned_v<T>, "mask must be unsigned");
   while (mask) {

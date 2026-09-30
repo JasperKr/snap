@@ -1213,13 +1213,14 @@ struct Command {
   CommandID level = UINT16_MAX;
 
   ArgVariants data;
+  CommandType type;
 
-  explicit Command(ArgVariants params) : data(std::move(params)) {}
-
-  [[nodiscard]] auto GetType() const -> CommandType {
-    return std::visit(
+  explicit Command(ArgVariants params) : data(std::move(params)) {
+    type = std::visit(
         [](const auto &current) -> CommandType { return current.type; }, data);
   }
+
+  [[nodiscard]] auto GetType() const -> CommandType { return type; }
 
   [[nodiscard]] auto GetDrawState() -> DrawState * {
     return get_if_derived<DrawState>(data);

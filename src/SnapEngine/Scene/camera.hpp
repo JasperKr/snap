@@ -182,6 +182,7 @@ struct Camera {
 
     void Reset() {
       Depth = nullptr;
+      PreviousDepth = nullptr;
       Normal = nullptr;
       Albedo = nullptr;
       Material = nullptr;
@@ -206,6 +207,7 @@ struct Camera {
 
   struct PersistentTextureSettings {
     bool Depth = false;
+    bool PreviousDepth = false;
     bool Normal = false;
     bool Albedo = false;
     bool Material = false;

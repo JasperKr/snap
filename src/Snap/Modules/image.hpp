@@ -1,6 +1,7 @@
 #pragma once
 #include "vulkan/vulkan_core.h"
 #include <span>
+#include <string_view>
 
 namespace Image {
 
@@ -83,5 +84,7 @@ auto IsDDS(const std::span<const uint8_t> &data) -> bool;
 
 auto IsNormalisedFormat(VkFormat format) -> bool;
 auto IsIntegerFormat(VkFormat format) -> bool;
+
+auto ImageLayoutToString(VkImageLayout layout) -> std::string_view;
 
 } // namespace Image

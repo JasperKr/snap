@@ -8,6 +8,7 @@
 #include "Modules/Math/packedColor.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/console.hpp"
+#include "Modules/image.hpp"
 #include "Modules/object.hpp"
 #include "Modules/timer.hpp"
 #include <algorithm>
@@ -817,50 +818,10 @@ auto SetIndexBufferEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   ImGui::Text("Index Type: %u", indexType);
 };
 
-inline auto ImageLayoutToString(VkImageLayout layout) -> std::string_view {
-  // clang-format off
-  switch (layout) {
-  case VK_IMAGE_LAYOUT_UNDEFINED: return "Undefined";
-  case VK_IMAGE_LAYOUT_GENERAL: return "General";
-  case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: return "Color attachment optimal";
-  case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: return "Depth stencil attachment optimal";
-  case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL: return "Depth stencil read only optimal";
-  case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: return "Shader read only optimal";
-  case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: return "Transfer src optimal";
-  case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: return "Transfer dst optimal";
-  case VK_IMAGE_LAYOUT_PREINITIALIZED: return "Preinitialized";
-  case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL: return "Depth read only stencil attachment optimal";
-  case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL: return "Depth attachment stencil read only optimal";
-  case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL: return "Depth attachment optimal";
-  case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL: return "Depth read only optimal";
-  case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL: return "Stencil attachment optimal";
-  case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL: return "Stencil read only optimal";
-  case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL: return "Read only optimal";
-  case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL: return "Attachment optimal";
-  case VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ: return "Rendering local read";
-  case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: return "Present src khr";
-  case VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR: return "Video decode dst khr";
-  case VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR: return "Video decode src khr";
-  case VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR: return "Video decode dpb khr";
-  case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR: return "Shared present khr";
-  case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT: return "Fragment density map optimal ext";
-  case VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR: return "Fragment shading rate attachment optimal khr";
-  case VK_IMAGE_LAYOUT_VIDEO_ENCODE_DST_KHR: return "Video encode dst khr";
-  case VK_IMAGE_LAYOUT_VIDEO_ENCODE_SRC_KHR: return "Video encode src khr";
-  case VK_IMAGE_LAYOUT_VIDEO_ENCODE_DPB_KHR: return "Video encode dpb khr";
-  case VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT: return "Attachment feedback loop optimal ext";
-  case VK_IMAGE_LAYOUT_TENSOR_ALIASING_ARM: return "Tensor aliasing arm";
-  case VK_IMAGE_LAYOUT_VIDEO_ENCODE_QUANTIZATION_MAP_KHR: return "Video encode quantization map khr";
-  case VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT: return "Zero initialized ext";
-  case VK_IMAGE_LAYOUT_MAX_ENUM: return "Max enum";
-  }
-  // clang-format on
-}
-
 auto LayoutTransitionEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
     -> void {
-  ImGui::Text("Layout: %s -> %s", ImageLayoutToString(srcLayout).data(),
-              ImageLayoutToString(dstLayout).data());
+  ImGui::Text("Layout: %s -> %s", Image::ImageLayoutToString(srcLayout).data(),
+              Image::ImageLayoutToString(dstLayout).data());
 
   ImGui::SeparatorText("Source access mask");
   for (const auto &access : Utils::BitMaskRange(srcAccessMask)) {

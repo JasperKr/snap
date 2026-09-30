@@ -71,7 +71,7 @@ struct Material : Identifiable {
   Math::Vec4 albedoFactor = Math::Vec4(1.0F, 1.0F, 1.0F, 1.0F);
   float roughnessFactor = 1.0F;
   float metallicFactor = 1.0F;
-  float reflectanceFactor = 1.0F;
+  float reflectanceFactor = 0.0F;
   Math::Vec3 emissiveFactor = Math::Vec3(0.0F, 0.0F, 0.0F);
 
   // which UV set each texture uses in the order of:

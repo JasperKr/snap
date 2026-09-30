@@ -43,26 +43,28 @@ function SnapEngine.keybindings.addBinding(binding)
   if binding.falling and type(binding.falling) ~= "table" then
     binding.falling = { binding.falling }
   else
-    binding.falling = {}
+    binding.falling = binding.falling or {}
   end
 
   if binding.rising and type(binding.rising) ~= "table" then
     binding.rising = { binding.rising }
   else
-    binding.rising = {}
+    binding.rising = binding.rising or {}
   end
 
   if binding.high and type(binding.high) ~= "table" then
     binding.high = { binding.high }
   else
-    binding.high = {}
+    binding.high = binding.high or {}
   end
 
   if binding.low and type(binding.low) ~= "table" then
     binding.low = { binding.low }
   else
-    binding.low = {}
+    binding.low = binding.low or {}
   end
+
+  assert(#binding.high + #binding.low + #binding.rising + #binding.falling ~= 0)
 
   table.insert(keybindings.bindings, binding);
 end
