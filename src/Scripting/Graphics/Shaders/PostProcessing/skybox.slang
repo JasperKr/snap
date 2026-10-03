@@ -34,8 +34,8 @@ FragmentOutput fragmentMain(float2 tex_coord: TEXCOORDS) {
 
   float3 rayDirection = camera.GetRayDirection(tex_coord);
 
-  float3 previous = camera.ReprojectToPreviousNDC(tex_coord, depth);
-  float2 motion = tex_coord - previous.xy;
+  float3 previous = camera.ReprojectToPreviousUVs(tex_coord, depth);
+  float2 motion = PackMotionVector(tex_coord - previous.xy);
 
 #if defined(CUBE_MAP)
   return FragmentOutput(SkyboxTexture.Sample(rayDirection), motion);

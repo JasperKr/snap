@@ -429,7 +429,7 @@ auto GetThreadContext() -> ThreadContext & {
 // May be null
 auto GetVirtualCommandBuffer() -> VirtualCommandBuffer * {
   const auto &threadContext = GetThreadContext();
-  return threadContext.commandBuffer.get();
+  return threadContext.commandBuffer;
 }
 
 auto GetVkCommandBuffer() -> VkCommandBuffer {
@@ -588,6 +588,7 @@ auto Initialize(GraphicsContext &context, Window::WindowContext &wcontext,
   context.sdlWindow = window;
 
   Window::SetSettings(wcontext, wcontext.initialSettings);
+  wcontext.swapchainOutOfDate = false;
 
   // Get vulkan instance extensions required by SDL
   unsigned int extensionCount = 0;

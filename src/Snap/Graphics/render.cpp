@@ -97,6 +97,12 @@ auto AcquireNextSwapchainImage(Graphics::GraphicsContext &context) -> Error {
         &context.swapchainImageIndex));
 
     if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+      if (res == VK_ERROR_OUT_OF_DATE_KHR) {
+        PrintAlways("Swapchain out-of-date");
+      } else {
+        PrintAlways("Swapchain suboptimal");
+      }
+
       // Swapchain is out of date, need to recreate
       swapchainManager.MakeDirty();
     }
@@ -204,8 +210,6 @@ SubmitCommandBuffers(Graphics::GraphicsContext &context,
 
   auto &tcontext = GetThreadContext();
 
-  // PrintAlways("Queue family: {}", tcontext.queueFamily);
-
   {
     ZoneScopedN("Submit command buffer to queue");
     CHECK_NEW_ERR(vkQueueSubmit2(context.queues.at(buffers.front().queueFamily),
@@ -249,7 +253,7 @@ auto Present(Graphics::GraphicsContext &context,
   context.currentlyReordering = true;
 
   // Match and combine by queue family
-  std::unordered_map<uint8_t, std::shared_ptr<VirtualCommandBuffer>> combined;
+  std::unordered_map<uint8_t, VirtualCommandBuffer *> combined;
   for (const auto &command : commands) {
     auto &commandBuffer = command->threadData.commandBuffer;
 
@@ -365,6 +369,8 @@ auto Present(Graphics::GraphicsContext &context,
   // TODO: Improve this
   if (windowContext->swapchainOutOfDate) {
     windowContext->swapchainOutOfDate = false;
+    PrintAlways("Window swapchain settings changed.");
+
     swapchainManager.MakeDirty();
   }
 

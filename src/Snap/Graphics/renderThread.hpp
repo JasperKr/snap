@@ -6,7 +6,6 @@
 #include "Modules/object.hpp"
 #include "Modules/type.hpp"
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <sys/types.h>
 
@@ -22,7 +21,7 @@ struct RenderThreadData {
   uint64_t key = 0;
   int64_t priority = 0; // Tie-breaker for overlapping keys
 
-  std::shared_ptr<::Graphics::VirtualCommandBuffer> commandBuffer;
+  ::Graphics::VirtualCommandBuffer *commandBuffer = nullptr;
   uint64_t cmdBufferTimelineValue{};
   uint64_t acquiredAtFrame{};
   uint32_t queueFamily{};

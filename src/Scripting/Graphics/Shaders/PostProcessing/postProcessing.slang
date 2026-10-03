@@ -148,8 +148,6 @@ import utils;
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {
-  const float BigNumber = 1000.0f;
-
   float3 incomingLight = Sanitise(IncomingLight.Sample(input.tex_coord).rgb);
   incomingLight *= Exposure;
 

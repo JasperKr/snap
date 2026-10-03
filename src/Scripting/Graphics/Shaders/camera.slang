@@ -39,13 +39,25 @@ public struct CameraData {
 
   public float3 GetPreviousNDC(float3 worldPos) {
     float4 clipPos =
-        mul(float4(worldPos, 1.0), previousCamera.ViewProjectionMatrix);
+        mul(previousCamera.ViewProjectionMatrix, float4(worldPos, 1.0));
     return clipPos.xyz / clipPos.w;
   }
 
   public float3 ReprojectToPreviousNDC(float2 uv, float depth) {
     float3 worldPos = GetWorldPosition(uv, depth);
     return GetPreviousNDC(worldPos);
+  }
+
+  public float3 GetPreviousUVs(float3 worldPos) {
+    float4 clipPos =
+        mul(previousCamera.ViewProjectionMatrix, float4(worldPos, 1.0));
+    clipPos.xyz /= clipPos.w;
+    return clipPos.xyz * 0.5f + 0.5f;
+  }
+
+  public float3 ReprojectToPreviousUVs(float2 uv, float depth) {
+    float3 worldPos = GetWorldPosition(uv, depth);
+    return GetPreviousUVs(worldPos);
   }
 };
 

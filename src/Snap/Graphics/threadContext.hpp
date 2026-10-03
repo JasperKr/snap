@@ -21,7 +21,7 @@ struct VirtualCommandBuffer;
 struct ThreadContext {
   struct GraphicsContext *graphicsContext = nullptr; // Global graphics context
   VkCommandPool commandPool = VK_NULL_HANDLE;        // Per-thread command pool
-  std::shared_ptr<VirtualCommandBuffer> commandBuffer; // Current command buffer
+  VirtualCommandBuffer *commandBuffer;               // Current command buffer
   VkCommandBuffer workingCommandBuffer;
 
   // unique identifier to not the frame, but recording of command buffer

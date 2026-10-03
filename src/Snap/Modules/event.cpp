@@ -1,5 +1,7 @@
 #include "event.hpp"
+#include "Graphics/graphics.hpp"
 #include "Modules/Peripherals/keyboard.hpp"
+#include "Modules/console.hpp"
 #include "Modules/window.hpp"
 #include "SDL3/SDL_events.h"
 #include <format>
@@ -91,6 +93,11 @@ inline auto FromSDLEvent(const SDL_Event &sdlEvent) -> Event {
     event.Name = "resize";
     event.Values.emplace_back(sdlEvent.window.data1);
     event.Values.emplace_back(sdlEvent.window.data2);
+
+    if (Graphics::GetCurrentGraphicsContext()->currentFrame == 0ULL) {
+      break;
+    }
+
     Window::GetWindowContext()->swapchainOutOfDate = true;
     break;
   }

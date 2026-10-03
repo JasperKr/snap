@@ -332,6 +332,8 @@ auto SwapchainManager::NewFrame(GraphicsContext &context,
   ZoneScoped;
 
   if (isDirty) {
+    PrintWarning("Dirty!");
+
     isDirty = false;
 
     CHECK_ERR(RecreateSwapchain(context, windowContext));
@@ -383,6 +385,8 @@ auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context,
                                          Window::WindowContext &windowContext)
     -> Error {
   ZoneScoped;
+
+  PrintWarning("Create new swapchain");
 
   context.surfaceInfo.presentMode =
       CHECK_RES(FindPresentMode(windowContext, context));

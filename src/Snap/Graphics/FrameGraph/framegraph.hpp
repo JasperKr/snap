@@ -87,13 +87,6 @@ private:
   auto BuildRenderRegions(const GraphicsContext &context)
       -> Result<std::vector<RenderingInfo>>;
 
-  auto ResourceAccessAt(CommandID commandId, const VulkanResource &resource)
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-  auto ResourceReadsAt(CommandID commandId, const VulkanResource &resource)
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-  auto ResourceWritesAt(CommandID commandId, const VulkanResource &resource)
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-
   auto ValidateGraph() -> Error;
   auto InsertBarriers() -> Error;
   auto BuildReadyState() -> Error;

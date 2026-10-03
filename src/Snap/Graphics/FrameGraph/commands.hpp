@@ -218,6 +218,7 @@ struct ImageSubresource {
   uint16_t mipCount;
 
   ImageSubresource(const Ref<Texture> &texture);
+  ImageSubresource(const Texture *texture);
   ImageSubresource(VkImage image, uint16_t layerStart, uint16_t layerCount,
                    uint16_t mipStart, uint16_t mipCount)
       : image(image), layerCount(layerCount), layerStart(layerStart),
@@ -398,6 +399,10 @@ template <bool precise> struct VulkanResourceHash {
 struct BoundResources {
   std::vector<VulkanResource> reads;
   std::vector<VulkanResource> writes;
+  std::unordered_map<VulkanResource,
+                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
+                     VulkanResourceHash<true>>
+      accesses;
 };
 
 struct BoundResource {
@@ -447,9 +452,11 @@ struct DrawState {
 
   uint32_t stateID = UINT32_MAX;
 
-  [[nodiscard]] auto GetStateFor(const VulkanResource &resource,
-                                 CommandType type) const
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
+  auto GetAccesses(
+      CommandType type,
+      std::unordered_map<VulkanResource,
+                         std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
+                         VulkanResourceHash<true>> &accesses) const -> void;
 
   [[nodiscard]] auto GetReadStateFor(const VulkanResource &resource,
                                      CommandType type) const
@@ -1208,14 +1215,20 @@ using ArgVariants = std::variant<
 
 struct Command {
   CommandID id = InvalidCommandID;
+  CommandID uniqueID = InvalidCommandID;
 
   // Also defined in framegraph.cpp as InvalidDepth
-  CommandID level = UINT16_MAX;
+  uint16_t level = UINT16_MAX;
 
   ArgVariants data;
   CommandType type;
 
   explicit Command(ArgVariants params) : data(std::move(params)) {
+    type = std::visit(
+        [](const auto &current) -> CommandType { return current.type; }, data);
+  }
+
+  void UpdateType() {
     type = std::visit(
         [](const auto &current) -> CommandType { return current.type; }, data);
   }
@@ -1337,20 +1350,19 @@ struct VirtualCommandBuffer {
 
   // NOLINTBEGIN
 
-  uint64_t time;
-
-  auto AddCommand(const Command &command) -> Error;
+  auto AddCommand(const ArgVariants &command) -> Error;
 
   std::vector<Command> commands;
 
   uint32_t queueFamily;
 
   GraphState currentState;
+  std::vector<Command> cache;
+  // std::unordered_map<CommandType, std::vector<Command>> caches;
 
   // NOLINTEND
 };
 
 auto CreateCommandBuffer() -> VirtualCommandBuffer;
-auto ResetCommandBuffer(VirtualCommandBuffer &buffer) -> void;
 
 } // namespace Graphics

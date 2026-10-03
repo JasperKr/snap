@@ -783,11 +783,11 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
   barrier.subresourceRange = range;
   barrier.subresourceRange.aspectMask = GetAspectFlagsForFormat(format);
 
-  barrier.srcAccessMask = srcAccessMask;
-  barrier.dstAccessMask = dstAccessMask;
+  barrier.srcAccessMask = 0;
+  barrier.dstAccessMask = 0;
 
-  barrier.srcStageMask = sourceStage;
-  barrier.dstStageMask = destinationStage;
+  barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+  barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
   VkDependencyInfo dep{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
                        .imageMemoryBarrierCount = 1,
