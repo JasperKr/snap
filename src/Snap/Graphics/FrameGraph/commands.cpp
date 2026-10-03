@@ -3,12 +3,12 @@
 #include "Graphics/FrameGraph/pipelineCache.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/graphics.hpp"
-#include "Graphics/graphicsState.hpp"
 #include "Graphics/reflect.hpp"
 #include "Graphics/renderState.hpp"
 #include "Graphics/vkAccessHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -388,9 +388,6 @@ auto DrawState::Initialize(CommandType type) -> Error {
     memcpy(pushConstants.data(), data.data(), data.size());
   }
 
-  // PrintAlways("Shader: {}", shader->moduleName);
-  // PrintAlways("Draw state with bind point: {}", (int)graphState.bindPoint);
-
   bool isCompute =
       (shader->combinedShaderStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
 
@@ -428,6 +425,7 @@ auto DrawState::Initialize(CommandType type) -> Error {
     // clang-format on
 
     colorAttachments.reserve(RenderState::TopOfStack->colorAttachments.size());
+    colorAttachments.clear();
 
     for (const auto &target : RenderState::TopOfStack->colorAttachments) {
       colorAttachments.emplace_back(BoundResource{
@@ -456,6 +454,10 @@ auto DrawState::Initialize(CommandType type) -> Error {
   boundBuffers.reserve(shaderState.userBoundBuffers.size());
   boundASs.reserve(shaderState.userBoundAccelerationStructures.size());
 
+  boundImages.clear();
+  boundBuffers.clear();
+  boundASs.clear();
+
   for (const auto &texture : shaderState.userBoundTextures) {
     boundImages.emplace_back(BoundResource{
         .resource = ImageSubresource{texture.second.first},
@@ -482,12 +484,16 @@ auto DrawState::Initialize(CommandType type) -> Error {
     });
   }
 
+  vertexBuffers.clear();
   vertexBuffers.insert(vertexBuffers.begin(), graphState.vertexBuffers.begin(),
                        graphState.vertexBuffers.end());
-  indexBuffer = graphState.indexBuffer;
+
+  vertexBufferOffsets.clear();
   vertexBufferOffsets.insert(vertexBufferOffsets.begin(),
                              graphState.vertexBufferOffsets.begin(),
                              graphState.vertexBufferOffsets.end());
+
+  indexBuffer = graphState.indexBuffer;
   indexBufferOffset = graphState.indexBufferOffset;
   indexType = graphState.indexType;
 
@@ -534,8 +540,6 @@ auto GetWrites(const Command &command) -> const std::vector<VulkanResource> & {
 
 inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets,
                                   std::vector<VulkanResource> &reads) -> void {
-
-  reads.reserve(16);
 
   for (const auto &image : state.boundImages) {
     if (VkAccessHelpers::IsReadAccess(image.access)) {
@@ -585,35 +589,42 @@ inline auto GetReadsInternal(Command &command,
         drawState->GetGraphState().bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     GetReadsFromDrawState(*drawState, getRendertargets, reads);
-  } else if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
+    return;
+  }
+
+  switch (command.GetType()) {
+  case CommandType::vkCmdBlitImage: {
     const auto &args = std::get<Args::VkCmdBlitImage>(command.data);
     reads.append_range(args.srcResources);
-  } else if (std::holds_alternative<Args::MipmapTexture>(command.data)) {
-    const auto &args = std::get<Args::MipmapTexture>(command.data);
-    reads = {
-        VulkanResource(ImageSubresource(args.texture->imageMemory->image, 0, 1,
-                                        0, args.texture->GetMipmapCount()))};
-  } else if (std::holds_alternative<Args::VkCmdCopyBuffer>(command.data)) {
-    const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
-    reads = {args.srcBuffer};
+    break;
   }
-
-  else if (std::holds_alternative<Args::VkCmdCopyImage>(command.data)) {
+  case CommandType::mipmapTexture: {
+    const auto &args = std::get<Args::MipmapTexture>(command.data);
+    reads.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1,
+                                        0, args.texture->GetMipmapCount()));
+    break;
+  }
+  case CommandType::vkCmdCopyBuffer: {
+    const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
+    reads.emplace_back(args.srcBuffer);
+    break;
+  }
+  case CommandType::vkCmdCopyImage: {
     const auto &args = std::get<Args::VkCmdCopyImage>(command.data);
     reads.append_range(args.srcResources);
+    break;
   }
-
-  else if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(command.data)) {
+  case CommandType::vkCmdCopyBufferToImage: {
     const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command.data);
-    reads = {args.srcBuffer};
+    reads.emplace_back(args.srcBuffer);
+    break;
   }
-
-  else if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(command.data)) {
+  case CommandType::vkCmdCopyImageToBuffer: {
     const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
     reads.append_range(args.srcResources);
+    break;
   }
-
-  else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(command.data)) {
+  case CommandType::vkCmdPipelineBarrier2: {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
     for (const auto &barrier : args.imageMemoryBarriers) {
       reads.emplace_back(
@@ -623,14 +634,22 @@ inline auto GetReadsInternal(Command &command,
     for (const auto &barrier : args.bufferMemoryBarriers) {
       reads.emplace_back(barrier.buffer);
     }
+    break;
+  }
+  case CommandType::vkCmdBuildAccelerationStructuresKHR: {
+    const auto &args =
+        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+    reads.append_range(args.bufferReads);
+    break;
+  }
+  default:
+    return;
   }
 }
 
 inline auto GetWritesFromDrawState(DrawState &state, bool getRendertargets,
                                    std::vector<VulkanResource> &writes)
     -> void {
-
-  writes.reserve(8);
 
   for (const auto &buffer : state.boundBuffers) {
     if (VkAccessHelpers::IsWriteAccess(buffer.access)) {
@@ -668,33 +687,47 @@ inline auto GetWritesInternal(Command &command,
                        command.GetType() == CommandType::vkCmdClearAttachments;
 
     GetWritesFromDrawState(*drawState, getRendertargets, writes);
-  } else if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {
+    return;
+  }
+
+  switch (command.GetType()) {
+  case CommandType::vkCmdBlitImage: {
     const auto &args = std::get<Args::VkCmdBlitImage>(command.data);
-    writes = args.dstResources;
-  } else if (std::holds_alternative<Args::MipmapTexture>(command.data)) {
+    writes.append_range(args.dstResources);
+    break;
+  }
+  case CommandType::mipmapTexture: {
     const auto &args = std::get<Args::MipmapTexture>(command.data);
-    writes = {
-        VulkanResource(ImageSubresource(args.texture->imageMemory->image, 0, 1,
-                                        0, args.texture->GetMipmapCount()))};
-  } else if (std::holds_alternative<Args::VkCmdCopyBuffer>(command.data)) {
+    writes.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1,
+                                         0, args.texture->GetMipmapCount()));
+    break;
+  }
+  case CommandType::vkCmdCopyBuffer: {
     const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
-    writes = {args.dstBuffer};
-  } else if (std::holds_alternative<Args::VkCmdCopyImage>(command.data)) {
+    writes.emplace_back(args.dstBuffer);
+    break;
+  }
+  case CommandType::vkCmdCopyImage: {
     const auto &args = std::get<Args::VkCmdCopyImage>(command.data);
-    writes = args.dstResources;
-  } else if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(
-                 command.data)) {
+    writes.append_range(args.dstResources);
+    break;
+  }
+  case CommandType::vkCmdCopyBufferToImage: {
     const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command.data);
-    writes = args.dstResources;
-  } else if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(
-                 command.data)) {
+    writes.append_range(args.dstResources);
+    break;
+  }
+  case CommandType::vkCmdCopyImageToBuffer: {
     const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
-    writes = {args.dstBuffer};
-  } else if (std::holds_alternative<Args::VkCmdFillBuffer>(command.data)) {
+    writes.emplace_back(args.dstBuffer);
+    break;
+  }
+  case CommandType::vkCmdFillBuffer: {
     const auto &args = std::get<Args::VkCmdFillBuffer>(command.data);
-    writes = {args.dstBuffer};
-  } else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(
-                 command.data)) {
+    writes.emplace_back(args.dstBuffer);
+    break;
+  }
+  case CommandType::vkCmdPipelineBarrier2: {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
     for (const auto &barrier : args.imageMemoryBarriers) {
       writes.emplace_back(
@@ -704,6 +737,16 @@ inline auto GetWritesInternal(Command &command,
     for (const auto &barrier : args.bufferMemoryBarriers) {
       writes.emplace_back(barrier.buffer);
     }
+    break;
+  }
+  case CommandType::vkCmdBuildAccelerationStructuresKHR: {
+    const auto &args =
+        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+    writes.append_range(args.bufferWrites);
+    break;
+  }
+  default:
+    return;
   }
 }
 
@@ -816,123 +859,459 @@ inline auto GetResourceAccesses(
   }
 }
 
-auto VirtualCommandBuffer::AddCommand(const ArgVariants &newCommand) -> Error {
+inline auto GetNewEmptyArgs(CommandType type) -> ArgVariants {
+  ZoneScoped;
+
+  switch (type) {
+  case CommandType::vkCmdDraw:
+    return Args::VkCmdDraw();
+  case CommandType::vkCmdDrawIndexed:
+    return Args::VkCmdDrawIndexed();
+  case CommandType::vkCmdDrawIndirect:
+    return Args::VkCmdDrawIndirect();
+  case CommandType::vkCmdDrawIndexedIndirect:
+    return Args::VkCmdDrawIndexedIndirect();
+  case CommandType::vkCmdDispatch:
+    return Args::VkCmdDispatch();
+  case CommandType::vkCmdDispatchIndirect:
+    return Args::VkCmdDispatchIndirect();
+  case CommandType::vkCmdBlitImage:
+    return Args::VkCmdBlitImage();
+  case CommandType::vkCmdCopyBuffer:
+    return Args::VkCmdCopyBuffer();
+  case CommandType::vkCmdCopyImage:
+    return Args::VkCmdCopyImage();
+  case CommandType::vkCmdCopyBufferToImage:
+    return Args::VkCmdCopyBufferToImage();
+  case CommandType::vkCmdCopyImageToBuffer:
+    return Args::VkCmdCopyImageToBuffer();
+  case CommandType::mipmapTexture:
+    return Args::MipmapTexture();
+  case CommandType::vkCmdFillBuffer:
+    return Args::VkCmdFillBuffer();
+  case CommandType::vkCmdBuildAccelerationStructuresKHR:
+    return Args::VkCmdBuildAccelerationStructuresKHR();
+  case CommandType::vkCmdCopyAccelerationStructureKHR:
+    return Args::VkCmdCopyAccelerationStructureKHR();
+  case CommandType::vkCmdResetQueryPool:
+    return Args::VkCmdResetQueryPool();
+  case CommandType::vkCmdWriteAccelerationStructuresPropertiesKHR:
+    return Args::VkCmdWriteAccelerationStructuresPropertiesKHR();
+  case CommandType::vkCmdClearAttachments:
+    return Args::VkCmdClearAttachments();
+  case CommandType::vkCmdPipelineBarrier2:
+    return Args::VkCmdPipelineBarrier2();
+  case CommandType::renderPass:
+    return RenderPass();
+  }
+}
+
+auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> Command & {
+  ZoneScoped;
+
+  auto &cache = caches.at((uint8_t)type);
   Command *command = nullptr;
 
-  if (cache.empty()) {
-    command = &commands.emplace_back(newCommand);
+  const auto cacheSize = cache.size();
+
+  if (cacheSize == 0) {
+    command = &commands.emplace_back(GetNewEmptyArgs(type));
   } else {
-    command = &commands.emplace_back(cache.back());
+    command = &commands.emplace_back(cache.at(cacheSize - 1ULL));
     cache.pop_back();
-
-    command->data = newCommand;
-    command->UpdateType();
   }
 
-  auto *state = command->GetDrawState();
+  return *command;
+}
+
+auto VirtualCommandBuffer::AddCommand(Command &command) -> Error {
+  ZoneScoped;
+
+  auto *state = command.GetDrawState();
   if (state != nullptr) {
-    CHECK_ERR(state->Initialize(command->GetType()));
+    CHECK_ERR(state->Initialize(command.GetType()));
   }
 
-  auto *boundState = get_if_derived<BoundResources>(command->data);
+  auto *boundState = get_if_derived<BoundResources>(command.data);
 
   if (boundState != nullptr) {
-    GetReadsInternal(*command, boundState->reads);
-    GetWritesInternal(*command, boundState->writes);
-    GetResourceAccesses(*command, boundState->accesses);
+    ZoneScopedN("map read & writes");
+
+    boundState->reads.clear();
+    boundState->writes.clear();
+    boundState->accesses.clear();
+
+    GetReadsInternal(command, boundState->reads);
+    GetWritesInternal(command, boundState->writes);
+    GetResourceAccesses(command, boundState->accesses);
   }
 
   return {};
 }
 
-auto VirtualCommandBuffer::Draw(const Args::VkCmdDraw &arguments) -> Error {
-  return AddCommand(arguments);
-}
-
-auto VirtualCommandBuffer::DrawIndexed(const Args::VkCmdDrawIndexed &arguments)
+auto VirtualCommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount,
+                                uint32_t firstVertex, uint32_t firstInstance)
     -> Error {
-  return AddCommand(arguments);
+  auto &command = GetNewCommand(CommandType::vkCmdDraw);
+  auto &commandInfo = std::get<Args::VkCmdDraw>(command.data);
+
+  commandInfo.vertexCount = vertexCount;
+  commandInfo.instanceCount = instanceCount;
+  commandInfo.firstVertex = firstVertex;
+  commandInfo.firstInstance = firstInstance;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::DrawIndirect(
-    const Args::VkCmdDrawIndirect &arguments) -> Error {
-  return AddCommand(arguments);
+auto VirtualCommandBuffer::DrawIndexed(uint32_t indexCount,
+                                       uint32_t instanceCount,
+                                       uint32_t firstIndex,
+                                       int32_t vertexOffset,
+                                       uint32_t firstInstance) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdDrawIndexed);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndexed>(command.data);
+
+  commandInfo.indexCount = indexCount;
+  commandInfo.instanceCount = instanceCount;
+  commandInfo.firstIndex = firstIndex;
+  commandInfo.vertexOffset = vertexOffset;
+  commandInfo.firstInstance = firstInstance;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::DrawIndexedIndirect(
-    const Args::VkCmdDrawIndexedIndirect &arguments) -> Error {
-  return AddCommand(arguments);
-}
-
-auto VirtualCommandBuffer::Dispatch(const Args::VkCmdDispatch &arguments)
+auto VirtualCommandBuffer::DrawIndirect(VkBuffer buffer, VkDeviceSize offset,
+                                        uint32_t drawCount, uint32_t stride)
     -> Error {
-  return AddCommand(arguments);
+  auto &command = GetNewCommand(CommandType::vkCmdDrawIndirect);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndirect>(command.data);
+
+  commandInfo.buffer = buffer;
+  commandInfo.offset = offset;
+  commandInfo.drawCount = drawCount;
+  commandInfo.stride = stride;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::DispatchIndirect(
-    const Args::VkCmdDispatchIndirect &arguments) -> Error {
-  return AddCommand(arguments);
+auto VirtualCommandBuffer::DrawIndexedIndirect(VkBuffer buffer,
+                                               VkDeviceSize offset,
+                                               uint32_t drawCount,
+                                               uint32_t stride) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdDrawIndexedIndirect);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndexedIndirect>(command.data);
+
+  commandInfo.buffer = buffer;
+  commandInfo.offset = offset;
+  commandInfo.drawCount = drawCount;
+  commandInfo.stride = stride;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::BlitImage(const Args::VkCmdBlitImage &arguments)
-    -> Error {
-  return AddCommand(arguments);
+auto VirtualCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY,
+                                    uint32_t groupCountZ) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdDispatch);
+  auto &commandInfo = std::get<Args::VkCmdDispatch>(command.data);
+
+  commandInfo.groupCountX = groupCountX;
+  commandInfo.groupCountY = groupCountY;
+  commandInfo.groupCountZ = groupCountZ;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::PushConstants(
-    const Args::VkCmdPushConstants &arguments) -> void {
-  currentState.pushConstants = arguments.values;
+auto VirtualCommandBuffer::DispatchIndirect(VkBuffer buffer,
+                                            VkDeviceSize offsets) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdDispatchIndirect);
+  auto &commandInfo = std::get<Args::VkCmdDispatchIndirect>(command.data);
+
+  commandInfo.buffer = buffer;
+  commandInfo.offset = offsets;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::CopyBuffer(const Args::VkCmdCopyBuffer &arguments)
-    -> Error {
-  return AddCommand(arguments);
+auto VirtualCommandBuffer::BlitImage(
+    VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage,
+    VkImageLayout dstImageLayout, uint32_t regionCount,
+    const VkImageBlit *pRegions, VkFilter filter) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdBlitImage);
+  auto &commandInfo = std::get<Args::VkCmdBlitImage>(command.data);
+
+  commandInfo.srcImage = srcImage;
+  commandInfo.srcImageLayout = srcImageLayout;
+  commandInfo.dstImage = dstImage;
+  commandInfo.dstImageLayout = dstImageLayout;
+  commandInfo.regions.resize(regionCount);
+  memcpy(commandInfo.regions.data(), pRegions,
+         sizeof(VkImageBlit) * regionCount);
+  commandInfo.filter = filter;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::CopyImage(const Args::VkCmdCopyImage &arguments)
-    -> Error {
-  return AddCommand(arguments);
+auto VirtualCommandBuffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
+                                      uint32_t regionCount,
+                                      const VkBufferCopy *pRegions) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdCopyBuffer);
+  auto &commandInfo = std::get<Args::VkCmdCopyBuffer>(command.data);
+
+  commandInfo.srcBuffer = srcBuffer;
+  commandInfo.dstBuffer = dstBuffer;
+  commandInfo.regions.resize(regionCount);
+  memcpy(commandInfo.regions.data(), pRegions,
+         sizeof(VkBufferCopy) * regionCount);
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::CopyImage(VkImage srcImage,
+                                     VkImageLayout srcImageLayout,
+                                     VkImage dstImage,
+                                     VkImageLayout dstImageLayout,
+                                     uint32_t regionCount,
+                                     const VkImageCopy *pRegions) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdCopyImage);
+  auto &commandInfo = std::get<Args::VkCmdCopyImage>(command.data);
+
+  commandInfo.srcImage = srcImage;
+  commandInfo.srcImageLayout = srcImageLayout;
+  commandInfo.dstImage = dstImage;
+  commandInfo.dstImageLayout = dstImageLayout;
+
+  commandInfo.regions.resize(regionCount);
+  memcpy(commandInfo.regions.data(), pRegions,
+         sizeof(VkImageCopy) * regionCount);
+
+  commandInfo.srcResources.reserve(regionCount);
+  commandInfo.srcResources.clear();
+
+  commandInfo.dstResources.reserve(regionCount);
+  commandInfo.dstResources.clear();
+
+  for (auto &region : commandInfo.regions) {
+    commandInfo.srcResources.emplace_back(ImageSubresource(
+        srcImage, region.srcSubresource.baseArrayLayer,
+        region.srcSubresource.layerCount, region.srcSubresource.mipLevel, 1));
+
+    commandInfo.dstResources.emplace_back(ImageSubresource(
+        dstImage, region.dstSubresource.baseArrayLayer,
+        region.dstSubresource.layerCount, region.dstSubresource.mipLevel, 1));
+  }
+
+  return AddCommand(command);
 }
 
 auto VirtualCommandBuffer::CopyBufferToImage(
-    const Args::VkCmdCopyBufferToImage &arguments) -> Error {
-  return AddCommand(arguments);
+    VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout,
+    uint32_t regionCount, const VkBufferImageCopy *pRegions) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdCopyBufferToImage);
+  auto &commandInfo = std::get<Args::VkCmdCopyBufferToImage>(command.data);
+
+  commandInfo.srcBuffer = srcBuffer;
+  commandInfo.dstImage = dstImage;
+  commandInfo.dstImageLayout = dstImageLayout;
+
+  commandInfo.regions.resize(regionCount);
+  memcpy(commandInfo.regions.data(), pRegions,
+         sizeof(VkBufferImageCopy) * regionCount);
+
+  commandInfo.dstResources.reserve(regionCount);
+  commandInfo.dstResources.clear();
+
+  for (auto &region : commandInfo.regions) {
+    commandInfo.dstResources.emplace_back(
+        ImageSubresource(dstImage, region.imageSubresource.baseArrayLayer,
+                         region.imageSubresource.layerCount,
+                         region.imageSubresource.mipLevel, 1));
+  }
+
+  return AddCommand(command);
 }
 
 auto VirtualCommandBuffer::CopyImageToBuffer(
-    const Args::VkCmdCopyImageToBuffer &arguments) -> Error {
-  return AddCommand(arguments);
+    VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer,
+    uint32_t regionCount, const VkBufferImageCopy *pRegions) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdCopyImageToBuffer);
+  auto &commandInfo = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
+
+  commandInfo.srcImage = srcImage;
+  commandInfo.srcImageLayout = srcImageLayout;
+  commandInfo.dstBuffer = dstBuffer;
+
+  commandInfo.regions.resize(regionCount);
+  memcpy(commandInfo.regions.data(), pRegions,
+         sizeof(VkBufferImageCopy) * regionCount);
+
+  commandInfo.srcResources.reserve(regionCount);
+  commandInfo.srcResources.clear();
+
+  for (auto &region : commandInfo.regions) {
+    commandInfo.srcResources.emplace_back(
+        ImageSubresource(srcImage, region.imageSubresource.baseArrayLayer,
+                         region.imageSubresource.layerCount,
+                         region.imageSubresource.mipLevel, 1));
+  }
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::MipmapTexture(const Args::MipmapTexture &arguments)
-    -> Error {
-  return AddCommand(arguments);
-}
+auto VirtualCommandBuffer::FillBuffer(VkBuffer dstBuffer,
+                                      VkDeviceSize dstOffset, VkDeviceSize size,
+                                      uint32_t data) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdFillBuffer);
+  auto &commandInfo = std::get<Args::VkCmdFillBuffer>(command.data);
 
-auto VirtualCommandBuffer::FillBuffer(const Args::VkCmdFillBuffer &arguments)
-    -> Error {
-  return AddCommand(arguments);
+  commandInfo.dstBuffer = dstBuffer;
+  commandInfo.dstOffset = dstOffset;
+  commandInfo.size = size;
+  commandInfo.data = data;
+
+  return AddCommand(command);
 }
 
 auto VirtualCommandBuffer::BuildAccelerationStructuresKHR(
-    const Args::VkCmdBuildAccelerationStructuresKHR &arguments) -> Error {
-  return AddCommand(arguments);
+    uint32_t infoCount,
+    const VkAccelerationStructureBuildGeometryInfoKHR *pInfos,
+    const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos,
+    uint32_t readCount, VkBuffer const *bufferReads, uint32_t writeCount,
+    VkBuffer const *bufferWrites) -> Error {
+  auto &command =
+      GetNewCommand(CommandType::vkCmdBuildAccelerationStructuresKHR);
+  auto &commandInfo =
+      std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+
+  commandInfo.infoCount = infoCount;
+  commandInfo.infos.resize(infoCount);
+  commandInfo.buildRangeInfos.resize(infoCount);
+  commandInfo.bufferReads.resize(readCount);
+  commandInfo.bufferWrites.resize(writeCount);
+
+  memcpy(commandInfo.infos.data(), pInfos,
+         sizeof(VkAccelerationStructureBuildGeometryInfoKHR) * infoCount);
+  memcpy(commandInfo.bufferReads.data(), bufferReads, // NOLINT
+         sizeof(VkBuffer) * readCount);
+  memcpy(commandInfo.bufferWrites.data(), bufferWrites, // NOLINT
+         sizeof(VkBuffer) * writeCount);
+
+  size_t geometryCount{};
+
+  for (const auto &info : commandInfo.infos) {
+    geometryCount += info.geometryCount;
+  }
+
+  commandInfo.geometries.reserve(geometryCount);
+  commandInfo.geometries.clear();
+
+  for (size_t i = 0; i < infoCount; ++i) {
+    assert(commandInfo.infos[i].pNext == nullptr);
+    assert(commandInfo.infos[i].ppGeometries == nullptr);
+
+    const size_t offset = commandInfo.geometries.size();
+
+    for (uint32_t j = 0; j < commandInfo.infos[i].geometryCount; ++j) {
+      commandInfo.geometries.push_back(
+          commandInfo.infos[i].pGeometries[j]); // NOLINT
+    }
+
+    commandInfo.buildRangeInfos[i] = *ppBuildRangeInfos[i]; // NOLINT
+  }
+
+  return AddCommand(command);
 }
 
 auto VirtualCommandBuffer::CopyAccelerationStructureKHR(
-    const Args::VkCmdCopyAccelerationStructureKHR &arguments) -> Error {
-  return AddCommand(arguments);
+    const VkCopyAccelerationStructureInfoKHR *pInfo) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdCopyAccelerationStructureKHR);
+  auto &commandInfo =
+      std::get<Args::VkCmdCopyAccelerationStructureKHR>(command.data);
+
+  commandInfo.structureInfo = *pInfo;
+
+  return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::ResetQueryPool(
-    const Args::VkCmdResetQueryPool &arguments) -> Error {
-  return AddCommand(arguments);
+auto VirtualCommandBuffer::PipelineBarrier2(
+    const VkDependencyInfo *pDependencyInfo) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdPipelineBarrier2);
+  auto &commandInfo = std::get<Args::VkCmdPipelineBarrier2>(command.data);
+
+  if (pDependencyInfo->pMemoryBarriers != nullptr) {
+    commandInfo.memoryBarriers.assign(
+        pDependencyInfo->pMemoryBarriers,
+        pDependencyInfo->pMemoryBarriers + // NOLINT
+            pDependencyInfo->memoryBarrierCount);
+  }
+
+  if (pDependencyInfo->pBufferMemoryBarriers != nullptr) {
+    commandInfo.bufferMemoryBarriers.assign(
+        pDependencyInfo->pBufferMemoryBarriers,
+        pDependencyInfo->pBufferMemoryBarriers + // NOLINT
+            pDependencyInfo->bufferMemoryBarrierCount);
+  }
+
+  if (pDependencyInfo->pImageMemoryBarriers != nullptr) {
+    commandInfo.imageMemoryBarriers.assign(
+        pDependencyInfo->pImageMemoryBarriers,
+        pDependencyInfo->pImageMemoryBarriers + // NOLINT
+            pDependencyInfo->imageMemoryBarrierCount);
+  }
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::MipmapTexture(Texture *texture) -> Error {
+  auto &command = GetNewCommand(CommandType::mipmapTexture);
+  auto &commandInfo = std::get<Args::MipmapTexture>(command.data);
+
+  commandInfo.texture = texture;
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::ResetQueryPool(VkQueryPool queryPool,
+                                          uint32_t firstQuery,
+                                          uint32_t queryCount) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdResetQueryPool);
+  auto &commandInfo = std::get<Args::VkCmdResetQueryPool>(command.data);
+
+  commandInfo.queryPool = queryPool;
+  commandInfo.firstQuery = firstQuery;
+  commandInfo.queryCount = queryCount;
+
+  return AddCommand(command);
 }
 
 auto VirtualCommandBuffer::WriteAccelerationStructuresPropertiesKHR(
-    const Args::VkCmdWriteAccelerationStructuresPropertiesKHR &arguments)
+    uint32_t accelerationStructureCount,
+    const VkAccelerationStructureKHR *pAccelerationStructures,
+    VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery)
     -> Error {
-  return AddCommand(arguments);
+  auto &command =
+      GetNewCommand(CommandType::vkCmdWriteAccelerationStructuresPropertiesKHR);
+  auto &commandInfo =
+      std::get<Args::VkCmdWriteAccelerationStructuresPropertiesKHR>(
+          command.data);
+
+  commandInfo.accelerationStructures.resize(accelerationStructureCount);
+  memcpy(commandInfo.accelerationStructures.data(), // NOLINT
+         pAccelerationStructures,                   // NOLINT
+         sizeof(VkAccelerationStructureKHR) * accelerationStructureCount);
+  commandInfo.queryType = queryType;
+  commandInfo.queryPool = queryPool;
+  commandInfo.firstQuery = firstQuery;
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::PushConstants(VkPipelineLayout layout,
+                                         VkShaderStageFlags stageFlags,
+                                         uint32_t offset, uint32_t size,
+                                         const void *pValues) -> void {
+  assert(offset == 0 && "Offset pushconstants are currently not supported.");
+  currentState.pushConstants.resize(size);
+  memcpy(currentState.pushConstants.data(), pValues, size);
 }
 
 auto VirtualCommandBuffer::BindIndexBuffer(
@@ -942,35 +1321,47 @@ auto VirtualCommandBuffer::BindIndexBuffer(
   currentState.indexBufferOffset = arguments.offset;
 }
 
-auto VirtualCommandBuffer::BindVertexBuffers(
-    const Args::VkCmdBindVertexBuffers &arguments) -> void {
+auto VirtualCommandBuffer::BindVertexBuffers(uint32_t firstBinding,
+                                             uint32_t bindingCount,
+                                             const VkBuffer *pBuffers,
+                                             const VkDeviceSize *pOffsets)
+    -> void {
+  currentState.vertexBuffers.resize(firstBinding + bindingCount);
+  currentState.vertexBufferOffsets.resize(firstBinding + bindingCount);
 
-  const auto first = arguments.firstBinding;
-  const auto count = arguments.buffers.size();
-  currentState.vertexBuffers.resize(first + count);
-  currentState.vertexBufferOffsets.resize(first + count);
-
-  for (size_t i = 0; i < count; ++i) {
-    currentState.vertexBuffers[first + i] = arguments.buffers[i];
-    currentState.vertexBufferOffsets[first + i] = arguments.offsets[i];
+  for (size_t i = 0; i < bindingCount; ++i) {
+    currentState.vertexBuffers[firstBinding + i] = pBuffers[i];       // NOLINT
+    currentState.vertexBufferOffsets[firstBinding + i] = pOffsets[i]; // NOLINT
   }
 }
 
 auto VirtualCommandBuffer::SetVertexInputEXT(
-    const Args::VkCmdSetVertexInputEXT &arguments) -> void {
-  currentState.bindingDescriptions = arguments.bindingDescriptions;
-  currentState.attributeDescriptions = arguments.attributeDescriptions;
+    uint32_t vertexBindingDescriptionCount,
+    const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions,
+    uint32_t vertexAttributeDescriptionCount,
+    const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
+    -> void {
+
+  currentState.bindingDescriptions.resize(vertexBindingDescriptionCount);
+  currentState.attributeDescriptions.resize(vertexAttributeDescriptionCount);
+
+  memcpy(currentState.bindingDescriptions.data(), pVertexBindingDescriptions,
+         sizeof(VkVertexInputBindingDescription2EXT) *
+             vertexBindingDescriptionCount);
+
+  memcpy(currentState.attributeDescriptions.data(),
+         pVertexAttributeDescriptions,
+         sizeof(VkVertexInputBindingDescription2EXT) *
+             vertexAttributeDescriptionCount);
 }
 
-auto VirtualCommandBuffer::BindPipeline(
-    const Args::VkCmdBindPipeline &arguments) -> void {}
+auto VirtualCommandBuffer::SetViewport(uint32_t firstViewport,
+                                       uint32_t viewportCount,
+                                       const VkViewport *pViewports) -> void {
+  assert(viewportCount == 1);
+  assert(firstViewport == 0);
+  currentState.viewport = *pViewports;
 
-auto VirtualCommandBuffer::BindDescriptorSets(
-    const Args::VkCmdBindDescriptorSets &arguments) -> void {}
-
-auto VirtualCommandBuffer::SetViewport(const Args::VkCmdSetViewport &arguments)
-    -> void {
-  currentState.viewport = arguments.viewports.front();
   currentState.MarkUpdated();
 }
 
@@ -999,10 +1390,12 @@ auto VirtualCommandBuffer::SetDepthCompareOp(
 }
 
 auto VirtualCommandBuffer::SetColorBlendEquationEXT(
-    const Args::VkCmdSetColorBlendEquationEXT &arguments) -> void {
-  currentState.colorBlendEquations =
-      Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS>(
-          arguments.equations);
+    uint32_t firstAttachment, uint32_t attachmentCount,
+    const VkColorBlendEquationEXT *pColorBlendEquations) -> void {
+  currentState.colorBlendEquations.resize(firstAttachment + attachmentCount);
+  memcpy(currentState.colorBlendEquations.data() + firstAttachment, // NOLINT
+         pColorBlendEquations,
+         sizeof(VkColorBlendEquationEXT) * attachmentCount);
   currentState.MarkUpdated();
 }
 
@@ -1019,8 +1412,18 @@ auto VirtualCommandBuffer::SetFrontFace(
 }
 
 auto VirtualCommandBuffer::ClearAttachments(
-    const Args::VkCmdClearAttachments &arguments) -> Error {
-  return AddCommand(arguments);
+    uint32_t attachmentCount, const VkClearAttachment *pAttachments,
+    uint32_t rectCount, const VkClearRect *pRects) -> Error {
+  auto &command = GetNewCommand(CommandType::vkCmdClearAttachments);
+  auto &commandInfo = std::get<Args::VkCmdClearAttachments>(command.data);
+
+  commandInfo.attachments.resize(attachmentCount);
+  memcpy(commandInfo.attachments.data(), pAttachments,
+         sizeof(VkClearAttachment) * attachmentCount);
+  commandInfo.rects.resize(rectCount);
+  memcpy(commandInfo.rects.data(), pRects, sizeof(VkClearRect) * rectCount);
+
+  return AddCommand(command);
 }
 
 auto VirtualCommandBuffer::BeginDebugUtilsLabelEXT(
@@ -1034,15 +1437,42 @@ auto VirtualCommandBuffer::EndDebugUtilsLabelEXT(
 auto VirtualCommandBuffer::InsertDebugUtilsLabelEXT(
     const Args::VkCmdInsertDebugUtilsLabelEXT &arguments) -> void {}
 
-auto VirtualCommandBuffer::PipelineBarrier2(
-    const Args::VkCmdPipelineBarrier2 &arguments) -> Error {
-  return AddCommand(arguments);
+auto GetRequiresRendering(CommandType type) -> bool {
+  switch (type) {
+  case CommandType::vkCmdDraw:
+  case CommandType::vkCmdDrawIndexed:
+  case CommandType::vkCmdDrawIndirect:
+  case CommandType::vkCmdDrawIndexedIndirect:
+  case CommandType::vkCmdDispatch:
+  case CommandType::vkCmdDispatchIndirect:
+  case CommandType::vkCmdClearAttachments:
+    return true;
+  case CommandType::vkCmdBlitImage:
+  case CommandType::vkCmdCopyBuffer:
+  case CommandType::vkCmdCopyImage:
+  case CommandType::vkCmdCopyBufferToImage:
+  case CommandType::vkCmdCopyImageToBuffer:
+  case CommandType::mipmapTexture:
+  case CommandType::vkCmdFillBuffer:
+  case CommandType::vkCmdBuildAccelerationStructuresKHR:
+  case CommandType::vkCmdCopyAccelerationStructureKHR:
+  case CommandType::vkCmdResetQueryPool:
+  case CommandType::vkCmdWriteAccelerationStructuresPropertiesKHR:
+  case CommandType::vkCmdPipelineBarrier2:
+  case CommandType::renderPass:
+    return false;
+  }
 }
 
 auto CreateCommandBuffer() -> VirtualCommandBuffer { return {}; }
 
 auto VirtualCommandBuffer::Reset() -> void {
-  cache.append_range(commands);
+  ZoneScoped;
+
+  for (const auto &command : commands) {
+    caches.at((uint8_t)command.type).emplace_back(command);
+  }
+
   commands.clear();
   queueFamily = UINT32_MAX;
 }

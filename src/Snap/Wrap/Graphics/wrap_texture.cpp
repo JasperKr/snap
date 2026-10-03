@@ -665,7 +665,7 @@ static inline auto TextureFromWidthHeightAndOptions(lua_State *state)
 
   if (options.mipmaps == ::Graphics::TextureMipmapOption::Init) {
     auto &tctx = ::Graphics::GetThreadContext();
-    CHECK_ERR(tctx.commandBuffer->MipmapTexture({texture.get()}));
+    CHECK_ERR(tctx.commandBuffer->MipmapTexture(texture.get()));
   }
 
   return texture;
@@ -722,7 +722,7 @@ TextureFromWidthHeightDepthOrLayersAndOptions(lua_State *state)
 
   if (options.mipmaps == ::Graphics::TextureMipmapOption::Init) {
     auto &tctx = ::Graphics::GetThreadContext();
-    CHECK_ERR(tctx.commandBuffer->MipmapTexture({texture.get()}));
+    CHECK_ERR(tctx.commandBuffer->MipmapTexture(texture.get()));
   }
 
   return texture;

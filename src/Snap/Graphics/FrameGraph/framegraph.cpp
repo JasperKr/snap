@@ -32,15 +32,14 @@
 #include <public/tracy/Tracy.hpp>
 #include <unordered_map>
 #include <utility>
-#include <variant>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
 
 auto FrameGraph::Submit(const GraphicsContext &context,
-                        const VirtualCommandBuffer &commands) -> Error {
-  commandBuffer = commands;
+                        VirtualCommandBuffer &commands) -> Error {
+  commandBuffer = &commands;
 
   CHECK_ERR(Compile(context));
 
@@ -55,7 +54,7 @@ auto FrameGraph::MapResourceUsages() -> Error {
   {
     ZoneScopedN("Map writes");
 
-    for (const auto &command : commandBuffer.commands) {
+    for (const auto &command : commandBuffer->commands) {
       const auto *boundState = get_if_derived<BoundResources>(command.data);
 
       if (boundState == nullptr) {
@@ -71,7 +70,7 @@ auto FrameGraph::MapResourceUsages() -> Error {
   {
     ZoneScopedN("Erase irrelevant data");
     Utils::ParallelFor(
-        commandBuffer.commands, [this](Command &command) -> void {
+        commandBuffer->commands, [this](Command &command) -> void {
           auto *boundState = get_if_derived<BoundResources>(command.data);
 
           if (boundState == nullptr) {
@@ -894,7 +893,7 @@ auto FrameGraph::BuildRenderRegions(const GraphicsContext &context)
 
       // Any non-draw command breaks the current contiguous rendering region.
       if ((drawState == nullptr || callableState == nullptr ||
-           !callableState->requiresRendering) &&
+           !GetRequiresRendering(type)) &&
           type != CommandType::renderPass) {
         currentIndex = SIZE_MAX;
         continue;
@@ -1317,7 +1316,7 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   inRange = false;
   int drawStateMismatches = 0;
 
-  for (const auto &command : commandBuffer.commands) {
+  for (const auto &command : commandBuffer->commands) {
     const auto type = command.GetType();
 
     if (type == CommandType::vkCmdDraw ||
@@ -1380,7 +1379,7 @@ auto FrameGraph::CompactRenderPasses() -> Error {
     ZoneScopedN("De-Duplicate resources");
     for (auto &command : commands) {
       command.id = idx++;
-      command.uniqueID = command.id + commandBuffer.commands.size();
+      command.uniqueID = command.id + commandBuffer->commands.size();
       ERR_ASSERT(idx != UINT16_MAX);
 
       auto *bound = get_if_derived<BoundResources>(command.data);
@@ -1400,7 +1399,7 @@ auto FrameGraph::CompactRenderPasses() -> Error {
 
   // PrintAlways(
   //     "Starting command count: {}, reduced: {}, draw state mismatches {}",
-  //     commandBuffer.commands.size(), commands.size(), drawStateMismatches);
+  //     commandBuffer->commands.size(), commands.size(), drawStateMismatches);
 
   return {};
 }
@@ -1413,7 +1412,7 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
 
   CommandID idx = 0;
 
-  for (auto &command : commandBuffer.commands) {
+  for (auto &command : commandBuffer->commands) {
     command.id = idx++;
     command.uniqueID = command.id;
     ERR_ASSERT(idx != UINT16_MAX);
@@ -1450,15 +1449,16 @@ auto WriteCommand(const std::vector<Command> &commands, CommandID commandId,
   const auto &command = commands.at(commandId);
   const auto *callable = get_if_derived<Callable>(command.data);
   const auto *state = command.GetDrawState();
+  const auto type = command.GetType();
 
-  if (callable != nullptr && callable->requiresRendering) {
+  if (callable != nullptr && GetRequiresRendering(type)) {
     if (state != nullptr) {
       CHECK_ERR(state->Apply(context, cmdBuffer, loadOpConfig));
     }
   }
 
   if (callable != nullptr) {
-    if (!callable->requiresRendering) {
+    if (!GetRequiresRendering(type)) {
       EndRendering(context, cmdBuffer);
     }
     CHECK_ERR(callable->Call(cmdBuffer));
@@ -1543,7 +1543,7 @@ auto FrameGraph::Write(const GraphicsContext &context,
         const auto &levelCommands = renderPass.commands;
 
         for (const CommandID childCommandId : levelCommands) {
-          CHECK_ERR(WriteCommand(commandBuffer.commands, childCommandId,
+          CHECK_ERR(WriteCommand(commandBuffer->commands, childCommandId,
                                  context, cmdBuffer, loadOpConfig));
         }
       } else {

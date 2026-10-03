@@ -338,7 +338,7 @@ auto Present(Graphics::GraphicsContext &context,
                            .memoryBarrierCount = 1,
                            .pMemoryBarriers = &barrier};
 
-      CHECK_ERR(cmdBuffer.second->PipelineBarrier2({&dep}));
+      CHECK_ERR(cmdBuffer.second->PipelineBarrier2(&dep));
 
       threadData.commandBuffer = nullptr;
 

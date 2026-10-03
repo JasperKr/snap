@@ -34,13 +34,13 @@ struct FrameGraph {
   // also defined in command.hpp
   static inline const CommandLevel InvalidDepth = UINT16_MAX;
 
-  auto Submit(const GraphicsContext &context,
-              const VirtualCommandBuffer &commands) -> Error;
+  auto Submit(const GraphicsContext &context, VirtualCommandBuffer &commands)
+      -> Error;
   auto Write(const GraphicsContext &context, VkCommandBuffer cmdBuffer)
       -> Error;
 
 private:
-  VirtualCommandBuffer commandBuffer;
+  VirtualCommandBuffer *commandBuffer;
   std::vector<Command> commands;
 
   std::vector<Level> graph;

@@ -12,8 +12,8 @@ auto VertexFormat::BindDynamicInputState(VirtualCommandBuffer *commandBuffer)
   const auto &attributes = GetVkAttributes2();
 
   commandBuffer->SetVertexInputEXT(
-      {static_cast<uint32_t>(bindings.size()), bindings.data(),
-       static_cast<uint32_t>(attributes.size()), attributes.data()});
+      static_cast<uint32_t>(bindings.size()), bindings.data(),
+      static_cast<uint32_t>(attributes.size()), attributes.data());
 }
 
 } // namespace Graphics

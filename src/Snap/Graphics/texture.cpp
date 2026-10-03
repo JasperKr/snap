@@ -31,6 +31,7 @@
 #include <memory>
 #include <mutex>
 #include <public/tracy/Tracy.hpp>
+#include <shared_mutex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -484,7 +485,7 @@ auto Texture::FromFile(const GraphicsContext &context, const char *path,
   if (mipmaps == TextureMipmapOption::Init &&
       !Image::IsCompressedTexture(imageData->GetFormat())) {
     auto &ctx = GetThreadContext();
-    CHECK_ERR(ctx.commandBuffer->MipmapTexture({texture.get()}));
+    CHECK_ERR(ctx.commandBuffer->MipmapTexture(texture.get()));
   }
 
   return texture;
@@ -525,7 +526,7 @@ auto Texture::FromMemory(const GraphicsContext &context,
 
   if (mipmaps == TextureMipmapOption::Init) {
     auto &ctx = GetThreadContext();
-    CHECK_ERR(ctx.commandBuffer->MipmapTexture({texture.get()}));
+    CHECK_ERR(ctx.commandBuffer->MipmapTexture(texture.get()));
   }
 
   return texture;
@@ -646,8 +647,8 @@ auto Texture::FromMemory(const GraphicsContext &context,
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   CHECK_ERR(commandBuffer->CopyBufferToImage(
-      {buffer->handle, texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
-       static_cast<uint32_t>(copyRegions.size()), copyRegions.data()}));
+      buffer->handle, texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
+      copyRegions.size(), copyRegions.data()));
 
   // TODO: Check lifetime
   buffer->MarkUse();
@@ -801,7 +802,7 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
   //             commandBuffer == nullptr ? "yes" : "no");
 
   if (commandBuffer != nullptr) {
-    CHECK_ERR(commandBuffer->PipelineBarrier2({&dep}));
+    CHECK_ERR(commandBuffer->PipelineBarrier2(&dep));
   } else {
     VkCommandBuffer cmdBuffer = CHECK_NULL(GetVkCommandBuffer());
 
@@ -959,8 +960,8 @@ inline auto WriteSimplifiedPixelData(const Ref<Texture> &texture,
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   CHECK_ERR(commandBuffer->CopyBufferToImage(
-      {buffer->handle, texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, 1,
-       &region}));
+      buffer->handle, texture->imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, 1,
+      &region));
 
   CHECK_ERR(
       texture->UseAsSampler(context, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT));
@@ -1099,9 +1100,8 @@ auto Texture::SetPixels(const GraphicsContext &context,
 
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
-  CHECK_ERR(
-      commandBuffer->CopyBufferToImage({buffer->handle, imageMemory->image,
-                                        VK_IMAGE_LAYOUT_GENERAL, 1, &region}));
+  CHECK_ERR(commandBuffer->CopyBufferToImage(
+      buffer->handle, imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, 1, &region));
 
   // TODO: Check lifetime
   buffer->MarkUse();
@@ -1135,8 +1135,8 @@ struct VkFormatTextureTypeHash {
 
 std::unordered_map<std::pair<VkFormat, TextureType>, Ref<struct Texture>,
                    struct VkFormatTextureTypeHash>
-    DefaultTextureCache;             // NOLINT
-std::mutex DefaultTextureCacheMutex; // NOLINT
+    DefaultTextureCache;                    // NOLINT
+std::shared_mutex DefaultTextureCacheMutex; // NOLINT
 
 auto UnloadModule() -> void { DefaultTextureCache.clear(); }
 
@@ -1144,9 +1144,23 @@ auto Texture::GetDefault(const GraphicsContext &context, VkFormat format,
                          Graphics::TextureType textureType)
     -> Result<Ref<Graphics::Texture>> {
 
-  std::lock_guard<std::mutex> lock(DefaultTextureCacheMutex);
-
   auto key = std::make_pair(format, textureType);
+
+  {
+    std::shared_lock<std::shared_mutex> lock(DefaultTextureCacheMutex);
+
+    auto textureIterator = DefaultTextureCache.find(key);
+    if (textureIterator != DefaultTextureCache.end()) {
+      return textureIterator->second;
+    }
+  }
+
+  std::unique_lock<std::shared_mutex> lock(DefaultTextureCacheMutex);
+
+  // Say thread a, b enter here at the same time looking for the same default texture;
+  // Then let's say a locks the unique lock, creates the texture, then b will continue
+  // from lock, creating it twice, so we do another lookup here to double check another
+  // thread didn't beat us to creating it.
   auto textureIterator = DefaultTextureCache.find(key);
   if (textureIterator != DefaultTextureCache.end()) {
     return textureIterator->second;
@@ -1422,10 +1436,9 @@ auto Texture::CopyTo(const GraphicsContext &context, Texture &dstTexture,
   copyRegion.dstOffset = region.dstOffset;
   copyRegion.extent = region.extent;
 
-  CHECK_ERR(
-      commandBuffer->CopyImage({imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
-                                dstTexture.imageMemory->image,
-                                VK_IMAGE_LAYOUT_GENERAL, 1, &copyRegion}));
+  CHECK_ERR(commandBuffer->CopyImage(
+      imageMemory->image, VK_IMAGE_LAYOUT_GENERAL,
+      dstTexture.imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, 1, &copyRegion));
 
   MarkUse();
   dstTexture.MarkUse();
@@ -1457,9 +1470,9 @@ auto Texture::CopyTo(const GraphicsContext &context, Buffer &dstBuffer,
                          "usage flag.");
   }
 
-  CHECK_ERR(commandBuffer->CopyImageToBuffer(
-      {imageMemory->image, VK_IMAGE_LAYOUT_GENERAL, dstBuffer.handle, 1,
-       &copyRegion}));
+  CHECK_ERR(commandBuffer->CopyImageToBuffer(imageMemory->image,
+                                             VK_IMAGE_LAYOUT_GENERAL,
+                                             dstBuffer.handle, 1, &copyRegion));
 
   dstBuffer.MarkUse();
   MarkUse();

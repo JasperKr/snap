@@ -17,7 +17,6 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
-#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -161,6 +160,7 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   assert(tcontext.queueFamily == 0);
 
   thread_local ::Graphics::VirtualCommandBuffer commandBuffer{};
+  commandBuffer.Initialize();
   commandBuffer.Reset();
 
   threadInfo->threadData.commandBuffer = &commandBuffer;

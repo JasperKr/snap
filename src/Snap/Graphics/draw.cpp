@@ -160,9 +160,8 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
 
   const auto &bindings = mesh.GetBindingRanges();
   for (const auto &binding : bindings) {
-    commandBuffer->BindVertexBuffers({binding.firstBinding,
-                                      binding.bindingCount, binding.bindings,
-                                      binding.offsets});
+    commandBuffer->BindVertexBuffers(binding.firstBinding, binding.bindingCount,
+                                     binding.bindings, binding.offsets);
   }
 
   return Error::Success();
@@ -352,8 +351,8 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
     const MeshDrawRange &range = mesh.GetDrawRange();
 
     if (mesh.GetIndexCount() > 0) {
-      CHECK_ERR(commandBuffer->DrawIndexed(
-          {range.Count, instanceCount, range.Offset, 0, 0}));
+      CHECK_ERR(commandBuffer->DrawIndexed(range.Count, instanceCount,
+                                           range.Offset, 0, 0));
 
 #if Enable_Snapshots
       CaptureEvent(DrawIndexedEvent(mesh.GetIndexCount(), instanceCount,
@@ -361,7 +360,7 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
 #endif
     } else {
       CHECK_ERR(
-          commandBuffer->Draw({range.Count, instanceCount, range.Offset, 0}));
+          commandBuffer->Draw(range.Count, instanceCount, range.Offset, 0));
 
 #if Enable_Snapshots
       auto vertexCount = mesh.GetVertexCount();
@@ -419,8 +418,8 @@ auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups)
     ZoneScopedN("Vk Dispatch");
 
     RenderState::CurrentStats.dispatchCalls++;
-    CHECK_ERR(commandBuffer->Dispatch(
-        {threadgroups.x, threadgroups.y, threadgroups.z}));
+    CHECK_ERR(commandBuffer->Dispatch(threadgroups.x, threadgroups.y,
+                                      threadgroups.z));
   }
 
 #if Enable_Snapshots
@@ -472,7 +471,7 @@ auto DispatchIndirect(const GraphicsContext &context,
   CHECK_ERR(InsertResourceBarriers(context));
 
   RenderState::CurrentStats.dispatchCalls++;
-  CHECK_ERR(commandBuffer->DispatchIndirect({indirectBuffer->handle, offset}));
+  CHECK_ERR(commandBuffer->DispatchIndirect(indirectBuffer->handle, offset));
 
 #if Enable_Snapshots
   CaptureEvent(DispatchIndirectEvent(indirectBuffer->handle, offset));
@@ -510,8 +509,8 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
       static_cast<uint64_t>(mesh.GetIndexCount() * count);
   RenderState::CurrentStats.instanceCount += count;
 
-  CHECK_ERR(commandBuffer->DrawIndirect(
-      {indirectBuffer->handle, offset, count, sizeof(VkDrawIndirectCommand)}));
+  CHECK_ERR(commandBuffer->DrawIndirect(indirectBuffer->handle, offset, count,
+                                        sizeof(VkDrawIndirectCommand)));
 
 #if Enable_Snapshots
   CaptureEvent(DrawIndirectEvent(indirectBuffer->handle, offset, count,
@@ -546,8 +545,8 @@ auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology,
   }
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
-  commandBuffer->SetVertexInputEXT({0, nullptr, 0, nullptr});
-  commandBuffer->BindVertexBuffers({0, 0, nullptr, nullptr});
+  commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
+  commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
   commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
   RenderState::SetTopology(topology);
 
@@ -558,7 +557,7 @@ auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology,
       static_cast<uint64_t>(vertexCount * instanceCount);
   RenderState::CurrentStats.instanceCount += instanceCount;
 
-  CHECK_ERR(commandBuffer->Draw({vertexCount, instanceCount, 0, 0}));
+  CHECK_ERR(commandBuffer->Draw(vertexCount, instanceCount, 0, 0));
 
 #if Enable_Snapshots
   CaptureEvent(DrawEvent(vertexCount, instanceCount, 0, 0));
@@ -578,8 +577,8 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer,
   }
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
-  commandBuffer->SetVertexInputEXT({0, nullptr, 0, nullptr});
-  commandBuffer->BindVertexBuffers({0, 0, nullptr, nullptr});
+  commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
+  commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
   RenderState::SetTopology(topology);
 
   CHECK_ERR(InsertResourceBarriers(context));
@@ -597,7 +596,7 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer,
       static_cast<uint64_t>(indexCount * instanceCount);
   RenderState::CurrentStats.instanceCount += instanceCount;
 
-  CHECK_ERR(commandBuffer->DrawIndexed({indexCount, instanceCount, 0, 0, 0}));
+  CHECK_ERR(commandBuffer->DrawIndexed(indexCount, instanceCount, 0, 0, 0));
 
 #if Enable_Snapshots
   CaptureEvent(DrawIndexedEvent(indexCount, instanceCount, 0, 0, 0));

@@ -169,9 +169,9 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
   copyRegion.srcOffset = 0;
   copyRegion.dstOffset = offset;
   copyRegion.size = uploadSize;
-  // vkCmdCopyBuffer(commandBuffer, stagingBuffer->handle, handle, 1, &copyRegion);
-  CHECK_ERR(commandBuffer->CopyBuffer(
-      {stagingBuffer->handle, handle, 1, &copyRegion}));
+
+  CHECK_ERR(
+      commandBuffer->CopyBuffer(stagingBuffer->handle, handle, 1, &copyRegion));
 
   stagingBuffer->MarkUse();
   MarkUse();
@@ -249,8 +249,8 @@ auto Buffer::UploadRing(const GraphicsContext &context,
   copyRegion.dstOffset = offset;
   copyRegion.size = uploadSize;
 
-  CHECK_ERR(commandBuffer->CopyBuffer(
-      {uploadBuffer->handle, handle, 1, &copyRegion}));
+  CHECK_ERR(
+      commandBuffer->CopyBuffer(uploadBuffer->handle, handle, 1, &copyRegion));
   uploadOffset += uploadSize;
 
   uploadBuffer->MarkUse();
@@ -461,7 +461,7 @@ auto Buffer::CopyTo(const GraphicsContext &context,
   copyRegion.dstOffset = dstIndex;
   copyRegion.size = size;
   CHECK_ERR(
-      commandBuffer->CopyBuffer({handle, dstBuffer.handle, 1, &copyRegion}));
+      commandBuffer->CopyBuffer(handle, dstBuffer.handle, 1, &copyRegion));
 
   MarkUse();
   dstBuffer.MarkUse();
@@ -491,8 +491,8 @@ auto Buffer::CopyTo(const GraphicsContext &context, Texture &dstTexture,
   CHECK_ERR(dstTexture.UseAsTransferDst(context));
 
   CHECK_ERR(
-      commandBuffer->CopyBufferToImage({handle, dstTexture.imageMemory->image,
-                                        VK_IMAGE_LAYOUT_GENERAL, 1, &region}));
+      commandBuffer->CopyBufferToImage(handle, dstTexture.imageMemory->image,
+                                       VK_IMAGE_LAYOUT_GENERAL, 1, &region));
 
   MarkUse();
   dstTexture.MarkUse();
@@ -553,7 +553,7 @@ auto Buffer::Clear(const GraphicsContext &context, uint32_t value,
   }
 
   // vkCmdFillBuffer(commandBuffer, handle, offset, size, value);
-  CHECK_ERR(commandBuffer->FillBuffer({handle, offset, size, value}));
+  CHECK_ERR(commandBuffer->FillBuffer(handle, offset, size, value));
 
   return Error::Success();
 }
@@ -625,7 +625,7 @@ auto Buffer::Readback(const GraphicsContext &context,
   copyRegion.srcOffset = offset;
   copyRegion.dstOffset = 0;
   copyRegion.size = uploadSize;
-  CHECK_ERR(commandBuffer->CopyBuffer({handle, stagingBuffer, 1, &copyRegion}));
+  CHECK_ERR(commandBuffer->CopyBuffer(handle, stagingBuffer, 1, &copyRegion));
 
   MarkUse();
   auto timelineValue = Graphics::SemaphoreManager::GetSemaphoreValue();

@@ -611,8 +611,8 @@ auto Clear(const GraphicsContext &context, const ClearInfo &clearInfo)
   }
 
   CHECK_ERR(commandBuffer->ClearAttachments(
-      {static_cast<uint32_t>(clearAttachments.size()), clearAttachments.data(),
-       static_cast<uint32_t>(clearRects.size()), clearRects.data()}));
+      static_cast<uint32_t>(clearAttachments.size()), clearAttachments.data(),
+      static_cast<uint32_t>(clearRects.size()), clearRects.data()));
 
   return Error::Success();
 }
