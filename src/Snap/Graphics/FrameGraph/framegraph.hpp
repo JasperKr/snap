@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -17,8 +18,8 @@ using CommandLevel = uint16_t;
 struct Level {
   CommandLevel level;
 
-  std::vector<CommandID> commands;
-  std::vector<CommandID> userBarriers;
+  std::vector<CommandIndex> commands;
+  std::vector<CommandIndex> userBarriers;
 
   // Barriers to be executed BEFORE these commands
   std::vector<VkMemoryBarrier2> barriers;
@@ -26,32 +27,39 @@ struct Level {
 
 struct RenderingInfo {
   VkRenderingInfo info{};
-  CommandID from = InvalidCommandID;
-  CommandID to = InvalidCommandID;
+  CommandIndex from = InvalidCommandID;
+  CommandIndex to = InvalidCommandID;
 };
+
+using CommandIDPair = std::pair<CommandID, uint16_t>;
 
 struct FrameGraph {
   // also defined in command.hpp
   static inline const CommandLevel InvalidDepth = UINT16_MAX;
 
-  auto Submit(const GraphicsContext &context, VirtualCommandBuffer &commands)
-      -> Error;
+  auto Submit(const GraphicsContext &context,
+              std::vector<VirtualCommandBuffer *> &newCommandBuffers) -> Error;
   auto Write(const GraphicsContext &context, VkCommandBuffer cmdBuffer)
       -> Error;
 
 private:
-  VirtualCommandBuffer *commandBuffer;
-  std::vector<Command> commands;
+  std::vector<VirtualCommandBuffer *> commandBuffers;
+
+  // reordered commands
+  std::vector<CommandID> commands;
+
+  // linear Command ID -> Command ID in command buffer
+  std::vector<CommandIDPair> commandIndices;
 
   std::vector<Level> graph;
-  std::unordered_map<CommandID, LoadOpConfig> loadOpConfigs;
+  std::unordered_map<CommandIndex, LoadOpConfig> loadOpConfigs;
 
   // Direct dependencies per command, after transitive reduction. Used for
   // scheduling (levels, reordering) only: a dropped edge here is redundant
   // for ordering, but its access/stage info would be lost if barrier
   // computation walked this list too. See commandHazardSources.
-  std::vector<std::vector<CommandID>> commandParents;
-  std::vector<std::vector<CommandID>> nextReady;
+  std::vector<std::vector<CommandIndex>> commandParents;
+  std::vector<std::vector<CommandIndex>> nextReady;
 
   // Quick early-out to see if resources were edited.
   std::unordered_set<void *> resourcesWritesInFrame;
@@ -63,11 +71,11 @@ private:
   // where a subsequent write needs W's access info even though R already
   // orders after W). GetRequiredBarriers walks this list so no writer's
   // access/stage flags are silently lost.
-  std::vector<std::vector<CommandID>> commandHazardSources;
+  std::vector<std::vector<CommandIndex>> commandHazardSources;
 
   // Scratch data for the reachability walk in ReduceParents.
   std::vector<uint32_t> ancestorStamps;
-  std::vector<CommandID> ancestorStack;
+  std::vector<CommandIndex> ancestorStack;
 
 #if OUTPUT_DEBUG_GRAPH
   // Temporary data for Graphviz
@@ -80,14 +88,14 @@ private:
   auto PreCompile() -> Error;
   auto Compile(const GraphicsContext &context) -> Error;
   auto BuildGraph() -> Error;
-  auto MarkAncestors(CommandID from, CommandID floor, uint32_t stamp) -> void;
-  auto ReduceParents(CommandID idx, const std::vector<CommandID> &candidates)
+  auto MarkAncestors(CommandIndex from, CommandIndex floor, uint32_t stamp)
       -> void;
+  auto ReduceParents(CommandIndex idx,
+                     const std::vector<CommandIndex> &candidates) -> void;
   auto CompactRenderPasses() -> Error;
   auto BuildRenderRegions(const GraphicsContext &context)
       -> Result<std::vector<RenderingInfo>>;
 
-  auto ValidateGraph() -> Error;
   auto InsertBarriers() -> Error;
   auto BuildReadyState() -> Error;
 
@@ -101,12 +109,18 @@ private:
                 VkPipelineStageFlags2 lastWritePipeline,
                 VkAccessFlags2 dstAccess, VkPipelineStageFlags2 dstPipeline)
       -> std::array<VkPipelineStageFlags2, UINT64_WIDTH>;
-  auto PickNextCommands(CommandID parent) -> std::vector<CommandID>;
-  auto ScoreCommand(CommandID parent, CommandID child) -> uint32_t;
-  auto Reorder() -> Result<std::vector<CommandID>>;
-  auto UpdateLevels(const std::vector<CommandID> &reordered) -> Error;
-  auto GetCommandLevel(CommandID commandId) -> CommandLevel;
+  auto PickNextCommands(CommandIndex parent) -> std::vector<CommandIndex>;
+  auto ScoreCommand(CommandIndex parent, CommandIndex child) -> uint32_t;
+  auto Reorder() -> Result<std::vector<CommandIndex> *>;
+  auto UpdateLevels(const std::vector<CommandIndex> &reordered) -> Error;
+  auto GetCommandLevel(CommandIndex commandId) -> CommandLevel;
   auto Reset() -> void;
   auto BuildLoadOpModes() -> void;
+  auto GetCommand(CommandIDPair identifier) -> Command &;
+  auto GetCommand(CommandID identifier) -> Command &;
+  static auto WriteCommand(const Command &command,
+                           const GraphicsContext &context,
+                           VkCommandBuffer cmdBuffer,
+                           const LoadOpConfig *loadOpConfig) -> Error;
 };
 } // namespace Graphics

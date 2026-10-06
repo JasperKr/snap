@@ -11,12 +11,13 @@
 #include "Graphics/vkPipelineHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
-#include <functional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -25,7 +26,6 @@
 #include <format>
 #endif
 #include "Modules/timer.hpp"
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -38,15 +38,35 @@
 namespace Graphics {
 
 auto FrameGraph::Submit(const GraphicsContext &context,
-                        VirtualCommandBuffer &commands) -> Error {
-  commandBuffer = &commands;
+                        std::vector<VirtualCommandBuffer *> &newCommandBuffers)
+    -> Error {
+  commandBuffers.clear();
+  commandIndices.clear();
+  uint16_t idx = 1UL;
+
+  for (auto &commandBuffer : newCommandBuffers) {
+    commandBuffers.emplace_back(commandBuffer);
+    for (auto identifier : commandBuffer->commands) {
+      commandIndices.emplace_back(identifier, idx);
+    }
+
+    idx++;
+  }
 
   CHECK_ERR(Compile(context));
 
   return {};
 }
 
-auto FrameGraph::ValidateGraph() -> Error { return {}; } // NOLINT
+auto FrameGraph::GetCommand(CommandIDPair identifier) -> Command & {
+  auto idx = identifier.second;
+  assert(idx != 0);
+  return commandBuffers.at(idx - 1)->commandStorage.at(identifier.first);
+}
+
+auto FrameGraph::GetCommand(CommandID identifier) -> Command & {
+  return GetCommand(commandIndices.at(identifier));
+}
 
 auto FrameGraph::MapResourceUsages() -> Error {
   ZoneScoped;
@@ -54,8 +74,9 @@ auto FrameGraph::MapResourceUsages() -> Error {
   {
     ZoneScopedN("Map writes");
 
-    for (const auto &command : commandBuffer->commands) {
-      const auto *boundState = get_if_derived<BoundResources>(command.data);
+    for (const auto command : commandIndices) {
+      const auto *boundState =
+          get_if_derived<BoundResources>(GetCommand(command).data);
 
       if (boundState == nullptr) {
         continue;
@@ -69,20 +90,19 @@ auto FrameGraph::MapResourceUsages() -> Error {
 
   {
     ZoneScopedN("Erase irrelevant data");
-    Utils::ParallelFor(
-        commandBuffer->commands, [this](Command &command) -> void {
-          auto *boundState = get_if_derived<BoundResources>(command.data);
+    Utils::ParallelFor(commandIndices, [this](CommandIDPair command) -> void {
+      auto *boundState =
+          get_if_derived<BoundResources>(GetCommand(command).data);
 
-          if (boundState == nullptr) {
-            return;
-          }
+      if (boundState == nullptr) {
+        return;
+      }
 
-          Utils::UnorderedErase(boundState->reads,
-                                [this](const VulkanResource &resource) -> bool {
-                                  return !resourcesWritesInFrame.contains(
-                                      resource.Ptr());
-                                });
-        });
+      Utils::UnorderedErase(
+          boundState->reads, [this](const VulkanResource &resource) -> bool {
+            return !resourcesWritesInFrame.contains(resource.Ptr());
+          });
+    });
   }
 
   return {};
@@ -92,8 +112,8 @@ auto FrameGraph::MapResourceUsages() -> Error {
 // reduced parent edges. Commands older than `floor` are never expanded: any
 // path between two candidate parents only passes through commands younger than
 // the oldest candidate, so cutting there does not change the outcome.
-auto FrameGraph::MarkAncestors(CommandID from, CommandID floor, uint32_t stamp)
-    -> void {
+auto FrameGraph::MarkAncestors(CommandIndex from, CommandIndex floor,
+                               uint32_t stamp) -> void {
   ancestorStack.clear();
   ancestorStack.emplace_back(from);
 
@@ -118,8 +138,8 @@ auto FrameGraph::MarkAncestors(CommandID from, CommandID floor, uint32_t stamp)
 //   A -> B -> C
 //   D ------> C
 // keeps both B -> C and D -> C, but drops A -> C.
-auto FrameGraph::ReduceParents(CommandID idx,
-                               const std::vector<CommandID> &candidates)
+auto FrameGraph::ReduceParents(CommandIndex idx,
+                               const std::vector<CommandIndex> &candidates)
     -> void {
   auto &parents = commandParents[idx];
   parents.clear();
@@ -161,8 +181,8 @@ auto FrameGraph::PreCompile() -> Error {
   // itself (writes chain through WAW, reads before the last write are already
   // WAR parents of it).
   struct Frontier {
-    CommandID lastWrite = InvalidCommandID;
-    std::vector<CommandID> readsSinceWrite;
+    CommandIndex lastWrite = InvalidCommandID;
+    std::vector<CommandIndex> readsSinceWrite;
   };
 
   // Resources only ever overlap when they share the same underlying handle
@@ -191,10 +211,10 @@ auto FrameGraph::PreCompile() -> Error {
                      std::vector<std::pair<VulkanResource, Frontier>>,
                      FrontierKeyHash>
       frontiers;
-  static std::vector<CommandID> candidates;
+  static std::vector<CommandIndex> candidates;
 
-  for (auto &command : commands) {
-    // Hot path. 800/1200 microseconds for large calls (depth prepass & material pass)
+  for (const CommandID commandID : commands) {
+    auto &command = GetCommand(commandID);
     ZoneScopedN("Determine command parents");
 
     candidates.clear();
@@ -238,8 +258,10 @@ auto FrameGraph::PreCompile() -> Error {
     Utils::DeDuplicate(candidates);
 
     CommandLevel level = 0;
-    for (const auto parent : candidates) {
-      const auto parentLevel = commands[parent].level;
+    for (const auto parentID : candidates) {
+      const auto &parent = GetCommand(commands.at(parentID));
+
+      const auto parentLevel = parent.level;
       ERR_ASSERT(parentLevel != InvalidDepth);
 
       level = std::max<CommandLevel>(level, parentLevel + 1);
@@ -306,7 +328,8 @@ auto FrameGraph::BuildGraph() -> Error {
 
   CommandLevel maxLevel{};
 
-  for (const auto &command : commands) {
+  for (const CommandID commandID : commands) {
+    const auto &command = GetCommand(commandID);
     maxLevel = std::max(maxLevel, command.level);
   }
 
@@ -316,7 +339,9 @@ auto FrameGraph::BuildGraph() -> Error {
   }
 
   size_t edgeCount = 0;
-  for (const auto &command : commands) {
+  for (const CommandID commandID : commands) {
+    const auto &command = GetCommand(commandID);
+
     ERR_ASSERT(command.level != InvalidDepth);
     ERR_ASSERT(command.level < maxLevel + 1);
 
@@ -384,11 +409,11 @@ auto FrameGraph::DebugOutput() -> Error {
   const static bool ExportRWLabels = true;
 
   for (const auto &level : graph) {
-    stream << std::format("subgraph cluster_level_{} {{\n", level.level);
-    stream << std::format("label = \"Level {}\";\n", level.level);
+    stream << std::format("subgraph cluster_level_{} {{\n", level->level);
+    stream << std::format("label = \"Level {}\";\n", level->level);
 
-    for (const auto commandId : level.commands) {
-      const auto &command = commands.at(commandId);
+    for (const auto commandID : level.commands) {
+      const auto &command = commands.at(commandID);
       if (ExportRWLabels) {
         const auto &reads = GetReads(command);
         const auto &writes = GetWrites(command);
@@ -412,18 +437,18 @@ auto FrameGraph::DebugOutput() -> Error {
           }
         }
 
-        stream << std::format("{} [label=\"{}: {}\nR: {}\nW: {}\"];\n",
-                              command.id, command.level,
-                              CommandTypeEnumHelper.ToString(command.GetType()),
-                              readStr.str(), writeStr.str());
+        stream << std::format(
+            "{} [label=\"{}: {}\nR: {}\nW: {}\"];\n", command->id,
+            command->level, CommandTypeEnumHelper.ToString(command->GetType()),
+            readStr.str(), writeStr.str());
       } else {
         stream << std::format(
-            "{} [label=\"{}: {}\"];\n", command.id, command.level,
-            CommandTypeEnumHelper.ToString(command.GetType()));
+            "{} [label=\"{}: {}\"];\n", command->id, command->level,
+            CommandTypeEnumHelper.ToString(command->GetType()));
       }
     }
 
-    stream << std::format("barriers_{} [\n", level.level);
+    stream << std::format("barriers_{} [\n", level->level);
 
     std::stringstream barriers{};
 
@@ -441,11 +466,11 @@ auto FrameGraph::DebugOutput() -> Error {
     uint32_t child = dependency & UINT16_MAX;
 
     ERR_ASSERT_MSG(
-        commands.at(child).level > commands.at(parent).level,
+        commands.at(child)->level > commands.at(parent)->level,
         std::format(
             "child: {} with parent: {}, child level {} <= parent level {}",
-            child, parent, commands.at(child).level,
-            commands.at(parent).level));
+            child, parent, commands.at(child)->level,
+            commands.at(parent)->level));
 
     stream << "\"" << parent << "\" -> \"" << child << "\";\n";
   }
@@ -543,10 +568,10 @@ inline auto ResourceListToString(const std::vector<void *> &resources)
 }
 
 auto FrameGraph::GetRequiredBarriers(
-    CommandID commandId, const VulkanResource &resource,
+    CommandID commandID, const VulkanResource &resource,
     VkAccessFlags2 accesses, VkPipelineStageFlags2 pipelines,
     std::vector<VkMemoryBarrier2> &memoryBarriers) -> void {
-  const auto &command = commands[commandId];
+  const auto &command = GetCommand(commandID);
 
   if (command.level == 0) {
     return;
@@ -556,10 +581,10 @@ auto FrameGraph::GetRequiredBarriers(
   // transitively-reduced commandParents: a source dropped there for being
   // reachable through another kept candidate can still be the only command
   // carrying the write access/stage info this barrier needs.
-  const auto &hazardSources = commandHazardSources[commandId];
+  const auto &hazardSources = commandHazardSources[command.id];
 
   for (const auto &parentID : hazardSources) {
-    const auto &parent = commands[parentID];
+    const auto &parent = GetCommand(commands.at(parentID));
     const auto *bound = get_if_derived<BoundResources>(parent.data);
 
     if (bound == nullptr) {
@@ -644,11 +669,12 @@ auto FrameGraph::InsertBarriers() -> Error {
     ZoneScopedN("Filter user barriers");
     for (auto &level : graph) {
       Utils::UnorderedErase(
-          level.commands, [&](const CommandID &commandId) -> bool {
-            const auto &command = commands[commandId];
+          level.commands, [&](const CommandIndex commandIndex) -> bool {
+            const CommandID commandID = commands.at(commandIndex);
+            const auto &command = GetCommand(commandID);
 
             if (command.GetType() == CommandType::vkCmdPipelineBarrier2) {
-              level.userBarriers.emplace_back(command.id);
+              level.userBarriers.emplace_back(commandID);
 
               return true;
             }
@@ -658,15 +684,15 @@ auto FrameGraph::InsertBarriers() -> Error {
   }
 
   const auto addBarriers = [this](const std::vector<VulkanResource> &resources,
-                                  const CommandID commandId,
+                                  const CommandID commandID,
                                   Graphics::Level &level) -> void {
     for (const auto &resource : resources) {
       if (!resourcesWritesInFrame.contains(resource.Ptr())) {
         continue;
       }
 
-      const auto *bound =
-          get_if_derived<BoundResources>(commands.at(commandId).data);
+      const auto &command = GetCommand(commandID);
+      const auto *bound = get_if_derived<BoundResources>(command.data);
 
       if (bound == nullptr) {
         continue;
@@ -680,21 +706,22 @@ auto FrameGraph::InsertBarriers() -> Error {
 
       const auto [accesses, pipelines] = iter->second;
 
-      GetRequiredBarriers(commandId, resource, accesses, pipelines,
+      GetRequiredBarriers(commandID, resource, accesses, pipelines,
                           level.barriers);
     }
   };
 
   for (auto &level : graph) {
     ZoneScopedN("level barriers");
-    for (const auto commandId : level.commands) {
-      const auto &command = commands[commandId];
+    for (const auto levelCmdID : level.commands) {
+      const auto &commandID = commands.at(levelCmdID);
+      const auto &command = GetCommand(commandID);
 
-      // if (command.GetType() == CommandType::renderPass) {
+      // if (command->GetType() == CommandType::renderPass) {
 
       // } else {
-      addBarriers(GetReads(command), commandId, level);
-      addBarriers(GetWrites(command), commandId, level);
+      addBarriers(GetReads(command), commandID, level);
+      addBarriers(GetWrites(command), commandID, level);
       // }
     }
 
@@ -886,7 +913,8 @@ auto FrameGraph::BuildRenderRegions(const GraphicsContext &context)
 
   for (const auto &level : graph) {
     for (const CommandID commandID : level.commands) {
-      const auto &command = commands.at(commandID);
+      const auto &command = GetCommand(commandID);
+
       const auto *drawState = command.GetDrawState();
       const auto *callableState = get_if_derived<Callable>(command.data);
       const auto type = command.GetType();
@@ -946,7 +974,8 @@ auto FrameGraph::BuildReadyState() -> Error {
   while (scheduledCount < commandCount) {
     batch.clear();
 
-    for (const auto &command : commands) {
+    for (const auto commandID : commands) {
+      const auto &command = GetCommand(commandID);
       if (scheduled[command.id]) {
         continue;
       }
@@ -968,21 +997,27 @@ auto FrameGraph::BuildReadyState() -> Error {
       scheduled[commandID] = true;
 
       // Find commands that become ready because of commandID.
-      for (const auto &command : commands) {
+      for (const auto childID : commands) {
+        const auto &command = GetCommand(childID);
+
+        // This command has been scheduled
         if (scheduled[command.id]) {
           continue;
         }
 
-        if (std::find(commandParents[command.id].begin(),
-                      commandParents[command.id].end(),
-                      commandID) == commandParents[command.id].end()) {
+        const auto &parentsOfChild = commandParents[command.id];
+        auto iter = std::ranges::find(parentsOfChild, commandID);
+
+        // We are not a parent of this command
+        if (iter == parentsOfChild.end()) {
           continue;
         }
 
-        const bool parentsReady = std::all_of(
-            commandParents[command.id].begin(),
-            commandParents[command.id].end(),
-            [&](CommandID parent) -> auto { return scheduled[parent]; });
+        // All parents have been scheduled
+        const bool parentsReady =
+            std::ranges::all_of(parentsOfChild, [&](CommandID parent) -> auto {
+              return scheduled[parent];
+            });
 
         if (parentsReady) {
           nextReady[commandID].emplace_back(command.id);
@@ -1019,10 +1054,10 @@ inline auto ComparePipelineCompatability(const GraphState &state,
   return true;
 }
 
-auto FrameGraph::ScoreCommand(CommandID parentID, CommandID childID)
+auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
     -> uint32_t {
-  const auto &parent = commands.at(parentID);
-  const auto &child = commands.at(childID);
+  const auto &parent = GetCommand(commands.at(parentID));
+  const auto &child = GetCommand(commands.at(childID));
 
   const auto DynamicStateUpdateCost = 100U;
   const auto EndRenderingCost = 500U;
@@ -1066,7 +1101,8 @@ auto FrameGraph::ScoreCommand(CommandID parentID, CommandID childID)
 }
 
 // returns a list of commands, with the best pick last
-auto FrameGraph::PickNextCommands(CommandID parent) -> std::vector<CommandID> {
+auto FrameGraph::PickNextCommands(CommandIndex parent)
+    -> std::vector<CommandIndex> {
   ZoneScoped;
 
   const auto &children = nextReady.at(parent);
@@ -1081,21 +1117,21 @@ auto FrameGraph::PickNextCommands(CommandID parent) -> std::vector<CommandID> {
   }
 
   uint32_t lowestScore = ScoreCommand(parent, children.front());
-  CommandID bestCommand = children.front();
+  CommandIndex bestCommand = children.front();
 
-  static std::unordered_map<CommandID, uint32_t> scores;
+  static std::unordered_map<CommandIndex, uint32_t> scores;
   snap_defer(scores.clear());
   scores.reserve(children.size());
 
-  for (CommandID child : children) {
+  for (CommandIndex child : children) {
     scores.emplace(child, ScoreCommand(parent, child));
   }
 
-  std::vector<CommandID> sortedChildren{children};
+  std::vector<CommandIndex> sortedChildren{children};
 
   std::ranges::sort(
       sortedChildren,
-      [](const CommandID &first, const CommandID &second) -> bool {
+      [](const CommandIndex &first, const CommandIndex &second) -> bool {
         // A(3) > B(2) -> A, B. We want highest score first, so A > B
         return scores.at(first) > scores.at(second);
       });
@@ -1103,14 +1139,16 @@ auto FrameGraph::PickNextCommands(CommandID parent) -> std::vector<CommandID> {
   return sortedChildren;
 }
 
-auto FrameGraph::Reorder() -> Result<std::vector<CommandID>> {
+auto FrameGraph::Reorder() -> Result<std::vector<CommandIndex> *> {
   ZoneScoped;
 
-  static std::vector<CommandID> commandsStack;
+  // indices pointing to commands
+  static std::vector<CommandIndex> commandsStack;
   snap_defer(commandsStack.clear());
   commandsStack.reserve(commands.size() / 4);
 
-  for (const auto &command : commands) {
+  for (const auto commandID : commands) {
+    const auto &command = GetCommand(commandID);
     const auto &parents = commandParents.at(command.id);
 
     [[likely]]
@@ -1118,19 +1156,24 @@ auto FrameGraph::Reorder() -> Result<std::vector<CommandID>> {
       continue;
     }
 
+    assert(command.id == GetCommand(commands.at(command.id)).id);
+
     commandsStack.emplace_back(command.id);
   }
 
-  static std::unordered_set<CommandID> visited;
+  static std::unordered_set<CommandIndex> visited;
   snap_defer(visited.clear());
 
-  std::vector<CommandID> reordered;
+  static std::vector<CommandIndex> reordered;
+  reordered.clear();
   reordered.reserve(commands.size());
 
   while (!commandsStack.empty()) {
-    reordered.emplace_back(commandsStack.back());
-    visited.emplace(commandsStack.back());
-    auto nextCommands = PickNextCommands(commandsStack.back());
+    const auto commandID = commandsStack.back();
+
+    reordered.emplace_back(commandID);
+    visited.emplace(commandID);
+    auto nextCommands = PickNextCommands(commandID);
     commandsStack.pop_back();
 
     [[unlikely]]
@@ -1139,8 +1182,8 @@ auto FrameGraph::Reorder() -> Result<std::vector<CommandID>> {
     }
 
     Utils::UnorderedErase(nextCommands,
-                          [&](const CommandID &commandId) -> bool {
-                            return visited.contains(commandId);
+                          [&](const CommandIndex commandID) -> bool {
+                            return visited.contains(commandID);
                           });
 
     commandsStack.append_range(nextCommands);
@@ -1148,11 +1191,11 @@ auto FrameGraph::Reorder() -> Result<std::vector<CommandID>> {
 
   ERR_ASSERT(reordered.size() == commands.size());
 
-  return reordered;
+  return &reordered;
 }
 
-auto FrameGraph::GetCommandLevel(CommandID commandId) -> CommandLevel {
-  auto &command = commands.at(commandId);
+auto FrameGraph::GetCommandLevel(CommandIndex commandID) -> CommandLevel {
+  auto &command = GetCommand(commands.at(commandID));
 
   [[likely]]
   if (command.level != InvalidDepth) {
@@ -1161,7 +1204,7 @@ auto FrameGraph::GetCommandLevel(CommandID commandId) -> CommandLevel {
 
   command.level = 0U;
 
-  for (const CommandID parent : commandParents.at(commandId)) {
+  for (const CommandIndex parent : commandParents.at(commandID)) {
     CommandLevel parentLevel = GetCommandLevel(parent);
 
     assert(parentLevel != InvalidDepth);
@@ -1169,44 +1212,34 @@ auto FrameGraph::GetCommandLevel(CommandID commandId) -> CommandLevel {
     command.level = std::max<CommandLevel>(command.level, parentLevel + 1U);
   }
 
-  if (!commandParents.at(commandId).empty()) {
+#ifndef NDEBUG
+  if (!commandParents.at(commandID).empty()) {
     assert(command.level != 0U);
   }
+#endif
 
   return command.level;
 }
 
-auto FrameGraph::UpdateLevels(const std::vector<CommandID> &reordered)
+auto FrameGraph::UpdateLevels(const std::vector<CommandIndex> &reordered)
     -> Error {
   ZoneScoped;
 
-  for (auto &command : commands) {
+  for (auto commandID : commands) {
+    auto &command = GetCommand(commandID);
     command.level = InvalidDepth;
   }
 
-  for (auto commandId : reordered) {
-    GetCommandLevel(commandId);
-  }
-
-  CommandLevel maxLevel = 0U;
-  for (const CommandID commandId : reordered) {
-    const auto &command = commands.at(commandId);
-    ERR_ASSERT(command.level != InvalidDepth);
-    maxLevel = std::max(maxLevel, command.level);
-  }
-
-  size_t startSize = graph.size();
   graph.clear();
-  graph.resize(maxLevel + 1);
 
-  for (auto i = 0; i < graph.size(); i++) {
-    graph.at(i).level = i;
-    graph.at(i).commands.clear();
-  }
+  for (auto commandID : reordered) {
+    const CommandLevel level = GetCommandLevel(commandID);
+    if (graph.size() <= level) {
+      graph.resize(level + 1);
+    }
 
-  for (const CommandID commandId : reordered) {
-    auto &command = commands.at(commandId);
-    graph.at(command.level).commands.emplace_back(commandId);
+    graph.at(level).commands.emplace_back(commandID);
+    graph.at(level).level = level;
   }
 
   return {};
@@ -1220,7 +1253,8 @@ auto FrameGraph::BuildLoadOpModes() -> void {
   ObjectID lastDepthStencilAttachment = UINT64_MAX;
   bool isFirstIteration = true;
 
-  for (const auto &command : commands) {
+  for (const auto commandID : commands) {
+    const auto &command = GetCommand(commandID);
     const auto type = command.GetType();
 
     if (type != CommandType::renderPass &&
@@ -1305,18 +1339,18 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   int count = 0;
 
   RenderPass *currentPass = nullptr;
-  static std::unordered_set<VulkanResource, VulkanResourceHash<true>>
-      knownReads;
-  static std::unordered_set<VulkanResource, VulkanResourceHash<true>>
-      knownWrites;
-
-  snap_defer(knownReads.clear());
-  snap_defer(knownWrites.clear());
 
   inRange = false;
   int drawStateMismatches = 0;
 
-  for (const auto &command : commandBuffer->commands) {
+  auto commandCount = commandIndices.size();
+  assert(commandCount <= UINT16_MAX);
+
+  ERR_ASSERT(commands.empty());
+
+  // NOLINTNEXTLINE
+  for (CommandID commandID = 0; commandID < commandCount; commandID++) {
+    const auto &command = GetCommand(commandID);
     const auto type = command.GetType();
 
     if (type == CommandType::vkCmdDraw ||
@@ -1326,61 +1360,71 @@ auto FrameGraph::CompactRenderPasses() -> Error {
       uint32_t stateID = command.GetDrawState()->stateID;
 
       if (!inRange) {
-        currentPass = &GetCachedRenderPass(stateID);
+        auto *renderpassCommand =
+            commandBuffers.back()->GetNewCommand(CommandType::renderPass);
+        // Point the reordered command to the last index of commandIndices
+        commands.emplace_back(commandIndices.size());
+
+        // Create the new command pointer in the last command buffer's commands, pointing to the last index
+        commandIndices.emplace_back(commandBuffers.back()->commands.back(),
+                                    commandBuffers.size());
+
+        currentPass = &std::get<RenderPass>(renderpassCommand->data);
+        currentPass->reads.clear();
+        currentPass->writes.clear();
+        currentPass->accesses.clear();
+        currentPass->commands.clear();
+        currentPass->stateID = stateID;
       }
       inRange = true;
 
       if (currentPass->stateID != stateID) {
-        currentPass->reads = {knownReads.begin(), knownReads.end()};
-        currentPass->writes = {knownWrites.begin(), knownWrites.end()};
-        commands.emplace_back(*currentPass);
-        currentPass = &GetCachedRenderPass(stateID);
-        knownReads.clear();
-        knownWrites.clear();
+        // Create new command in the last command buffer
+        auto *renderpassCommand =
+            commandBuffers.back()->GetNewCommand(CommandType::renderPass);
+        // Point the reordered command to the last index of commandIndices
+        commands.emplace_back(commandIndices.size());
+
+        // Create the new command pointer in the last command buffer's commands, pointing to the last index
+        commandIndices.emplace_back(commandBuffers.back()->commands.back(),
+                                    commandBuffers.size());
+
+        currentPass = &std::get<RenderPass>(renderpassCommand->data);
+        currentPass->reads.clear();
+        currentPass->writes.clear();
+        currentPass->accesses.clear();
+        currentPass->commands.clear();
+        currentPass->stateID = stateID;
+
         drawStateMismatches++;
       }
 
       const auto *bound = get_if_derived<BoundResources>(command.data);
-      currentPass->commands.emplace_back(command.id);
+      ASSUME(bound != nullptr);
+      currentPass->commands.emplace_back(commandID);
 
-      for (const auto &read : bound->reads) {
-        knownReads.emplace(read);
-      }
-      for (const auto &write : bound->writes) {
-        knownWrites.emplace(write);
-      }
+      currentPass->reads.append_range(bound->reads);
+      currentPass->writes.append_range(bound->writes);
+
       for (const auto &access : bound->accesses) {
         currentPass->accesses.emplace(access);
       }
-
     } else {
-      if (inRange) {
-        currentPass->reads = {knownReads.begin(), knownReads.end()};
-        currentPass->writes = {knownWrites.begin(), knownWrites.end()};
-        commands.emplace_back(*currentPass);
-        knownReads.clear();
-        knownWrites.clear();
-      }
-
       inRange = false;
-      commands.emplace_back(command);
+      commands.emplace_back(commandID);
     }
   }
 
-  if (inRange) {
-    currentPass->reads = {knownReads.begin(), knownReads.end()};
-    currentPass->writes = {knownWrites.begin(), knownWrites.end()};
-    commands.emplace_back(*currentPass);
-  }
-
-  CommandID idx{};
+  CommandIndex idx{};
 
   {
     ZoneScopedN("De-Duplicate resources");
-    for (auto &command : commands) {
+    for (const CommandID commandID : commands) {
+      auto &command = GetCommand(commandID);
+
       command.id = idx++;
-      command.uniqueID = command.id + commandBuffer->commands.size();
-      ERR_ASSERT(idx != UINT16_MAX);
+      command.uniqueID = command.id + commandIndices.size();
+      ERR_ASSERT(idx != InvalidCommandID);
 
       auto *bound = get_if_derived<BoundResources>(command.data);
 
@@ -1397,9 +1441,8 @@ auto FrameGraph::CompactRenderPasses() -> Error {
     }
   }
 
-  // PrintAlways(
-  //     "Starting command count: {}, reduced: {}, draw state mismatches {}",
-  //     commandBuffer->commands.size(), commands.size(), drawStateMismatches);
+  ERR_ASSERT(commands.size() <= commandIndices.size());
+  ERR_ASSERT(idx == commands.size());
 
   return {};
 }
@@ -1408,23 +1451,13 @@ auto FrameGraph::CompactRenderPasses() -> Error {
 auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   ZoneScoped;
 
-  CHECK_ERR(ValidateGraph());
-
-  CommandID idx = 0;
-
-  for (auto &command : commandBuffer->commands) {
-    command.id = idx++;
-    command.uniqueID = command.id;
-    ERR_ASSERT(idx != UINT16_MAX);
-  }
-
   CHECK_ERR(MapResourceUsages());
   CHECK_ERR(CompactRenderPasses());
   CHECK_ERR(BuildGraph());
   CHECK_ERR(BuildReadyState());
 
-  const auto &reordered = CHECK_RES(Reorder());
-  CHECK_ERR(UpdateLevels(reordered));
+  const auto *reordered = CHECK_RES(Reorder());
+  CHECK_ERR(UpdateLevels(*reordered));
   CHECK_ERR(InsertBarriers());
 
   // PrintAlways("Command count: {}", commands.size());
@@ -1443,10 +1476,10 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   return {};
 }
 
-auto WriteCommand(const std::vector<Command> &commands, CommandID commandId,
-                  const GraphicsContext &context, VkCommandBuffer cmdBuffer,
-                  const LoadOpConfig *loadOpConfig) -> Error {
-  const auto &command = commands.at(commandId);
+auto FrameGraph::WriteCommand(const Command &command,
+                              const GraphicsContext &context,
+                              VkCommandBuffer cmdBuffer,
+                              const LoadOpConfig *loadOpConfig) -> Error {
   const auto *callable = get_if_derived<Callable>(command.data);
   const auto *state = command.GetDrawState();
   const auto type = command.GetType();
@@ -1486,8 +1519,8 @@ auto FrameGraph::Write(const GraphicsContext &context,
     if (!level.userBarriers.empty()) {
       EndRendering(context, cmdBuffer);
 
-      for (const auto &barrier : level.userBarriers) {
-        const auto &command = commands.at(barrier);
+      for (const CommandIndex barrier : level.userBarriers) {
+        const auto &command = GetCommand(barrier);
         const auto *callable = get_if_derived<Callable>(command.data);
 
         CHECK_ERR(callable->Call(cmdBuffer));
@@ -1532,28 +1565,29 @@ auto FrameGraph::Write(const GraphicsContext &context,
       vkCmdPipelineBarrier2(cmdBuffer, &depInfo);
     }
 
-    for (const CommandID commandId : level.commands) {
-      const auto &command = commands.at(commandId);
+    for (const CommandIndex levelCmdID : level.commands) {
+      const auto commandID = commands.at(levelCmdID);
+      const auto &command = GetCommand(commandID);
       const auto type = command.GetType();
 
       if (type == CommandType::renderPass) {
         ZoneScopedN("Write render pass");
-        const auto *loadOpConfig = &loadOpConfigs.at(commandId);
+        const auto *loadOpConfig = &loadOpConfigs.at(levelCmdID);
         const auto &renderPass = std::get<RenderPass>(command.data);
         const auto &levelCommands = renderPass.commands;
 
         for (const CommandID childCommandId : levelCommands) {
-          CHECK_ERR(WriteCommand(commandBuffer->commands, childCommandId,
-                                 context, cmdBuffer, loadOpConfig));
+          const auto &childCommand = GetCommand(childCommandId);
+          CHECK_ERR(
+              WriteCommand(childCommand, context, cmdBuffer, loadOpConfig));
         }
       } else {
-        auto configIter = loadOpConfigs.find(commandId);
+        auto configIter = loadOpConfigs.find(levelCmdID);
         if (configIter == loadOpConfigs.end()) {
-          CHECK_ERR(
-              WriteCommand(commands, commandId, context, cmdBuffer, nullptr));
+          CHECK_ERR(WriteCommand(command, context, cmdBuffer, nullptr));
         } else {
-          CHECK_ERR(WriteCommand(commands, commandId, context, cmdBuffer,
-                                 &configIter->second));
+          CHECK_ERR(
+              WriteCommand(command, context, cmdBuffer, &configIter->second));
         }
       }
     }
@@ -1584,7 +1618,6 @@ auto FrameGraph::Reset() -> void {
   resourcesWritesInFrame.clear();
   CommandStateManager::StateToIndex.clear();
   CommandStateManager::States.clear();
-  commandBuffer = {};
   RecordingState::CurrentState = {};
   RecordingState::LastStateStorage = {};
 }

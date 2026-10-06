@@ -22,10 +22,10 @@
 #include <vulkan/vulkan_core.h>
 namespace Graphics {
 
-// 65K events per frame should be more than enough
-// Loading bistro in a single frame takes < 15K events, so it should be fine.
 using CommandID = uint16_t;
-static constexpr uint16_t InvalidCommandID = UINT16_MAX;
+using CommandIndex = uint32_t;
+
+static const CommandID InvalidCommandID = UINT16_MAX;
 
 // We have a virtual command buffer per-thread
 // Each command buffer stores the thread's recorded commands,
@@ -214,6 +214,7 @@ struct ImageSubresource {
   uint16_t mipStart;
   uint16_t mipCount;
 
+  ImageSubresource() = default;
   ImageSubresource(const Ref<Texture> &texture);
   ImageSubresource(const Texture *texture);
   ImageSubresource(VkImage image, uint16_t layerStart, uint16_t layerCount,
@@ -250,6 +251,8 @@ struct VulkanResource {
     VkBuffer buffer;
     VkAccelerationStructureKHR accelerationStructure;
   };
+
+  VulkanResource() = default;
 
   VulkanResource(const ImageSubresource &image)
       : type(ResourceType::Image), image(image) {}
@@ -916,22 +919,22 @@ struct VkCmdPipelineBarrier2 : Callable, BoundResources {
 
   static const CommandType type = CommandType::vkCmdPipelineBarrier2;
 
-  VkDependencyInfo dependencyInfo{};
   std::vector<VkMemoryBarrier2> memoryBarriers;
   std::vector<VkBufferMemoryBarrier2> bufferMemoryBarriers;
   std::vector<VkImageMemoryBarrier2> imageMemoryBarriers;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    VkDependencyInfo tempDepInfo = dependencyInfo;
+    VkDependencyInfo dep{};
+    dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
 
-    tempDepInfo.pMemoryBarriers =
+    dep.pMemoryBarriers =
         memoryBarriers.empty() ? nullptr : memoryBarriers.data();
-    tempDepInfo.pBufferMemoryBarriers =
+    dep.pBufferMemoryBarriers =
         bufferMemoryBarriers.empty() ? nullptr : bufferMemoryBarriers.data();
-    tempDepInfo.pImageMemoryBarriers =
+    dep.pImageMemoryBarriers =
         imageMemoryBarriers.empty() ? nullptr : imageMemoryBarriers.data();
 
-    vkCmdPipelineBarrier2(cmdBuffer, &tempDepInfo);
+    vkCmdPipelineBarrier2(cmdBuffer, &dep);
     return {};
   }
 };
@@ -1000,8 +1003,8 @@ using ArgVariants = std::variant<
     Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2, RenderPass>;
 
 struct Command {
-  CommandID id = InvalidCommandID;
-  CommandID uniqueID = InvalidCommandID;
+  CommandIndex id = UINT16_MAX;
+  uint16_t uniqueID = UINT16_MAX;
 
   // Also defined in framegraph.cpp as InvalidDepth
   uint16_t level = UINT16_MAX;
@@ -1046,15 +1049,6 @@ auto GetReads(const Command &command) -> const std::vector<VulkanResource> &;
 auto GetWrites(const Command &command) -> const std::vector<VulkanResource> &;
 
 struct VirtualCommandBuffer {
-  void Initialize() {
-    // for (auto type = (uint8_t)CommandType::vkCmdDraw;
-    //      type < (uint8_t)CommandType::renderPass; type++) {
-    //   caches[(CommandType)type];
-    // }
-
-    caches.resize((uint8_t)CommandType::renderPass);
-  }
-
   friend struct FrameGraph;
 
   auto Append(const VirtualCommandBuffer &buffer) -> Error {
@@ -1177,17 +1171,21 @@ struct VirtualCommandBuffer {
 
   // NOLINTBEGIN
 
-  static auto AddCommand(Command &command) -> Error;
+  static auto AddCommand(Command *command) -> Error;
 
-  std::vector<Command> commands;
+  std::vector<Command> commandStorage;
+  std::vector<uint16_t> commands;
+
+  [[nodiscard]] auto GetCommand(uint32_t identifier) -> Command & {
+    return commandStorage.at(identifier);
+  }
 
   uint32_t queueFamily;
 
   GraphState currentState;
-  std::vector<std::vector<Command>> caches;
+  std::vector<std::vector<uint32_t>> caches;
 
-private:
-  auto GetNewCommand(CommandType type) -> Command &;
+  auto GetNewCommand(CommandType type) -> Command *;
 
   // NOLINTEND
 };

@@ -253,18 +253,10 @@ auto Present(Graphics::GraphicsContext &context,
   context.currentlyReordering = true;
 
   // Match and combine by queue family
-  std::unordered_map<uint8_t, VirtualCommandBuffer *> combined;
+  std::unordered_map<uint8_t, std::vector<VirtualCommandBuffer *>> combined;
   for (const auto &command : commands) {
     auto &commandBuffer = command->threadData.commandBuffer;
-
-    auto iter = combined.find(commandBuffer->GetQueueFamily());
-    if (iter == combined.end()) {
-      combined.emplace(commandBuffer->GetQueueFamily(), commandBuffer);
-    } else {
-      CHECK_ERR(iter->second->Append(*commandBuffer));
-    }
-
-    command->threadData.commandBuffer = nullptr;
+    combined[commandBuffer->GetQueueFamily()].emplace_back(commandBuffer);
   }
 
   std::vector<uint64_t> orderedSemaphoreValues = {};
@@ -319,7 +311,7 @@ auto Present(Graphics::GraphicsContext &context,
       ERR_ASSERT(!transitioned);
 
       auto &threadData = GetThreadContext();
-      threadData.commandBuffer = cmdBuffer.second;
+      threadData.commandBuffer = cmdBuffer.second.back();
 
       CHECK_ERR(swapchainManager.EndFrame(context));
 
@@ -338,14 +330,14 @@ auto Present(Graphics::GraphicsContext &context,
                            .memoryBarrierCount = 1,
                            .pMemoryBarriers = &barrier};
 
-      CHECK_ERR(cmdBuffer.second->PipelineBarrier2(&dep));
+      CHECK_ERR(cmdBuffer.second.back()->PipelineBarrier2(&dep));
 
       threadData.commandBuffer = nullptr;
 
       transitioned = true;
     }
 
-    CHECK_ERR(graph.Submit(context, *cmdBuffer.second));
+    CHECK_ERR(graph.Submit(context, cmdBuffer.second));
     CHECK_ERR(graph.Write(context, availableCommandBuffers.at(index)));
     graph = {};
 

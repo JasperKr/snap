@@ -417,7 +417,6 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
   std::vector<VkBuffer> writes{accelerationStructureBuffer->handle,
                                scratchBuffer->handle};
 
-  // vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
   CHECK_ERR(cmdBuffer->BuildAccelerationStructuresKHR(
       1, &buildInfo, &rangePtr, reads.size(), reads.data(), writes.size(),
       writes.data()));
@@ -525,7 +524,6 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
   }
   std::vector<VkBuffer> writes{accelerationStructureBuffer->handle};
 
-  // vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
   CHECK_ERR(cmdBuffer->BuildAccelerationStructuresKHR(
       1, &buildInfo, &rangePtr, reads.size(), reads.data(), writes.size(),
       writes.data()));
@@ -843,7 +841,6 @@ auto TLAS::Create(const GraphicsContext &context,
   std::vector<VkBuffer> writes{tlas->accelerationStructureBuffer->handle,
                                scratchBuffer->handle};
 
-  // vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &buildInfo, &rangePtr);
   CHECK_ERR(cmdBuffer->BuildAccelerationStructuresKHR(
       1, &buildInfo, &rangePtr, reads.size(), reads.data(), writes.size(),
       writes.data()));
@@ -986,8 +983,6 @@ auto TLAS::Refit(const GraphicsContext &context) -> Error {
   std::vector<VkBuffer> writes{accelerationStructureBuffer->handle,
                                scratchBuffer->handle};
 
-  // vkCmdBuildAccelerationStructuresKHR(GetCommandBuffer(), 1, &buildInfo,
-  //                                     &rangePtr);
   CHECK_ERR(GetVirtualCommandBuffer()->BuildAccelerationStructuresKHR(
       1, &buildInfo, &rangePtr, reads.size(), reads.data(), writes.size(),
       writes.data()));
@@ -1127,8 +1122,6 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
   std::vector<VkBuffer> writes{accelerationStructureBuffer->handle,
                                scratchBuffer->handle};
 
-  // vkCmdBuildAccelerationStructuresKHR(GetCommandBuffer(), 1, &buildInfo,
-  //                                     &rangePtr);
   CHECK_ERR(GetVirtualCommandBuffer()->BuildAccelerationStructuresKHR(
       1, &buildInfo, &rangePtr, reads.size(), reads.data(), writes.size(),
       writes.data()));
