@@ -3,7 +3,6 @@
 #include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
-#include "Modules/Helpers/utils.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "slang/slang.h"

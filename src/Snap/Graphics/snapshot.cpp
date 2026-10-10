@@ -7,10 +7,8 @@
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/packedColor.hpp"
 #include "Modules/Math/vector.hpp"
-#include "Modules/console.hpp"
 #include "Modules/image.hpp"
 #include "Modules/object.hpp"
-#include "Modules/timer.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>

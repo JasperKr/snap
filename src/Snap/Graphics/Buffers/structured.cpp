@@ -4,7 +4,6 @@
 #include "Graphics/bufferformat.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
-#include "tl/expected.hpp"
 
 namespace Graphics {
 

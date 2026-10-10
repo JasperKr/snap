@@ -1,12 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 #include <vector>
 
-#include "Graphics/graphicsState.hpp"
-#include "Modules/object.hpp"
-#include "Modules/stackVector.hpp"
 #include "vulkan/vulkan_core.h"
 
 namespace Graphics {

@@ -2,7 +2,6 @@
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/renderState.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "pipelineState.hpp"
 #include <public/tracy/Tracy.hpp>

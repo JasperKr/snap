@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Graphics/renderState.hpp"
-#include "Graphics/shader.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "descriptorKey.hpp"
 #include <mutex>
