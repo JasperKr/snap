@@ -70,16 +70,6 @@ auto Subspan(std::vector<uint8_t> &vec, size_t offset, size_t size)
   return {vec.data() + offset, range - offset};
 }
 
-auto SetBindingToSlot(uint32_t set, uint32_t binding) -> uint64_t {
-  return (static_cast<uint64_t>(set) << 32U) | binding; // NOLINT
-}
-
-auto SlotToSetBinding(uint64_t slot) -> std::pair<uint32_t, uint32_t> {
-  auto set = static_cast<uint32_t>((slot >> 32U) & UINT32_MAX); // NOLINT
-  auto binding = static_cast<uint32_t>(slot & UINT32_MAX);
-  return {set, binding};
-}
-
 // Returns the next capacity that is greater than or equal to requiredCapacity
 // and is a power-of-two multiple of currentCapacity.
 auto NextCapacity(size_t currentCapacity, size_t requiredCapacity) -> size_t {

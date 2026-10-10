@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Graphics/bufferformat.hpp"
+#include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Modules/error.hpp"
@@ -473,7 +474,7 @@ struct FlattenedReflection {
 
 struct ShaderReflection {
   std::vector<ResourceInfo> resources;
-  std::unordered_map<uint64_t, ResourceInfo> slotToInfo;
+  std::unordered_map<DescriptorSlot, ResourceInfo> slotToInfo;
   BufferInfo globals;
   Graphics::BufferFormat globalBufferFormat;
   bool hasGlobals{false};
@@ -484,11 +485,12 @@ struct ShaderReflection {
 
   // Set -> FlattenedReflection
   std::unordered_map<uint32_t, FlattenedReflection> flattened;
-  std::unordered_map<ResourceKey, uint64_t, ResourceKeyHash> keyToSlot;
+  std::unordered_map<ResourceKey, DescriptorSlot, ResourceKeyHash> keyToSlot;
   std::vector<FlattenedReflection> pushBuffers;
 
   using SlotsStorage =
-      std::unordered_map<uint32_t, Math::StackVector<uint64_t, 16>>; // NOLINT
+      std::unordered_map<uint32_t,
+                         Math::StackVector<DescriptorSlot, 16>>; // NOLINT
 
   // All buffers and textures corresponding to a given set, for quick lookup when binding descriptors
   SlotsStorage bufferSlotsBySet;

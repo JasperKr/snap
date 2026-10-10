@@ -2,11 +2,11 @@
 #include "Graphics/Buffers/push.hpp"
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/allocations.hpp"
+#include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/reflect.hpp"
 #include "Graphics/snapshot.hpp"
 #include "Graphics/texture.hpp"
-#include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
@@ -593,8 +593,7 @@ inline auto ValidateBuffers(const Shader *shader) -> Error {
       continue;
     }
 
-    auto locationKey =
-        Utils::SetBindingToSlot(bufferInfo.set, bufferInfo.binding);
+    auto locationKey = DescriptorSlot(bufferInfo.set, bufferInfo.binding);
 
     if (!shader->GetState().userBoundBuffers.contains(locationKey)) {
       return Error::Createf("Buffer '{}' not set up in shader.", resource.name);
@@ -615,7 +614,7 @@ inline auto ValidateAccelerationStructures(const Shader *shader) -> Error {
         std::get<Reflect::AccelerationStructureInfo>(resource.info);
 
     auto locationKey =
-        Utils::SetBindingToSlot(accelStructInfo.set, accelStructInfo.binding);
+        DescriptorSlot(accelStructInfo.set, accelStructInfo.binding);
 
     if (!shader->GetState().userBoundAccelerationStructures.contains(
             locationKey)) {
@@ -678,32 +677,21 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
 auto Shader::Send(const ResourceKey &key, const Ref<Buffer> &buffer) -> Error {
   ZoneScopedN("Shader::Send structured buffer");
 
-  if (!buffer.isValid()) {
-    return Error::Create("Buffer is null.");
-  }
-
   auto iter = reflection.keyToSlot.find(key);
-  if (iter != reflection.keyToSlot.end()) {
-    auto locationKey = iter->second;
-    auto [set, binding] = Utils::SlotToSetBinding(locationKey);
 
-    auto *info = GetSlotDescription(set, binding);
-    auto *bufferInfo = std::get_if<Reflect::BufferInfo>(&info->info);
-    if (bufferInfo == nullptr) {
-      auto keyname = Reflect::ResourceKeyToString(key);
-      return Error::Createf(
-          "Resource {} is not a buffer in shader reflection: {}", keyname,
-          name);
-    }
+  CHECK_NULL(buffer);
+  ERR_ASSERT(iter != reflection.keyToSlot.end());
 
-    GetState().userBoundBuffers[locationKey] =
-        BoundBufferPair{buffer, bufferInfo};
-    return Error::Success();
-  }
+  const auto *info = GetSlotDescription(iter->second);
+  const auto *bufferInfo = std::get_if<Reflect::BufferInfo>(&info->info);
+  CHECK_NULL(bufferInfo);
 
-  auto keyname = Reflect::ResourceKeyToString(key);
-  return Error::Createf("Buffer {} not found in shader reflection: {}", keyname,
-                        name);
+  auto &state = GetState();
+
+  state.userBoundBuffers[iter->second] = BoundBufferPair{buffer, bufferInfo};
+  // state.descriptorKeys.at()
+
+  return {};
 }
 
 auto Shader::Send(const ResourceKey &key,
@@ -722,10 +710,7 @@ auto Shader::Send(const ResourceKey &key, const Ref<TLAS> &accelStructure)
 
   auto iter = reflection.keyToSlot.find(key);
   if (iter != reflection.keyToSlot.end()) {
-    auto locationKey = iter->second;
-    auto [set, binding] = Utils::SlotToSetBinding(locationKey);
-
-    auto *info = GetSlotDescription(set, binding);
+    auto *info = GetSlotDescription(iter->second);
 
     if (info == nullptr) {
       auto keyname = Reflect::ResourceKeyToString(key);
@@ -744,7 +729,7 @@ auto Shader::Send(const ResourceKey &key, const Ref<TLAS> &accelStructure)
           keyname, name, info->ToString());
     }
 
-    GetState().userBoundAccelerationStructures[locationKey] =
+    GetState().userBoundAccelerationStructures[iter->second] =
         BoundASPair{accelStructure, accelStructInfo};
     return Error::Success();
   }
@@ -773,10 +758,7 @@ auto Shader::Send(const ResourceKey &key, const Ref<Graphics::Texture> &texture)
 
   auto iter = reflection.keyToSlot.find(key);
   if (iter != reflection.keyToSlot.end()) {
-    auto locationKey = iter->second;
-    auto [set, binding] = Utils::SlotToSetBinding(locationKey);
-
-    auto *info = GetSlotDescription(set, binding);
+    auto *info = GetSlotDescription(iter->second);
     auto *samplerInfo = std::get_if<Reflect::SamplerInfo>(&info->info);
     if (samplerInfo == nullptr) {
       auto keyname = Reflect::ResourceKeyToString(key);
@@ -785,7 +767,7 @@ auto Shader::Send(const ResourceKey &key, const Ref<Graphics::Texture> &texture)
           name);
     }
 
-    GetState().userBoundTextures[locationKey] =
+    GetState().userBoundTextures[iter->second] =
         BoundTexturePair{texture, samplerInfo};
     return Error::Success();
   }
@@ -811,20 +793,8 @@ auto Shader::GetThreadgroupSize() const -> Result<Math::Uvec3> {
 
 auto Shader::GetWaveSize() const -> uint32_t { return waveSize; }
 
-auto Shader::GetSlotDescription(uint32_t set, uint32_t binding) // NOLINT
+auto Shader::GetSlotDescription(DescriptorSlot slot)
     -> Reflect::ResourceInfo * {
-
-  auto key = Utils::SetBindingToSlot(set, binding);
-
-  auto iter = reflection.slotToInfo.find(key);
-  if (iter == reflection.slotToInfo.end()) {
-    return nullptr;
-  }
-
-  return &iter->second;
-}
-
-auto Shader::GetSlotDescription(uint64_t slot) -> Reflect::ResourceInfo * {
   auto iter = reflection.slotToInfo.find(slot);
   if (iter == reflection.slotToInfo.end()) {
     return nullptr;

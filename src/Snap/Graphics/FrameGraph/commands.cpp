@@ -385,7 +385,7 @@ auto BindDefaultTextures(const GraphicsContext &context, Shader *shader)
   for (const auto &resource : shader->reflection.resources) {
     if (resource.IsSampler()) {
       const auto &samplerInfo = std::get<Reflect::SamplerInfo>(resource.info);
-      auto key = Utils::SetBindingToSlot(samplerInfo.set, samplerInfo.binding);
+      auto key = DescriptorSlot(samplerInfo.set, samplerInfo.binding);
       if (state.userBoundTextures.contains(key)) {
         continue;
       }

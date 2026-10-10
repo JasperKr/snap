@@ -1,9 +1,11 @@
 #pragma once
 
 #include "Graphics/Buffers/push.hpp"
+#include "Graphics/FrameGraph/descriptorKey.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/bvh.hpp"
+#include "Graphics/descriptorSlots.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/texture.hpp"
 #include "Libraries/vma.hpp"
@@ -70,23 +72,15 @@ using BoundTexturePair = std::pair<Ref<Texture>, const Reflect::SamplerInfo *>;
 using BoundASPair =
     std::pair<Ref<TLAS>, const Reflect::AccelerationStructureInfo *>;
 
-struct ResourceBinding {
-  uint32_t binding{};
-  ObjectID resource{};
-
-  bool isDynamic = false;
-
-  auto operator==(const ResourceBinding &other) const -> bool {
-    return binding == other.binding && resource == other.resource &&
-           isDynamic == other.isDynamic;
-  }
-};
-
 struct BoundState {
-  std::unordered_map<uint64_t, BoundBufferPair> userBoundBuffers;
-  std::unordered_map<uint64_t, BoundTexturePair> userBoundTextures;
-  std::unordered_map<uint64_t, BoundASPair> userBoundAccelerationStructures;
+  std::unordered_map<DescriptorSlot, BoundBufferPair> userBoundBuffers;
+  std::unordered_map<DescriptorSlot, BoundTexturePair> userBoundTextures;
+  std::unordered_map<DescriptorSlot, BoundASPair>
+      userBoundAccelerationStructures;
   std::unordered_map<uint32_t, ResourceBinding> bindingInfos;
+
+  std::unordered_map<uint32_t, DescriptorKey> descriptorKeys;
+  std::unordered_map<uint32_t, bool> dirtyKeys;
 };
 
 struct Shader : Object, Identifiable {
@@ -168,9 +162,7 @@ struct Shader : Object, Identifiable {
   auto GetUniform(const ResourceKey &key) const
       -> const Reflect::ResourceInfo *;
 
-  auto GetSlotDescription(uint32_t set, uint32_t binding)
-      -> Reflect::ResourceInfo *;
-  auto GetSlotDescription(uint64_t slot) -> Reflect::ResourceInfo *;
+  auto GetSlotDescription(DescriptorSlot slot) -> Reflect::ResourceInfo *;
 
   auto GetThreadgroupSize() const -> Result<Math::Uvec3>;
   auto GetWaveSize() const -> uint32_t;

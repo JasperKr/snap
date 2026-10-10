@@ -1,5 +1,6 @@
 #include "reflect.hpp"
 #include "Graphics/bufferformat.hpp"
+#include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Modules/Helpers/utils.hpp"
@@ -327,8 +328,9 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout,
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
     resourceInfo.info = samplerInfo;
 
-    reflection.slotToInfo[Utils::SetBindingToSlot(
-        samplerInfo.set, samplerInfo.binding)] = resourceInfo;
+    reflection
+        .slotToInfo[DescriptorSlot(samplerInfo.set, samplerInfo.binding)] =
+        resourceInfo;
   } else if (maskedShape == SLANG_STRUCTURED_BUFFER ||
              maskedShape == SLANG_BYTE_ADDRESS_BUFFER) {
     // SSBO
@@ -384,8 +386,8 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout,
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
     resourceInfo.info = bufferInfo;
 
-    reflection.slotToInfo[Utils::SetBindingToSlot(
-        bufferInfo.set, bufferInfo.binding)] = resourceInfo;
+    reflection.slotToInfo[DescriptorSlot(bufferInfo.set, bufferInfo.binding)] =
+        resourceInfo;
   } else if (maskedShape == SLANG_ACCELERATION_STRUCTURE) {
     auto asInfo = AccelerationStructureInfo{};
     asInfo.set = variableLayout->getBindingSpace();
@@ -399,7 +401,7 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout,
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
     resourceInfo.info = asInfo;
 
-    reflection.slotToInfo[Utils::SetBindingToSlot(asInfo.set, asInfo.binding)] =
+    reflection.slotToInfo[DescriptorSlot(asInfo.set, asInfo.binding)] =
         resourceInfo;
   } else {
     return Error::Unexpected("Unsupported resource shape in reflection.");
@@ -483,8 +485,9 @@ auto SetupFromType(slang::VariableLayoutReflection *variableLayout,
     resourceInfo.info = bufferInfo;
 
     if (!isPushConstant) {
-      reflection.slotToInfo[Utils::SetBindingToSlot(
-          bufferInfo.set, bufferInfo.binding)] = resourceInfo;
+      reflection
+          .slotToInfo[DescriptorSlot(bufferInfo.set, bufferInfo.binding)] =
+          resourceInfo;
     }
     break;
   }
@@ -785,7 +788,7 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding)
       .info = globalUBOStruct,
   };
 
-  slotToInfo.emplace(Utils::SetBindingToSlot(set, binding), globalUBOInfo);
+  slotToInfo.emplace(DescriptorSlot(set, binding), globalUBOInfo);
 
   const auto &infoResult =
       ResourceInfoToBufferFormat(globalUBOInfo, Standard::Std140);
@@ -817,7 +820,7 @@ struct FlatteningState {
   uint32_t parentBinding{};
   uint32_t currentOffset{};
   Standard std = Standard::Std140;
-  std::unordered_map<ResourceKey, uint64_t, ResourceKeyHash> *keyToSlot;
+  std::unordered_map<ResourceKey, DescriptorSlot, ResourceKeyHash> *keyToSlot;
 };
 
 // NOLINTNEXTLINE
@@ -863,9 +866,8 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
       state.currentKey->emplace_back(resource.name);
     }
 
-    state.keyToSlot->emplace(
-        *state.currentKey,
-        Utils::SetBindingToSlot(resource.set, resource.binding));
+    state.keyToSlot->emplace(*state.currentKey,
+                             DescriptorSlot(resource.set, resource.binding));
   }
 
   state.parentBinding = resource.binding;
@@ -959,15 +961,15 @@ auto ShaderReflection::FlattenReflection() -> Error {
 
     if (resource.IsBuffer() && !isPushConstant) {
       bufferSlotsBySet[resource.set].emplace_back(
-          Utils::SetBindingToSlot(resource.set, resource.binding));
+          DescriptorSlot(resource.set, resource.binding));
       state.flattened->bindingToInfo.emplace(resource.binding, resource);
     } else if (resource.IsSampler()) {
       textureSlotsBySet[resource.set].emplace_back(
-          Utils::SetBindingToSlot(resource.set, resource.binding));
+          DescriptorSlot(resource.set, resource.binding));
       state.flattened->bindingToInfo.emplace(resource.binding, resource);
     } else if (resource.IsAccelerationStructure()) {
       accelerationStructureSlotsBySet[resource.set].emplace_back(
-          Utils::SetBindingToSlot(resource.set, resource.binding));
+          DescriptorSlot(resource.set, resource.binding));
       state.flattened->bindingToInfo.emplace(resource.binding, resource);
     }
   }

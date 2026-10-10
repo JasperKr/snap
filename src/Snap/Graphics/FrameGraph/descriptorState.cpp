@@ -2,6 +2,7 @@
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/descriptorCache.hpp"
 #include "Graphics/FrameGraph/pipelineCache.hpp"
+#include "Graphics/descriptorSlots.hpp"
 #include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Modules/Helpers/utils.hpp"
@@ -21,7 +22,6 @@ inline auto BindBufferDesciptors(DescriptorKey &key, Ref<Shader> &shader,
   }
 
   for (const auto &location : iter->second) {
-    const auto [set, binding] = Utils::SlotToSetBinding(location);
     auto iter = state.userBoundBuffers.find(location);
 
     [[unlikely]]
@@ -32,8 +32,8 @@ inline auto BindBufferDesciptors(DescriptorKey &key, Ref<Shader> &shader,
     const auto &buffer = iter->second;
 
     key.bindings.emplace_back(ResourceBinding{
-        .binding = binding,
         .resource = buffer.first->getID(),
+        .binding = location.binding,
     });
   }
 
@@ -50,8 +50,7 @@ inline auto BindAccelerationStructureDescriptors(DescriptorKey &key,
 
   for (const auto &location :
        shader->reflection.accelerationStructureSlotsBySet.at(setIndex)) {
-    const auto [set, binding] = Utils::SlotToSetBinding(location);
-    assert(set == setIndex);
+    assert(location.set == setIndex);
     auto iter = state.userBoundAccelerationStructures.find(location);
 
     [[unlikely]]
@@ -61,8 +60,8 @@ inline auto BindAccelerationStructureDescriptors(DescriptorKey &key,
     }
 
     key.bindings.emplace_back(ResourceBinding{
-        .binding = binding,
         .resource = iter->second.first->getID(),
+        .binding = location.binding,
     });
   }
 
@@ -95,11 +94,10 @@ inline auto BindTextureDescriptors(const GraphicsContext &context,
     const auto &pair = iter->second;
     const auto &texture = pair.first;
     const auto *samplerInfo = pair.second;
-    const auto [set, binding] = Utils::SlotToSetBinding(location);
 
     key.bindings.emplace_back(ResourceBinding{
-        .binding = binding,
         .resource = texture->getID(),
+        .binding = location.binding,
     });
   }
 
@@ -139,8 +137,8 @@ inline auto BindGlobalsDescriptor(
          0);
 
   key.bindings.emplace_back(ResourceBinding{
-      .binding = binding,
       .resource = buffer.GetBuffer()->getID(),
+      .binding = binding,
       .isDynamic = true,
   });
 
@@ -197,7 +195,7 @@ inline auto AllocateDescriptorSet(const GraphicsContext &context,
     write.dstArrayElement = 0;
     write.descriptorCount = 1;
 
-    auto slot = Utils::SetBindingToSlot(setIndex, binding.binding);
+    auto slot = DescriptorSlot(setIndex, binding.binding);
     auto textureIter = state.userBoundTextures.find(slot);
     auto bufferIter = state.userBoundBuffers.find(slot);
     auto accelStructIter = state.userBoundAccelerationStructures.find(slot);
@@ -338,7 +336,7 @@ auto GetDescriptorSets(const GraphicsContext &context)
   for (const auto &layout : pipelineLayout.descriptorSetLayouts) {
     ZoneScopedN("BindDescriptorSets loop");
 
-    key.bindings.clear();
+    key.bindings.fastclear();
     currentDynamicOffsets.fastclear();
 
     {

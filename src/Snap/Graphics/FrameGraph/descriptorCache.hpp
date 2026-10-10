@@ -3,32 +3,11 @@
 #include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Modules/Helpers/hasher.hpp"
-#include "Modules/stackVector.hpp"
+#include "descriptorKey.hpp"
 #include <mutex>
 #include <unordered_map>
 
 namespace Graphics {
-
-struct DescriptorKey {
-  Math::StackVector<ResourceBinding, 16> bindings; // sorted by binding NOLINT
-
-  auto operator==(const DescriptorKey &other) const -> bool {
-    return bindings == other.bindings;
-  }
-};
-
-struct DescriptorKeyHash {
-  auto operator()(const DescriptorKey &key) const noexcept -> size_t {
-    Hash::Hasher hasher{};
-
-    for (const auto &binding : key.bindings) {
-      hasher.Add(binding.binding);
-      hasher.Add(binding.resource);
-    }
-
-    return hasher.Get();
-  }
-};
 
 struct DescriptorSetLayoutKey {
   VkDescriptorSetLayoutCreateFlags flags;

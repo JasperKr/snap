@@ -15,7 +15,6 @@
 #include "renderState.hpp"
 #include <cassert>
 #include <cstddef>
-#include <memory>
 #include <mutex>
 
 #include "vulkan/vulkan_core.h"
