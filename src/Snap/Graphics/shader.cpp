@@ -655,19 +655,22 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
     return pushBuffer->SetData(key, data);
   }
 
-  const auto *info = GetUniform(key);
+  const auto &globalInfo = reflection.flattened.at(reflection.globals.set);
+  auto iter = globalInfo.keyToInfo.find(key);
 
   [[unlikely]]
-  if (info == nullptr) {
+  if (iter == globalInfo.keyToInfo.end()) {
     auto keyname = Reflect::ResourceKeyToString(key);
     return Error::Createf("Uniform {} not found in shader reflection: {}",
                           keyname, name);
   }
 
-  ERR_ASSERT(info->offset + data.size() <= globalUniforms.size());
+  const auto &info = iter->second;
+
+  ERR_ASSERT(info.offset + data.size() <= globalUniforms.size());
 
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(globalUniforms.data() + info->offset, data.data(), data.size());
+  memcpy(globalUniforms.data() + info.offset, data.data(), data.size());
 
   return Error::Success();
 }

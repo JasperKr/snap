@@ -54,6 +54,8 @@ private:
   std::vector<Level> graph;
   std::unordered_map<CommandIndex, LoadOpConfig> loadOpConfigs;
 
+  std::vector<CommandID> renderPasses;
+
   // Direct dependencies per command, after transitive reduction. Used for
   // scheduling (levels, reordering) only: a dropped edge here is redundant
   // for ordering, but its access/stage info would be lost if barrier

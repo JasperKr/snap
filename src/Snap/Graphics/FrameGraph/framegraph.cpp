@@ -11,7 +11,6 @@
 #include "Graphics/vkPipelineHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -935,7 +934,7 @@ auto FrameGraph::BuildRenderRegions(const GraphicsContext &context)
         stateID = drawState->stateID;
       }
 
-      auto &renderState = CommandStateManager::States.at(stateID);
+      const auto &renderState = CommandStateManager::States.at(stateID);
 
       if (renderState.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
         currentIndex = SIZE_MAX;
@@ -1069,15 +1068,15 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
   const auto *childDrawState = child.GetDrawState();
 
   if (parentDrawState != nullptr) { // Parent is rendering
-    const auto &graphState = parentDrawState->GetGraphState();
+    const auto *graphState = parentDrawState->GetGraphState();
 
     if (childDrawState != nullptr) { // Child is rendering
-      const auto &childGraphState = childDrawState->GetGraphState();
+      const auto *childGraphState = childDrawState->GetGraphState();
 
-      if (!ComparePipelineCompatability(graphState, childGraphState)) {
+      if (!ComparePipelineCompatability(*graphState, *childGraphState)) {
         cost += EndRenderingCost;
 
-        if (childGraphState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+        if (childGraphState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
           cost += StartRenderingCost;
         }
 
@@ -1090,7 +1089,7 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
     }
   } else if (childDrawState != nullptr) { // Child is rendering but parent isn't
     const auto &childGraphState = childDrawState->GetGraphState();
-    if (childGraphState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+    if (childGraphState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
       cost += StartRenderingCost;
     }
   } else { // Neither child nor parent are rendering
@@ -1363,7 +1362,13 @@ auto FrameGraph::CompactRenderPasses() -> Error {
         auto *renderpassCommand =
             commandBuffers.back()->GetNewCommand(CommandType::renderPass);
         // Point the reordered command to the last index of commandIndices
-        commands.emplace_back(commandIndices.size());
+
+        auto newIdx = commandIndices.size();
+        commands.emplace_back(newIdx);
+        renderPasses.emplace_back(newIdx);
+
+        renderpassCommand->UpdateType();
+        assert(renderpassCommand->GetType() == CommandType::renderPass);
 
         // Create the new command pointer in the last command buffer's commands, pointing to the last index
         commandIndices.emplace_back(commandBuffers.back()->commands.back(),
@@ -1383,7 +1388,12 @@ auto FrameGraph::CompactRenderPasses() -> Error {
         auto *renderpassCommand =
             commandBuffers.back()->GetNewCommand(CommandType::renderPass);
         // Point the reordered command to the last index of commandIndices
-        commands.emplace_back(commandIndices.size());
+        auto newIdx = commandIndices.size();
+        commands.emplace_back(newIdx);
+        renderPasses.emplace_back(newIdx);
+
+        renderpassCommand->UpdateType();
+        assert(renderpassCommand->GetType() == CommandType::renderPass);
 
         // Create the new command pointer in the last command buffer's commands, pointing to the last index
         commandIndices.emplace_back(commandBuffers.back()->commands.back(),
@@ -1405,11 +1415,9 @@ auto FrameGraph::CompactRenderPasses() -> Error {
 
       currentPass->reads.append_range(bound->reads);
       currentPass->writes.append_range(bound->writes);
-
-      for (const auto &access : bound->accesses) {
-        currentPass->accesses.emplace(access);
-      }
     } else {
+      currentPass = nullptr;
+
       inRange = false;
       commands.emplace_back(commandID);
     }
@@ -1424,7 +1432,7 @@ auto FrameGraph::CompactRenderPasses() -> Error {
 
       command.id = idx++;
       command.uniqueID = command.id + commandIndices.size();
-      ERR_ASSERT(idx != InvalidCommandID);
+      assert(idx != InvalidCommandID);
 
       auto *bound = get_if_derived<BoundResources>(command.data);
 
@@ -1432,8 +1440,6 @@ auto FrameGraph::CompactRenderPasses() -> Error {
         continue;
       }
 
-      size_t readsBefore = bound->reads.size();
-      size_t writesBefore = bound->writes.size();
       Utils::DeDuplicate(bound->reads, std::less<VulkanResource>{},
                          &VulkanResource::operator==);
       Utils::DeDuplicate(bound->writes, std::less<VulkanResource>{},
@@ -1452,12 +1458,38 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   ZoneScoped;
 
   CHECK_ERR(MapResourceUsages());
+
+  for (const auto &cmdBuffer : commandBuffers) {
+    cmdBuffer->threadInfo.StartCommandWriting();
+  }
+
   CHECK_ERR(CompactRenderPasses());
   CHECK_ERR(BuildGraph());
   CHECK_ERR(BuildReadyState());
 
   const auto *reordered = CHECK_RES(Reorder());
   CHECK_ERR(UpdateLevels(*reordered));
+
+  for (const auto &cmdBuffer : commandBuffers) {
+    cmdBuffer->threadInfo.FinalizeCommandWriting();
+  }
+
+  for (const CommandID commandID : renderPasses) {
+    auto &command = GetCommand(commandID);
+    assert(command.GetType() == CommandType::renderPass);
+
+    auto &renderPass = std::get<RenderPass>(command.data);
+
+    for (const CommandID childCmdID : renderPass.commands) {
+      const auto &childCommand = GetCommand(childCmdID);
+      const auto &bound = get_if_derived<BoundResources>(childCommand.data);
+
+      for (const auto &access : bound->accesses) {
+        renderPass.accesses.emplace(access);
+      }
+    }
+  }
+
   CHECK_ERR(InsertBarriers());
 
   // PrintAlways("Command count: {}", commands.size());
@@ -1616,6 +1648,7 @@ auto FrameGraph::Reset() -> void {
   loadOpConfigs.clear();
   commands.clear();
   resourcesWritesInFrame.clear();
+  renderPasses.clear();
   CommandStateManager::StateToIndex.clear();
   CommandStateManager::States.clear();
   RecordingState::CurrentState = {};

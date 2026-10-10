@@ -121,6 +121,16 @@ inline auto GetDescriptorPool(ThreadContext &tcontext) -> Error {
   return Error::Success();
 }
 
+inline auto GetThreadLocalVCmdBuffer() -> Result<VirtualCommandBuffer *> {
+  thread_local ::Graphics::VirtualCommandBuffer commandBuffer{};
+  if (!commandBuffer.initialized) {
+    commandBuffer.threadInfo.Initialize(&commandBuffer);
+    commandBuffer.initialized = true;
+  }
+
+  return &commandBuffer;
+}
+
 auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
                           const AcquireInfo &info)
     -> Result<Ref<RenderThreadInfo>> {
@@ -159,10 +169,10 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
 
   assert(tcontext.queueFamily == 0);
 
-  thread_local ::Graphics::VirtualCommandBuffer commandBuffer{};
-  commandBuffer.Reset();
+  auto *commandBuffer = CHECK_RES(GetThreadLocalVCmdBuffer());
+  commandBuffer->Reset();
 
-  threadInfo->threadData.commandBuffer = &commandBuffer;
+  threadInfo->threadData.commandBuffer = commandBuffer;
   threadInfo->threadData.commandBuffer->queueFamily = info.queueFamily;
 
   CHECK_ERR(GetDescriptorPool(tcontext));
@@ -256,6 +266,8 @@ auto Initialize(Graphics::GraphicsContext &context) -> Error {
 }
 
 auto Deinitialize(Graphics::GraphicsContext &context) -> Error {
+  CHECK_RES(GetThreadLocalVCmdBuffer())->DeInitialize();
+
   DeInitializeUniformBufferModule(context);
   Graphics::UploadBuffers.clear();
 

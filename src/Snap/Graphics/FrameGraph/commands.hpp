@@ -7,14 +7,20 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/stackVector.hpp"
+#include "Modules/timer.hpp"
+#include <atomic>
 #include <cassert>
+#include <condition_variable>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <optional>
 #include <public/tracy/Tracy.hpp>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -311,19 +317,18 @@ struct VulkanResource {
       return type < other.type;
     }
 
-    if (type == ResourceType::AccelerationStructure) {
+    switch (type) {
+    case ResourceType::Image:
+      return std::tie(image.image, image.layerStart, image.layerCount,
+                      image.mipStart, image.mipCount) <
+             std::tie(other.image.image, other.image.layerStart,
+                      other.image.layerCount, other.image.mipStart,
+                      other.image.mipCount);
+    case ResourceType::Buffer:
+      return buffer < other.buffer;
+    case ResourceType::AccelerationStructure:
       return accelerationStructure < other.accelerationStructure;
     }
-
-    if (type == ResourceType::Buffer) {
-      return buffer < other.buffer;
-    }
-
-    return std::tie(image.image, image.layerStart, image.layerCount,
-                    image.mipStart, image.mipCount) <
-           std::tie(other.image.image, other.image.layerStart,
-                    other.image.layerCount, other.image.mipStart,
-                    other.image.mipCount);
   }
 
   [[nodiscard]] auto ToString() const -> std::string {
@@ -453,7 +458,6 @@ struct DrawState {
   uint32_t stateID = UINT32_MAX;
 
   auto GetAccesses(
-      CommandType type,
       std::unordered_map<VulkanResource,
                          std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
                          VulkanResourceHash<true>> &accesses) const -> void;
@@ -471,8 +475,16 @@ struct DrawState {
 
   auto Initialize(CommandType type) -> Error;
 
-  [[nodiscard]] auto GetGraphState() const -> GraphState {
-    return CommandStateManager::States.at(stateID);
+  [[nodiscard]] auto GetGraphState() const -> GraphState * {
+    assert(stateID < UINT16_MAX);
+    assert(stateID < CommandStateManager::States.size());
+    return &CommandStateManager::States.at(stateID);
+  }
+
+  [[nodiscard]] auto GetGraphState_const() const -> GraphState const * {
+    assert(stateID < UINT16_MAX);
+    assert(stateID < CommandStateManager::States.size());
+    return &CommandStateManager::States.at(stateID);
   }
 };
 
@@ -1047,6 +1059,76 @@ struct ImageStateUpdate {
 
 auto GetReads(const Command &command) -> const std::vector<VulkanResource> &;
 auto GetWrites(const Command &command) -> const std::vector<VulkanResource> &;
+auto GetResourceAccesses(
+    const Command *command,
+    std::unordered_map<VulkanResource,
+                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
+                       VulkanResourceHash<true>> &accesses) -> void;
+
+struct ReadyInfo {
+  std::condition_variable condition_variable;
+  std::mutex mutex;
+  bool ready = false;
+
+  void Notify() {
+    {
+      std::unique_lock<std::mutex> lock(mutex);
+      ready = true;
+    }
+
+    condition_variable.notify_one();
+  }
+
+  void Wait() {
+    std::unique_lock<std::mutex> lock(mutex);
+    condition_variable.wait(lock, [this]() -> bool { return ready; });
+    ready = false;
+  }
+};
+
+struct VCmdThreadInfo {
+  std::thread thread;
+
+  // Thread swaps between reading and editing A / B based on "currentWorkingIsA"
+  std::vector<uint16_t> commandsQueue;
+  std::vector<uint16_t> queuedCommands; // Local to worker thread
+  std::vector<uint16_t> commandsQueueBacklog;
+
+  ReadyInfo mainToWorker;
+  ReadyInfo workerToMain;
+
+  std::atomic<bool> shutdown = false;
+  bool started = false;
+
+  VirtualCommandBuffer *parent;
+
+  void Shutdown() {
+    shutdown = true;
+    mainToWorker.Notify();
+  }
+  void Initialize(VirtualCommandBuffer *vcmd);
+
+  void AddCommand(uint16_t commandID);
+
+  void StartCommandWriting() {
+    TracyMessageL("Started");
+    started = true;
+
+    commandsQueue.append_range(commandsQueueBacklog);
+    commandsQueueBacklog.clear();
+
+    mainToWorker.Notify();
+  }
+
+  void FinalizeCommandWriting() {
+    workerToMain.Wait();
+
+    TracyMessageL("Ended");
+    started = false;
+  }
+
+  static void ThreadMain(VirtualCommandBuffer *vcmd);
+};
 
 struct VirtualCommandBuffer {
   friend struct FrameGraph;
@@ -1167,11 +1249,9 @@ struct VirtualCommandBuffer {
     return iter->second;
   }
 
-  auto GetGraphState() -> GraphState & { return currentState; }
+  auto GetGraphState() -> GraphState * { return &currentState; }
 
-  // NOLINTBEGIN
-
-  static auto AddCommand(Command *command) -> Error;
+  auto AddCommand(Command *command) -> Error;
 
   std::vector<Command> commandStorage;
   std::vector<uint16_t> commands;
@@ -1181,13 +1261,22 @@ struct VirtualCommandBuffer {
   }
 
   uint32_t queueFamily;
-
   GraphState currentState;
   std::vector<std::vector<uint32_t>> caches;
+  VCmdThreadInfo threadInfo;
+  bool initialized = false;
+
+  auto Initialize() -> Error {
+    ERR_ASSERT(!initialized);
+
+    initialized = true;
+
+    return {};
+  }
+
+  auto DeInitialize() -> void { threadInfo.Shutdown(); }
 
   auto GetNewCommand(CommandType type) -> Command *;
-
-  // NOLINTEND
 };
 
 auto CreateCommandBuffer() -> VirtualCommandBuffer;
