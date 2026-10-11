@@ -174,15 +174,20 @@ inline auto IsHazard(const Ref<Graphics::Texture> &first,
   }
 
   // Check if the two textures overlap in mip levels or array layers
-  auto firstMipRange = std::make_pair(first->baseMipLevel,
-                                      first->baseMipLevel + first->levelCount);
-  auto secondMipRange = std::make_pair(
-      second->baseMipLevel, second->baseMipLevel + second->levelCount);
+  auto firstMipRange = std::make_pair(first->subresourceRange.baseMipLevel,
+                                      first->subresourceRange.baseMipLevel +
+                                          first->subresourceRange.levelCount);
+  auto secondMipRange = std::make_pair(second->subresourceRange.baseMipLevel,
+                                       second->subresourceRange.baseMipLevel +
+                                           second->subresourceRange.levelCount);
 
-  auto firstLayerRange = std::make_pair(
-      first->baseArrayLayer, first->baseArrayLayer + first->layerCount);
-  auto secondLayerRange = std::make_pair(
-      second->baseArrayLayer, second->baseArrayLayer + second->layerCount);
+  auto firstLayerRange = std::make_pair(first->subresourceRange.baseArrayLayer,
+                                        first->subresourceRange.baseArrayLayer +
+                                            first->subresourceRange.layerCount);
+  auto secondLayerRange =
+      std::make_pair(second->subresourceRange.baseArrayLayer,
+                     second->subresourceRange.baseArrayLayer +
+                         second->subresourceRange.layerCount);
 
   bool mipOverlap = firstMipRange.second > secondMipRange.first &&
                     secondMipRange.second > firstMipRange.first;

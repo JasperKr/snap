@@ -229,10 +229,9 @@ struct Texture : Object, Identifiable {
   VkImageView view = VK_NULL_HANDLE;
   VkSampler sampler = VK_NULL_HANDLE;
 
-  uint32_t baseMipLevel{};
-  uint32_t levelCount{1};
-  uint32_t baseArrayLayer{};
-  uint32_t layerCount{1};
+  VkImageSubresourceRange subresourceRange{};
+  VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+  VkImageViewCreateInfo viewCreateInfo{};
 
   std::string debugName;
 
@@ -309,15 +308,15 @@ struct Texture : Object, Identifiable {
   [[nodiscard]] auto GetDepthCompare() const -> std::tuple<bool, VkCompareOp>;
   [[nodiscard]] auto GetWidth() const -> uint32_t {
     auto baseWidth = imageMemory->size.width;
-    return baseWidth >> baseMipLevel;
+    return baseWidth >> subresourceRange.baseMipLevel;
   };
   [[nodiscard]] auto GetHeight() const -> uint32_t {
     auto baseHeight = imageMemory->size.height;
-    return baseHeight >> baseMipLevel;
+    return baseHeight >> subresourceRange.baseMipLevel;
   };
   [[nodiscard]] auto GetDepth() const -> uint32_t {
     auto baseDepth = imageMemory->size.depth;
-    return baseDepth >> baseMipLevel;
+    return baseDepth >> subresourceRange.baseMipLevel;
   };
   [[nodiscard]] auto GetDimensions() const -> VkExtent2D {
     return {GetWidth(), GetHeight()};
@@ -340,9 +339,13 @@ struct Texture : Object, Identifiable {
                  VkOffset3D target, VkExtent3D targetSize) -> Error;
   auto SetPixels(const GraphicsContext &context, Image::ImageData &imageData,
                  uint32_t mipLevel = 0, uint32_t arrayLayer = 0) -> Error;
-  [[nodiscard]] auto GetMipmapCount() const -> size_t { return levelCount; }
+  [[nodiscard]] auto GetMipmapCount() const -> size_t {
+    return subresourceRange.levelCount;
+  }
 
-  [[nodiscard]] auto GetArrayLayerCount() const -> size_t { return layerCount; }
+  [[nodiscard]] auto GetArrayLayerCount() const -> size_t {
+    return subresourceRange.layerCount;
+  }
 
   [[nodiscard]] auto GetFormat() const -> VkFormat {
     return imageMemory->format;

@@ -1,6 +1,4 @@
 #include "commands.hpp"
-#include "Graphics/FrameGraph/descriptorState.hpp"
-#include "Graphics/FrameGraph/pipelineCache.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/reflect.hpp"
@@ -17,7 +15,6 @@
 #include <cstdint>
 #include <cstring>
 #include <public/tracy/Tracy.hpp>
-#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -31,17 +28,19 @@ std::vector<GraphState> CommandStateManager::States{};
 uint32_t CommandStateManager::CurrentStateID = UINT32_MAX;
 
 ImageSubresource::ImageSubresource(const Ref<Texture> &texture)
-    : layerStart(static_cast<uint16_t>(texture->baseArrayLayer)),
-      layerCount(static_cast<uint16_t>(texture->layerCount)),
-      mipStart(static_cast<uint16_t>(texture->baseMipLevel)),
-      mipCount(static_cast<uint16_t>(texture->levelCount)),
+    : layerStart(
+          static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)),
+      layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
+      mipStart(static_cast<uint16_t>(texture->subresourceRange.baseMipLevel)),
+      mipCount(static_cast<uint16_t>(texture->subresourceRange.levelCount)),
       image(texture->imageMemory->image) {}
 
 ImageSubresource::ImageSubresource(const Texture *texture)
-    : layerStart(static_cast<uint16_t>(texture->baseArrayLayer)),
-      layerCount(static_cast<uint16_t>(texture->layerCount)),
-      mipStart(static_cast<uint16_t>(texture->baseMipLevel)),
-      mipCount(static_cast<uint16_t>(texture->levelCount)),
+    : layerStart(
+          static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)),
+      layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
+      mipStart(static_cast<uint16_t>(texture->subresourceRange.baseMipLevel)),
+      mipCount(static_cast<uint16_t>(texture->subresourceRange.levelCount)),
       image(texture->imageMemory->image) {}
 
 struct SyncFlags {
@@ -576,9 +575,6 @@ auto DrawState::Initialize(CommandType type) -> Error {
   }
 
   CHECK_ERR(BindDefaultTextures(context, shader.get()));
-
-  std::tie(descriptorSets, dynamicOffsets) =
-      CHECK_RES(GetDescriptorSets(*GetCurrentGraphicsContext()));
 
   return {};
 }
@@ -1377,11 +1373,8 @@ auto VirtualCommandBuffer::WriteAccelerationStructuresPropertiesKHR(
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::PushConstants(VkPipelineLayout layout,
-                                         VkShaderStageFlags stageFlags,
-                                         uint32_t offset, uint32_t size,
-                                         const void *pValues) -> void {
-  assert(offset == 0 && "Offset pushconstants are currently not supported.");
+auto VirtualCommandBuffer::PushConstants(uint32_t size, const void *pValues)
+    -> void {
   currentState.pushConstants.resize(size);
   memcpy(currentState.pushConstants.data(), pValues, size);
 }
@@ -1630,7 +1623,6 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
 
   CommandStateManager::CurrentStateID = stateID;
 
-  assert(GetPipelineCache().currentLayout.layout);
   assert(cmdBuffer);
 
   if (state.shader->pushBuffer) {
@@ -1638,16 +1630,7 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
 
     auto &pushBuffer = state.shader->pushBuffer;
     CHECK_ERR(pushBuffer->SetData(pushConstants));
-    pushBuffer->FlushData(GetPipelineCache().currentLayout.layout, cmdBuffer);
-  }
-
-  if (!descriptorSets.empty()) {
-    ZoneScopedN("Bind descriptor sets");
-
-    vkCmdBindDescriptorSets(cmdBuffer, state.bindPoint,
-                            GetPipelineCache().currentLayout.layout, 0,
-                            descriptorSets.size(), descriptorSets.data(),
-                            dynamicOffsets.size(), dynamicOffsets.data());
+    pushBuffer->FlushData(cmdBuffer);
   }
 
   return {};

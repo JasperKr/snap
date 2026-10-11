@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Graphics/buffer.hpp"
+#include "Modules/Helpers/units.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <atomic>
@@ -8,8 +9,8 @@
 #include <cstdint>
 #include <vector>
 
-constexpr size_t InitialUniformBufferSize = 64L * 1024;
-constexpr size_t MaximumUniformBufferSize = 64L * 1024 * 1024;
+constexpr size_t InitialUniformBufferSize = Units::Memory::KiBToBytes(64);
+constexpr size_t MaximumUniformBufferSize = Units::Memory::MiBToBytes(64);
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 extern std::atomic<int> UniformBufferObjectCount;

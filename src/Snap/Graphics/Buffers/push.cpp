@@ -6,6 +6,7 @@
 #include <span>
 #include <utility>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace Graphics {
 
@@ -22,17 +23,21 @@ auto PushBuffer::GetLayout() const -> const Reflect::FlattenedReflection & {
   return layout;
 }
 
-auto PushBuffer::FlushData(VkPipelineLayout layout, VkCommandBuffer cmdBuffer)
-    -> void {
+auto PushBuffer::FlushData(VkCommandBuffer cmdBuffer) -> void {
   auto bufferSize = GetBufferSize();
 
-  // GetVirtualCommandBuffer()->PushConstants(
-  //     {layout, stageFlags, static_cast<uint32_t>(GetBufferOffset()),
-  //      static_cast<uint32_t>(bufferSize), data.data()});
+  VkPushDataInfoEXT info{
+      .sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
+      .pNext = nullptr,
+      .offset = 0,
+      .data =
+          {
+              .address = data.data(),
+              .size = data.size(),
+          },
+  };
 
-  vkCmdPushConstants(cmdBuffer, layout, stageFlags,
-                     static_cast<uint32_t>(GetBufferOffset()),
-                     static_cast<uint32_t>(bufferSize), data.data());
+  vkCmdPushDataEXT(cmdBuffer, &info);
 }
 
 auto PushBuffer::ContainsUniform(const ResourceKey &key) const -> bool {
@@ -61,11 +66,6 @@ auto PushBuffer::GetUniform(const ResourceKey &key) const
 
 auto PushBuffer::GetStageFlags() const -> VkShaderStageFlags {
   return stageFlags;
-}
-
-// NOLINTNEXTLINE
-auto PushBuffer::GetBufferOffset() const -> size_t {
-  return 0; // TODO
 }
 
 auto PushBuffer::SetData(const ResourceKey &key,

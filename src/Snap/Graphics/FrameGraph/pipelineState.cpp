@@ -335,7 +335,7 @@ auto GetViewport() -> VkViewport {
 
 inline auto CreateGraphicsPipeline(const GraphicsContext &context,
                                    RenderState::State &state)
-    -> Result<std::pair<VkPipeline, PipelineLayout>> {
+    -> Result<VkPipeline> {
   ZoneScoped;
   if (state.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
     return Error::Unexpected(
@@ -482,10 +482,8 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   pipelineInfo.pDynamicState = &dynamicState;
 
   auto *shader = state.shader.get();
-  auto layout =
-      CHECK_RES(GetPipelineCache().GetPipelineLayout(context, shader));
 
-  pipelineInfo.layout = layout.layout;
+  pipelineInfo.layout = VK_NULL_HANDLE;
   pipelineInfo.renderPass = VK_NULL_HANDLE; // Not needed
   pipelineInfo.subpass = 0;
   pipelineInfo.pNext = &renderingCreateInfo;
@@ -504,16 +502,16 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
     std::lock_guard<std::mutex> lock(GetPipelineCache().mutex);
 
     auto key = StateKey(state);
-    GetPipelineCache().cache.emplace(key, std::make_pair(pipeline, layout));
+    GetPipelineCache().cache.emplace(key, pipeline);
     GetPipelineCache().pipelines.emplace_back(pipeline);
   }
 
-  return std::pair<VkPipeline, PipelineLayout>(pipeline, layout);
+  return pipeline;
 }
 
 inline auto CreateComputePipeline(const GraphicsContext &context,
                                   RenderState::State &state)
-    -> Result<std::pair<VkPipeline, PipelineLayout>> {
+    -> Result<VkPipeline> {
   ZoneScoped;
 
   PrintDebug("Creating compute pipeline");
@@ -533,10 +531,7 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
 
   // If we get a validation error / crash about this not existing; rename to "main"
   pipelineInfo.stage.pName = "computeMain";
-
-  auto layout = CHECK_RES(
-      GetPipelineCache().GetPipelineLayout(context, state.shader.get()));
-  pipelineInfo.layout = layout.layout;
+  pipelineInfo.layout = VK_NULL_HANDLE;
 
   PrintDebug("Creating compute pipeline...");
 
@@ -552,16 +547,15 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
     std::lock_guard<std::mutex> lock(GetPipelineCache().mutex);
 
     auto key = StateKey(state);
-    GetPipelineCache().cache.emplace(key, std::make_pair(pipeline, layout));
+    GetPipelineCache().cache.emplace(key, pipeline);
     GetPipelineCache().pipelines.emplace_back(pipeline);
   }
 
-  return std::pair<VkPipeline, PipelineLayout>(pipeline, layout);
+  return pipeline;
 }
 
 inline auto CreatePipeline(const GraphicsContext &context,
-                           RenderState::State &state)
-    -> Result<std::pair<VkPipeline, PipelineLayout>> {
+                           RenderState::State &state) -> Result<VkPipeline> {
   ZoneScoped;
 
   PrintDebug("Creating pipeline");
@@ -577,8 +571,7 @@ inline auto CreatePipeline(const GraphicsContext &context,
 }
 
 inline auto GetPipeline(const GraphicsContext &context,
-                        RenderState::State &state)
-    -> Result<std::pair<VkPipeline, PipelineLayout>> {
+                        RenderState::State &state) -> Result<VkPipeline> {
   ZoneScoped;
 
   PrintDebug("Getting pipeline");
@@ -606,17 +599,16 @@ auto FlushCompute(const GraphicsContext &context,
     return Error::Unexpected("Current state is not a compute pipeline.");
   }
 
-  auto pipeline = CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
+  VkPipeline pipeline =
+      CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
 
   assert(RecordingState::CurrentState.shader->entryPoints.at(0).second ==
          VK_SHADER_STAGE_COMPUTE_BIT);
 
-  GetPipelineCache().currentLayout = pipeline.second;
-
   PrintDebug("Binding pipeline");
 
   vkCmdBindPipeline(vkCommandBuffer, RecordingState::CurrentState.bindPoint,
-                    pipeline.first);
+                    pipeline);
 
   return true;
 }
@@ -628,16 +620,15 @@ auto FlushGraphics(const GraphicsContext &context,
   ERR_ASSERT(RecordingState::CurrentState.bindPoint ==
              VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  auto pipeline = CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
-
-  GetPipelineCache().currentLayout = pipeline.second;
+  VkPipeline pipeline =
+      CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
 
   PrintDebug("Binding pipeline");
 
   {
     ZoneScopedN("vkCmdBindPipeline");
     vkCmdBindPipeline(vkCommandBuffer, RecordingState::CurrentState.bindPoint,
-                      pipeline.first);
+                      pipeline);
   }
 
   return true;

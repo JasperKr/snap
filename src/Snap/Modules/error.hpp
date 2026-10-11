@@ -1,7 +1,5 @@
 #pragma once
 
-#define LOG_ERRORS
-
 #include "slang/slang-com-ptr.h"
 #include "slang/slang.h"
 #include <cassert>
@@ -9,9 +7,6 @@
 #include <format>
 #include <string_view>
 
-#if defined(LOG_ERRORS)
-#include "Modules/console.hpp"
-#endif
 #include <string>
 
 #include "tl/expected.hpp"

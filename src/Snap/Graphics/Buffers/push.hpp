@@ -16,10 +16,9 @@ struct PushBuffer {
   explicit PushBuffer(Reflect::FlattenedReflection reflection,
                       VkShaderStageFlags stage = VK_SHADER_STAGE_ALL);
 
-  [[nodiscard]] auto GetBufferOffset() const -> size_t;
   [[nodiscard]] auto GetBufferSize() const -> size_t;
   [[nodiscard]] auto GetLayout() const -> const Reflect::FlattenedReflection &;
-  auto FlushData(VkPipelineLayout layout, VkCommandBuffer cmdBuffer) -> void;
+  auto FlushData(VkCommandBuffer cmdBuffer) -> void;
 
   auto SetData(const ResourceKey &key, const std::span<const uint8_t> &values)
       -> Error;

@@ -8,7 +8,6 @@
 #include "Modules/stackVector.hpp"
 #include <cstddef>
 #include <mutex>
-#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
@@ -22,11 +21,6 @@ struct RendertargetKey {
     return textureID == other.textureID && location == other.location &&
            layer == other.layer;
   }
-};
-
-struct PipelineLayout {
-  VkPipelineLayout layout;
-  Math::StackVector<VkDescriptorSetLayout, 16> descriptorSetLayouts; // NOLINT
 };
 
 struct StateKey {
@@ -120,19 +114,12 @@ struct StateKeyHash {
 
 struct PipelineCache {
   std::mutex mutex;
-  LRUCache<StateKey, std::pair<VkPipeline, PipelineLayout>, StateKeyHash> cache{
-      1};
-  std::unordered_map<ObjectID, PipelineLayout> layouts;
+  LRUCache<StateKey, VkPipeline, StateKeyHash> cache{1};
 
-  PipelineLayout currentLayout;
   std::vector<VkPipeline> pipelines;
-  std::vector<PipelineLayout> pipelineLayouts;
 
   auto Initialize(const GraphicsContext &context) -> Error;
   auto DeInitialize(const GraphicsContext &context) -> void;
-
-  auto GetPipelineLayout(const GraphicsContext &context, Shader *shader)
-      -> Result<PipelineLayout>;
 };
 
 auto GetPipelineCache() -> PipelineCache &;

@@ -38,28 +38,11 @@ thread_local std::array<size_t, FRAMES_IN_FLIGHT> UploadBufferOffsets;
 
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-inline auto NameBuffer(VkBuffer buffer, VmaAllocation memory,
-                       const std::string &name) -> Error {
-  auto *contextPtr = GetCurrentGraphicsContext();
-
-  if (contextPtr == nullptr) {
-    return Error::Create(
-        "Attempted to name a buffer, but no graphics context is current.");
-  }
-
-  if (name.empty()) {
-    return Error::Create("Buffer name cannot be empty.");
-  }
-
-  if (buffer == VK_NULL_HANDLE) {
-    return Error::Create("Buffer handle is null.");
-  }
-
-  if (memory == VK_NULL_HANDLE) {
-    return Error::Create("Buffer memory handle is null.");
-  }
-
-  auto &context = *contextPtr;
+inline auto NameBuffer(const GraphicsContext &context, VkBuffer buffer,
+                       VmaAllocation memory, const std::string &name) -> Error {
+  ERR_ASSERT_MSG(!name.empty(), "Buffer name cannot be empty.");
+  CHECK_NULL(buffer);
+  CHECK_NULL(memory);
 
   VkDebugUtilsObjectNameInfoEXT debugNameInfo{
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -68,6 +51,7 @@ inline auto NameBuffer(VkBuffer buffer, VmaAllocation memory,
           static_cast<uint64_t>(reinterpret_cast<uintptr_t>(buffer)), // NOLINT
       .pObjectName = name.c_str(),
   };
+
   CHECK_NEW_ERR(vkSetDebugUtilsObjectNameEXT(context.device, &debugNameInfo));
 
   {
@@ -359,7 +343,8 @@ auto Buffer::Create(const GraphicsContext &context,
   }
 
   if (!buffer->debugName.empty()) {
-    auto err = NameBuffer(buffer->handle, buffer->memory, buffer->debugName);
+    auto err =
+        NameBuffer(context, buffer->handle, buffer->memory, buffer->debugName);
     if (Error::IsError(err)) {
       PrintWarning("Failed to set debug name for buffer: {}", err.message);
     }
@@ -484,8 +469,8 @@ auto Buffer::CopyTo(const GraphicsContext &context, Texture &dstTexture,
   }
 
   if ((usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) == 0) {
-    return Error::Create(
-        "Source buffer was not created with TRANSFER_SRC usage flag for copy.");
+    return Error::Create("Source buffer was not created with TRANSFER_SRC "
+                         "usage flag for copy.");
   }
 
   CHECK_ERR(dstTexture.UseAsTransferDst(context));

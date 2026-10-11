@@ -1,5 +1,7 @@
 #include "error.hpp"
 
+// #define LOG_ERRORS
+
 #include "Modules/console.hpp"
 #include "Modules/filesystem.hpp"
 #include "slang/slang-com-ptr.h"

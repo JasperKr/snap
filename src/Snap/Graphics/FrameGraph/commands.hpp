@@ -7,10 +7,8 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/stackVector.hpp"
-#include "Modules/timer.hpp"
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
@@ -610,7 +608,6 @@ struct VkCmdBlitImage : Callable, BoundResources {
 struct VkCmdPushConstants {
   VkCmdPushConstants() = default;
 
-  VkPipelineLayout layout{};
   VkShaderStageFlags stageFlags{};
   uint32_t offset{};
   std::vector<char> values;
@@ -831,25 +828,6 @@ struct VkCmdBindPipeline {
 
   VkCmdBindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
       : pipelineBindPoint(pipelineBindPoint), pipeline(pipeline) {}
-};
-
-struct VkCmdBindDescriptorSets {
-  VkPipelineBindPoint pipelineBindPoint;
-  VkPipelineLayout layout;
-  uint32_t firstSet;
-  std::vector<VkDescriptorSet> descriptorSets;
-  std::vector<uint32_t> dynamicOffsets;
-
-  VkCmdBindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
-                          VkPipelineLayout layout, uint32_t firstSet,
-                          uint32_t descriptorSetCount,
-                          const VkDescriptorSet *pDescriptorSets,
-                          uint32_t dynamicOffsetCount,
-                          const uint32_t *pDynamicOffsets)
-      : pipelineBindPoint(pipelineBindPoint), layout(layout),
-        firstSet(firstSet),
-        descriptorSets(pDescriptorSets, pDescriptorSets + descriptorSetCount),
-        dynamicOffsets(pDynamicOffsets, pDynamicOffsets + dynamicOffsetCount) {}
 };
 
 struct VkCmdSetScissor {
@@ -1157,9 +1135,7 @@ struct VirtualCommandBuffer {
                  VkImage dstImage, VkImageLayout dstImageLayout,
                  uint32_t regionCount, const VkImageBlit *pRegions,
                  VkFilter filter) -> Error;
-  auto PushConstants(VkPipelineLayout layout, VkShaderStageFlags stageFlags,
-                     uint32_t offset, uint32_t size, const void *pValues)
-      -> void;
+  auto PushConstants(uint32_t size, const void *pValues) -> void;
   auto CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount,
                   const VkBufferCopy *pRegions) -> Error;
   auto CopyImage(VkImage srcImage, VkImageLayout srcImageLayout,

@@ -72,7 +72,7 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
 
   Graphics::RenderState::SetShader(DownsampleShader);
 
-  auto mipCount = textures.BloomDownsampleChain->levelCount;
+  auto mipCount = textures.BloomDownsampleChain->subresourceRange.levelCount;
   if (mipCount < 2) {
     return {};
   }

@@ -241,13 +241,12 @@ add_library(snap_core OBJECT
     Graphics/vertexformat.cpp
     Graphics/vkAccessHelpers.cpp
     Graphics/vkPipelineHelpers.cpp
+    Graphics/descriptorHeap.cpp
 
 # Frame Graph
     Graphics/FrameGraph/framegraph.cpp
     Graphics/FrameGraph/commands.cpp
     Graphics/FrameGraph/resourceUsage.cpp
-    Graphics/FrameGraph/descriptorCache.cpp
-    Graphics/FrameGraph/descriptorState.cpp
     Graphics/FrameGraph/pipelineCache.cpp
     Graphics/FrameGraph/pipelineState.cpp
     Graphics/FrameGraph/dynamicRendering.cpp

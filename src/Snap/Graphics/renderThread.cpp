@@ -1,7 +1,6 @@
 #include "Graphics/renderThread.hpp"
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/commands.hpp"
-#include "Graphics/FrameGraph/descriptorCache.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/graphics.hpp"
@@ -78,49 +77,6 @@ inline auto CreateDescriptorPool(ThreadContext &tcontext)
   return descriptorPool;
 }
 
-inline auto GetDescriptorPool(ThreadContext &tcontext) -> Error {
-  // Reset descriptor sets and other per-frame data
-  auto &context = *tcontext.graphicsContext;
-
-  VkDescriptorPool pool = VK_NULL_HANDLE;
-
-  {
-    std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-
-    for (auto &descriptorPoolInfo : tcontext.descriptorPools) {
-      if (!Graphics::semaphoreManager.IsInUse(
-              descriptorPoolInfo.lastUsedTimestamp)) {
-        pool = descriptorPoolInfo.descriptorPool;
-        descriptorPoolInfo.lastUsedTimestamp =
-            Graphics::SemaphoreManager::GetSemaphoreValue();
-        break;
-      }
-    }
-  }
-
-  if (pool == VK_NULL_HANDLE) {
-    pool = CHECK_RES(CreateDescriptorPool(tcontext));
-
-    PrintAlways("New pool");
-
-    tcontext.descriptorPools.push_back(
-        {pool, Graphics::SemaphoreManager::GetSemaphoreValue()});
-
-    tcontext.descriptorPool = pool;
-    GetDescriptorCache().descriptorSetCache.clear();
-  } else {
-    std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-
-    tcontext.descriptorPool = pool;
-
-    CHECK_NEW_ERR(
-        vkResetDescriptorPool(context.device, tcontext.descriptorPool, 0));
-    GetDescriptorCache().descriptorSetCache.clear();
-  }
-
-  return Error::Success();
-}
-
 inline auto GetThreadLocalVCmdBuffer() -> Result<VirtualCommandBuffer *> {
   thread_local ::Graphics::VirtualCommandBuffer commandBuffer{};
   if (!commandBuffer.initialized) {
@@ -175,8 +131,6 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   threadInfo->threadData.commandBuffer = commandBuffer;
   threadInfo->threadData.commandBuffer->queueFamily = info.queueFamily;
 
-  CHECK_ERR(GetDescriptorPool(tcontext));
-
   GetThreadContext().commandBuffer = threadInfo->threadData.commandBuffer;
   CurrentRenderThreadInfo = threadInfo;
 
@@ -201,13 +155,6 @@ auto SubmitCommands(Graphics::GraphicsContext &context)
     return Error::Unexpected("No command buffer to submit.");
   }
   auto &threadContext = GetThreadContext();
-
-  for (auto &pool : threadContext.descriptorPools) {
-    if (pool.descriptorPool == threadContext.descriptorPool) {
-      pool.lastUsedTimestamp = Graphics::SemaphoreManager::GetSemaphoreValue();
-      break;
-    }
-  }
 
   threadContext.commandBuffer = nullptr;
 
@@ -272,20 +219,6 @@ auto Deinitialize(Graphics::GraphicsContext &context) -> Error {
   Graphics::UploadBuffers.clear();
 
   RenderState::Shutdown(context);
-
-  {
-    std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-
-    // TODO: Delay thread destruction until this isn't needed anymore since this is kinda bad
-    CHECK_NEW_ERR(vkDeviceWaitIdle(context.device));
-
-    for (auto &descriptorPoolInfo : GetThreadContext().descriptorPools) {
-      vkDestroyDescriptorPool(context.device, descriptorPoolInfo.descriptorPool,
-                              GetAllocationCallbacks());
-    }
-
-    GetThreadContext().descriptorPools.clear();
-  }
 
   return Error::Success();
 }

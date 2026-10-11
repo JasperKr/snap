@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Graphics/Buffers/push.hpp"
-#include "Graphics/FrameGraph/descriptorKey.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/bvh.hpp"
@@ -77,10 +76,6 @@ struct BoundState {
   std::unordered_map<DescriptorSlot, BoundTexturePair> userBoundTextures;
   std::unordered_map<DescriptorSlot, BoundASPair>
       userBoundAccelerationStructures;
-  std::unordered_map<uint32_t, ResourceBinding> bindingInfos;
-
-  std::unordered_map<uint32_t, DescriptorKey> descriptorKeys;
-  std::unordered_map<uint32_t, bool> dirtyKeys;
 };
 
 struct Shader : Object, Identifiable {
@@ -105,10 +100,6 @@ struct Shader : Object, Identifiable {
   Slang::ComPtr<slang::IComponentType> linkedProgram;
 
   std::unordered_map<SlangStage, size_t> entryPointToStageIndex;
-
-  // Set -> (Texture, Sampler)
-  std::unordered_map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>>
-      bindingInfos;
 
   Reflect::ShaderReflection reflection;
   std::unique_ptr<PushBuffer> pushBuffer;

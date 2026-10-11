@@ -70,28 +70,6 @@ ImageMemory::~ImageMemory() {
   Texture::TotalAllocatedMemory -= sizeInBytes;
 }
 
-auto GetAspectFlagsForFormat(VkFormat format) -> VkImageAspectFlagBits {
-  switch (format) {
-  case VK_FORMAT_D16_UNORM:
-  case VK_FORMAT_X8_D24_UNORM_PACK32:
-  case VK_FORMAT_D32_SFLOAT:
-    return VK_IMAGE_ASPECT_DEPTH_BIT;
-
-  case VK_FORMAT_S8_UINT:
-    return VK_IMAGE_ASPECT_STENCIL_BIT;
-
-  case VK_FORMAT_D16_UNORM_S8_UINT:
-  case VK_FORMAT_D24_UNORM_S8_UINT:
-  case VK_FORMAT_D32_SFLOAT_S8_UINT:
-    return static_cast<VkImageAspectFlagBits>(
-        static_cast<uint32_t>(VK_IMAGE_ASPECT_DEPTH_BIT) |
-        static_cast<uint32_t>(VK_IMAGE_ASPECT_STENCIL_BIT));
-
-  default:
-    return VK_IMAGE_ASPECT_COLOR_BIT;
-  }
-}
-
 inline auto SetDebugName(const std::string &debugName, Texture *texture,
                          const GraphicsContext &context) -> Error {
 
@@ -211,8 +189,8 @@ auto Texture::Create(const GraphicsContext &context,
   imageMemory->mipmapcount = info.mipmapCount;
   imageMemory->arrayLayers = info.arrayLayers;
 
-  texture->levelCount = info.mipmapCount;
-  texture->layerCount = info.arrayLayers;
+  texture->subresourceRange.levelCount = info.mipmapCount;
+  texture->subresourceRange.layerCount = info.arrayLayers;
 
   imageMemory->usage = info.usage;
   imageMemory->debugName =
@@ -303,28 +281,30 @@ auto Texture::Create(const GraphicsContext &context,
     return Error::Unexpected("Invalid texture type.");
   }
 
-  VkImageViewCreateInfo viewInfo = {};
-  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  viewInfo.image = imageMemory->image;
-  viewInfo.viewType = textureViewType;
-  viewInfo.format = info.format;
-  viewInfo.subresourceRange.aspectMask = GetAspectFlagsForFormat(info.format);
-  viewInfo.subresourceRange.baseMipLevel = 0;
-  viewInfo.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-  viewInfo.subresourceRange.baseArrayLayer = 0;
-  viewInfo.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+  texture->viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  texture->viewCreateInfo.image = imageMemory->image;
+  texture->viewCreateInfo.viewType = textureViewType;
+  texture->viewCreateInfo.format = info.format;
+  texture->viewCreateInfo.subresourceRange.aspectMask =
+      Image::GetTextureAspectFlags(info.format);
+  texture->viewCreateInfo.subresourceRange.baseMipLevel = 0;
+  texture->viewCreateInfo.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+  texture->viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+  texture->viewCreateInfo.subresourceRange.layerCount =
+      VK_REMAINING_ARRAY_LAYERS;
 
   if (info.textureType == TextureType::CUBEMAP) {
-    viewInfo.subresourceRange.layerCount = 6; // NOLINT
+    texture->viewCreateInfo.subresourceRange.layerCount = 6; // NOLINT
   }
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkCreateImageView(context.device, &viewInfo,
+    CHECK_NEW_ERR(vkCreateImageView(context.device, &texture->viewCreateInfo,
                                     GetAllocationCallbacks(), &texture->view));
   }
 
   texture->imageMemory = imageMemory;
+  texture->viewType = textureViewType;
 
   // ignore set debug name error, since it's not critical
   auto err = SetDebugName(info.debugName, texture.get(), context);
@@ -360,21 +340,23 @@ auto Texture::Create(const GraphicsContext &context, Texture *parentTexture,
         "Texture view mip level count must be greater than 0.");
   }
 
-  if (range.baseMipLevel + range.levelCount > parentTexture->levelCount) {
+  if (range.baseMipLevel + range.levelCount >
+      parentTexture->subresourceRange.levelCount) {
     return Error::Unexpectedf("Mip level range base: {} + count: {} is out of "
                               "range of the parent texture. [0 - {}]",
                               range.baseMipLevel, range.levelCount,
-                              parentTexture->levelCount);
+                              parentTexture->subresourceRange.levelCount);
   }
 
-  if (range.baseArrayLayer + range.layerCount > parentTexture->layerCount) {
+  if (range.baseArrayLayer + range.layerCount >
+      parentTexture->subresourceRange.layerCount) {
     return Error::Unexpectedf("Array layer range base: {} + count: {} is out "
                               "of range of the parent texture. [0 - {}]",
                               range.baseArrayLayer, range.layerCount,
-                              parentTexture->layerCount);
+                              parentTexture->subresourceRange.layerCount);
   }
   range.aspectMask =
-      GetAspectFlagsForFormat(parentTexture->imageMemory->format);
+      Image::GetTextureAspectFlags(parentTexture->imageMemory->format);
 
   Ref<Texture> textureView = Ref<Texture>::Make();
 
@@ -382,28 +364,25 @@ auto Texture::Create(const GraphicsContext &context, Texture *parentTexture,
   textureView->debugName = parentTexture->debugName + "_view";
   textureView->isView = true;
 
-  textureView->baseMipLevel = range.baseMipLevel;
-  textureView->baseArrayLayer = range.baseArrayLayer;
-  textureView->levelCount = range.levelCount;
-  textureView->layerCount = range.layerCount;
+  textureView->subresourceRange = range;
+  textureView->viewType = viewType;
 
   const auto &config = Threading::GetGraphicsConfiguration();
 
   textureView->samplerDescription = config.defaultSamplerDescription;
   textureView->imageMemory = parentTexture->imageMemory;
 
-  VkImageViewCreateInfo viewInfo = {};
-  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  viewInfo.image = textureView->imageMemory->image;
-  viewInfo.viewType = viewType;
-  viewInfo.format = textureView->imageMemory->format;
-  viewInfo.subresourceRange = range;
+  textureView->viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  textureView->viewCreateInfo.image = textureView->imageMemory->image;
+  textureView->viewCreateInfo.viewType = viewType;
+  textureView->viewCreateInfo.format = textureView->imageMemory->format;
+  textureView->viewCreateInfo.subresourceRange = range;
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkCreateImageView(context.device, &viewInfo,
-                                    GetAllocationCallbacks(),
-                                    &textureView->view));
+    CHECK_NEW_ERR(
+        vkCreateImageView(context.device, &textureView->viewCreateInfo,
+                          GetAllocationCallbacks(), &textureView->view));
   }
 
   // ignore set debug name error, since it's not critical
@@ -431,8 +410,9 @@ auto Texture::FromSwapchain(const GraphicsContext &context,
   imageMemory->arrayLayers = 1;
   imageMemory->isSwapchainMemory = true;
 
-  texture->levelCount = 1;
-  texture->layerCount = 1;
+  texture->subresourceRange.aspectMask = Image::GetTextureAspectFlags(format);
+  texture->subresourceRange.levelCount = 1;
+  texture->subresourceRange.layerCount = 1;
 
   texture->samplerDirty = true;
   texture->view = swapchainImageView;
@@ -618,7 +598,7 @@ auto Texture::FromMemory(const GraphicsContext &context,
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
     region.imageSubresource.aspectMask =
-        GetAspectFlagsForFormat(compressedData.GetFormat());
+        Image::GetTextureAspectFlags(compressedData.GetFormat());
     region.imageSubresource.mipLevel = static_cast<uint32_t>(mip);
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
@@ -782,7 +762,7 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.image = image;
   barrier.subresourceRange = range;
-  barrier.subresourceRange.aspectMask = GetAspectFlagsForFormat(format);
+  barrier.subresourceRange.aspectMask = Image::GetTextureAspectFlags(format);
 
   barrier.srcAccessMask = 0;
   barrier.dstAccessMask = 0;
@@ -948,7 +928,7 @@ inline auto WriteSimplifiedPixelData(const Ref<Texture> &texture,
   region.bufferRowLength = 0;
   region.bufferImageHeight = 0;
   region.imageSubresource.aspectMask =
-      GetAspectFlagsForFormat(texture->imageMemory->format);
+      Image::GetTextureAspectFlags(texture->imageMemory->format);
   region.imageSubresource.mipLevel = mipLevel;
   region.imageSubresource.baseArrayLayer = arrayLayer;
   region.imageSubresource.layerCount = 1;
@@ -1089,7 +1069,7 @@ auto Texture::SetPixels(const GraphicsContext &context,
   region.bufferRowLength = targetSize.width;
   region.bufferImageHeight = targetSize.height;
   region.imageSubresource.aspectMask =
-      GetAspectFlagsForFormat(imageMemory->format);
+      Image::GetTextureAspectFlags(imageMemory->format);
   region.imageSubresource.mipLevel = mipLevel;
   region.imageSubresource.baseArrayLayer = arrayLayer;
   region.imageSubresource.layerCount = 1;
@@ -1307,12 +1287,12 @@ auto ImageMemory::UseAs(const GraphicsContext &context, TextureUsage newUsage,
     currentAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
   }
 
-  auto range =
-      VkImageSubresourceRange{.aspectMask = GetAspectFlagsForFormat(format),
-                              .baseMipLevel = 0,
-                              .levelCount = VK_REMAINING_MIP_LEVELS,
-                              .baseArrayLayer = 0,
-                              .layerCount = VK_REMAINING_ARRAY_LAYERS};
+  auto range = VkImageSubresourceRange{.aspectMask =
+                                           Image::GetTextureAspectFlags(format),
+                                       .baseMipLevel = 0,
+                                       .levelCount = VK_REMAINING_MIP_LEVELS,
+                                       .baseArrayLayer = 0,
+                                       .layerCount = VK_REMAINING_ARRAY_LAYERS};
 
   auto result = TransitionLayout(context, layout, state.lastPipelineStage,
                                  stage, currentAccess, newAccess, range);
@@ -1379,14 +1359,14 @@ auto Texture::CopyTo(const GraphicsContext &context, Texture &dstTexture,
       region.extent.depth == 0) {
     return Error::Create("CopyTo: Copy extent must be greater than zero.");
   }
-  if (region.srcBaseMipLevel >= levelCount ||
-      region.dstBaseMipLevel >= dstTexture.levelCount) {
+  if (region.srcBaseMipLevel >= subresourceRange.levelCount ||
+      region.dstBaseMipLevel >= dstTexture.subresourceRange.levelCount) {
     return Error::Create(
         "CopyTo: Source and destination mip levels must be within bounds.");
   }
 
-  if (region.srcBaseArrayLayer >= layerCount ||
-      region.dstBaseArrayLayer >= dstTexture.layerCount) {
+  if (region.srcBaseArrayLayer >= subresourceRange.layerCount ||
+      region.dstBaseArrayLayer >= dstTexture.subresourceRange.layerCount) {
     return Error::Create(
         "CopyTo: Source and destination array layers must be within bounds.");
   }
@@ -1423,13 +1403,13 @@ auto Texture::CopyTo(const GraphicsContext &context, Texture &dstTexture,
 
   VkImageCopy copyRegion = {};
   copyRegion.srcSubresource.aspectMask =
-      GetAspectFlagsForFormat(imageMemory->format);
+      Image::GetTextureAspectFlags(imageMemory->format);
   copyRegion.srcSubresource.mipLevel = region.srcBaseMipLevel;
   copyRegion.srcSubresource.baseArrayLayer = region.srcBaseArrayLayer;
   copyRegion.srcSubresource.layerCount = region.layerCount;
   copyRegion.srcOffset = region.srcOffset;
   copyRegion.dstSubresource.aspectMask =
-      GetAspectFlagsForFormat(dstTexture.imageMemory->format);
+      Image::GetTextureAspectFlags(dstTexture.imageMemory->format);
   copyRegion.dstSubresource.mipLevel = region.dstBaseMipLevel;
   copyRegion.dstSubresource.baseArrayLayer = region.dstBaseArrayLayer;
   copyRegion.dstSubresource.layerCount = region.layerCount;
@@ -1453,7 +1433,7 @@ auto Texture::CopyTo(const GraphicsContext &context, Buffer &dstBuffer,
   copyRegion.bufferRowLength = region.extent.width;
   copyRegion.bufferImageHeight = region.extent.height;
   copyRegion.imageSubresource.aspectMask =
-      GetAspectFlagsForFormat(imageMemory->format);
+      Image::GetTextureAspectFlags(imageMemory->format);
   copyRegion.imageSubresource.mipLevel = region.srcBaseMipLevel;
   copyRegion.imageSubresource.baseArrayLayer = region.srcBaseArrayLayer;
   copyRegion.imageSubresource.layerCount = region.layerCount;
@@ -1496,7 +1476,7 @@ std::atomic<VkDeviceSize> Texture::TotalAllocatedMemory{};
 
 auto Texture::GenerateMipmaps(const GraphicsContext &context,
                               VkCommandBuffer commandBuffer) const -> Error {
-  if (levelCount <= 1) {
+  if (subresourceRange.levelCount <= 1) {
     return Error::Create("Texture does not have multiple mip levels for "
                          "mipmap generation.");
   }
@@ -1523,11 +1503,11 @@ auto Texture::GenerateMipmaps(const GraphicsContext &context,
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.image = imageMemory->image;
   barrier.subresourceRange.aspectMask =
-      GetAspectFlagsForFormat(imageMemory->format);
+      Image::GetTextureAspectFlags(imageMemory->format);
   barrier.subresourceRange.baseMipLevel = 0;
   barrier.subresourceRange.levelCount = imageMemory->mipmapcount;
-  barrier.subresourceRange.baseArrayLayer = baseArrayLayer;
-  barrier.subresourceRange.layerCount = layerCount;
+  barrier.subresourceRange.baseArrayLayer = subresourceRange.baseArrayLayer;
+  barrier.subresourceRange.layerCount = subresourceRange.layerCount;
 
   VkDependencyInfo dep = {};
   dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -1570,19 +1550,19 @@ auto Texture::GenerateMipmaps(const GraphicsContext &context,
 
     VkImageBlit blit = {};
     blit.srcSubresource.aspectMask =
-        GetAspectFlagsForFormat(imageMemory->format);
+        Image::GetTextureAspectFlags(imageMemory->format);
     blit.srcSubresource.mipLevel = i - 1;
-    blit.srcSubresource.baseArrayLayer = baseArrayLayer;
-    blit.srcSubresource.layerCount = layerCount;
+    blit.srcSubresource.baseArrayLayer = subresourceRange.baseArrayLayer;
+    blit.srcSubresource.layerCount = subresourceRange.layerCount;
     blit.srcOffsets[0] = {.x = 0, .y = 0, .z = 0};
     blit.srcOffsets[1] = {.x = static_cast<int32_t>(baseExtent.width),
                           .y = static_cast<int32_t>(baseExtent.height),
                           .z = static_cast<int32_t>(baseExtent.depth)};
     blit.dstSubresource.aspectMask =
-        GetAspectFlagsForFormat(imageMemory->format);
+        Image::GetTextureAspectFlags(imageMemory->format);
     blit.dstSubresource.mipLevel = i;
-    blit.dstSubresource.baseArrayLayer = baseArrayLayer;
-    blit.dstSubresource.layerCount = layerCount;
+    blit.dstSubresource.baseArrayLayer = subresourceRange.baseArrayLayer;
+    blit.dstSubresource.layerCount = subresourceRange.layerCount;
     blit.dstOffsets[0] = {.x = 0, .y = 0, .z = 0};
     blit.dstOffsets[1] = {.x = static_cast<int32_t>(mipExtent.width),
                           .y = static_cast<int32_t>(mipExtent.height),
