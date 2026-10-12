@@ -11,6 +11,8 @@
 #include <mutex>
 #include <span>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "vulkan/vulkan_core.h"
 namespace Graphics {
@@ -87,6 +89,13 @@ struct Buffer : Object, Identifiable {
   // Set by cleanup function otherwise we'll try to snap_defer destruction again
   bool isDestroyed = false;
 
+  mutable std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+  [[nodiscard]] auto GetAddress(const GraphicsContext &context,
+                                VkDescriptorType type) const
+      -> Result<VkDeviceSize>;
+
+  std::string debugName;
+
   auto GetTimestamp() const -> uint64_t { return lastUsedTimestamp; }
   auto MarkUse() const -> void;
 
@@ -152,8 +161,6 @@ struct Buffer : Object, Identifiable {
       -> Result<Ref<BufferReadback>>;
 
   [[nodiscard]] auto GetDeviceAddress() const -> Result<VkDeviceAddress>;
-
-  std::string debugName;
 };
 
 // NOLINTBEGIN

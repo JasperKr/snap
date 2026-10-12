@@ -227,7 +227,7 @@ struct Texture : Object, Identifiable {
   SamplerDescription samplerDescription{};
 
   VkImageView view = VK_NULL_HANDLE;
-  VkSampler sampler = VK_NULL_HANDLE;
+  VkDeviceSize sampler{};
 
   VkImageSubresourceRange subresourceRange{};
   VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
@@ -248,6 +248,8 @@ struct Texture : Object, Identifiable {
 
   std::shared_ptr<ImageMemory> imageMemory;
 
+  mutable std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+
   auto UseAs(const GraphicsContext &context, TextureUsage newUsage,
              VkPipelineStageFlags2 stage,
              VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -267,7 +269,7 @@ struct Texture : Object, Identifiable {
       -> Error;
   auto UseAsPresentSrc(const GraphicsContext &context) -> Error;
 
-  auto GetTimestamp() const -> uint64_t {
+  [[nodiscard]] auto GetTimestamp() const -> uint64_t {
     return imageMemory->lastUsedTimestamp;
   }
 
@@ -325,7 +327,7 @@ struct Texture : Object, Identifiable {
     return {GetWidth(), GetHeight(), GetDepth()};
   };
 
-  auto GetSampler(const GraphicsContext &context) -> VkSampler;
+  auto GetSampler(const GraphicsContext &context) -> Result<VkDeviceSize>;
   // Copies data from a 1D/2D/3D region from the provided data to the texture
   // sourceSize is the dimensions of the underlying data
   // sourceOffset is the offset within the data to start copying from
@@ -396,6 +398,10 @@ struct Texture : Object, Identifiable {
   auto operator!=(const Texture &other) const -> bool {
     return !(*this == other);
   }
+
+  [[nodiscard]] auto GetAddress(const GraphicsContext &context,
+                                VkDescriptorType type) const
+      -> Result<VkDeviceSize>;
 };
 
 } // namespace Graphics

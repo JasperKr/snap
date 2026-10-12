@@ -5,9 +5,11 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/units.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <span>
 #include <vulkan/vulkan_core.h>
@@ -62,6 +64,9 @@ auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
     BufferCursorOrigin =
         ResourceHeap->size - heapProperties.bufferDescriptorSize;
   }
+
+  samplerCursor = heapProperties.minSamplerHeapReservedRange;
+  imageCursor = heapProperties.minResourceHeapReservedRange;
 
   return {};
 }
@@ -130,7 +135,7 @@ auto DescriptorHeapManager::AllocateSampler() -> Result<VkDeviceSize> {
 }
 
 auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
-                                             const Ref<Buffer> &buffer,
+                                             const Buffer *buffer,
                                              VkDescriptorType type)
     -> Result<VkDeviceSize> {
 
@@ -146,22 +151,28 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
       .data = {.pAddressRange = &addressRange}};
 
   VkHostAddressRangeEXT hostAddressRange{};
+  VkDeviceSize address{};
 
-  CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(context.device, 1, &resourceInfo,
-                                              &hostAddressRange));
+  {
+    // TODO: Own a lock for protecting allocate instead of relying on the device lock
+    std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
 
-  VkDeviceSize address = CHECK_RES(AllocateResource(false));
-  std::span<uint8_t> span = {
-      reinterpret_cast<uint8_t *>(hostAddressRange.address), // NOLINT
-      hostAddressRange.size};
+    CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(
+        context.device, 1, &resourceInfo, &hostAddressRange));
 
-  CHECK_ERR(ResourceHeap->SetData(context, span, address));
+    address = CHECK_RES(AllocateResource(false));
+    std::span<uint8_t> span = {
+        reinterpret_cast<uint8_t *>(hostAddressRange.address), // NOLINT
+        hostAddressRange.size};
+
+    CHECK_ERR(ResourceHeap->SetData(context, span, address));
+  }
 
   return address;
 }
 
 auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
-                                             const Ref<Texture> &texture,
+                                             const Texture *texture,
                                              VkDescriptorType type)
     -> Result<VkDeviceSize> {
 
@@ -179,16 +190,21 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
       .data = {.pImage = &imageInfo}};
 
   VkHostAddressRangeEXT hostAddressRange{};
+  VkDeviceSize address{};
 
-  CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(context.device, 1, &resourceInfo,
-                                              &hostAddressRange));
+  {
+    std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
 
-  VkDeviceSize address = CHECK_RES(AllocateResource(true));
-  std::span<uint8_t> span = {
-      reinterpret_cast<uint8_t *>(hostAddressRange.address), // NOLINT
-      hostAddressRange.size};
+    CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(
+        context.device, 1, &resourceInfo, &hostAddressRange));
 
-  CHECK_ERR(ResourceHeap->SetData(context, span, address));
+    address = CHECK_RES(AllocateResource(true));
+    std::span<uint8_t> span = {
+        reinterpret_cast<uint8_t *>(hostAddressRange.address), // NOLINT
+        hostAddressRange.size};
+
+    CHECK_ERR(ResourceHeap->SetData(context, span, address));
+  }
 
   return address;
 }
@@ -213,34 +229,64 @@ auto DescriptorHeapManager::AllocateSampler(
 }
 
 auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr)
-    -> Error {
-  ERR_ASSERT(resourcePtr <= imageCursor); // Cannot free outside of used range
+    -> void {
+  assert(resourcePtr <= imageCursor); // Cannot free outside of used range
+  assert(resourcePtr >= heapProperties.minResourceHeapReservedRange);
 
   imageMemoryManager.Deallocate(resourcePtr, heapProperties.imageDescriptorSize,
                                 imageCursor);
-
-  return {};
 }
 
 auto DescriptorHeapManager::FreeBufferResourceIndex(VkDeviceSize resourcePtr)
-    -> Error {
+    -> void {
   resourcePtr = bufferCursor - resourcePtr;
 
   // Cannot free outside of used range
-  ERR_ASSERT(resourcePtr < bufferCursor);
+  assert(resourcePtr < bufferCursor);
 
   bufferMemoryManager.Deallocate(
       resourcePtr, heapProperties.bufferDescriptorSize, bufferCursor);
-
-  return {};
 }
 
 auto DescriptorHeapManager::FreeSamplerResourceIndex(VkDeviceSize resourcePtr)
-    -> Error {
-  ERR_ASSERT(resourcePtr <= samplerCursor); // Cannot free outside of used range
+    -> void {
+  assert(resourcePtr <= samplerCursor); // Cannot free outside of used range
+  assert(resourcePtr >= heapProperties.minSamplerHeapReservedRange);
 
   samplerMemoryManager.Deallocate(
       resourcePtr, heapProperties.samplerDescriptorSize, samplerCursor);
+}
+
+auto DescriptorHeapManager::Bind(VkCommandBuffer commandBuffer) -> Error {
+  VkDeviceAddress samplerAddress = CHECK_RES(SamplerHeap->GetDeviceAddress());
+
+  VkBindHeapInfoEXT samplerBindInfo{
+      .sType = VK_STRUCTURE_TYPE_BIND_HEAP_INFO_EXT,
+      .pNext = nullptr,
+      .heapRange =
+          {
+              .address = samplerAddress,
+              .size = SamplerHeap->size,
+          },
+      .reservedRangeOffset = 0,
+      .reservedRangeSize = heapProperties.minSamplerHeapReservedRange,
+  };
+
+  vkCmdBindSamplerHeapEXT(commandBuffer, &samplerBindInfo);
+
+  VkBindHeapInfoEXT resourceBindInfo{
+      .sType = VK_STRUCTURE_TYPE_BIND_HEAP_INFO_EXT,
+      .pNext = nullptr,
+      .heapRange =
+          {
+              .address = resourceAddress,
+              .size = ResourceHeap->size,
+          },
+      .reservedRangeOffset = 0,
+      .reservedRangeSize = heapProperties.minResourceHeapReservedRange,
+  };
+
+  vkCmdBindResourceHeapEXT(commandBuffer, &resourceBindInfo);
 
   return {};
 }

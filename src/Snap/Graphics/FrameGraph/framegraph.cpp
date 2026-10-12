@@ -3,6 +3,7 @@
 #include "Graphics/FrameGraph/dynamicRendering.hpp"
 #include "Graphics/FrameGraph/pipelineState.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
@@ -1542,6 +1543,8 @@ auto FrameGraph::Write(const GraphicsContext &context,
 
   vkBeginCommandBuffer(cmdBuffer, &beginInfo);
   GetThreadContext().workingCommandBuffer = cmdBuffer;
+
+  CHECK_ERR(DescriptorHeapManager::GetInstance().Bind(cmdBuffer));
 
   CHECK_ERR(BeginFrame(context));
 

@@ -1,6 +1,7 @@
 #include "buffer.hpp"
 
 #include "Graphics/FrameGraph/commands.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
@@ -682,13 +683,24 @@ Buffer::~Buffer() {
   struct Info {
     VkBuffer buffer;
     VmaAllocation allocation;
+    std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
   };
 
   ScheduleDestruction<Info>(
       [](const GraphicsContext &context, Info &info) -> auto {
         vmaDestroyBuffer(context.vmaAllocator, info.buffer, info.allocation);
+
+        for (const auto addressPair : info.addresses) {
+          DescriptorHeapManager::GetInstance().FreeBufferResourceIndex(
+              addressPair.first);
+        }
       },
-      lastUsedTimestamp, Info{.buffer = handle, .allocation = memory});
+      lastUsedTimestamp,
+      Info{
+          .buffer = handle,
+          .allocation = memory,
+          .addresses = std::move(addresses),
+      });
 
   if (persistentMapping && mappedData != nullptr) {
     vmaUnmapMemory(context->vmaAllocator, memory);
@@ -708,6 +720,22 @@ auto Buffer::GetDeviceAddress() const -> Result<VkDeviceAddress> {
   bufferDeviceAddressInfo.buffer = handle;
 
   return vkGetBufferDeviceAddress(context->device, &bufferDeviceAddressInfo);
+}
+
+auto Buffer::GetAddress(const GraphicsContext &context,
+                        VkDescriptorType type) const -> Result<VkDeviceSize> {
+  for (const auto &addressPair : addresses) {
+    if (addressPair.second == type) {
+      return addressPair.first;
+    }
+  }
+
+  VkDeviceSize address =
+      CHECK_RES(DescriptorHeapManager::GetInstance().AllocateResource(
+          context, this, type));
+
+  addresses.emplace_back(address, type);
+  return address;
 }
 
 std::atomic<VkDeviceSize> Buffer::TotalAllocatedMemory{};

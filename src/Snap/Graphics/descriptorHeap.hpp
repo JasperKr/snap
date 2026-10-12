@@ -157,21 +157,22 @@ struct DescriptorHeapManager {
   VkDeviceSize samplerCursor{};
 
   auto AllocateResource(const struct GraphicsContext &context,
-                        const Ref<Buffer> &buffer, VkDescriptorType type)
+                        const Buffer *buffer, VkDescriptorType type)
       -> Result<VkDeviceSize>;
   auto AllocateResource(const struct GraphicsContext &context,
-                        const Ref<Texture> &texture, VkDescriptorType type)
+                        const Texture *texture, VkDescriptorType type)
       -> Result<VkDeviceSize>;
   auto AllocateSampler(const struct GraphicsContext &context,
                        VkSamplerCreateInfo samplerCreateInfo)
       -> Result<VkDeviceSize>;
 
-  auto FreeImageResourceIndex(VkDeviceSize resourcePtr) -> Error;
-  auto FreeBufferResourceIndex(VkDeviceSize resourcePtr) -> Error;
-  auto FreeSamplerResourceIndex(VkDeviceSize resourcePtr) -> Error;
+  auto FreeImageResourceIndex(VkDeviceSize resourcePtr) -> void;
+  auto FreeBufferResourceIndex(VkDeviceSize resourcePtr) -> void;
+  auto FreeSamplerResourceIndex(VkDeviceSize resourcePtr) -> void;
 
   auto Initialize(const struct GraphicsContext &context) -> Error;
   auto DeInitialize() -> void;
+  auto Bind(VkCommandBuffer commandBuffer) -> Error;
 
   VkPhysicalDeviceDescriptorHeapPropertiesEXT heapProperties{};
   VkDeviceSize BufferCursorOrigin{};

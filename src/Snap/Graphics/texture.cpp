@@ -3,6 +3,7 @@
 #include "Graphics/allocations.hpp"
 
 #include "Graphics/buffer.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/format.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
@@ -891,9 +892,10 @@ auto Texture::GetDepthCompare() const -> std::tuple<bool, VkCompareOp> {
   return {samplerDescription.compareEnable, samplerDescription.compareOp};
 }
 
-auto Texture::GetSampler(const GraphicsContext &context) -> VkSampler {
+auto Texture::GetSampler(const GraphicsContext &context)
+    -> Result<VkDeviceSize> {
   if (samplerDirty) {
-    sampler = GetOrCreateSampler(context, samplerDescription);
+    sampler = CHECK_RES(GetOrCreateSampler(context, samplerDescription));
     samplerDirty = false;
 
     return sampler;
@@ -1465,11 +1467,25 @@ Texture::~Texture() {
     return;
   }
 
-  ScheduleDestruction<VkImageView>(
-      [](const GraphicsContext &context, VkImageView &view) -> auto {
-        vkDestroyImageView(context.device, view, GetAllocationCallbacks());
+  struct Info {
+    VkImageView view;
+    std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+  };
+
+  ScheduleDestruction<Info>(
+      [](const GraphicsContext &context, Info &info) -> auto {
+        vkDestroyImageView(context.device, info.view, GetAllocationCallbacks());
+
+        for (const auto addressPair : info.addresses) {
+          DescriptorHeapManager::GetInstance().FreeImageResourceIndex(
+              addressPair.first);
+        }
       },
-      imageMemory->lastUsedTimestamp, view);
+      imageMemory->lastUsedTimestamp,
+      {
+          .view = view,
+          .addresses = std::move(addresses),
+      });
 }
 
 std::atomic<VkDeviceSize> Texture::TotalAllocatedMemory{};
@@ -1591,6 +1607,22 @@ auto Texture::GenerateMipmaps(const GraphicsContext &context,
   state.lastPipelineStage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 
   return {};
+}
+
+auto Texture::GetAddress(const GraphicsContext &context,
+                         VkDescriptorType type) const -> Result<VkDeviceSize> {
+  for (const auto &addressPair : addresses) {
+    if (addressPair.second == type) {
+      return addressPair.first;
+    }
+  }
+
+  VkDeviceSize address =
+      CHECK_RES(DescriptorHeapManager::GetInstance().AllocateResource(
+          context, this, type));
+
+  addresses.emplace_back(address, type);
+  return address;
 }
 
 } // namespace Graphics

@@ -1,21 +1,22 @@
 #include "sampler.hpp"
-#include "Graphics/allocations.hpp"
-#include "Graphics/snapshot.hpp"
-#include "Modules/console.hpp"
+#include "Graphics/descriptorHeap.hpp"
+#include "Graphics/graphicsContext.hpp"
 #include "Modules/error.hpp"
 #include <unordered_map>
+#include <vulkan/vulkan_core.h>
 
 namespace Graphics {
 
-std::unordered_map<SamplerDescription, VkSampler, SamplerDescHash>
+std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash>
     SamplerCache; // NOLINT
 
 auto GetOrCreateSampler(const GraphicsContext &context,
-                        const SamplerDescription &description) -> VkSampler {
+                        const SamplerDescription &description)
+    -> Result<VkDeviceSize> {
 
-  auto sampler = SamplerCache.find(description);
-  if (sampler != SamplerCache.end()) {
-    return sampler->second; // Return cached sampler
+  auto iter = SamplerCache.find(description);
+  if (iter != SamplerCache.end()) {
+    return iter->second; // Return cached sampler
   }
 
   VkSamplerCreateInfo samplerInfo{};
@@ -37,41 +38,18 @@ auto GetOrCreateSampler(const GraphicsContext &context,
   samplerInfo.borderColor = description.borderColor;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
-  VkSampler vkSampler = VK_NULL_HANDLE;
-  {
-    std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    VkResult result = vkCreateSampler(context.device, &samplerInfo,
-                                      GetAllocationCallbacks(), &vkSampler);
+  VkDeviceSize sampler =
+      CHECK_RES(DescriptorHeapManager::GetInstance().AllocateSampler(
+          context, samplerInfo));
 
-    if (result != VK_SUCCESS) {
-      PrintError("Failed to create sampler: {}\n",
-                 Error::Create(result).message);
-      return VK_NULL_HANDLE; // Failed to create sampler
-    }
-  }
-
-#if Enable_Snapshots
-  Snapshot::CaptureEvent(Snapshot::SamplerCreateEvent(
-      vkSampler, description.magFilter, description.minFilter,
-      description.mipmapMode, description.addressModeU,
-      description.addressModeV, description.addressModeW,
-      description.mipLodBias, description.anisotropyEnable,
-      description.maxAnisotropy, description.compareEnable,
-      description.compareOp, description.minLod, description.maxLod,
-      description.borderColor));
-#endif
-
-  SamplerCache[description] = vkSampler;
-  return vkSampler;
+  SamplerCache[description] = sampler;
+  return sampler;
 }
 
 auto DestroySamplers(const GraphicsContext &context) -> void {
   std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
   for (auto &pair : SamplerCache) {
-#if Enable_Snapshots
-    Snapshot::CaptureEvent(Snapshot::SamplerDestroyEvent(pair.second));
-#endif
-    vkDestroySampler(context.device, pair.second, GetAllocationCallbacks());
+    DescriptorHeapManager::GetInstance().FreeSamplerResourceIndex(pair.second);
   }
   SamplerCache.clear();
 }
