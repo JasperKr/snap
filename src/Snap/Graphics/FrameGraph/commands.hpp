@@ -939,12 +939,14 @@ struct VkCmdPipelineBarrier2 : Callable, BoundResources {
     VkDependencyInfo dep{};
     dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
 
-    dep.pMemoryBarriers =
-        memoryBarriers.empty() ? nullptr : memoryBarriers.data();
-    dep.pBufferMemoryBarriers =
-        bufferMemoryBarriers.empty() ? nullptr : bufferMemoryBarriers.data();
-    dep.pImageMemoryBarriers =
-        imageMemoryBarriers.empty() ? nullptr : imageMemoryBarriers.data();
+    dep.pMemoryBarriers = memoryBarriers.data();
+    dep.memoryBarrierCount = memoryBarriers.size();
+
+    dep.pBufferMemoryBarriers = bufferMemoryBarriers.data();
+    dep.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
+
+    dep.pImageMemoryBarriers = imageMemoryBarriers.data();
+    dep.imageMemoryBarrierCount = imageMemoryBarriers.size();
 
     vkCmdPipelineBarrier2(cmdBuffer, &dep);
     return {};

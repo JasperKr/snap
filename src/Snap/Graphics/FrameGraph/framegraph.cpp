@@ -673,7 +673,7 @@ auto FrameGraph::InsertBarriers() -> Error {
             const auto &command = GetCommand(commandID);
 
             if (command.GetType() == CommandType::vkCmdPipelineBarrier2) {
-              level.userBarriers.emplace_back(commandID);
+              level.userBarriers.emplace_back(commandIndex);
 
               return true;
             }
@@ -1345,7 +1345,7 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   auto commandCount = commandIndices.size();
   assert(commandCount <= UINT16_MAX);
 
-  ERR_ASSERT(commands.empty());
+  assert(commands.empty());
 
   // NOLINTNEXTLINE
   for (CommandID commandID = 0; commandID < commandCount; commandID++) {
@@ -1447,8 +1447,8 @@ auto FrameGraph::CompactRenderPasses() -> Error {
     }
   }
 
-  ERR_ASSERT(commands.size() <= commandIndices.size());
-  ERR_ASSERT(idx == commands.size());
+  assert(commands.size() <= commandIndices.size());
+  assert(idx == commands.size());
 
   return {};
 }
@@ -1545,27 +1545,25 @@ auto FrameGraph::Write(const GraphicsContext &context,
 
   CHECK_ERR(BeginFrame(context));
 
-  for (const auto &level : graph) {
+  for (auto &level : graph) {
     ZoneScopedN("Write level");
 
     if (!level.userBarriers.empty()) {
       EndRendering(context, cmdBuffer);
 
       for (const CommandIndex barrier : level.userBarriers) {
-        const auto &command = GetCommand(barrier);
+        const auto &command = GetCommand(commands.at(barrier));
         const auto *callable = get_if_derived<Callable>(command.data);
 
         CHECK_ERR(callable->Call(cmdBuffer));
       }
     }
 
-    std::vector<VkMemoryBarrier2> barriers = level.barriers;
-
     if (GetIsCurrentlyRendering()) {
       // Remove any color / depth attachment WaW barriers if we kept rendering.
 
       Utils::UnorderedErase(
-          barriers, [](const VkMemoryBarrier2 &barrier) -> bool {
+          level.barriers, [](const VkMemoryBarrier2 &barrier) -> bool {
             constexpr auto colorOutput =
                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
             constexpr auto depthOutput =
@@ -1586,13 +1584,13 @@ auto FrameGraph::Write(const GraphicsContext &context,
           });
     }
 
-    if (!barriers.empty()) {
+    if (!level.barriers.empty()) {
       EndRendering(context, cmdBuffer);
 
       VkDependencyInfo depInfo = {};
       depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-      depInfo.memoryBarrierCount = barriers.size();
-      depInfo.pMemoryBarriers = barriers.data();
+      depInfo.memoryBarrierCount = level.barriers.size();
+      depInfo.pMemoryBarriers = level.barriers.data();
 
       vkCmdPipelineBarrier2(cmdBuffer, &depInfo);
     }

@@ -1309,25 +1309,33 @@ auto VirtualCommandBuffer::PipelineBarrier2(
   auto *command = GetNewCommand(CommandType::vkCmdPipelineBarrier2);
   auto &commandInfo = std::get<Args::VkCmdPipelineBarrier2>(command->data);
 
-  if (pDependencyInfo->pMemoryBarriers != nullptr) {
-    commandInfo.memoryBarriers.assign(
-        pDependencyInfo->pMemoryBarriers,
-        pDependencyInfo->pMemoryBarriers + // NOLINT
-            pDependencyInfo->memoryBarrierCount);
+  commandInfo.memoryBarriers.clear();
+  commandInfo.bufferMemoryBarriers.clear();
+  commandInfo.imageMemoryBarriers.clear();
+
+  commandInfo.memoryBarriers.resize(pDependencyInfo->memoryBarrierCount);
+  commandInfo.bufferMemoryBarriers.resize(
+      pDependencyInfo->bufferMemoryBarrierCount);
+  commandInfo.imageMemoryBarriers.resize(
+      pDependencyInfo->imageMemoryBarrierCount);
+
+  if (pDependencyInfo->memoryBarrierCount != 0U) {
+    memcpy(commandInfo.memoryBarriers.data(), pDependencyInfo->pMemoryBarriers,
+           sizeof(VkMemoryBarrier2) * pDependencyInfo->memoryBarrierCount);
   }
 
-  if (pDependencyInfo->pBufferMemoryBarriers != nullptr) {
-    commandInfo.bufferMemoryBarriers.assign(
-        pDependencyInfo->pBufferMemoryBarriers,
-        pDependencyInfo->pBufferMemoryBarriers + // NOLINT
-            pDependencyInfo->bufferMemoryBarrierCount);
+  if (pDependencyInfo->bufferMemoryBarrierCount != 0U) {
+    memcpy(commandInfo.bufferMemoryBarriers.data(),
+           pDependencyInfo->pBufferMemoryBarriers,
+           sizeof(VkBufferMemoryBarrier2) *
+               pDependencyInfo->bufferMemoryBarrierCount);
   }
 
-  if (pDependencyInfo->pImageMemoryBarriers != nullptr) {
-    commandInfo.imageMemoryBarriers.assign(
-        pDependencyInfo->pImageMemoryBarriers,
-        pDependencyInfo->pImageMemoryBarriers + // NOLINT
-            pDependencyInfo->imageMemoryBarrierCount);
+  if (pDependencyInfo->imageMemoryBarrierCount != 0U) {
+    memcpy(commandInfo.imageMemoryBarriers.data(),
+           pDependencyInfo->pImageMemoryBarriers,
+           sizeof(VkImageMemoryBarrier2) *
+               pDependencyInfo->imageMemoryBarrierCount);
   }
 
   return AddCommand(command);
