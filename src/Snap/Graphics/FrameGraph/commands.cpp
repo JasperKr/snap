@@ -1305,6 +1305,10 @@ auto VirtualCommandBuffer::PipelineBarrier2(
   auto *command = GetNewCommand(CommandType::vkCmdPipelineBarrier2);
   auto &commandInfo = std::get<Args::VkCmdPipelineBarrier2>(command->data);
 
+  commandInfo.memoryBarriers.clear();
+  commandInfo.bufferMemoryBarriers.clear();
+  commandInfo.imageMemoryBarriers.clear();
+
   if (pDependencyInfo->pMemoryBarriers != nullptr) {
     commandInfo.memoryBarriers.assign(
         pDependencyInfo->pMemoryBarriers,

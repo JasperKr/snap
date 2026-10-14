@@ -253,21 +253,20 @@ struct Texture : Object, Identifiable {
   auto UseAs(const GraphicsContext &context, TextureUsage newUsage,
              VkPipelineStageFlags2 stage,
              VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE)
+             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const
       -> Error;
 
-  auto
-  UseAsAttachment(const GraphicsContext &context,
-                  VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                  VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE)
-      -> Error;
-  auto UseAsSampler(const GraphicsContext &context, VkPipelineStageFlags2 stage)
-      -> Error;
-  auto UseAsTransferSrc(const GraphicsContext &context) -> Error;
-  auto UseAsTransferDst(const GraphicsContext &context) -> Error;
-  auto UseAsStorage(const GraphicsContext &context, VkPipelineStageFlags2 stage)
-      -> Error;
-  auto UseAsPresentSrc(const GraphicsContext &context) -> Error;
+  auto UseAsAttachment(const GraphicsContext &context,
+                       VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                       VkAttachmentStoreOp storeOp =
+                           VK_ATTACHMENT_STORE_OP_STORE) const -> Error;
+  auto UseAsSampler(const GraphicsContext &context,
+                    VkPipelineStageFlags2 stage) const -> Error;
+  auto UseAsTransferSrc(const GraphicsContext &context) const -> Error;
+  auto UseAsTransferDst(const GraphicsContext &context) const -> Error;
+  auto UseAsStorage(const GraphicsContext &context,
+                    VkPipelineStageFlags2 stage) const -> Error;
+  auto UseAsPresentSrc(const GraphicsContext &context) const -> Error;
 
   [[nodiscard]] auto GetTimestamp() const -> uint64_t {
     return imageMemory->lastUsedTimestamp;

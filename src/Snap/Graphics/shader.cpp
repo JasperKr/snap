@@ -88,52 +88,56 @@ inline auto ReleaseGlobalSlangSession() -> void {
   }
 }
 
-static const std::vector<slang::CompilerOptionEntry> CompilerOptions = {
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::Optimization,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 = SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::EmitSpirvMethod,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 = SlangEmitSpirvMethod::SLANG_EMIT_SPIRV_DIRECTLY,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::VulkanUseEntryPointName,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 = 1,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::DebugInformation,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 =
-                    SlangDebugInfoLevel::SLANG_DEBUG_INFO_LEVEL_MAXIMAL,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::FloatingPointMode,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 =
-                    SlangFloatingPointMode::SLANG_FLOATING_POINT_MODE_FAST,
-            }},
-};
+auto GetCompilerOptions() -> std::vector<slang::CompilerOptionEntry> * {
+  static std::vector<slang::CompilerOptionEntry> CompilerOptions = {
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::Optimization,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 = SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::EmitSpirvMethod,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 = SlangEmitSpirvMethod::SLANG_EMIT_SPIRV_DIRECTLY,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::VulkanUseEntryPointName,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 = 1,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::DebugInformation,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 =
+                      SlangDebugInfoLevel::SLANG_DEBUG_INFO_LEVEL_MAXIMAL,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::FloatingPointMode,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 =
+                      SlangFloatingPointMode::SLANG_FLOATING_POINT_MODE_FAST,
+              }},
+  };
+
+  return &CompilerOptions;
+}
 
 // NOLINTNEXTLINE
 static slang::TargetDesc SpvTargetDesc = {
     .format = SLANG_SPIRV,
     .profile = SLANG_PROFILE_UNKNOWN,
-    .compilerOptionEntries = CompilerOptions.data(),
-    .compilerOptionEntryCount = static_cast<uint32_t>(CompilerOptions.size()),
+    .compilerOptionEntries = nullptr,
+    .compilerOptionEntryCount = 0,
 };
 
 Ref<Shader> DefaultShaderModule = {}; // NOLINT
@@ -142,7 +146,24 @@ auto LoadShaderModule() -> Error {
   ZoneScoped;
 
   auto *session = CHECK_RES(GetGlobalSlangSession());
-  SpvTargetDesc.profile = session->findProfile("spirv_1_5+spvRayQueryKHR");
+  SpvTargetDesc.profile = session->findProfile("spirv_1_5");
+  ERR_ASSERT(SpvTargetDesc.profile != SLANG_PROFILE_UNKNOWN);
+
+  auto *options = GetCompilerOptions();
+  const std::vector<string_view> capabilities = {"spvRayQueryKHR",
+                                                 "spvDescriptorHeapEXT"};
+
+  for (auto capability : capabilities) {
+    auto &option = options->emplace_back();
+
+    option.name = slang::CompilerOptionName::Capability;
+    option.value.kind = slang::CompilerOptionValueKind::Int;
+    option.value.intValue0 = session->findCapability(capability.data());
+  }
+
+  SpvTargetDesc.compilerOptionEntries = options->data();
+  SpvTargetDesc.compilerOptionEntryCount = options->size();
+
   ReleaseGlobalSlangSession();
 
   DefaultShaderModule = CHECK_RES(Shader::Create(
@@ -294,7 +315,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
   }
 
   if (diagnosticsBlob != nullptr) {
-    auto diagnostics = std::string_view(
+    auto diagnostics = std::string(
         static_cast<const char *>(diagnosticsBlob->getBufferPointer()),
         diagnosticsBlob->getBufferSize());
 
@@ -302,6 +323,8 @@ static inline auto LoadSlang(const GraphicsContext &context,
         (diagnosticsBlob->getBufferSize() == 0U)) {
       return Error::Create("Unknown error");
     }
+
+    PrintAlways("{}", diagnostics);
 
     return Error::Createf("Diagnostics:\n{}", diagnostics);
   }

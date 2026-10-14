@@ -765,10 +765,11 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
   barrier.subresourceRange = range;
   barrier.subresourceRange.aspectMask = Image::GetTextureAspectFlags(format);
 
-  barrier.srcAccessMask = 0;
-  barrier.dstAccessMask = 0;
+  barrier.srcAccessMask =
+      VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
 
-  barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+  barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
   barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
   VkDependencyInfo dep{.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -1307,15 +1308,13 @@ auto ImageMemory::UseAs(const GraphicsContext &context, TextureUsage newUsage,
 
 auto Texture::UseAs(const GraphicsContext &context, TextureUsage newUsage,
                     VkPipelineStageFlags2 stage, VkAttachmentLoadOp loadOp,
-                    VkAttachmentStoreOp storeOp) -> Error {
-  auto &state = imageMemory->GetState();
-
+                    VkAttachmentStoreOp storeOp) const -> Error {
   return imageMemory->UseAs(context, newUsage, stage, loadOp, storeOp);
 }
 
 auto Texture::UseAsAttachment(const GraphicsContext &context,
                               VkAttachmentLoadOp loadOp,
-                              VkAttachmentStoreOp storeOp) -> Error {
+                              VkAttachmentStoreOp storeOp) const -> Error {
   // Depth/stencil attachments require both early and late fragment test stages
   if (Image::IsDepthOrStencilTexture(imageMemory->format)) {
     auto newPipelineStage = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
@@ -1330,22 +1329,22 @@ auto Texture::UseAsAttachment(const GraphicsContext &context,
 }
 
 auto Texture::UseAsSampler(const GraphicsContext &context,
-                           VkPipelineStageFlags2 stage) -> Error {
+                           VkPipelineStageFlags2 stage) const -> Error {
   return UseAs(context, TextureUsage::Sampler, stage);
 }
-auto Texture::UseAsTransferSrc(const GraphicsContext &context) -> Error {
+auto Texture::UseAsTransferSrc(const GraphicsContext &context) const -> Error {
   return UseAs(context, TextureUsage::TransferSrc,
                VK_PIPELINE_STAGE_2_TRANSFER_BIT);
 }
-auto Texture::UseAsTransferDst(const GraphicsContext &context) -> Error {
+auto Texture::UseAsTransferDst(const GraphicsContext &context) const -> Error {
   return UseAs(context, TextureUsage::TransferDst,
                VK_PIPELINE_STAGE_2_TRANSFER_BIT);
 }
 auto Texture::UseAsStorage(const GraphicsContext &context,
-                           VkPipelineStageFlags2 stage) -> Error {
+                           VkPipelineStageFlags2 stage) const -> Error {
   return UseAs(context, TextureUsage::Storage, stage);
 }
-auto Texture::UseAsPresentSrc(const GraphicsContext &context) -> Error {
+auto Texture::UseAsPresentSrc(const GraphicsContext &context) const -> Error {
   return UseAs(context, TextureUsage::PresentSrc,
                VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
 }
@@ -1506,8 +1505,7 @@ auto Texture::GenerateMipmaps(const GraphicsContext &context,
                          "compressed texture formats.");
   }
 
-  auto mipWidth = static_cast<int32_t>(imageMemory->size.width);
-  auto mipHeight = static_cast<int32_t>(imageMemory->size.height);
+  CHECK_ERR(UseAsTransferSrc(context));
 
   auto &state = imageMemory->GetState();
 

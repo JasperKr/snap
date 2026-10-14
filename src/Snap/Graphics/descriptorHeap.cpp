@@ -21,6 +21,9 @@ static const VkDeviceSize maxSamplerHeapSize = Units::Memory::MiBToBytes(1);
 
 auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
     -> Error {
+  heapProperties.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_PROPERTIES_EXT;
+
   VkPhysicalDeviceProperties2 deviceProps2{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
       .pNext = &heapProperties,
@@ -55,6 +58,9 @@ auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
     .debugName = "Sampler heap",
   }));
   // clang-format on
+
+  resourceAddress = CHECK_RES(ResourceHeap->GetDeviceAddress(context));
+  samplerAddress = CHECK_RES(SamplerHeap->GetDeviceAddress(context));
 
   if (heapProperties.bufferDescriptorAlignment != 0) {
     BufferCursorOrigin = Utils::AlignDown(
@@ -140,7 +146,7 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
     -> Result<VkDeviceSize> {
 
   VkDeviceAddressRangeKHR addressRange{
-      .address = CHECK_RES(buffer->GetDeviceAddress()),
+      .address = CHECK_RES(buffer->GetDeviceAddress(context)),
       .size = buffer->size,
   };
 
@@ -258,8 +264,6 @@ auto DescriptorHeapManager::FreeSamplerResourceIndex(VkDeviceSize resourcePtr)
 }
 
 auto DescriptorHeapManager::Bind(VkCommandBuffer commandBuffer) -> Error {
-  VkDeviceAddress samplerAddress = CHECK_RES(SamplerHeap->GetDeviceAddress());
-
   VkBindHeapInfoEXT samplerBindInfo{
       .sType = VK_STRUCTURE_TYPE_BIND_HEAP_INFO_EXT,
       .pNext = nullptr,

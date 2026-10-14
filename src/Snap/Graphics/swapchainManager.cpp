@@ -267,6 +267,7 @@ auto SwapchainManager::Deinitialize(GraphicsContext &context) -> void {
   currentTextures.clear();
   context.swapchainInfo.textures.clear();
 }
+
 auto SwapchainManager::RecreateSwapchain(GraphicsContext &context,
                                          Window::WindowContext &wcontext)
     -> Error {
@@ -289,6 +290,7 @@ auto SwapchainManager::RecreateSwapchain(GraphicsContext &context,
 
   return Error::Success();
 }
+
 auto SwapchainManager::CleanupOldSwapchains(GraphicsContext &context,
                                             uint64_t currentFrame) -> void {
   Utils::UnorderedErase(
@@ -321,6 +323,7 @@ auto SwapchainManager::CleanupOldSwapchains(GraphicsContext &context,
 auto SwapchainManager::GetCurrentSwapchain() -> VkSwapchainKHR {
   return currentSwapchain;
 }
+
 auto SwapchainManager::GetCurrentSwapchainTexture(
     const GraphicsContext &context) -> Ref<Texture> {
   return currentTextures.at(context.swapchainImageIndex);
@@ -345,6 +348,7 @@ auto SwapchainManager::NewFrame(GraphicsContext &context,
 
   return Error::Success();
 }
+
 auto SwapchainManager::EndFrame(const GraphicsContext &context) -> Error {
   ZoneScoped;
 

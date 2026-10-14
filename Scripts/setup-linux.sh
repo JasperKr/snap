@@ -86,7 +86,7 @@ fi
 
 # If "./include/slang/" is missing or empty, or override is set:
 if [ "$override" -eq 1 ] || [ ! -d "./include/slang/" ] || [ -z "$(ls -A ./include/slang/)" ]; then
-    URL="https://github.com/shader-slang/slang/releases/download/v2025.23.1/slang-2025.23.1-linux-x86_64.zip"
+    URL="https://github.com/shader-slang/slang/releases/download/v2026.19/slang-2026.19-linux-x86_64.zip"
     TEMP_DIR="./slang_download"
 
     if [ ! -d "$TEMP_DIR" ]; then

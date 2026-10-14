@@ -107,12 +107,14 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh)
   geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR |
                    VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
 
-  auto positionAddress = CHECK_RES(
-      mesh.GetVertexBuffer(positionAttribute->binding)->GetDeviceAddress());
+  auto positionAddress =
+      CHECK_RES(mesh.GetVertexBuffer(positionAttribute->binding)
+                    ->GetDeviceAddress(context));
   positionAddress += positionAttribute->offset;
 
   if (mesh.GetIndexBuffer() != nullptr && mesh.GetIndexCount() > 0) {
-    auto indexAddress = CHECK_RES(mesh.GetIndexBuffer()->GetDeviceAddress());
+    auto indexAddress =
+        CHECK_RES(mesh.GetIndexBuffer()->GetDeviceAddress(context));
 
     geometry.geometry.triangles = {
         .sType =
@@ -217,7 +219,7 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh)
 
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
       context, sizeInfo.buildScratchSize + alignment));
-  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress());
+  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
   scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   // Finalize build info
@@ -279,11 +281,11 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
   geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR |
                    VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
 
-  auto positionAddress = CHECK_RES(vertexBuffer->GetDeviceAddress());
+  auto positionAddress = CHECK_RES(vertexBuffer->GetDeviceAddress(context));
   positionAddress += vertexOffset;
 
   if (indexBuffer != nullptr && indexCount > 0) {
-    auto indexAddress = CHECK_RES(indexBuffer->GetDeviceAddress());
+    auto indexAddress = CHECK_RES(indexBuffer->GetDeviceAddress(context));
     geometry.geometry.triangles = {
         .sType =
             VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
@@ -343,7 +345,7 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
 
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
       context, sizeInfo.updateScratchSize + alignment));
-  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress());
+  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
   scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   buildInfo.scratchData.deviceAddress = scratchAddress;
@@ -446,11 +448,11 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
   geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR |
                    VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
 
-  auto positionAddress = CHECK_RES(vertexBuffer->GetDeviceAddress());
+  auto positionAddress = CHECK_RES(vertexBuffer->GetDeviceAddress(context));
   positionAddress += vertexOffset;
 
   if (indexBuffer != nullptr && indexCount > 0) {
-    auto indexAddress = CHECK_RES(indexBuffer->GetDeviceAddress());
+    auto indexAddress = CHECK_RES(indexBuffer->GetDeviceAddress(context));
     geometry.geometry.triangles = {
         .sType =
             VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
@@ -741,7 +743,8 @@ auto TLAS::Create(const GraphicsContext &context,
           .debugName = "TLAS Instances",
       }));
 
-  auto instanceAddress = CHECK_RES(tlas->instanceBuffer->GetDeviceAddress());
+  auto instanceAddress =
+      CHECK_RES(tlas->instanceBuffer->GetDeviceAddress(context));
 
   VkAccelerationStructureGeometryKHR geometry{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
@@ -814,7 +817,7 @@ auto TLAS::Create(const GraphicsContext &context,
 
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
       context, sizeInfo.buildScratchSize + alignment));
-  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress());
+  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
   scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   // Finalize build info
@@ -922,7 +925,7 @@ auto TLAS::Refit(const GraphicsContext &context) -> Error {
         "remains the same.");
   }
 
-  auto instanceAddress = CHECK_RES(instanceBuffer->GetDeviceAddress());
+  auto instanceAddress = CHECK_RES(instanceBuffer->GetDeviceAddress(context));
 
   VkAccelerationStructureGeometryKHR geometry{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
@@ -961,7 +964,7 @@ auto TLAS::Refit(const GraphicsContext &context) -> Error {
 
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
       context, sizeInfo.updateScratchSize + alignment));
-  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress());
+  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
   scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   buildInfo.scratchData.deviceAddress = scratchAddress;
@@ -1015,7 +1018,7 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
     instanceCapacity = newSize;
   }
 
-  auto instanceAddress = CHECK_RES(instanceBuffer->GetDeviceAddress());
+  auto instanceAddress = CHECK_RES(instanceBuffer->GetDeviceAddress(context));
 
   VkAccelerationStructureGeometryKHR geometry{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
@@ -1098,7 +1101,7 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
 
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
       context, sizeInfo.buildScratchSize + alignment));
-  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress());
+  auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
   scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   buildInfo.scratchData.deviceAddress = scratchAddress;

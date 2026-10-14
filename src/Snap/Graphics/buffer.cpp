@@ -710,16 +710,17 @@ Buffer::~Buffer() {
   Buffer::TotalAllocatedMemory -= sizeInBytes;
 }
 
-auto Buffer::GetDeviceAddress() const -> Result<VkDeviceAddress> {
+auto Buffer::GetDeviceAddress(const GraphicsContext &context) const
+    -> Result<VkDeviceAddress> {
   ERR_ASSERT((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0);
-
-  auto *context = GetCurrentGraphicsContext();
 
   VkBufferDeviceAddressInfo bufferDeviceAddressInfo{};
   bufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
   bufferDeviceAddressInfo.buffer = handle;
 
-  return vkGetBufferDeviceAddress(context->device, &bufferDeviceAddressInfo);
+  std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
+
+  return vkGetBufferDeviceAddress(context.device, &bufferDeviceAddressInfo);
 }
 
 auto Buffer::GetAddress(const GraphicsContext &context,

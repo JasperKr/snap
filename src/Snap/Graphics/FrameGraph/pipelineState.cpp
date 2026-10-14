@@ -483,10 +483,16 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
 
   auto *shader = state.shader.get();
 
+  VkPipelineCreateFlags2CreateInfo pipelineCreateFlags2CI{
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
+      .pNext = &renderingCreateInfo,
+      .flags = VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT,
+  };
+
   pipelineInfo.layout = VK_NULL_HANDLE;
   pipelineInfo.renderPass = VK_NULL_HANDLE; // Not needed
   pipelineInfo.subpass = 0;
-  pipelineInfo.pNext = &renderingCreateInfo;
+  pipelineInfo.pNext = &pipelineCreateFlags2CI;
 
   PrintDebug("Creating graphics pipeline...");
 
@@ -532,6 +538,14 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
   // If we get a validation error / crash about this not existing; rename to "main"
   pipelineInfo.stage.pName = "computeMain";
   pipelineInfo.layout = VK_NULL_HANDLE;
+
+  VkPipelineCreateFlags2CreateInfo pipelineCreateFlags2CI{
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT,
+  };
+
+  pipelineInfo.pNext = &pipelineCreateFlags2CI;
 
   PrintDebug("Creating compute pipeline...");
 

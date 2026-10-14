@@ -160,7 +160,8 @@ struct Buffer : Object, Identifiable {
                 const Ref<Data::ByteData> &output = Ref<Data::ByteData>())
       -> Result<Ref<BufferReadback>>;
 
-  [[nodiscard]] auto GetDeviceAddress() const -> Result<VkDeviceAddress>;
+  [[nodiscard]] auto GetDeviceAddress(const GraphicsContext &context) const
+      -> Result<VkDeviceAddress>;
 };
 
 // NOLINTBEGIN

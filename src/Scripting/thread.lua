@@ -191,8 +191,8 @@ local startupSequence = {
     texture:setFilter("linear", "linear", "linear")
     texture:setWrap("repeat", "repeat", "repeat")
 
-    local env = scene:newEnvironment("Test environment", texture)
-    scene:setEnvironment(env)
+    -- local env = scene:newEnvironment("Test environment", texture)
+    -- scene:setEnvironment(env)
   end
 }
 
@@ -241,12 +241,14 @@ while true do
     startupSequence[frameIndex]()
   end
 
-  snap.gui.newFrame(delta)
+  snap.graphics.setRenderTarget()
 
-  draw()
+  -- snap.gui.newFrame(delta)
+
+  -- draw()
 
   if frameIndex == 1 then
-    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
     -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
   end
 
