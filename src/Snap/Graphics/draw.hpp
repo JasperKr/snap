@@ -4,6 +4,7 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/mesh.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/object.hpp"
 #include <cstdint>
 
 namespace Graphics {
@@ -20,7 +21,7 @@ auto BindMesh(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
 auto Draw(const GraphicsContext &context, Mesh &mesh,
           uint32_t instanceCount = 1) -> Error;
 
-auto Draw(const GraphicsContext &context, Texture &texture,
+auto Draw(const GraphicsContext &context, const Ref<Texture> &texture,
           uint32_t instanceCount = 1) -> Error;
 
 auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups)

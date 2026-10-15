@@ -188,8 +188,8 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
                }}));
 
   Graphics::RenderState::SetShader({});
-  CHECK_ERR(Graphics::Draw(context, *textures.TAA));
-  CHECK_ERR(Graphics::Draw(context, *DownsampleChainViews.at(1)));
+  CHECK_ERR(Graphics::Draw(context, textures.TAA));
+  CHECK_ERR(Graphics::Draw(context, DownsampleChainViews.at(1)));
 
   CHECK_ERR(GlobalRenderTargetManager.ReleaseRendertarget(
       textures.BloomDownsampleChain));

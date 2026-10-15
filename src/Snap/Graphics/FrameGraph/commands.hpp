@@ -1238,18 +1238,10 @@ struct VirtualCommandBuffer {
   }
 
   uint32_t queueFamily;
-  GraphState currentState;
+  GraphState currentState{};
   std::vector<std::vector<uint32_t>> caches;
   VCmdThreadInfo threadInfo;
   bool initialized = false;
-
-  auto Initialize() -> Error {
-    ERR_ASSERT(!initialized);
-
-    initialized = true;
-
-    return {};
-  }
 
   auto DeInitialize() -> void { threadInfo.Shutdown(); }
 

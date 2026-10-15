@@ -12,6 +12,7 @@
 #include "Graphics/vkPipelineHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -732,6 +733,7 @@ auto FrameGraph::InsertBarriers() -> Error {
 }
 
 inline auto GetRenderExtent(const Graphics::GraphState &state) -> VkExtent2D {
+  assert(state.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   if (!state.colorAttachments.empty()) {
     return VkExtent2D{
@@ -934,6 +936,9 @@ auto FrameGraph::BuildRenderRegions(const GraphicsContext &context)
       } else {
         stateID = drawState->stateID;
       }
+
+      PrintAlways("State ID: {} / {}", stateID,
+                  CommandStateManager::States.size());
 
       const auto &renderState = CommandStateManager::States.at(stateID);
 

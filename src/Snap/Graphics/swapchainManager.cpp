@@ -15,7 +15,7 @@
 #include "vulkan/vulkan_core.h"
 #include <cstdint>
 #include <vector>
-namespace Graphics::SwapchainManager {
+namespace Graphics {
 
 using PM = VkPresentModeKHR;
 
@@ -498,4 +498,4 @@ auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context,
 
 auto SwapchainManager::MakeDirty() -> void { isDirty = true; }
 
-} // namespace Graphics::SwapchainManager
+} // namespace Graphics

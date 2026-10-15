@@ -31,7 +31,7 @@ namespace Graphics {
 StitchInfo GlobalStitchInfo{};
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-SwapchainManager::SwapchainManager swapchainManager;
+SwapchainManager swapchainManager;
 
 static void ResetCommandBuffers(Graphics::GraphicsContext &context) {
   auto &cmdBuffers = GlobalStitchInfo.commandBuffers.at(context.frameIndex);
@@ -146,13 +146,8 @@ auto InitializeRendering(Graphics::GraphicsContext &context,
                          Window::WindowContext &windowContext) -> Error {
   ZoneScoped;
 
-  auto swapchainManagerResult =
-      SwapchainManager::SwapchainManager::Initialize(context, windowContext);
-  if (Error::IsError(swapchainManagerResult)) {
-    return swapchainManagerResult.error();
-  }
-
-  swapchainManager = swapchainManagerResult.value();
+  swapchainManager =
+      CHECK_RES(SwapchainManager::Initialize(context, windowContext));
 
   CHECK_ERR(AcquireNextSwapchainImage(context));
 

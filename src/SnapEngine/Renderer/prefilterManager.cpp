@@ -461,8 +461,7 @@ auto LightprobePrefilterManager::PrefilterLightProbe(
                      },
                  }));
 
-    CHECK_ERR(Graphics::Draw(context,
-                             *Camera.GetOwnedTextures().IncomingLight.get()));
+    CHECK_ERR(Graphics::Draw(context, Camera.GetOwnedTextures().IncomingLight));
   }
 
   CHECK_ERR(PrefilterEnvironmentMap(context, SceneCubemap, lightProbe));
@@ -508,8 +507,8 @@ auto LightprobePrefilterManager::PrefilterEnvironment(
                      },
                  }));
 
-    CHECK_ERR(Graphics::Draw(context,
-                             *Camera.GetOwnedTextures().DirectLighting.get()));
+    CHECK_ERR(
+        Graphics::Draw(context, Camera.GetOwnedTextures().DirectLighting));
   }
 
   CHECK_ERR(PrefilterEnvironmentMap(context, SceneCubemap, lightProbe));

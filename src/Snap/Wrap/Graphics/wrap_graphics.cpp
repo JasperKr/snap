@@ -401,12 +401,12 @@ auto wrap_Draw(lua_State *state) -> int {
     auto texture =
         LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-    auto shader = ::Graphics::RenderState::GetShader();
+    LUA_CK_ERR(::Graphics::Draw(*ctx, texture, 1));
 
-    LUA_CK_ERR(shader->Send({"MainTexture"}, texture));
+    return 0;
+  }
 
-    LUA_CK_ERR(::Graphics::Draw(*ctx, *texture, 1));
-  } else if (LuaWrap::IsType<::Graphics::Mesh>(state, 1)) {
+  if (LuaWrap::IsType<::Graphics::Mesh>(state, 1)) {
     mesh = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Mesh>(state, 1));
   } else {
     return luaL_error(state, "Invalid argument to draw.");

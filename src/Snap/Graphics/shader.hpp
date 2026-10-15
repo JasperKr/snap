@@ -18,6 +18,7 @@
 #include "slang/slang.h"
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string>
@@ -124,6 +125,14 @@ struct Shader : Object, Identifiable {
     state.userBoundTextures.clear();
 
     BoundStateManager.EraseState(*this);
+
+    if (GetVirtualCommandBuffer() == nullptr) {
+      std::lock_guard<std::mutex> lock(GraphicsContext::mutexes.device);
+
+      vkDestroyShaderModule(ctx->device, module, GetAllocationCallbacks());
+
+      return;
+    }
 
     ScheduleDestruction<VkShaderModule>(
         [](const GraphicsContext &context, VkShaderModule &module) -> auto {

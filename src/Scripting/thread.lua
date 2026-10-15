@@ -187,7 +187,7 @@ local startupSequence = {
   function()
     snap.graphics.setDefaultFilter("linear", "linear", 16)
 
-    local texture = snap.graphics.newTexture("src/Assets/skybox.hdr", { sampler = true, mipmaps = "init" })
+    texture = snap.graphics.newTexture("src/Assets/skybox.hdr", { sampler = true, mipmaps = "init" })
     texture:setFilter("linear", "linear", "linear")
     texture:setWrap("repeat", "repeat", "repeat")
 
@@ -246,6 +246,8 @@ while true do
   -- snap.gui.newFrame(delta)
 
   -- draw()
+
+  snap.graphics.draw(texture)
 
   if frameIndex == 1 then
     -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")

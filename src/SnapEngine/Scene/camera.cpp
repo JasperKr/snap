@@ -467,7 +467,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                }}));
 
-  CHECK_ERR(Graphics::Draw(context, *OwnedTextures.DirectLighting));
+  CHECK_ERR(Graphics::Draw(context, OwnedTextures.DirectLighting));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {Graphics::RenderState::RenderTarget{
@@ -476,7 +476,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                }}));
 
-  CHECK_ERR(Graphics::Draw(context, *OwnedTextures.Irradiance));
+  CHECK_ERR(Graphics::Draw(context, OwnedTextures.Irradiance));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {Graphics::RenderState::RenderTarget{

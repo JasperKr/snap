@@ -6,6 +6,7 @@
 #include "Graphics/vkAccessHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -447,11 +448,7 @@ auto DrawState::Initialize(CommandType type) -> Error {
   bool isCompute =
       (shader->combinedShaderStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
 
-  bool generationEqual =
-      graphState->generation == RenderState::TopOfStack->generation;
-
-  if ((!isCompute || type == CommandType::vkCmdClearAttachments) &&
-      !generationEqual) {
+  if ((!isCompute || type == CommandType::vkCmdClearAttachments)) {
     graphState->scissor = RenderState::GetScissor();
     graphState->viewport = RenderState::GetClippedViewport();
     graphState->cullMode = RenderState::GetCullMode();
@@ -479,7 +476,9 @@ auto DrawState::Initialize(CommandType type) -> Error {
     graphState->MarkUpdated();
   }
 
-  if (!isCompute && !generationEqual) {
+  assert(!graphState->colorAttachments.empty());
+
+  if (!isCompute) {
     VkAccessFlags2 depthAccess = VK_ACCESS_2_NONE;
     VkPipelineStageFlags2 depthPipelines = VK_PIPELINE_STAGE_2_NONE;
 
@@ -565,13 +564,16 @@ auto DrawState::Initialize(CommandType type) -> Error {
 
   thread_local uint32_t lastID{};
   thread_local GraphState lastState;
+  thread_local uint64_t lastStateFrameIdx = UINT64_MAX;
 
-  if (ctx.commandBuffer->currentState == lastState) {
+  if (ctx.commandBuffer->currentState == lastState &&
+      lastStateFrameIdx == context.currentFrame) {
     stateID = lastID;
   } else {
     stateID = ctx.commandBuffer->GetStateID();
     lastID = stateID;
     lastState = ctx.commandBuffer->currentState;
+    lastStateFrameIdx = context.currentFrame;
   }
 
   CHECK_ERR(BindDefaultTextures(context, shader.get()));
@@ -1545,6 +1547,7 @@ auto VirtualCommandBuffer::Reset() -> void {
 
   commands.clear();
   queueFamily = UINT32_MAX;
+  currentState = {};
 }
 
 auto LoadOpConfig::FromGraphState(const GraphState &graphState,
@@ -1582,6 +1585,8 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
   if (RecordingState::CurrentState.bindPoint ==
       VK_PIPELINE_BIND_POINT_GRAPHICS) {
     ZoneScopedN("Set vertex input");
+
+    assert(!state.colorAttachments.empty());
 
     if (CommandStateManager::CurrentStateID != stateID) {
       ZoneScopedN("Update state");

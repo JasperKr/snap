@@ -394,7 +394,7 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
   return Error::Success();
 }
 
-auto Draw(const GraphicsContext &context, Texture &texture,
+auto Draw(const GraphicsContext &context, const Ref<Texture> &texture,
           uint32_t instanceCount) -> Error {
   ZoneScoped;
 
@@ -404,7 +404,7 @@ auto Draw(const GraphicsContext &context, Texture &texture,
 
   auto shader = RenderState::GetShader();
 
-  CHECK_ERR(shader->Send({"MainTexture"}, Ref<Texture>(&texture)));
+  CHECK_ERR(shader->Send({"MainTexture"}, texture));
 
   return Draw(context, *QuadMesh, instanceCount);
 }
