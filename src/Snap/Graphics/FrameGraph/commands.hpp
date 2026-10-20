@@ -940,6 +940,8 @@ template <typename T, typename... Ts>
 auto get_if_derived(std::variant<Ts...> &variant) -> T * {
   T *result = nullptr;
 
+  assert(!variant.valueless_by_exception());
+
   std::visit(
       [&](auto &value) -> auto {
         using U = std::remove_cvref_t<decltype(value)>;
@@ -1060,6 +1062,7 @@ struct VCmdThreadInfo {
   std::vector<uint16_t> commandsQueue;
   std::vector<uint16_t> queuedCommands; // Local to worker thread
   std::vector<uint16_t> commandsQueueBacklog;
+  std::mutex commandsQueueMutex;
 
   ReadyInfo mainToWorker;
   ReadyInfo workerToMain;
@@ -1070,7 +1073,7 @@ struct VCmdThreadInfo {
   VirtualCommandBuffer *parent;
 
   void Shutdown() {
-    shutdown = true;
+    shutdown.store(true);
     mainToWorker.Notify();
   }
   void Initialize(VirtualCommandBuffer *vcmd);
@@ -1081,7 +1084,10 @@ struct VCmdThreadInfo {
     TracyMessageL("Started");
     started = true;
 
-    commandsQueue.append_range(commandsQueueBacklog);
+    {
+      std::lock_guard<std::mutex> lock(commandsQueueMutex);
+      commandsQueue.append_range(commandsQueueBacklog);
+    }
     commandsQueueBacklog.clear();
 
     mainToWorker.Notify();

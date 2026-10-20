@@ -62,14 +62,17 @@ struct SyncFlags {
 void VCmdThreadInfo::ThreadMain(VirtualCommandBuffer *vcmd) {
   auto &info = vcmd->threadInfo;
 
-  while (!info.shutdown) {
+  while (!info.shutdown.load()) {
     {
       info.mainToWorker.Wait();
+
+      std::lock_guard<std::mutex> lock(info.commandsQueueMutex);
 
       if (info.shutdown.load()) {
         return;
       }
 
+      assert(info.queuedCommands.empty());
       info.queuedCommands.append_range(info.commandsQueue);
       info.commandsQueue.clear();
     }
@@ -899,6 +902,8 @@ inline auto GetNewEmptyArgs(CommandType type) -> ArgVariants {
   case CommandType::renderPass:
     return RenderPass();
   }
+
+  assert(false);
 }
 
 auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> Command * {

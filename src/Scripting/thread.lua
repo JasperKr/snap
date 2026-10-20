@@ -37,45 +37,45 @@ local function draw()
   -- camera:render(scene)
   snap.graphics.setShader()
 
-  if Imgui.Begin("Debug Info") then
-    Imgui.Text(string.format("Frame time: %.3f ms", snap.timer.getDelta() * 1000))
-    Imgui.Text(string.format("FPS: %.1f", snap.timer.getFPS()))
-    Imgui.Text(string.format("ImGui draw time: %.3f ms", lastShownImDrawTime * 1000))
+  -- if Imgui.Begin("Debug Info") then
+  --   Imgui.Text(string.format("Frame time: %.3f ms", snap.timer.getDelta() * 1000))
+  --   Imgui.Text(string.format("FPS: %.1f", snap.timer.getFPS()))
+  --   Imgui.Text(string.format("ImGui draw time: %.3f ms", lastShownImDrawTime * 1000))
 
-    local stats = snap.graphics.getStats()
+  --   local stats = snap.graphics.getStats()
 
-    Imgui.Text(string.format("Draw calls: %d", stats.drawcalls))
-    Imgui.Text(string.format("Dispatches: %d", stats.dispatches))
-    Imgui.Text(string.format("Triangles: %d", stats.triangles))
-    Imgui.Text(string.format("Instances: %d", stats.instances))
-    Imgui.Text(string.format("Context switches: %d", stats.contextswitches))
-    Imgui.Text(string.format("Texture memory: %.2f MiB", stats.texturememory / (1024 * 1024)))
-    Imgui.Text(string.format("Buffer memory: %.2f MiB", stats.buffermemory / (1024 * 1024)))
-    Imgui.Text(string.format("BLAS memory: %.2f MiB", stats.blasmemory / (1024 * 1024)))
-    Imgui.Text(string.format("TLAS memory: %.2f MiB", stats.tlasmemory / (1024 * 1024)))
-  end
-  Imgui.End()
+  --   Imgui.Text(string.format("Draw calls: %d", stats.drawcalls))
+  --   Imgui.Text(string.format("Dispatches: %d", stats.dispatches))
+  --   Imgui.Text(string.format("Triangles: %d", stats.triangles))
+  --   Imgui.Text(string.format("Instances: %d", stats.instances))
+  --   Imgui.Text(string.format("Context switches: %d", stats.contextswitches))
+  --   Imgui.Text(string.format("Texture memory: %.2f MiB", stats.texturememory / (1024 * 1024)))
+  --   Imgui.Text(string.format("Buffer memory: %.2f MiB", stats.buffermemory / (1024 * 1024)))
+  --   Imgui.Text(string.format("BLAS memory: %.2f MiB", stats.blasmemory / (1024 * 1024)))
+  --   Imgui.Text(string.format("TLAS memory: %.2f MiB", stats.tlasmemory / (1024 * 1024)))
+  -- end
+  -- Imgui.End()
 
-  Imgui.SetNextWindowDockID(Editor.dockId, Imgui.ImGuiCond_FirstUseEver)
+  -- Imgui.SetNextWindowDockID(Editor.dockId, Imgui.ImGuiCond_FirstUseEver)
 
-  local flags = bit.bor(Imgui.ImGuiWindowFlags_NoScrollbar, Imgui.ImGuiWindowFlags_NoScrollWithMouse)
-  if Imgui.Begin("Viewport", nil, flags) then
-    local windowSize = Imgui.GetWindowSize()
-    Imgui.SetCursorPos(ffi.new("ImVec2", 0, 0))
-    -- local rt = camera:getRendertarget("PostProcessed")
-    -- Imgui.Image(rt, windowSize)
-    -- rt:release()
+  -- local flags = bit.bor(Imgui.ImGuiWindowFlags_NoScrollbar, Imgui.ImGuiWindowFlags_NoScrollWithMouse)
+  -- if Imgui.Begin("Viewport", nil, flags) then
+  --   local windowSize = Imgui.GetWindowSize()
+  --   Imgui.SetCursorPos(ffi.new("ImVec2", 0, 0))
+  --   -- local rt = camera:getRendertarget("PostProcessed")
+  --   -- Imgui.Image(rt, windowSize)
+  --   -- rt:release()
 
-    camera:setDimensions(windowSize.x, windowSize.y)
+  --   camera:setDimensions(windowSize.x, windowSize.y)
 
-    viewport.offset.x = Imgui.GetWindowPos().x
-    viewport.offset.y = Imgui.GetWindowPos().y
-    viewport.size.x = windowSize.x
-    viewport.size.y = windowSize.y
-  end
-  Imgui.End()
+  --   viewport.offset.x = Imgui.GetWindowPos().x
+  --   viewport.offset.y = Imgui.GetWindowPos().y
+  --   viewport.size.x = windowSize.x
+  --   viewport.size.y = windowSize.y
+  -- end
+  -- Imgui.End()
 
-  scene:drawUIElement();
+  -- scene:drawUIElement();
 
   local startTime = snap.timer.getTime()
 

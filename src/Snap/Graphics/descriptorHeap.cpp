@@ -261,7 +261,7 @@ auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr)
 
 auto DescriptorHeapManager::FreeBufferResourceIndex(VkDeviceSize resourcePtr)
     -> void {
-  resourcePtr = bufferCursor - resourcePtr;
+  resourcePtr = BufferCursorOrigin - resourcePtr;
 
   // Cannot free outside of used range
   assert(resourcePtr < bufferCursor);

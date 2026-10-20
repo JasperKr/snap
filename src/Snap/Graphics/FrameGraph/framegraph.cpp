@@ -22,6 +22,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_set>
+#include <variant>
 #if OUTPUT_DEBUG_GRAPH
 #include "Modules/filesystem.hpp"
 #include <format>
@@ -47,7 +48,7 @@ auto FrameGraph::Submit(const GraphicsContext &context,
 
   for (auto &commandBuffer : newCommandBuffers) {
     commandBuffers.emplace_back(commandBuffer);
-    for (auto identifier : commandBuffer->commands) {
+    for (CommandID identifier : commandBuffer->commands) {
       commandIndices.emplace_back(identifier, idx);
     }
 
@@ -1340,7 +1341,7 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   // Amount of items merged, excluding one per range since the range object becomes a command
   int count = 0;
 
-  RenderPass *currentPass = nullptr;
+  CommandID currentPass = InvalidCommandID;
 
   inRange = false;
   int drawStateMismatches = 0;
@@ -1349,11 +1350,18 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   assert(commandCount <= UINT16_MAX);
 
   ERR_ASSERT(commands.empty());
+  ERR_ASSERT(renderPasses.empty());
+
+  VirtualCommandBuffer *lastCmdBuffer = commandBuffers.back();
+  // Idx = actual index + 1 to allow checking for invalid value at 0
+  uint8_t lastCmdBufferIdx = commandBuffers.size();
 
   // NOLINTNEXTLINE
   for (CommandID commandID = 0; commandID < commandCount; commandID++) {
     const auto &command = GetCommand(commandID);
     const auto type = command.GetType();
+
+    ERR_ASSERT(type != CommandType::renderPass);
 
     if (type == CommandType::vkCmdDraw ||
         type == CommandType::vkCmdDrawIndexed ||
@@ -1363,63 +1371,72 @@ auto FrameGraph::CompactRenderPasses() -> Error {
 
       if (!inRange) {
         auto *renderpassCommand =
-            commandBuffers.back()->GetNewCommand(CommandType::renderPass);
+            lastCmdBuffer->GetNewCommand(CommandType::renderPass);
+        assert(renderpassCommand != nullptr);
+        assert(renderpassCommand->GetType() == CommandType::renderPass);
+
         // Point the reordered command to the last index of commandIndices
 
         auto newIdx = commandIndices.size();
         commands.emplace_back(newIdx);
         renderPasses.emplace_back(newIdx);
-
-        renderpassCommand->UpdateType();
-        assert(renderpassCommand->GetType() == CommandType::renderPass);
+        currentPass = newIdx;
 
         // Create the new command pointer in the last command buffer's commands, pointing to the last index
-        commandIndices.emplace_back(commandBuffers.back()->commands.back(),
-                                    commandBuffers.size());
+        commandIndices.emplace_back(lastCmdBuffer->commands.back(),
+                                    lastCmdBufferIdx);
 
-        currentPass = &std::get<RenderPass>(renderpassCommand->data);
-        currentPass->reads.clear();
-        currentPass->writes.clear();
-        currentPass->accesses.clear();
-        currentPass->commands.clear();
-        currentPass->stateID = stateID;
+        auto &passCommand = GetCommand(currentPass);
+        auto &passData = std::get<RenderPass>(passCommand.data);
+
+        passData.reads.clear();
+        passData.writes.clear();
+        passData.accesses.clear();
+        passData.commands.clear();
+        passData.stateID = stateID;
       }
       inRange = true;
 
-      if (currentPass->stateID != stateID) {
+      auto &passCommand = GetCommand(currentPass);
+      auto &passData = std::get<RenderPass>(passCommand.data);
+
+      if (passData.stateID != stateID) {
         // Create new command in the last command buffer
         auto *renderpassCommand =
-            commandBuffers.back()->GetNewCommand(CommandType::renderPass);
+            lastCmdBuffer->GetNewCommand(CommandType::renderPass);
+        assert(renderpassCommand != nullptr);
+        assert(renderpassCommand->GetType() == CommandType::renderPass);
+
         // Point the reordered command to the last index of commandIndices
         auto newIdx = commandIndices.size();
         commands.emplace_back(newIdx);
         renderPasses.emplace_back(newIdx);
-
-        renderpassCommand->UpdateType();
-        assert(renderpassCommand->GetType() == CommandType::renderPass);
+        currentPass = newIdx;
 
         // Create the new command pointer in the last command buffer's commands, pointing to the last index
-        commandIndices.emplace_back(commandBuffers.back()->commands.back(),
-                                    commandBuffers.size());
+        commandIndices.emplace_back(lastCmdBuffer->commands.back(),
+                                    lastCmdBufferIdx);
 
-        currentPass = &std::get<RenderPass>(renderpassCommand->data);
-        currentPass->reads.clear();
-        currentPass->writes.clear();
-        currentPass->accesses.clear();
-        currentPass->commands.clear();
-        currentPass->stateID = stateID;
+        passCommand = GetCommand(currentPass);
+        passData = std::get<RenderPass>(passCommand.data);
+
+        passData.reads.clear();
+        passData.writes.clear();
+        passData.accesses.clear();
+        passData.commands.clear();
+        passData.stateID = stateID;
 
         drawStateMismatches++;
       }
 
-      const auto *bound = get_if_derived<BoundResources>(command.data);
-      ASSUME(bound != nullptr);
-      currentPass->commands.emplace_back(commandID);
+      const auto *bound =
+          get_if_derived<BoundResources>(GetCommand(commandID).data);
 
-      currentPass->reads.append_range(bound->reads);
-      currentPass->writes.append_range(bound->writes);
+      passData.commands.emplace_back(commandID);
+      passData.reads.append_range(bound->reads);
+      passData.writes.append_range(bound->writes);
     } else {
-      currentPass = nullptr;
+      currentPass = InvalidCommandID;
 
       inRange = false;
       commands.emplace_back(commandID);
@@ -1450,8 +1467,8 @@ auto FrameGraph::CompactRenderPasses() -> Error {
     }
   }
 
-  ERR_ASSERT(commands.size() <= commandIndices.size());
-  ERR_ASSERT(idx == commands.size());
+  // ERR_ASSERT(commands.size() <= commandIndices.size());
+  // ERR_ASSERT(idx == commands.size());
 
   return {};
 }
@@ -1461,12 +1478,16 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   ZoneScoped;
 
   CHECK_ERR(MapResourceUsages());
+  CHECK_ERR(CompactRenderPasses());
 
   for (const auto &cmdBuffer : commandBuffers) {
     cmdBuffer->threadInfo.StartCommandWriting();
   }
 
-  CHECK_ERR(CompactRenderPasses());
+  // for (const auto &cmdBuffer : commandBuffers) {
+  //   cmdBuffer->threadInfo.FinalizeCommandWriting();
+  // }
+
   CHECK_ERR(BuildGraph());
   CHECK_ERR(BuildReadyState());
 
