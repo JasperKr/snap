@@ -438,8 +438,7 @@ struct DrawState {
   // Copied from graph state.
   std::vector<char> pushConstants;
 
-  Math::StackVector<VkDescriptorSet, 16> descriptorSets; // NOLINT
-  Math::StackVector<uint32_t, 16> dynamicOffsets;        // NOLINT
+  uint32_t uboAddress;
 
   uint32_t stateID = UINT32_MAX;
 

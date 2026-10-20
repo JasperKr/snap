@@ -1,4 +1,5 @@
 #include "commands.hpp"
+#include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/heapState.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/graphics.hpp"
@@ -392,6 +393,18 @@ auto DrawState::Initialize(CommandType type) -> Error {
 
   graphState->shader = shader;
   graphState->bindPoint = RenderState::GetBindPoint();
+
+  auto &buffer = GetGlobalUniformBuffer(context.frameIndex);
+  auto offset = buffer.GetOffset();
+
+  ERR_ASSERT(offset < UINT32_MAX);
+  CHECK_ERR(buffer.Write(shader->globalUniforms));
+
+  assert(buffer.GetBuffer().get() != nullptr);
+
+  uboAddress = CHECK_RES(
+      buffer.GetBuffer()->GetAddress(context, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                     offset, shader->globalUniforms.size()));
 
   bool isCompute =
       (shader->combinedShaderStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
@@ -1575,7 +1588,19 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
 
   RecordingState::CurrentState.MarkUpdated();
 
-  CHECK_ERR(BindGlobalUBO(context, state.shader, cmdBuffer));
+  VkPushDataInfoEXT pushInfo{
+      .sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,
+      .pNext = nullptr,
+      .offset = 0,
+      .data{
+          .address = &uboAddress,
+          .size = sizeof(uint32_t),
+      },
+  };
+
+  vkCmdPushDataEXT(cmdBuffer, &pushInfo);
+
+  // CHECK_ERR(BindGlobalUBO(context, state.shader, cmdBuffer));
   CHECK_ERR(PrepareRendering(context, cmdBuffer, loadConfig));
 
   CommandStateManager::CurrentStateID = stateID;

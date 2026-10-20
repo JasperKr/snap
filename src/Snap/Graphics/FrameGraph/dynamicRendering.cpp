@@ -251,6 +251,13 @@ auto PrepareRendering(const GraphicsContext &context,
                     RecordingState::LastState->frontFace;
   }
 
+  sameViewport = false;
+  sameScissor = false;
+  sameDepth = false;
+  sameBlendMode = false;
+  sameCullmode = false;
+  sameFFWinding = false;
+
   bool isGraphics =
       RecordingState::CurrentState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;
 

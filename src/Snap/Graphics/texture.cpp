@@ -755,6 +755,14 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
       VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
   barrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
 
+  if (layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+    barrier.dstAccessMask = VK_ACCESS_2_NONE;
+  }
+
+  if (state.currentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+    barrier.srcAccessMask = VK_ACCESS_2_NONE;
+  }
+
   barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
   barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 

@@ -158,6 +158,9 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
       .size = size,
   };
 
+  PrintAlways("Allocating: offset: {}, size: {}, type: {}", offset, size,
+              (int)type);
+
   VkResourceDescriptorInfoEXT resourceInfo{
       .sType = VK_STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT,
       .pNext = nullptr,
@@ -166,6 +169,7 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
 
   VkHostAddressRangeEXT hostAddressRange{};
   VkDeviceSize address{};
+  std::vector<uint8_t> descriptor(heapProperties.bufferDescriptorSize);
 
   {
     // TODO: Own a lock for protecting allocate instead of relying on the device lock
@@ -173,18 +177,18 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
     address = CHECK_RES(AllocateResource(false));
 
     assert(heapProperties.bufferDescriptorSize <= 1024);
-    std::vector<uint8_t> descriptor(heapProperties.bufferDescriptorSize);
 
     hostAddressRange.address = descriptor.data();
     hostAddressRange.size = descriptor.size();
 
     CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(
         context.device, 1, &resourceInfo, &hostAddressRange));
-
-    CHECK_ERR(ResourceHeap->SetData(context, descriptor, address));
   }
 
-  auto divided = address;
+  CHECK_ERR(ResourceHeap->SetData(context, descriptor, address,
+                                  heapProperties.bufferDescriptorSize));
+
+  auto divided = address / heapProperties.bufferDescriptorSize;
 
   return divided;
 }
@@ -226,7 +230,7 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
     CHECK_ERR(ResourceHeap->SetData(context, descriptor, address));
   }
 
-  auto divided = address;
+  auto divided = address / heapProperties.imageDescriptorSize;
 
   return divided;
 }
@@ -252,6 +256,8 @@ auto DescriptorHeapManager::AllocateSampler(
 
 auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr)
     -> void {
+  resourcePtr *= heapProperties.imageDescriptorSize;
+
   assert(resourcePtr <= imageCursor); // Cannot free outside of used range
   assert(resourcePtr >= heapProperties.minResourceHeapReservedRange);
 
@@ -261,6 +267,7 @@ auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr)
 
 auto DescriptorHeapManager::FreeBufferResourceIndex(VkDeviceSize resourcePtr)
     -> void {
+  resourcePtr *= heapProperties.bufferDescriptorSize;
   resourcePtr = BufferCursorOrigin - resourcePtr;
 
   // Cannot free outside of used range

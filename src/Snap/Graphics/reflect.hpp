@@ -462,17 +462,22 @@ SlangResourceAccessToVkAccessFlags_Sampler(SlangResourceAccess access)
   }
 }
 
+struct FlatteningState {
+  VkDeviceSize size{};
+
+  ResourceKey *currentKey = nullptr;
+  uint32_t idx{};
+  uint32_t arraySize{};
+  uint32_t parentSet{};
+  uint32_t parentBinding{};
+  uint32_t currentOffset{};
+  Standard std = Standard::Std140;
+};
+
 auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std)
     -> Result<std::variant<Graphics::BufferFormat, Graphics::BufferComponent>>;
 
-struct PushBufferReflection {
-  std::unordered_map<ResolvedKey, ResourceInfo> keyToInfo;
-
-  VkDeviceSize size;
-};
-
 struct ShaderReflection {
-  PushBufferReflection pushBuffer;
   VkDeviceSize size;
 
   std::unordered_map<ResolvedKey, ResourceInfo> keyToInfo;
@@ -496,6 +501,11 @@ struct ShaderReflection {
   SlotsStorage bufferSlotsBySet;
   SlotsStorage textureSlotsBySet;
   SlotsStorage accelerationStructureSlotsBySet;
+
+private:
+  auto FlattenResource(ResourceInfo &resource, FlatteningState &state,
+                       std::vector<ResourceInfo> &children, bool mapToGlobals)
+      -> Error;
 };
 
 auto ReflectShader(const Graphics::GraphicsContext &context,

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -63,22 +64,22 @@ auto FrameUniformBufferObject::Create(GraphicsContext &context)
   return obj;
 }
 
-auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data,
-                                     size_t writeOffset) -> Error {
+auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data)
+    -> Error {
   ZoneScoped;
 
   [[unlikely]]
-  if (data.size_bytes() == 0) {
+  if (data.size() == 0) {
     return {};
   }
 
   [[unlikely]]
-  if (data.size_bytes() > MaximumUniformBufferSize) {
+  if (data.size() > MaximumUniformBufferSize) {
     return Error::Create(
         "Tried to set uniform buffer data larger than maximum. (holy shit)");
   }
 
-  const auto requiredSize = offset + data.size_bytes() + writeOffset;
+  const auto requiredSize = offset + data.size();
 
   [[unlikely]]
   if (requiredSize > internalSize) {
@@ -98,10 +99,9 @@ auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data,
          "Write operation exceeds the size of the staging buffer.");
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  memcpy(stagingBuffer.data() + offset + writeOffset, data.data(),
-         data.size_bytes());
+  memcpy(stagingBuffer.data() + offset, data.data(), data.size());
 
-  offset += static_cast<uint32_t>(data.size_bytes() + writeOffset);
+  offset += static_cast<uint32_t>(data.size());
   offset = Utils::AlignUp(offset, minUniformBufferOffsetAlignment);
 
   return {};

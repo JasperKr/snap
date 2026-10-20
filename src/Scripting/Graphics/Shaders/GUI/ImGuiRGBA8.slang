@@ -11,6 +11,7 @@ struct VertexInput {
 };
 
 uniform float4x4 ProjectionMatrix;
+uniform uint MainTexture;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
@@ -34,8 +35,6 @@ float3 GammaToLinear(float3 gamma) {
   return float3(GammaToLinear(gamma.r), GammaToLinear(gamma.g),
                 GammaToLinear(gamma.b));
 }
-
-uniform uint MainTexture;
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {

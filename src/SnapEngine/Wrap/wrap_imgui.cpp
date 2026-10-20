@@ -9,21 +9,25 @@
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
 #include "Graphics/vertexformat.hpp"
+#include "Modules/Math/vector.hpp"
 #include "Modules/Peripherals/keyboard.hpp"
 #include "Modules/Peripherals/mouse.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/imageData.hpp"
 #include "Modules/object.hpp"
+#include "Modules/timer.hpp"
 #include "Wrap/wrap.hpp"
 #include "imgui.h"
 
 #include "style.hpp"
 #include "vulkan/vulkan_core.h"
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <mutex>
 #include <span>
 #include <unordered_map>

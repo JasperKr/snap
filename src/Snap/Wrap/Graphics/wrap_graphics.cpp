@@ -349,7 +349,7 @@ auto wrap_GetScissor(lua_State *state) -> int {
 // Returns shader handle as integer
 auto wrap_GetShader(lua_State *state) -> int {
   auto *ctx = ::Graphics::GetCurrentGraphicsContext();
-  auto ref = ::Graphics::RenderState::GetUserShader();
+  auto ref = ::Graphics::RenderState::GetShader();
 
   const auto *type = ::Graphics::Shader::GetType();
 

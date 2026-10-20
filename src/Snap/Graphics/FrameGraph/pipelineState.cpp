@@ -332,10 +332,10 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
           .pushIndex{
               .heapOffset = 0,
               .pushOffset = 0,
-              .heapIndexStride = 1,
-              .heapArrayStride = static_cast<uint32_t>(
+              .heapIndexStride = static_cast<uint32_t>(
                   DescriptorHeapManager::GetInstance()
                       .heapProperties.bufferDescriptorSize),
+              .heapArrayStride = 0,
           },
       },
   };
@@ -362,14 +362,16 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
 
   VkPipelineViewportStateCreateInfo viewportState = {};
   viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-  viewportState.viewportCount = 1;
 
   auto viewport = GetMaximumAllowedViewport();
   auto scissor = GetScissor();
 
+  viewportState.viewportCount = 1;
   viewportState.pViewports = &viewport;
   viewportState.scissorCount = 1;
   viewportState.pScissors = &scissor;
+
+  PrintAlways("Viewport: {}x{}", viewport.width, viewport.height);
 
   /// Multisampling ///
 

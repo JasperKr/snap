@@ -21,9 +21,12 @@ auto BindGlobalUBO(const GraphicsContext &context, const Ref<Shader> &shader,
 
   assert(buffer.GetBuffer().get() != nullptr);
 
-  auto address = CHECK_RES(
+  uint32_t address = CHECK_RES(
       buffer.GetBuffer()->GetAddress(context, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                      offset, shader->globalUniforms.size()));
+
+  // PrintAlways("Sent uniforms: offset: {}, size: {}, address: {}", offset,
+  //             shader->globalUniforms.size(), address);
 
   VkPushDataInfoEXT pushInfo{
       .sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,

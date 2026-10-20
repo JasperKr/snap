@@ -626,7 +626,7 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
   const ResolvedKey resolved = ResolveKey(key);
   auto iter = reflection.keyToInfo.find(resolved);
 
-  assert(iter != reflection.keyToInfo.end());
+  ERR_ASSERT(iter != reflection.keyToInfo.end());
   const auto &info = iter->second;
 
   // PrintAlways("Offset: {}, Size: {}, Target size: {}", info.offset, data.size(),
@@ -644,7 +644,7 @@ auto Shader::Send(const ResolvedKey key, const VkDeviceSize data) -> Error {
 
   auto iter = reflection.keyToInfo.find(key);
 
-  assert(iter != reflection.keyToInfo.end());
+  ERR_ASSERT(iter != reflection.keyToInfo.end());
   const auto &info = iter->second;
 
   // Note that we send the size of a uint32_t, as these are offsets within the heap,
@@ -707,6 +707,8 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   VkDeviceSize address =
       CHECK_RES(texture.resource->GetAddress(context, texture.type));
 
+  // PrintAlways("Texture address: {}", address);
+
   ERR_ASSERT((texture.resource->imageMemory->usage &
               VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);
 
@@ -737,13 +739,13 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   ZoneScopedN("Shader::Send acceleration structure");
 
   VkDeviceSize address = CHECK_RES(accelStructure->GetTLASBuffer()->GetAddress(
-      context, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 0,
+      context, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0,
       accelStructure->GetTLASBuffer()->size));
 
   const ResolvedKey resolved = ResolveKey(key);
   GetState().userBoundAccelerationStructures[resolved] = {
       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
-      .type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV,
+      .type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
       .resource = accelStructure,
   };
 

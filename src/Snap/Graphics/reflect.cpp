@@ -15,6 +15,7 @@
 #include <format>
 #include <public/tracy/Tracy.hpp>
 #include <variant>
+#include <vector>
 
 namespace Graphics::Reflect {
 
@@ -811,25 +812,11 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding)
   return {};
 }
 
-struct FlatteningState {
-  std::unordered_map<ResolvedKey, ResourceInfo> *keyToInfo;
-  std::unordered_map<ResourceKey, ResolvedKey, ResourceKeyHash> *keyMapping;
-  VkDeviceSize size;
-
-  ResourceKey *currentKey = nullptr;
-  ResolvedKey keyIter = 0;
-  uint32_t idx{};
-  uint32_t arraySize{};
-  uint32_t parentSet{};
-  uint32_t parentBinding{};
-  uint32_t currentOffset{};
-  Standard std = Standard::Std140;
-};
-
 // NOLINTNEXTLINE
-inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
-    -> Error {
-
+auto ShaderReflection::FlattenResource(ResourceInfo &resource,
+                                       FlatteningState &state,
+                                       std::vector<ResourceInfo> &children,
+                                       bool mapToGlobals) -> Error {
   if (resource.IsBuffer()) {
     const auto &bufferInfo = std::get<BufferInfo>(resource.info);
     resource.set = bufferInfo.set;
@@ -887,7 +874,7 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
         newState.currentOffset += resource.offset;
         newState.idx = i;
         newState.arraySize = resource.GetArraySize();
-        CHECK_ERR(FlattenResource(field, newState));
+        CHECK_ERR(FlattenResource(field, newState, children, mapToGlobals));
       }
 
     } else if (resource.IsBuffer()) {
@@ -914,11 +901,15 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
       info.stages = resource.stages;
       info.name = resource.name;
 
-      CHECK_ERR(FlattenResource(info, newState));
+      CHECK_ERR(FlattenResource(info, newState, children, mapToGlobals));
     } else {
-      state.keyIter++;
-      state.keyMapping->emplace(*state.currentKey, state.keyIter);
-      state.keyToInfo->emplace(state.keyIter, resource);
+      if (mapToGlobals) {
+        auto key = keyMapping.size();
+        keyMapping.emplace(*state.currentKey, key);
+        keyToInfo.emplace(key, resource);
+      }
+
+      children.emplace_back(resource);
     }
   }
 
@@ -942,20 +933,22 @@ auto ShaderReflection::FlattenReflection() -> Error {
         resource.IsBuffer() &&
         resource.GetInfo<BufferInfo>().bufferType == BufferType::PushConstant;
 
+    // ERR_ASSERT(!isPushConstant);
+
     ResourceKey currentKey;
     FlatteningState state{
-        .keyToInfo = isPushConstant ? &pushBuffer.keyToInfo : &keyToInfo,
-        .keyMapping = &keyMapping,
         .currentKey = &currentKey,
         .idx = 0,
         .arraySize = resource.GetArraySize(),
     };
 
-    CHECK_ERR(FlattenResource(resource, state));
+    std::vector<ResourceInfo> children;
 
-    for (auto &entry : *state.keyToInfo) {
-      state.size = std::max<VkDeviceSize>(
-          state.size, entry.second.GetOffset() + entry.second.GetSize());
+    CHECK_ERR(FlattenResource(resource, state, children, false));
+
+    for (auto &entry : children) {
+      state.size = std::max<VkDeviceSize>(state.size,
+                                          entry.GetOffset() + entry.GetSize());
     }
 
     if (resource.IsBuffer() && !isPushConstant) {
@@ -972,8 +965,6 @@ auto ShaderReflection::FlattenReflection() -> Error {
 
   ResourceKey currentKey;
   FlatteningState state{
-      .keyToInfo = &keyToInfo,
-      .keyMapping = &keyMapping,
       .currentKey = &currentKey,
       .idx = 0,
       .arraySize = 1,
@@ -998,11 +989,13 @@ auto ShaderReflection::FlattenReflection() -> Error {
   info.stages = VK_SHADER_STAGE_ALL;
   info.name = "Globals";
 
-  CHECK_ERR(FlattenResource(info, state));
+  std::vector<ResourceInfo> children;
 
-  for (auto &entry : *state.keyToInfo) {
-    state.size = std::max<VkDeviceSize>(state.size, entry.second.GetOffset() +
-                                                        entry.second.GetSize());
+  CHECK_ERR(FlattenResource(info, state, children, true));
+
+  for (auto &entry : children) {
+    state.size =
+        std::max<VkDeviceSize>(state.size, entry.GetOffset() + entry.GetSize());
   }
 
   return {};

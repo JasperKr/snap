@@ -14,12 +14,7 @@ struct VertexOutput {
 import utils;
 import camera;
 
-struct PushConstantsBuffer {
-  uint2 viewportSize;
-};
-
-[[vk::push_constant]]
-PushConstantsBuffer PushConstants;
+uniform uint2 viewportSize;
 
 static const float2 corners[6] = { { 0, 1 }, { 1, 1 }, { 1, 0 },
                                    { 0, 1 }, { 1, 0 }, { 0, 0 } };
@@ -40,8 +35,8 @@ VertexOutput vertexMain(VertexInput input, uint vertexID: SV_VertexID) {
   float2 texCoord = corners[vertexID % 6];
 
   // Offset in NDC.
-  float2 offset = float2(-dir.y, dir.x) * (input.thickness) /
-                  float2(PushConstants.viewportSize);
+  float2 offset =
+      float2(-dir.y, dir.x) * (input.thickness) / float2(viewportSize);
 
   // Interpolate in clip space.
   float4 clipPos = lerp(clipStart, clipEnd, texCoord.x);
