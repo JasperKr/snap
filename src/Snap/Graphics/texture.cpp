@@ -167,20 +167,6 @@ auto Texture::Create(const GraphicsContext &context,
     return Error::Unexpected("2D textures must have exactly 1 array layer.");
   }
 
-  if (info.mipmapCount == 0) {
-    return Error::Unexpected("Texture mipmap count must be greater than 0.");
-  }
-
-  if (info.format == VK_FORMAT_UNDEFINED) {
-    return Error::Unexpected("Texture format must be defined.");
-  }
-
-  if ((info.usage & VK_IMAGE_USAGE_SAMPLED_BIT) == 0U &&
-      (info.usage & VK_IMAGE_USAGE_STORAGE_BIT) == 0U) {
-    return Error::Unexpected(
-        "Texture usage must include at least sampled or storage usage.");
-  }
-
   Ref<Texture> texture = Ref<Texture>::Make();
   auto imageMemory = std::make_shared<ImageMemory>();
 
@@ -1287,7 +1273,8 @@ auto ImageMemory::UseAs(const GraphicsContext &context, TextureUsage newUsage,
 
   if (state.lastUsage == TextureUsage::Swapchain) {
     state.lastPipelineStage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    currentAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+    currentAccess = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
+                    VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
   }
 
   auto range = VkImageSubresourceRange{.aspectMask =

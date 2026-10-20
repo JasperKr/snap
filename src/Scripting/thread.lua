@@ -34,7 +34,7 @@ local function draw()
 
   Editor.drawGUI()
 
-  camera:render(scene)
+  -- camera:render(scene)
   snap.graphics.setShader()
 
   if Imgui.Begin("Debug Info") then
@@ -62,9 +62,9 @@ local function draw()
   if Imgui.Begin("Viewport", nil, flags) then
     local windowSize = Imgui.GetWindowSize()
     Imgui.SetCursorPos(ffi.new("ImVec2", 0, 0))
-    local rt = camera:getRendertarget("PostProcessed")
-    Imgui.Image(rt, windowSize)
-    rt:release()
+    -- local rt = camera:getRendertarget("PostProcessed")
+    -- Imgui.Image(rt, windowSize)
+    -- rt:release()
 
     camera:setDimensions(windowSize.x, windowSize.y)
 
@@ -243,9 +243,9 @@ while true do
 
   snap.graphics.setRenderTarget()
 
-  -- snap.gui.newFrame(delta)
+  snap.gui.newFrame(delta)
 
-  -- draw()
+  draw()
 
   snap.graphics.draw(texture)
 

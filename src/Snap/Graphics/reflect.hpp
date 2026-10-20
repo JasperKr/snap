@@ -465,14 +465,19 @@ SlangResourceAccessToVkAccessFlags_Sampler(SlangResourceAccess access)
 auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std)
     -> Result<std::variant<Graphics::BufferFormat, Graphics::BufferComponent>>;
 
-struct FlattenedReflection {
-  std::unordered_map<ResourceKey, ResourceInfo, ResourceKeyHash> keyToInfo;
-  std::unordered_map<uint32_t, ResourceInfo> bindingToInfo;
+struct PushBufferReflection {
+  std::unordered_map<ResolvedKey, ResourceInfo> keyToInfo;
 
-  uint32_t size{}; // Not stride
+  VkDeviceSize size;
 };
 
 struct ShaderReflection {
+  PushBufferReflection pushBuffer;
+  VkDeviceSize size;
+
+  std::unordered_map<ResolvedKey, ResourceInfo> keyToInfo;
+  std::unordered_map<ResourceKey, ResolvedKey, ResourceKeyHash> keyMapping;
+
   std::vector<ResourceInfo> resources;
   std::unordered_map<DescriptorSlot, ResourceInfo> slotToInfo;
   BufferInfo globals;
@@ -482,11 +487,6 @@ struct ShaderReflection {
   // NOLINTNEXTLINE
   auto ConstructUBOStruct(uint32_t set, uint32_t binding) -> Error;
   auto FlattenReflection() -> Error;
-
-  // Set -> FlattenedReflection
-  std::unordered_map<uint32_t, FlattenedReflection> flattened;
-  std::unordered_map<ResourceKey, DescriptorSlot, ResourceKeyHash> keyToSlot;
-  std::vector<FlattenedReflection> pushBuffers;
 
   using SlotsStorage =
       std::unordered_map<uint32_t,

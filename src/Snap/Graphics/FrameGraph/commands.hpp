@@ -132,7 +132,6 @@ struct GraphState {
 
   // Fields down from here are not taken into account for hashing,
   // and are used purely for copying to per-draw state
-  std::vector<char> pushConstants;
 
   std::vector<VkBuffer> vertexBuffers;
   std::vector<VkDeviceSize> vertexBufferOffsets;
@@ -142,22 +141,11 @@ struct GraphState {
 
   mutable uint64_t hash{};
 
-  // Incremented each time the state is modified
-  mutable uint64_t generation = 0;
-
-  void MarkUpdated() {
-    generation++;
-    dirty = true;
-  }
+  void MarkUpdated() { dirty = true; }
 
   auto GetHash() const -> uint64_t;
 
   auto operator==(const GraphState &other) const -> bool {
-    [[likely]]
-    if (generation == other.generation) { // quick equal
-      return true;
-    }
-
     if (colorAttachments != other.colorAttachments) {
       return false;
     }
@@ -1136,7 +1124,6 @@ struct VirtualCommandBuffer {
                  VkImage dstImage, VkImageLayout dstImageLayout,
                  uint32_t regionCount, const VkImageBlit *pRegions,
                  VkFilter filter) -> Error;
-  auto PushConstants(uint32_t size, const void *pValues) -> void;
   auto CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount,
                   const VkBufferCopy *pRegions) -> Error;
   auto CopyImage(VkImage srcImage, VkImageLayout srcImageLayout,

@@ -937,9 +937,6 @@ auto FrameGraph::BuildRenderRegions(const GraphicsContext &context)
         stateID = drawState->stateID;
       }
 
-      PrintAlways("State ID: {} / {}", stateID,
-                  CommandStateManager::States.size());
-
       const auto &renderState = CommandStateManager::States.at(stateID);
 
       if (renderState.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
@@ -1519,21 +1516,21 @@ auto FrameGraph::WriteCommand(const Command &command,
                               VkCommandBuffer cmdBuffer,
                               const LoadOpConfig *loadOpConfig) -> Error {
   const auto *callable = get_if_derived<Callable>(command.data);
-  const auto *state = command.GetDrawState();
+
+  if (callable == nullptr) {
+    return {};
+  }
+
   const auto type = command.GetType();
-
-  if (callable != nullptr && GetRequiresRendering(type)) {
-    if (state != nullptr) {
-      CHECK_ERR(state->Apply(context, cmdBuffer, loadOpConfig));
-    }
+  if (GetRequiresRendering(type)) {
+    const auto *state = command.GetDrawState();
+    assert(state != nullptr);
+    CHECK_ERR(state->Apply(context, cmdBuffer, loadOpConfig));
+  } else {
+    EndRendering(context, cmdBuffer);
   }
 
-  if (callable != nullptr) {
-    if (!GetRequiresRendering(type)) {
-      EndRendering(context, cmdBuffer);
-    }
-    CHECK_ERR(callable->Call(cmdBuffer));
-  }
+  CHECK_ERR(callable->Call(cmdBuffer));
 
   return {};
 }
@@ -1636,7 +1633,6 @@ auto FrameGraph::Write(const GraphicsContext &context,
   EndRendering(context, cmdBuffer);
   GetThreadContext().workingCommandBuffer = nullptr;
   vkEndCommandBuffer(cmdBuffer);
-  CommandStateManager::CurrentStateID = UINT32_MAX;
 
   Reset();
 
@@ -1661,6 +1657,8 @@ auto FrameGraph::Reset() -> void {
   CommandStateManager::States.clear();
   RecordingState::CurrentState = {};
   RecordingState::LastStateStorage = {};
+  RecordingState::LastState = nullptr;
+  CommandStateManager::CurrentStateID = UINT32_MAX;
 }
 
 } // namespace Graphics

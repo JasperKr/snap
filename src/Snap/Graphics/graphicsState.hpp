@@ -90,8 +90,8 @@ constexpr uint32_t MAX_BOUND_VERTEX_BUFFERS = 8;
 
 struct KeyElement {
   KeyElement() = default;
-  KeyElement(const char *key) : Key(key) {} // NOLINT
-  explicit KeyElement(std::string_view key) : Key(key.data()) {}
+  KeyElement(const char *key) : Key(key) {}             // NOLINT
+  KeyElement(std::string_view key) : Key(key.data()) {} // NOLINT
   explicit KeyElement(std::string_view key, uint64_t index)
       : Key(key.data()), Index(index) {}
 
@@ -133,6 +133,7 @@ struct KeyElement {
 constexpr size_t MAX_KEY_ELEMENTS = 8;
 
 using ResourceKey = Math::StackVector<KeyElement, MAX_KEY_ELEMENTS>;
+using ResolvedKey = uint32_t;
 
 struct ResourceKeyHash {
   auto operator()(const ResourceKey &key) const -> size_t {

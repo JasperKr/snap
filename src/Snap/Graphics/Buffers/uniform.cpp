@@ -52,7 +52,8 @@ auto FrameUniformBufferObject::Create(GraphicsContext &context)
                     static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
                     static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
   info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-               static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+               static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
   info.debugName = "Frame Uniform Buffer";
 
   obj.buffer = CHECK_RES(Buffer::Create(context, info));
@@ -121,7 +122,8 @@ auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
         static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
         static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-                 static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+                 static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     info.debugName = "Frame Uniform Buffer";
 
     buffer = CHECK_RES(Graphics::Buffer::Create(context, info));

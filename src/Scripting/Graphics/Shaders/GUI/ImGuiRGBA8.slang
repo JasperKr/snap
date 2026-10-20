@@ -10,18 +10,12 @@ struct VertexInput {
   float4 Color : COLOR;
 };
 
-struct PushConstantsBuffer {
-  float4x4 ProjectionMatrix;
-};
-
-[[vk::push_constant]]
-PushConstantsBuffer PushConstants;
+uniform float4x4 ProjectionMatrix;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
   VertexStageOutput out;
-  out.sv_position =
-      mul(float4(input.Position, 0.0, 1.0), PushConstants.ProjectionMatrix);
+  out.sv_position = mul(float4(input.Position, 0.0, 1.0), ProjectionMatrix);
   out.tex_coord = input.TexCoord;
   out.color = input.Color;
   return out;
@@ -32,8 +26,6 @@ struct FragmentInput {
   float4 color : COLOR;
 };
 
-Sampler2D MainTexture;
-
 float GammaToLinear(float gamma) {
   return gamma <= 0.04045 ? gamma / 12.92 : pow((gamma + 0.055) / 1.055, 2.4);
 }
@@ -43,9 +35,13 @@ float3 GammaToLinear(float3 gamma) {
                 GammaToLinear(gamma.b));
 }
 
+uniform uint MainTexture;
+
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {
-  float4 color = MainTexture.Sample(input.tex_coord);
+  Sampler2D sampler = ResourceDescriptorHeap[MainTexture];
+
+  float4 color = sampler.Sample(input.tex_coord);
   color *= input.color;
   // color.rgb *= color.a;
 

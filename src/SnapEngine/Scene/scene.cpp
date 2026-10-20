@@ -57,6 +57,8 @@
 
 namespace Engine {
 
+using namespace Graphics;
+
 auto LuaScene::LoadBinding(lua_State *state) -> int {
   Bindings::LuaBoundStruct<Scene> bindings("Scene");
   bindings.RegisterMember<&Scene::name>("Name");
@@ -90,8 +92,8 @@ inline auto CompareDrawItems(const DrawItem &first, const DrawItem &second)
   return first.tertiaryKey < second.tertiaryKey;
 }
 
-inline auto BindMaterial(const Ref<Graphics::Shader> &shader,
-                         Graphics::GraphicsContext &ctx,
+inline auto BindMaterial(const GraphicsContext &context,
+                         const Ref<Shader> &shader,
                          const Renderer::Material *material, uint8_t flags)
     -> Error {
   const auto &defaultMaterial = Renderer::RendererInstance.GetDefaultMaterial();
@@ -127,38 +129,29 @@ inline auto BindMaterial(const Ref<Graphics::Shader> &shader,
 
   // NOLINTBEGIN
   if ((flags & 1U) != 0U) {
-    static auto albedoKey = Graphics::ResourceKey{"AlbedoTexture"};
-    CHECK_ERR(shader->Send(albedoKey, albedoTexture));
+    CHECK_ERR(shader->Send(context, "AlbedoTexture", albedoTexture));
   }
 
   if ((flags & 2U) != 0U) {
-    static auto metallicRoughnessKey =
-        Graphics::ResourceKey{"MetallicRoughnessTexture"};
-    CHECK_ERR(shader->Send(metallicRoughnessKey, metallicRoughnessTexture));
+    CHECK_ERR(shader->Send(context, "MetallicRoughnessTexture",
+                           metallicRoughnessTexture));
   }
 
   // if ((flags & 4U) != 0U) {
-  //   static auto ambientOcclusionTextureKey =
-  //       Graphics::ResourceKey{"AmbientOcclusionTexture"};
-
   //   CHECK_ERR(
-  //       shader->Send(ambientOcclusionTextureKey, ambientOcclusionTexture));
+  //       shader->Send(context, "AmbientOcclusionTexture", ambientOcclusionTexture));
   // }
 
   if ((flags & 8U) != 0U) {
-    static auto normalTextureKey = Graphics::ResourceKey{"NormalTexture"};
-    CHECK_ERR(shader->Send(normalTextureKey, normalTexture));
+    CHECK_ERR(shader->Send(context, "NormalTexture", normalTexture));
   }
 
   if ((flags & 16U) != 0U) {
-    static auto emissiveTextureKey = Graphics::ResourceKey{"EmissiveTexture"};
-    CHECK_ERR(shader->Send(emissiveTextureKey, emissiveTexture));
+    CHECK_ERR(shader->Send(context, "EmissiveTexture", emissiveTexture));
   }
 
   if ((flags & 32U) != 0U) {
-    static auto reflectanceTextureKey =
-        Graphics::ResourceKey{"ReflectanceTexture"};
-    CHECK_ERR(shader->Send(reflectanceTextureKey, reflectanceTexture));
+    CHECK_ERR(shader->Send(context, "ReflectanceTexture", reflectanceTexture));
   }
   // NOLINTEND
 
@@ -178,34 +171,30 @@ struct DrawConfig {
   bool bindMaterialBuffer = false;
 };
 
-inline auto RenderDrawItem(const DrawItem &item,
-                           const Ref<Graphics::Shader> &shader,
-                           Graphics::GraphicsContext &ctx,
-                           const DrawConfig &config) -> Error {
+inline auto RenderDrawItem(const DrawItem &item, const Ref<Shader> &shader,
+                           GraphicsContext &ctx, const DrawConfig &config)
+    -> Error {
   if (config.bindMaterialTextures != 0) {
     CHECK_ERR(
-        BindMaterial(shader, ctx, item.material, config.bindMaterialTextures));
+        BindMaterial(ctx, shader, item.material, config.bindMaterialTextures));
   }
 
   if (config.bindMaterialBuffer) {
-    static auto materialBufferIndexKey =
-        Graphics::ResourceKey{"PushConstants", "MaterialBufferIndex"};
-    CHECK_ERR(Graphics::UniformWriter::Send(shader, materialBufferIndexKey,
-                                            item.material->materialSSBOIndex));
+    CHECK_ERR(UniformWriter::Send(shader,
+                                  {"PushConstants", "MaterialBufferIndex"},
+                                  item.material->materialSSBOIndex));
   }
 
-  static auto modelTransformIndexKey =
-      Graphics::ResourceKey{"PushConstants", "ModelTransformIndex"};
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, modelTransformIndexKey,
-                                          item.transformIndex));
+  CHECK_ERR(UniformWriter::Send(
+      shader, {"PushConstants", "ModelTransformIndex"}, item.transformIndex));
 
   if (item.geometry.mesh.get() == nullptr) {
     return Error::Create("Invalid geometry mesh");
   }
 
-  Graphics::RenderState::SetCullMode(item.material->cullMode);
+  RenderState::SetCullMode(item.material->cullMode);
 
-  CHECK_ERR(Graphics::Draw(ctx, *item.geometry.mesh));
+  CHECK_ERR(Draw(ctx, *item.geometry.mesh));
 
   return {};
 }
@@ -251,7 +240,7 @@ inline auto AddDrawItem(std::vector<DrawItem> &OpaqueDrawItems,
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto Scene::DrawModels(Camera &camera, Frustum &frustum,
-                       const Graphics::GraphicsContext &context) -> Error {
+                       const GraphicsContext &context) -> Error {
   ZoneScoped;
 
   // Pre-frame setup
@@ -266,7 +255,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   // Shader configuration
 
-  auto &ctx = *Graphics::GetCurrentGraphicsContext();
+  auto &ctx = *GetCurrentGraphicsContext();
   auto &textures = camera.GetOwnedTextures();
   auto &manager = renderer.GetShaderManager();
 
@@ -278,36 +267,29 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   auto forward =
       CHECK_RES(manager.GetShader(Renderer::ShaderKey::TransparencyForward));
 
-  static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
-  auto cameraBuffer = camera.GetBuffer()->GetBuffer();
+  auto cameraBuffer = camera.GetBuffer();
+  CHECK_ERR(depthOpaque->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(depthMasked->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(deferred->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(forward->Send(context, "CameraData", cameraBuffer));
 
-  CHECK_ERR(Graphics::UniformWriter::Send(depthOpaque, cameraBufferKey,
-                                          cameraBuffer));
-  CHECK_ERR(Graphics::UniformWriter::Send(depthMasked, cameraBufferKey,
-                                          cameraBuffer));
-  CHECK_ERR(
-      Graphics::UniformWriter::Send(deferred, cameraBufferKey, cameraBuffer));
-  CHECK_ERR(
-      Graphics::UniformWriter::Send(forward, cameraBufferKey, cameraBuffer));
+  auto transforms = renderer.GetModelTransformsBuffer();
+  CHECK_ERR(depthOpaque->Send(context, "ModelTransforms",
+                              {transforms, StorageBuffer::read}));
+  CHECK_ERR(depthMasked->Send(context, "ModelTransforms",
+                              {transforms, StorageBuffer::read}));
+  CHECK_ERR(deferred->Send(context, "ModelTransforms",
+                           {transforms, StorageBuffer::read}));
+  CHECK_ERR(forward->Send(context, "ModelTransforms",
+                          {transforms, StorageBuffer::read}));
 
-  static auto modelTransformsBufferKey =
-      Graphics::ResourceKey{"ModelTransforms"};
-
-  auto modelTransformsBuffer = renderer.GetModelTransformsBuffer()->GetBuffer();
-  CHECK_ERR(Graphics::UniformWriter::Send(depthOpaque, modelTransformsBufferKey,
-                                          modelTransformsBuffer));
-  CHECK_ERR(Graphics::UniformWriter::Send(depthMasked, modelTransformsBufferKey,
-                                          modelTransformsBuffer));
-  CHECK_ERR(Graphics::UniformWriter::Send(deferred, modelTransformsBufferKey,
-                                          modelTransformsBuffer));
-  CHECK_ERR(Graphics::UniformWriter::Send(forward, modelTransformsBufferKey,
-                                          modelTransformsBuffer));
-
-  static auto materialBufferKey = Graphics::ResourceKey{"MaterialBuffer"};
-  auto materialBuffer = renderer.GetMaterialsBuffer()->GetBuffer();
-  CHECK_ERR(depthMasked->Send(materialBufferKey, materialBuffer));
-  CHECK_ERR(deferred->Send(materialBufferKey, materialBuffer));
-  CHECK_ERR(forward->Send(materialBufferKey, materialBuffer));
+  auto materialBuffer = renderer.GetMaterialsBuffer();
+  CHECK_ERR(depthMasked->Send(context, "MaterialBuffer",
+                              {materialBuffer, StorageBuffer::read}));
+  CHECK_ERR(deferred->Send(context, "MaterialBuffer",
+                           {materialBuffer, StorageBuffer::read}));
+  CHECK_ERR(forward->Send(context, "MaterialBuffer",
+                          {materialBuffer, StorageBuffer::read}));
 
   // Draw sorting
 
@@ -384,14 +366,6 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   CHECK_ERR(
       renderer.GetModelTransformsBuffer()->GetBuffer()->SetData(ctx, span));
 
-  static auto albedoTextureKey = Graphics::ResourceKey{"AlbedoTexture"};
-  static auto normalTextureKey = Graphics::ResourceKey{"NormalTexture"};
-  static auto materialTextureKey = Graphics::ResourceKey{"MaterialTexture"};
-  static auto emissiveTextureKey = Graphics::ResourceKey{"EmissiveTexture"};
-  static auto depthBufferKey = Graphics::ResourceKey{"DepthTexture"};
-  static auto previousDepthBufferKey =
-      Graphics::ResourceKey{"PreviousDepthTexture"};
-
   const auto &rendertargets = camera.GetRendertargets();
 
   // Depth Opaque prepass
@@ -400,11 +374,11 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, rendertargets.Depth));
 
-  Graphics::RenderState::SetDepthMode(true, true, VK_COMPARE_OP_GREATER);
-  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
-  Graphics::RenderState::SetShader(depthOpaque);
+  RenderState::SetDepthMode(true, true, VK_COMPARE_OP_GREATER);
+  RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  RenderState::SetShader(depthOpaque);
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+  CHECK_ERR(RenderState::SetRenderTargets(
       ctx, {{
                .clearValue = VkClearValue{0.0F, 0},
                .texture = textures.Depth,
@@ -416,25 +390,25 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       .bindMaterialBuffer = false,
   };
 
-  Graphics::PushDebugMarker("Depth Opaque Prepass");
+  PushDebugMarker("Depth Opaque Prepass");
 
   for (const auto &item : OpaqueDrawItems) {
     CHECK_ERR(RenderDrawItem(item, depthOpaque, ctx, opaqueConfig));
   }
 
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Depth Masked Prepass");
+  PopDebugMarker();
+  PushDebugMarker("Depth Masked Prepass");
 
   static auto maskedConfig = DrawConfig{
       .bindMaterialTextures = 1,
       .bindMaterialBuffer = true,
   };
-  Graphics::RenderState::SetShader(depthMasked);
+  RenderState::SetShader(depthMasked);
   for (const auto &item : MaskedDrawItems) {
     CHECK_ERR(RenderDrawItem(item, depthMasked, ctx, maskedConfig));
   }
 
-  Graphics::PopDebugMarker();
+  PopDebugMarker();
 
   textures.Albedo =
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
@@ -452,36 +426,36 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, rendertargets.Motion));
 
-  Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_EQUAL);
-  Graphics::RenderState::SetShader(deferred);
+  RenderState::SetDepthMode(true, false, VK_COMPARE_OP_EQUAL);
+  RenderState::SetShader(deferred);
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+  CHECK_ERR(RenderState::SetRenderTargets(
       ctx, {{
                 .texture = textures.Depth,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
             },
             {
-                .blendMode = Graphics::BlendmodeNone,
+                .blendMode = BlendmodeNone,
                 .texture = textures.Albedo,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             },
             {
-                .blendMode = Graphics::BlendmodeNone,
+                .blendMode = BlendmodeNone,
                 .texture = textures.Normal,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             },
             {
-                .blendMode = Graphics::BlendmodeNone,
+                .blendMode = BlendmodeNone,
                 .texture = textures.Material,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             },
             {
-                .blendMode = Graphics::BlendmodeNone,
+                .blendMode = BlendmodeNone,
                 .texture = textures.Emissive,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             },
             {
-                .blendMode = Graphics::BlendmodeNone,
+                .blendMode = BlendmodeNone,
                 .texture = textures.Motion,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             }}));
@@ -491,24 +465,24 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       .bindMaterialBuffer = true,
   };
 
-  Graphics::PushDebugMarker("Opaque Materials");
+  PushDebugMarker("Opaque Materials");
 
   for (const auto &item : OpaqueDrawItems) {
     CHECK_ERR(RenderDrawItem(item, deferred, ctx, deferredConfig));
   }
 
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Masked Materials");
+  PopDebugMarker();
+  PushDebugMarker("Masked Materials");
 
   for (const auto &item : MaskedDrawItems) {
     CHECK_ERR(RenderDrawItem(item, deferred, ctx, deferredConfig));
   }
 
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Lighting");
+  PopDebugMarker();
+  PushDebugMarker("Lighting");
 
   if (OpaqueDrawItems.empty() && MaskedDrawItems.empty()) {
-    CHECK_ERR(Graphics::RenderState::Clear(
+    CHECK_ERR(RenderState::Clear(
         ctx, {
                  .colors =
                      {
@@ -525,14 +499,17 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   auto lightingShader =
       CHECK_RES(manager.GetShader(Renderer::ShaderKey::SimpleLighting));
-  CHECK_ERR(lightingShader->Send(cameraBufferKey, cameraBuffer));
-  CHECK_ERR(lightingShader->Send(albedoTextureKey, textures.Albedo));
-  CHECK_ERR(lightingShader->Send(materialTextureKey, textures.Material));
-  CHECK_ERR(lightingShader->Send(emissiveTextureKey, textures.Emissive));
+  CHECK_ERR(
+      lightingShader->Send(context, "CameraData", UniformBuffer{cameraBuffer}));
+  CHECK_ERR(lightingShader->Send(context, "AlbedoTexture", textures.Albedo));
+  CHECK_ERR(
+      lightingShader->Send(context, "MaterialTexture", textures.Material));
+  CHECK_ERR(
+      lightingShader->Send(context, "EmissiveTexture", textures.Emissive));
 
-  auto sendInfo = [&](const Ref<Graphics::Shader> &shader) -> Error {
-    CHECK_ERR(shader->Send(normalTextureKey, textures.Normal));
-    CHECK_ERR(shader->Send(depthBufferKey, textures.Depth));
+  auto sendInfo = [&](const Ref<Shader> &shader) -> Error {
+    CHECK_ERR(shader->Send(context, "NormalTexture", textures.Normal));
+    CHECK_ERR(shader->Send(context, "DepthTexture", textures.Depth));
 
     return {};
   };
@@ -550,16 +527,16 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   // CHECK_ERR(sendInfo(shadowSpot));
   // CHECK_ERR(sendInfo(shadowSphere));
   // CHECK_ERR(sendInfo(shadowRectangle));
-  CHECK_ERR(shadowDenoise->Send(depthBufferKey, textures.Depth));
+  CHECK_ERR(shadowDenoise->Send(context, "DepthTexture", textures.Depth));
 
-  CHECK_ERR(
-      shadowDenoise->Send(previousDepthBufferKey, textures.PreviousDepth));
+  CHECK_ERR(shadowDenoise->Send(context, "PreviousDepthTexture",
+                                textures.PreviousDepth));
 
-  auto countKey = Graphics::ResourceKey{"DirectionalLightCount"};
-  CHECK_ERR(Graphics::UniformWriter::Send(
+  auto countKey = ResourceKey{"DirectionalLightCount"};
+  CHECK_ERR(UniformWriter::Send(
       lightingShader, countKey,
       renderer.GetSceneLightBuffers().DirectionalLightCount));
-  CHECK_ERR(Graphics::UniformWriter::Send(
+  CHECK_ERR(UniformWriter::Send(
       forward, countKey,
       renderer.GetSceneLightBuffers().DirectionalLightCount));
 
@@ -571,63 +548,56 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
           context, rendertargets.ShadowHitFlags));
 
   // clang-format off
-  static Graphics::ResourceKey LightIndexKey = {"PushConstants", "LightIndex"};
-  static Graphics::ResourceKey LayerOffsetKey = {"PushConstants", "LayerOffset"};
-  static Graphics::ResourceKey OutputTextureKey = {"OutputTexture"};
-  static Graphics::ResourceKey PreviousOutputTextureKey = {"PreviousOutputTexture"};
-  static Graphics::ResourceKey MotionTextureKey = {"MotionTexture"};
-  static Graphics::ResourceKey RayHitFlagsTextureKey = {"RayHitTexture"};
-
-  static auto blueNoiseTextureKey = Graphics::ResourceKey{"BlueNoiseTexture"};
+  static auto blueNoiseTextureKey = ResourceKey{"BlueNoiseTexture"};
   auto &blueNoiseTex = renderer.GetBlueNoiseTexture();
 
 
   auto shadowDirectional = CHECK_RES(manager.GetShader(K::Shadows_Directional));
-  CHECK_ERR(shadowDirectional->Send(depthBufferKey, textures.Depth));
-  CHECK_ERR(shadowDirectional->Send(normalTextureKey, textures.Normal));
+  CHECK_ERR(shadowDirectional->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(shadowDirectional->Send(context, "NormalTexture", textures.Normal));
 
   static auto rndStateKey =
-      Graphics::ResourceKey{"PushConstants", "FrameRandomState"};
+      ResourceKey{"PushConstants", "FrameRandomState"};
   auto frameRandomState = Math::Random(0, 255); // NOLINT
-  CHECK_ERR(Graphics::UniformWriter::Send(shadowDirectional, rndStateKey,
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, rndStateKey,
                                           frameRandomState));
 
-  // CHECK_ERR(shadowPoint->Send(blueNoiseTextureKey, blueNoiseTex));
-  // CHECK_ERR(shadowSpot->Send(blueNoiseTextureKey, blueNoiseTex));
-  // CHECK_ERR(shadowSphere->Send(blueNoiseTextureKey, blueNoiseTex));
-  // CHECK_ERR(shadowRectangle->Send(blueNoiseTextureKey, blueNoiseTex));
-  CHECK_ERR(forward->Send(blueNoiseTextureKey, blueNoiseTex));
+  // CHECK_ERR(shadowPoint->Send(context, blueNoiseTextureKey, blueNoiseTex));
+  // CHECK_ERR(shadowSpot->Send(context, blueNoiseTextureKey, blueNoiseTex));
+  // CHECK_ERR(shadowSphere->Send(context, blueNoiseTextureKey, blueNoiseTex));
+  // CHECK_ERR(shadowRectangle->Send(context, blueNoiseTextureKey, blueNoiseTex));
+  CHECK_ERR(forward->Send(context, blueNoiseTextureKey, blueNoiseTex));
 
   CHECK_ERR(
-      Graphics::UniformWriter::Send(lightingShader, rndStateKey, frameRandomState));
+      UniformWriter::Send(lightingShader, rndStateKey, frameRandomState));
   CHECK_ERR(
-      Graphics::UniformWriter::Send(forward, rndStateKey, frameRandomState));
+      UniformWriter::Send(forward, rndStateKey, frameRandomState));
 
-  static auto tlasKey = Graphics::ResourceKey{"SceneBVH"};
-  CHECK_ERR(shadowDirectional->Send(tlasKey, renderer.GetSceneTLAS()));
-  CHECK_ERR(shadowDirectional->Send(blueNoiseTextureKey, blueNoiseTex));
-  CHECK_ERR(forward->Send(tlasKey, renderer.GetSceneTLAS()));
+  static auto tlasKey = ResourceKey{"SceneBVH"};
+  CHECK_ERR(shadowDirectional->Send(context, tlasKey, renderer.GetSceneTLAS()));
+  CHECK_ERR(shadowDirectional->Send(context, blueNoiseTextureKey, blueNoiseTex));
+  CHECK_ERR(forward->Send(context, tlasKey, renderer.GetSceneTLAS()));
 
   CHECK_ERR(renderer.BindLightBuffers(ctx, shadowDirectional));
 
-  CHECK_ERR(Graphics::UniformWriter::Send(shadowDirectional, LayerOffsetKey, 0U));
-  CHECK_ERR(Graphics::UniformWriter::Send(shadowDirectional, LightIndexKey, 0U));
-  CHECK_ERR(shadowDirectional->Send(cameraBufferKey, cameraBuffer));
-  CHECK_ERR(shadowDirectional->Send(OutputTextureKey, textures.ShadowHitFlags));
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, {"PushConstants", "LayerOffset"}, 0U));
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, {"PushConstants", "LightIndex"}, 0U));
+  CHECK_ERR(shadowDirectional->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(shadowDirectional->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
 
   auto shadowsReset = CHECK_RES(manager.GetShader(Renderer::ShaderKey::Shadows_ClearHitFlags));
-  CHECK_ERR(shadowsReset->Send(OutputTextureKey, textures.ShadowHitFlags));
+  CHECK_ERR(shadowsReset->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
 
   auto width = textures.ShadowHitFlags->GetWidth();
   auto height = textures.ShadowHitFlags->GetHeight();
 
-  Graphics::RenderState::SetShader(shadowsReset);
+  RenderState::SetShader(shadowsReset);
 
-  CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width / 4, height / 4, 1)));
+  CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width / 4, height / 4, 1)));
 
-  Graphics::RenderState::SetShader(shadowDirectional);
+  RenderState::SetShader(shadowDirectional);
 
-  CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
+  CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
   textures.ShadowVisibility =
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
@@ -639,23 +609,21 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
             context, rendertargets.ShadowVisibility));
   }
 
-  CHECK_ERR(Graphics::UniformWriter::Send(shadowDenoise, LayerOffsetKey, 0U));
-  CHECK_ERR(shadowDenoise->Send(cameraBufferKey, cameraBuffer));
-  CHECK_ERR(shadowDenoise->Send(OutputTextureKey, textures.ShadowVisibility));
-  CHECK_ERR(shadowDenoise->Send(MotionTextureKey, textures.Motion));
-  CHECK_ERR(shadowDenoise->Send(PreviousOutputTextureKey,
-                                textures.PreviousShadowVisibility));
-  CHECK_ERR(
-      shadowDenoise->Send(RayHitFlagsTextureKey, textures.ShadowHitFlags));
+  CHECK_ERR(UniformWriter::Send(shadowDenoise, {"PushConstants", "LayerOffset"}, 0U));
+  CHECK_ERR(shadowDenoise->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(shadowDenoise->Send(context, "OutputTexture", {textures.ShadowVisibility, StorageBuffer::write}));
+  CHECK_ERR(shadowDenoise->Send(context, "MotionTexture", textures.Motion));
+  CHECK_ERR(shadowDenoise->Send(context, "PreviousOutputTexture", textures.PreviousShadowVisibility));
+  CHECK_ERR(shadowDenoise->Send(context, "RayHitTexture", {textures.ShadowHitFlags, StorageBuffer::read}));
 
-  Graphics::RenderState::SetShader(shadowDenoise);
+  RenderState::SetShader(shadowDenoise);
 
-  CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
+  CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
   // clang-format on
 
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Ambient Occlusion");
+  PopDebugMarker();
+  PushDebugMarker("Ambient Occlusion");
 
   textures.AmbientOcclusionSamples =
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
@@ -668,19 +636,24 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   auto ambientOcclusionShader =
       CHECK_RES(manager.GetShader(Renderer::ShaderKey::RTAO));
-  CHECK_ERR(ambientOcclusionShader->Send(depthBufferKey, textures.Depth));
-  CHECK_ERR(ambientOcclusionShader->Send(normalTextureKey, textures.Normal));
-  CHECK_ERR(ambientOcclusionShader->Send(blueNoiseTextureKey, blueNoiseTex));
-  CHECK_ERR(ambientOcclusionShader->Send(cameraBufferKey, cameraBuffer));
-  CHECK_ERR(ambientOcclusionShader->Send(tlasKey, renderer.GetSceneTLAS()));
-  CHECK_ERR(ambientOcclusionShader->Send(OutputTextureKey,
-                                         textures.AmbientOcclusionSamples));
-  CHECK_ERR(Graphics::UniformWriter::Send(ambientOcclusionShader, rndStateKey,
-                                          frameRandomState));
+  CHECK_ERR(
+      ambientOcclusionShader->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(
+      ambientOcclusionShader->Send(context, "NormalTexture", textures.Normal));
+  CHECK_ERR(
+      ambientOcclusionShader->Send(context, blueNoiseTextureKey, blueNoiseTex));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(
+      ambientOcclusionShader->Send(context, tlasKey, renderer.GetSceneTLAS()));
+  CHECK_ERR(ambientOcclusionShader->Send(
+      context, "OutputTexture",
+      {textures.AmbientOcclusionSamples, StorageTexture::write}));
+  CHECK_ERR(UniformWriter::Send(ambientOcclusionShader, rndStateKey,
+                                frameRandomState));
 
-  Graphics::RenderState::SetShader(ambientOcclusionShader);
+  RenderState::SetShader(ambientOcclusionShader);
 
-  CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
+  CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
   textures.AmbientOcclusion =
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
@@ -688,23 +661,25 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   auto aoDenoiseShader =
       CHECK_RES(manager.GetShader(Renderer::ShaderKey::AO_Denoise));
-  CHECK_ERR(aoDenoiseShader->Send(depthBufferKey, textures.Depth));
-  CHECK_ERR(
-      aoDenoiseShader->Send(previousDepthBufferKey, textures.PreviousDepth));
-  CHECK_ERR(aoDenoiseShader->Send(MotionTextureKey, textures.Motion));
-  CHECK_ERR(aoDenoiseShader->Send(RayHitFlagsTextureKey,
+  CHECK_ERR(aoDenoiseShader->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(aoDenoiseShader->Send(context, "PreviousDepthTexture",
+                                  textures.PreviousDepth));
+  CHECK_ERR(aoDenoiseShader->Send(context, "MotionTexture", textures.Motion));
+  CHECK_ERR(aoDenoiseShader->Send(context, "RayHitTexture",
                                   textures.AmbientOcclusionSamples));
-  CHECK_ERR(aoDenoiseShader->Send(cameraBufferKey, cameraBuffer));
-  CHECK_ERR(aoDenoiseShader->Send(PreviousOutputTextureKey,
+  CHECK_ERR(aoDenoiseShader->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(aoDenoiseShader->Send(context, "PreviousOutputTexture",
                                   textures.PreviousAmbientOcclusion));
-  CHECK_ERR(aoDenoiseShader->Send(OutputTextureKey, textures.AmbientOcclusion));
+  CHECK_ERR(aoDenoiseShader->Send(
+      context, "OutputTexture",
+      {textures.AmbientOcclusion, StorageTexture::write}));
 
-  Graphics::RenderState::SetShader(aoDenoiseShader);
+  RenderState::SetShader(aoDenoiseShader);
 
-  CHECK_ERR(Graphics::DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
+  CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Lighting");
+  PopDebugMarker();
+  PushDebugMarker("Lighting");
 
   CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets(
       {textures.PreviousShadowVisibility, textures.ShadowHitFlags,
@@ -712,17 +687,16 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   textures.PreviousShadowVisibility = textures.ShadowVisibility;
   textures.PreviousAmbientOcclusion = textures.AmbientOcclusion;
 
-  Graphics::RenderState::SetShader(lightingShader);
-  static Graphics::ResourceKey ShadowVisibilityTextureKey = {
-      "ShadowVisibilityTexture"};
-  CHECK_ERR(lightingShader->Send(ShadowVisibilityTextureKey,
+  RenderState::SetShader(lightingShader);
+  static ResourceKey ShadowVisibilityTextureKey = {"ShadowVisibilityTexture"};
+  CHECK_ERR(lightingShader->Send(context, ShadowVisibilityTextureKey,
                                  textures.ShadowVisibility));
 
   textures.DirectLighting =
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
           context, rendertargets.DirectLighting));
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+  CHECK_ERR(RenderState::SetRenderTargets(
       context, {{
                    .texture = textures.DirectLighting,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -739,17 +713,17 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   // Now left: IncomingLight and Depth
 
-  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
+  RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+  CHECK_ERR(RenderState::SetRenderTargets(
       ctx, {{
                 .texture = textures.Depth,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
             },
             {
-                .blendMode = Graphics::DefaultBlendMode,
+                .blendMode = DefaultBlendMode,
                 .texture = textures.DirectLighting,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
             }}));
@@ -759,22 +733,22 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       .bindMaterialBuffer = true,
   };
 
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Transparent Materials");
+  PopDebugMarker();
+  PushDebugMarker("Transparent Materials");
 
-  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
   // Skybox should be drawn before transparent objects, this is currently wrong.
-  Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
-  Graphics::RenderState::SetShader(forward);
-  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
+  RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
+  RenderState::SetShader(forward);
+  RenderState::SetCullMode(VK_CULL_MODE_NONE);
   for (const auto &item : TransparentDrawItems) {
     CHECK_ERR(RenderDrawItem(item, forward, ctx, forwardConfig));
   }
 
-  Graphics::PopDebugMarker();
+  PopDebugMarker();
 
-  Graphics::RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
+  RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
   // Otherwise meshes won't be destroyed due to living in these vectors
   OpaqueDrawItems.clear();
@@ -856,8 +830,7 @@ Scene::Scene(std::string name) : name(std::move(name)) {
           return;
         }
 
-        lastUpdateResult =
-            material.Update(*Graphics::GetCurrentGraphicsContext());
+        lastUpdateResult = material.Update(*GetCurrentGraphicsContext());
       }));
 
   preRender.emplace_back(world.system<DirectionalLight>().kind(0).each(
@@ -958,10 +931,10 @@ Scene::Scene(std::string name) : name(std::move(name)) {
           return;
         }
 
-        auto &ctx = *Graphics::GetCurrentGraphicsContext();
+        auto &ctx = *GetCurrentGraphicsContext();
         auto &renderer = Renderer::RendererInstance;
 
-        Error error = Graphics::BVHManagerInstance.Update(ctx);
+        Error error = BVHManagerInstance.Update(ctx);
 
         if (Error::IsError(error)) {
           lastUpdateResult = error;

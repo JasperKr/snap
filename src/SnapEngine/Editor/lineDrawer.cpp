@@ -133,8 +133,7 @@ auto LineDrawer::Render(const Graphics::GraphicsContext &context,
   Graphics::RenderState::SetShader(Shader);
   Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
 
-  static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
-  CHECK_ERR(Shader->Send(cameraBufferKey, camera.GetBuffer()));
+  CHECK_ERR(Shader->Send(context, "CameraData", camera.GetBuffer()));
 
   static auto viewportSizeKey =
       Graphics::ResourceKey{"PushConstants", "viewportSize"};

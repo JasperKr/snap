@@ -1,6 +1,6 @@
 #include "error.hpp"
 
-// #define LOG_ERRORS
+#define LOG_ERRORS
 
 #include "Modules/console.hpp"
 #include "Modules/filesystem.hpp"

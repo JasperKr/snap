@@ -1,6 +1,8 @@
 
 #include "Wrap/Graphics/wrap_shader.hpp"
 #include "Graphics/Buffers/structured.hpp"
+#include "Graphics/graphics.hpp"
+#include "Graphics/graphicsContext.hpp"
 #include "Graphics/reflect.hpp"
 #include "Graphics/shader.hpp"
 #include "Modules/bytedata.hpp"
@@ -50,6 +52,8 @@ auto wrap_Send(lua_State *state) -> int {
   auto shader =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
   auto key = LUA_CK_RES(ResourceKeyFromSingleLuaObject(state, 2));
+  const ::Graphics::GraphicsContext &context =
+      *::Graphics::GetCurrentGraphicsContext();
 
   // Base index of 1; + 1 for shader object; + 1 for key part
   auto valueOffset = 3;
@@ -57,13 +61,36 @@ auto wrap_Send(lua_State *state) -> int {
   if (LuaWrap::IsType<::Graphics::Texture>(state, valueOffset)) {
     auto texture = LUA_CK_NULL(
         LuaWrap::ObjectFromLua<::Graphics::Texture>(state, valueOffset));
-    LUA_CK_ERR(shader->Send(key, texture));
+
+    auto usage = GraphicsResourceUsageEnumHelper.FromLua(
+        state, valueOffset + 1, GraphicsResourceUsage::Sampled);
+
+    LUA_ASSERT(usage != GraphicsResourceUsage::Uniform);
+
+    if (usage == GraphicsResourceUsage::Sampled) {
+      LUA_CK_ERR(
+          shader->Send(context, key, ::Graphics::SampledTexture{texture}));
+    } else {
+      LUA_CK_ERR(shader->Send(
+          context, key, ::Graphics::StorageTexture(texture, (uint64_t)usage)));
+    }
+
   } else if (LuaWrap::IsType<::Graphics::StructuredBuffer>(state,
                                                            valueOffset)) {
     auto buffer =
         LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(
             state, valueOffset));
-    LUA_CK_ERR(shader->Send(key, buffer->GetBuffer()));
+    auto usage = GraphicsResourceUsageEnumHelper.FromLua(
+        state, valueOffset + 1, GraphicsResourceUsage::Uniform);
+
+    LUA_ASSERT(usage != GraphicsResourceUsage::Sampled);
+
+    if (usage == GraphicsResourceUsage::Uniform) {
+      LUA_CK_ERR(shader->Send(context, key, ::Graphics::UniformBuffer{buffer}));
+    } else {
+      LUA_CK_ERR(shader->Send(
+          context, key, ::Graphics::StorageBuffer(buffer, (uint64_t)usage)));
+    }
   } else if (lua_type(state, valueOffset) == LUA_TNUMBER) {
     auto varargsCount = lua_gettop(state) - valueOffset + 1;
     std::vector<uint8_t> data{};

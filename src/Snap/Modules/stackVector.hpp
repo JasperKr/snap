@@ -24,6 +24,13 @@ template <typename T, size_t N> struct StackVector {
     currentSize = init.size();
   }
 
+  template <typename U>
+    requires std::convertible_to<U, T>
+  constexpr StackVector(U &&singleItem) : currentSize(1) { // NOLINT
+    static_assert(N != 0);
+    storage.at(0) = std::forward<U>(singleItem);
+  }
+
   StackVector(StackVector &&) = default;
   StackVector(const StackVector &) = default;
   explicit constexpr StackVector(std::vector<T> data)

@@ -307,6 +307,13 @@ static auto CreateDevice(GraphicsContext &context,
       .descriptorHeap = VK_TRUE,
       .descriptorHeapCaptureReplay = VK_FALSE,
   };
+  // clang-format off
+  VkPhysicalDeviceShaderUntypedPointersFeaturesKHR untypedPointersFeatures {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_UNTYPED_POINTERS_FEATURES_KHR,
+    .pNext = &descriptorHeapFeatures,
+    .shaderUntypedPointers = VK_TRUE,
+  };
+  //clang-format on
 
   PrintDebug(
       "Enabled Vulkan 1.2 features: descriptorIndexing, "
@@ -317,7 +324,7 @@ static auto CreateDevice(GraphicsContext &context,
   // --- Vulkan 1.1 features ---
   VkPhysicalDeviceVulkan11Features features11{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-      .pNext = &descriptorHeapFeatures,
+      .pNext = &untypedPointersFeatures,
       .shaderDrawParameters = VK_TRUE,
   };
 
@@ -358,6 +365,7 @@ static auto CreateDevice(GraphicsContext &context,
       {VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, extRequired},
       {VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, extRequired},
       {VK_EXT_DESCRIPTOR_HEAP_EXTENSION_NAME, extRequired},
+      {VK_KHR_SHADER_UNTYPED_POINTERS_EXTENSION_NAME, extRequired},
 
       {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
        settings.hardwareRaytracing},

@@ -7,3 +7,4 @@ BraceWrapping:
   AfterStruct: true
   AfterEnum: true
 CommentPragmas: '.*'
+# ColumnLimit: 160 # TODO: Apply this and run clang-format -i over the project.

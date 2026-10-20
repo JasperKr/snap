@@ -1,9 +1,9 @@
 #include "shader.hpp"
-#include "Graphics/Buffers/push.hpp"
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
+#include "Graphics/graphicsState.hpp"
 #include "Graphics/reflect.hpp"
 #include "Graphics/snapshot.hpp"
 #include "Graphics/texture.hpp"
@@ -20,7 +20,6 @@
 #include <condition_variable>
 #include <cstring>
 #include <format>
-#include <memory>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string_view>
@@ -572,12 +571,6 @@ auto Shader::Create(
   CHECK_ERR(LoadSlang(context, shader));
 
   CHECK_ERR(ReflectShader(context, shader->programLayout, shader->reflection));
-  ERR_ASSERT(shader->reflection.pushBuffers.size() <= 1);
-
-  if (!shader->reflection.pushBuffers.empty()) {
-    shader->pushBuffer =
-        std::make_unique<PushBuffer>(shader->reflection.pushBuffers.front());
-  }
 
 #if Enable_Snapshots
   Snapshot::CaptureEvent(
@@ -597,98 +590,47 @@ auto Shader::Create(
   return shader;
 }
 
-inline auto ValidateBuffers(const Shader *shader) -> Error {
-  ZoneScoped;
-  // Loop over shader->reflection.resources, and check if all buffers are
-  // set up in shader->buffers,
-  // this is done outside the shader as the user must manage these
-  // resources themselves.
-
-  for (const auto &resource : shader->reflection.resources) {
-    if (!resource.IsBuffer()) {
-      continue;
-    }
-
-    const auto &bufferInfo = std::get<Reflect::BufferInfo>(resource.info);
-
-    // Not sent by the user
-    if (bufferInfo.bufferType == Reflect::BufferType::PushConstant) {
-      continue;
-    }
-
-    auto locationKey = DescriptorSlot(bufferInfo.set, bufferInfo.binding);
-
-    if (!shader->GetState().userBoundBuffers.contains(locationKey)) {
-      return Error::Createf("Buffer '{}' not set up in shader.", resource.name);
-    }
-  }
-
-  return Error::Success();
+StorageBuffer::StorageBuffer(const Ref<StructuredBuffer> &buffer,
+                             uint64_t access) {
+  resource = buffer->GetBuffer();
+  this->access = access;
+  type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 }
 
-inline auto ValidateAccelerationStructures(const Shader *shader) -> Error {
-  ZoneScoped;
-  for (const auto &resource : shader->reflection.resources) {
-    if (!resource.IsAccelerationStructure()) {
-      continue;
-    }
-
-    const auto &accelStructInfo =
-        std::get<Reflect::AccelerationStructureInfo>(resource.info);
-
-    auto locationKey =
-        DescriptorSlot(accelStructInfo.set, accelStructInfo.binding);
-
-    if (!shader->GetState().userBoundAccelerationStructures.contains(
-            locationKey)) {
-      return Error::Createf("Acceleration structure '{}' not set up in shader.",
-                            resource.name);
-    }
-  }
-
-  return Error::Success();
-}
-
-void append(ResourceKey &dest, const ResourceKey &src) {
-  dest.insert(dest.end(), src.begin(), src.end());
+UniformBuffer::UniformBuffer(const Ref<StructuredBuffer> &buffer) {
+  resource = buffer->GetBuffer();
+  access = VK_ACCESS_2_UNIFORM_READ_BIT;
+  type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 }
 
 auto Shader::GetUniform(const ResourceKey &key) const
     -> const Reflect::ResourceInfo * {
-  if (pushBuffer != nullptr) {
-    if (const auto *info = pushBuffer->GetUniform(key)) {
-      return info;
-    }
-  }
+  const ResolvedKey resolved = ResolveKey(key);
+  auto iter = reflection.keyToInfo.find(resolved);
 
-  const auto &globalInfo = reflection.flattened.at(reflection.globals.set);
-  auto iter = globalInfo.keyToInfo.find(key);
-  if (iter != globalInfo.keyToInfo.end()) {
+  if (iter != reflection.keyToInfo.end()) {
     return &iter->second;
   }
+
   return nullptr;
+}
+
+auto Shader::ResolveKey(const ResourceKey &key) const -> ResolvedKey {
+  return reflection.keyMapping.at(key);
 }
 
 auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
     -> Error {
   ZoneScopedN("Shader::Send data span");
 
-  if (pushBuffer && pushBuffer->ContainsUniform(key)) {
-    return pushBuffer->SetData(key, data);
-  }
+  const ResolvedKey resolved = ResolveKey(key);
+  auto iter = reflection.keyToInfo.find(resolved);
 
-  const auto &globalInfo = reflection.flattened.at(reflection.globals.set);
-  auto iter = globalInfo.keyToInfo.find(key);
-
-  [[unlikely]]
-  if (iter == globalInfo.keyToInfo.end()) {
-    auto keyname = Reflect::ResourceKeyToString(key);
-    return Error::Createf("Uniform {} not found in shader reflection: {}",
-                          keyname, name);
-  }
-
+  assert(iter != reflection.keyToInfo.end());
   const auto &info = iter->second;
 
+  // PrintAlways("Offset: {}, Size: {}, Target size: {}", info.offset, data.size(),
+  //             globalUniforms.size());
   ERR_ASSERT(info.offset + data.size() <= globalUniforms.size());
 
   // NOLINTNEXTLINE, pointer arithmetic
@@ -697,107 +639,115 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
   return Error::Success();
 }
 
-auto Shader::Send(const ResourceKey &key, const Ref<Buffer> &buffer) -> Error {
-  ZoneScopedN("Shader::Send structured buffer");
+auto Shader::Send(const ResolvedKey key, const VkDeviceSize data) -> Error {
+  ZoneScopedN("Shader::Send device address");
 
-  auto iter = reflection.keyToSlot.find(key);
+  auto iter = reflection.keyToInfo.find(key);
 
-  CHECK_NULL(buffer);
-  ERR_ASSERT(iter != reflection.keyToSlot.end());
+  assert(iter != reflection.keyToInfo.end());
+  const auto &info = iter->second;
 
-  const auto *info = GetSlotDescription(iter->second);
-  const auto *bufferInfo = std::get_if<Reflect::BufferInfo>(&info->info);
-  CHECK_NULL(bufferInfo);
+  // Note that we send the size of a uint32_t, as these are offsets within the heap,
+  // these do not need 64-bit precision and is not allowed within the shader anyways.
+  // NOLINTNEXTLINE, pointer arithmetic
+  memcpy(globalUniforms.data() + info.offset, &data, sizeof(uint32_t));
 
-  auto &state = GetState();
-
-  state.userBoundBuffers[iter->second] = BoundBufferPair{buffer, bufferInfo};
-  // state.descriptorKeys.at()
-
-  return {};
+  return Error::Success();
 }
 
-auto Shader::Send(const ResourceKey &key,
-                  const Ref<::Graphics::StructuredBuffer> &buffer) -> Error {
-  ZoneScopedN("Shader::Send structured buffer");
-  return Send(key, buffer->GetBuffer());
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const UniformBuffer &buffer) -> Error {
+  ZoneScopedN("Shader::Send uniform buffer");
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
+      context, buffer.type, 0, buffer.resource->size));
+
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
+             0U);
+
+  const ResolvedKey resolved = ResolveKey(key);
+  GetState().userBoundBuffers[resolved] = buffer;
+
+  return Send(resolved, address);
 }
 
-auto Shader::Send(const ResourceKey &key, const Ref<TLAS> &accelStructure)
-    -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const DynamicUniformBuffer &buffer) -> Error {
+  ZoneScopedN("Shader::Send dynamic uniform buffer");
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
+      context, buffer.type, buffer.offset, buffer.size));
+
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
+             0U);
+
+  const ResolvedKey resolved = ResolveKey(key);
+  GetState().userBoundBuffers[resolved] = UniformBuffer{buffer.resource};
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const StorageBuffer &buffer) -> Error {
+  ZoneScopedN("Shader::Send storage buffer");
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
+      context, buffer.type, 0, buffer.resource->size));
+
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT) !=
+             0U);
+
+  const ResolvedKey resolved = ResolveKey(key);
+  GetState().userBoundBuffers[resolved] = buffer;
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const SampledTexture &texture) -> Error {
+  ZoneScopedN("Shader::Send sampled texture");
+
+  VkDeviceSize address =
+      CHECK_RES(texture.resource->GetAddress(context, texture.type));
+
+  ERR_ASSERT((texture.resource->imageMemory->usage &
+              VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);
+
+  const ResolvedKey resolved = ResolveKey(key);
+  GetState().userBoundTextures[resolved] = texture;
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const StorageTexture &texture) -> Error {
+  ZoneScopedN("Shader::Send storage texture");
+
+  VkDeviceSize address =
+      CHECK_RES(texture.resource->GetAddress(context, texture.type));
+
+  ERR_ASSERT((texture.resource->imageMemory->usage &
+              VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) != 0U);
+
+  const ResolvedKey resolved = ResolveKey(key);
+  GetState().userBoundTextures[resolved] = texture;
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const Ref<TLAS> &accelStructure) -> Error {
   ZoneScopedN("Shader::Send acceleration structure");
 
-  if (!accelStructure.isValid()) {
-    return Error::Create("Acceleration structure is null.");
-  }
+  VkDeviceSize address = CHECK_RES(accelStructure->GetTLASBuffer()->GetAddress(
+      context, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 0,
+      accelStructure->GetTLASBuffer()->size));
 
-  auto iter = reflection.keyToSlot.find(key);
-  if (iter != reflection.keyToSlot.end()) {
-    auto *info = GetSlotDescription(iter->second);
+  const ResolvedKey resolved = ResolveKey(key);
+  GetState().userBoundAccelerationStructures[resolved] = {
+      .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+      .type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV,
+      .resource = accelStructure,
+  };
 
-    if (info == nullptr) {
-      auto keyname = Reflect::ResourceKeyToString(key);
-      return Error::Createf("Resource {} is not found in shader reflection: {}",
-                            keyname, name);
-    }
-
-    auto *accelStructInfo =
-        std::get_if<Reflect::AccelerationStructureInfo>(&info->info);
-
-    if (accelStructInfo == nullptr) {
-      auto keyname = Reflect::ResourceKeyToString(key);
-      return Error::Createf(
-          "Resource {} is not an acceleration structure in shader reflection: "
-          "{} ({})",
-          keyname, name, info->ToString());
-    }
-
-    GetState().userBoundAccelerationStructures[iter->second] =
-        BoundASPair{accelStructure, accelStructInfo};
-    return Error::Success();
-  }
-
-  auto keyname = Reflect::ResourceKeyToString(key);
-  return Error::Createf(
-      "Acceleration structure {} not found in shader reflection: {}", keyname,
-      name);
-}
-
-auto Shader::Send(const ResourceKey &key, const Ref<Graphics::Texture> &texture)
-    -> Error {
-  ZoneScopedN("Shader::Send texture");
-
-  [[unlikely]]
-  if (!texture.isValid()) {
-    auto keyname = Reflect::ResourceKeyToString(key);
-    return Error::Createf("Texture {} is null.", keyname);
-  }
-
-  [[unlikely]]
-  if (texture->view == VK_NULL_HANDLE) {
-    auto keyname = Reflect::ResourceKeyToString(key);
-    return Error::Createf("Texture {} has no valid image view.", keyname);
-  }
-
-  auto iter = reflection.keyToSlot.find(key);
-  if (iter != reflection.keyToSlot.end()) {
-    auto *info = GetSlotDescription(iter->second);
-    auto *samplerInfo = std::get_if<Reflect::SamplerInfo>(&info->info);
-    if (samplerInfo == nullptr) {
-      auto keyname = Reflect::ResourceKeyToString(key);
-      return Error::Createf(
-          "Resource {} is not a sampler in shader reflection: {}", keyname,
-          name);
-    }
-
-    GetState().userBoundTextures[iter->second] =
-        BoundTexturePair{texture, samplerInfo};
-    return Error::Success();
-  }
-
-  auto keyname = Reflect::ResourceKeyToString(key);
-  return Error::Createf("Sampler {}, not found in shader reflection: {}",
-                        keyname, name);
+  return Send(resolved, address);
 }
 
 auto Shader::hash() const -> size_t {

@@ -1,7 +1,5 @@
 // Default shader
 
-module default2D;
-
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
   float2 tex_coord : TEXCOORD0;

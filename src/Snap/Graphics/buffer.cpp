@@ -1,6 +1,7 @@
 #include "buffer.hpp"
 
 #include "Graphics/FrameGraph/commands.hpp"
+#include "Graphics/FrameGraph/dynamicRendering.hpp"
 #include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
@@ -111,14 +112,12 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
     -> Error {
   ZoneScoped;
 
-  auto uploadSize = size == VK_WHOLE_SIZE ? data.size() : size;
-
-  if (uploadSize > this->size) {
+  if (size > this->size) {
     return Error::Create("Error uploading large data, cannot upload more data "
                          "than is allocated.");
   }
 
-  if (uploadSize == 0) {
+  if (size == 0) {
     return Error::Success();
   }
 
@@ -131,7 +130,7 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
       .persistentMapping = false,
       .debugName = "Staging Buffer",
   };
-  stagingBufferInfo.size = uploadSize;
+  stagingBufferInfo.size = size;
 
   // TODO: Use separate queue for copying.
   // See: https://gpuopen.com/learn/rdna-performance-guide/
@@ -141,7 +140,7 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
   CHECK_ERR(stagingBuffer->MapMemory(context));
 
   std::memcpy(static_cast<uint8_t *>(stagingBuffer->mappedData), data.data(),
-              uploadSize);
+              size);
   stagingBuffer->UnmapMemory(context);
 
   auto *commandBuffer = GetVirtualCommandBuffer();
@@ -153,7 +152,7 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
   VkBufferCopy copyRegion = {};
   copyRegion.srcOffset = 0;
   copyRegion.dstOffset = offset;
-  copyRegion.size = uploadSize;
+  copyRegion.size = size;
 
   CHECK_ERR(
       commandBuffer->CopyBuffer(stagingBuffer->handle, handle, 1, &copyRegion));
@@ -169,14 +168,12 @@ auto Buffer::UploadRing(const GraphicsContext &context,
                         VkDeviceSize offset, VkDeviceSize size) const -> Error {
   ZoneScoped;
 
-  auto uploadSize = size == VK_WHOLE_SIZE ? data.size() : size;
-
-  if (uploadSize > this->size) {
+  if (size > this->size) {
     return Error::Create("Error uploading ring data, cannot upload more data "
                          "than is allocated.");
   }
 
-  if (uploadSize == 0) {
+  if (size == 0) {
     return Error::Success();
   }
 
@@ -184,9 +181,9 @@ auto Buffer::UploadRing(const GraphicsContext &context,
   auto uploadBuffer = UploadBuffers.at(context.frameIndex);
   size_t &uploadOffset = UploadBufferOffsets.at(context.frameIndex);
   if (uploadBuffer.get() == nullptr ||
-      uploadBuffer->sizeInBytes < uploadSize + uploadOffset) {
+      uploadBuffer->sizeInBytes < size + uploadOffset) {
     size_t newSize = UploadBufferSize;
-    while (newSize < uploadSize + uploadOffset) {
+    while (newSize < size + uploadOffset) {
       newSize *= 2;
     }
 
@@ -218,25 +215,27 @@ auto Buffer::UploadRing(const GraphicsContext &context,
     ZoneScoped;
     // NOLINTNEXTLINE, because of pointer arithmetic
     std::memcpy(static_cast<uint8_t *>(uploadBuffer->mappedData) + uploadOffset,
-                data.data(), uploadSize);
+                data.data(), size);
   }
   uploadBuffer->UnmapMemory(context);
 
   // Record copy command
   auto *commandBuffer = GetVirtualCommandBuffer();
 
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for buffer upload.");
-  }
-
   VkBufferCopy copyRegion = {};
   copyRegion.srcOffset = uploadOffset;
   copyRegion.dstOffset = offset;
-  copyRegion.size = uploadSize;
+  copyRegion.size = size;
 
-  CHECK_ERR(
-      commandBuffer->CopyBuffer(uploadBuffer->handle, handle, 1, &copyRegion));
-  uploadOffset += uploadSize;
+  if (commandBuffer != nullptr) {
+    CHECK_ERR(commandBuffer->CopyBuffer(uploadBuffer->handle, handle, 1,
+                                        &copyRegion));
+  } else {
+    VkCommandBuffer cmdBuffer = CHECK_NULL(GetVkCommandBuffer());
+    EndRendering(context, cmdBuffer);
+    vkCmdCopyBuffer(cmdBuffer, uploadBuffer->handle, handle, 1, &copyRegion);
+  }
+  uploadOffset += size;
 
   uploadBuffer->MarkUse();
   MarkUse();
@@ -245,7 +244,7 @@ auto Buffer::UploadRing(const GraphicsContext &context,
       context.deviceProperties.limits.minUniformBufferOffsetAlignment;
 
   // Align to minUniformBufferOffsetAlignment
-  uploadOffset = Utils::AlignUp(uploadOffset, alignment);
+  // uploadOffset = Utils::AlignUp(uploadOffset, alignment);
 
   return Error::Success();
 }
@@ -292,9 +291,9 @@ auto Buffer::Upload(const GraphicsContext &context,
   }
 
   if (uploadSize > LargeUploadThreshold) {
-    CHECK_ERR(UploadLarge(context, data, offset, size));
+    CHECK_ERR(UploadLarge(context, data, offset, uploadSize));
   } else {
-    CHECK_ERR(UploadRing(context, data, offset, size));
+    CHECK_ERR(UploadRing(context, data, offset, uploadSize));
   }
 
   return Error::Success();
@@ -683,7 +682,7 @@ Buffer::~Buffer() {
   struct Info {
     VkBuffer buffer;
     VmaAllocation allocation;
-    std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+    std::vector<Address> addresses;
   };
 
   ScheduleDestruction<Info>(
@@ -692,7 +691,7 @@ Buffer::~Buffer() {
 
         for (const auto addressPair : info.addresses) {
           DescriptorHeapManager::GetInstance().FreeBufferResourceIndex(
-              addressPair.first);
+              addressPair.address);
         }
       },
       lastUsedTimestamp,
@@ -723,19 +722,30 @@ auto Buffer::GetDeviceAddress(const GraphicsContext &context) const
   return vkGetBufferDeviceAddress(context.device, &bufferDeviceAddressInfo);
 }
 
-auto Buffer::GetAddress(const GraphicsContext &context,
-                        VkDescriptorType type) const -> Result<VkDeviceSize> {
-  for (const auto &addressPair : addresses) {
-    if (addressPair.second == type) {
-      return addressPair.first;
-    }
+auto Buffer::GetAddress(const GraphicsContext &context, VkDescriptorType type,
+                        uint32_t offset, uint32_t size) const
+    -> Result<VkDeviceSize> {
+
+  auto iter = std::ranges::find_if(
+      addresses, [type, offset, size](const Address &address) -> bool {
+        return address.offset == offset && address.type == type &&
+               address.size == size;
+      });
+
+  if (iter != addresses.end()) {
+    return iter->address;
   }
 
   VkDeviceSize address =
       CHECK_RES(DescriptorHeapManager::GetInstance().AllocateResource(
-          context, this, type));
+          context, this, type, offset, size));
 
-  addresses.emplace_back(address, type);
+  auto item =
+      Address{.address = address, .type = type, .offset = offset, .size = size};
+
+  addresses.insert(std::ranges::upper_bound(addresses, item, Address::Less),
+                   item);
+
   return address;
 }
 

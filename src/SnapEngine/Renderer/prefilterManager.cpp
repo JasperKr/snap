@@ -267,10 +267,11 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
   for (uint32_t level = 0; level < ProbeReflectionMipLevels - 1; level++) {
     auto &params = levelParameters.at(level);
 
-    CHECK_ERR(
-        downsampleShader->Send({"tex_hi_res"}, envMapCubeViews.at(level)));
-    CHECK_ERR(
-        downsampleShader->Send({"tex_lo_res"}, envMapArrayViews.at(level + 1)));
+    CHECK_ERR(downsampleShader->Send(context, "tex_hi_res",
+                                     envMapCubeViews.at(level)));
+    CHECK_ERR(downsampleShader->Send(
+        context, "tex_lo_res",
+        {envMapArrayViews.at(level + 1), Graphics::StorageTexture::write}));
 
     CHECK_ERR(Graphics::DispatchWithin(
         context, {params.Resolution, params.Resolution, 6}));
@@ -281,9 +282,10 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
       CHECK_RES(RendererInstance.GetShaderManager().GetShader(
           ShaderKey::PrefilterRadiance));
 
-  CHECK_ERR(prefilterRadianceShader->Send({"Coefficients"},
-                                          PrefilteredRadianceCoeffsBuffer));
-  CHECK_ERR(prefilterRadianceShader->Send({"InputTexture"}, envMap));
+  CHECK_ERR(prefilterRadianceShader->Send(
+      context, "Coefficient",
+      {PrefilteredRadianceCoeffsBuffer, Graphics::StorageTexture::read}));
+  CHECK_ERR(prefilterRadianceShader->Send(context, "InputTexture", envMap));
 
   Graphics::RenderState::SetShader(prefilterRadianceShader);
 
@@ -291,7 +293,8 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
     auto key = std::format("OutputTexture{}", level);
     const auto &view = outputViews.at(level);
 
-    CHECK_ERR(prefilterRadianceShader->Send({key.c_str()}, view));
+    CHECK_ERR(prefilterRadianceShader->Send(
+        context, key.c_str(), {view, Graphics::StorageTexture::write}));
   }
 
   constexpr static uint64_t PixelCount = Image::GetTexelCount(
@@ -308,16 +311,18 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
       CHECK_RES(RendererInstance.GetShaderManager().GetShader(
           ShaderKey::StoreEnvironmentMap));
 
-  CHECK_ERR(storeEnvironmentMapShader->Send({"Input"}, TemporaryRadianceMap));
+  CHECK_ERR(
+      storeEnvironmentMapShader->Send(context, "Input", TemporaryRadianceMap));
 
   for (uint32_t level = 0; level < ProbeReflectionMipLevels; level++) {
     auto key = std::format("Output_Mip_{}", level);
     const auto &view = RadianceMapViews.at(level);
 
-    CHECK_ERR(storeEnvironmentMapShader->Send({key.c_str()}, view));
+    CHECK_ERR(storeEnvironmentMapShader->Send(
+        context, {key.c_str()}, {view, Graphics::StorageTexture::write}));
   }
 
-  CHECK_ERR(Graphics::UniformWriter::Send(storeEnvironmentMapShader, {"Slice"},
+  CHECK_ERR(Graphics::UniformWriter::Send(storeEnvironmentMapShader, "Slice",
                                           lightProbe.EnvironmentMapIndex));
 
   Graphics::RenderState::SetShader(storeEnvironmentMapShader);
@@ -342,11 +347,13 @@ auto LightprobePrefilterManager::PrefilterIrradianceMap(
       CHECK_RES(RendererInstance.GetShaderManager().GetShader(
           ShaderKey::PrefilterIrradiance));
 
-  CHECK_ERR(Graphics::UniformWriter::Send(prefilterIrradianceShader, {"Slice"},
-                                          slice));
-  CHECK_ERR(prefilterIrradianceShader->Send({"RadianceInput"}, RadianceMaps));
   CHECK_ERR(
-      prefilterIrradianceShader->Send({"IrradianceOutput"}, IrradianceMaps));
+      Graphics::UniformWriter::Send(prefilterIrradianceShader, "Slice", slice));
+  CHECK_ERR(
+      prefilterIrradianceShader->Send(context, "RadianceInput", RadianceMaps));
+  CHECK_ERR(prefilterIrradianceShader->Send(
+      context, "IrradianceOutput",
+      {IrradianceMaps, Graphics::StorageTexture::write}));
 
   // NOLINTBEGIN
   if (IrradianceMaps->GetWidth() != 32UL ||

@@ -2,9 +2,11 @@
 
 #include "Graphics/buffer.hpp"
 #include "Graphics/texture.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 #include <optional>
 #include <vector>
@@ -147,9 +149,9 @@ struct DescriptorHeapManager {
   VkDeviceAddress resourceAddress{};
   VkDeviceAddress samplerAddress{};
 
-  MemoryManager bufferMemoryManager;
-  MemoryManager imageMemoryManager;
-  MemoryManager samplerMemoryManager;
+  MemoryManager bufferMemoryManager{};
+  MemoryManager imageMemoryManager{};
+  MemoryManager samplerMemoryManager{};
 
   // Internal write positions
   VkDeviceSize bufferCursor{};
@@ -157,8 +159,8 @@ struct DescriptorHeapManager {
   VkDeviceSize samplerCursor{};
 
   auto AllocateResource(const struct GraphicsContext &context,
-                        const Buffer *buffer, VkDescriptorType type)
-      -> Result<VkDeviceSize>;
+                        const Buffer *buffer, VkDescriptorType type,
+                        uint32_t offset, uint32_t size) -> Result<VkDeviceSize>;
   auto AllocateResource(const struct GraphicsContext &context,
                         const Texture *texture, VkDescriptorType type)
       -> Result<VkDeviceSize>;

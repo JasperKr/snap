@@ -65,8 +65,7 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
 
   CHECK_ERR(Graphics::UniformWriter::Send(ThresholdShader, ThresholdKey, 0.0F));
 
-  const static Graphics::ResourceKey MainSceneKey = {"mainScene"};
-  CHECK_ERR(ThresholdShader->Send(MainSceneKey, textures.TAA));
+  CHECK_ERR(ThresholdShader->Send(context, "mainScene", textures.TAA));
 
   CHECK_ERR(DrawFullScreen(context));
 
@@ -120,14 +119,11 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
                      .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                  }}));
 
-    const static Graphics::ResourceKey DownsampleKey = {"mainScene"};
-    CHECK_ERR(DownsampleShader->Send(DownsampleKey,
+    CHECK_ERR(DownsampleShader->Send(context, "mainScene",
                                      DownsampleChainViews.at(mipLevel - 1)));
 
-    const static Graphics::ResourceKey ViewportSizeKey = {"PushConstants",
-                                                          "viewportSize"};
     CHECK_ERR(Graphics::UniformWriter::Send(
-        DownsampleShader, ViewportSizeKey,
+        DownsampleShader, {"PushConstants", "viewportSize"},
         Math::Uvec2(view->GetWidth(), view->GetHeight())));
 
     CHECK_ERR(DrawFullScreen(context));
@@ -135,15 +131,11 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
 
   Graphics::RenderState::SetShader(UpsampleShader);
 
-  const static Graphics::ResourceKey IntensityKey = {"PushConstants",
-                                                     "intensity"};
-  const static Graphics::ResourceKey ViewportSizeKey = {"PushConstants",
-                                                        "viewportSize"};
-
   // NOLINTNEXTLINE
-  CHECK_ERR(Graphics::UniformWriter::Send(UpsampleShader, IntensityKey, 0.25F));
   CHECK_ERR(Graphics::UniformWriter::Send(
-      UpsampleShader, ViewportSizeKey,
+      UpsampleShader, {"PushConstants", "intensity"}, 0.25F));
+  CHECK_ERR(Graphics::UniformWriter::Send(
+      UpsampleShader, {"PushConstants", "viewportSize"},
       Math::Uvec2(textures.BloomDownsampleChain->GetWidth(),
                   textures.BloomDownsampleChain->GetHeight())));
 
@@ -158,15 +150,12 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
                      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                  }}));
 
-    const static Graphics::ResourceKey DownsampleKey = {"mainScene"};
-    CHECK_ERR(UpsampleShader->Send(DownsampleKey, view));
-
+    CHECK_ERR(UpsampleShader->Send(context, "mainScene", view));
     CHECK_ERR(DrawFullScreen(context));
   }
 
   Graphics::RenderState::SetShader(DirtShader);
-  const static Graphics::ResourceKey DirtTextureKey = {"mainScene"};
-  CHECK_ERR(DirtShader->Send(DirtTextureKey, DirtTexture));
+  CHECK_ERR(DirtShader->Send(context, "mainScene", DirtTexture));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {Graphics::RenderState::RenderTarget{

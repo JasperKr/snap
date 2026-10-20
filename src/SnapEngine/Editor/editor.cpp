@@ -3,6 +3,7 @@
 #include "Graphics/buffer.hpp"
 #include "Graphics/draw.hpp"
 #include "Graphics/graphics.hpp"
+#include "Graphics/shader.hpp"
 #include "Graphics/uniformWriter.hpp"
 #include "Modules/Math/quaternion.hpp"
 #include "Modules/Math/ray.hpp"
@@ -303,13 +304,13 @@ auto Editor::PickEntity(const Graphics::GraphicsContext &context,
 
   const auto &camera = Editor::EditorCamera.get<Camera>();
 
-  CHECK_ERR(shader->Send(Graphics::ResourceKey{"SceneBVH"}, tlas));
-  CHECK_ERR(shader->Send(Graphics::ResourceKey{"CameraData"},
-                         camera.GetBuffer()->GetBuffer()));
-  CHECK_ERR(shader->Send(Graphics::ResourceKey{"TraceResults"}, pickBuffer));
+  CHECK_ERR(shader->Send(context, {"SceneBVH"}, tlas));
+  CHECK_ERR(shader->Send(context, {"CameraData"}, camera.GetBuffer()));
+  CHECK_ERR(shader->Send(context, {"TraceResults"},
+                         {pickBuffer, Graphics::StorageBuffer::write}));
 
-  CHECK_ERR(Graphics::UniformWriter::Send(
-      shader, Graphics::ResourceKey{"PushConstants", "uv"}, mousePos));
+  CHECK_ERR(
+      Graphics::UniformWriter::Send(shader, {"PushConstants", "uv"}, mousePos));
 
   Graphics::RenderState::SetShader(shader);
 

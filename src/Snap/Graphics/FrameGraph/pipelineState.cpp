@@ -2,10 +2,15 @@
 #include "Graphics/FrameGraph/pipelineCache.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/allocations.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/renderState.hpp"
 #include "Modules/console.hpp"
+#include "Modules/error.hpp"
+#include <cassert>
 #include <mutex>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace Graphics {
 
@@ -68,44 +73,9 @@ auto BeginFrame(const GraphicsContext &context) -> Error {
 
   RecordingState::CurrentState = CHECK_RES(SetupDefaultState(context));
   RecordingState::LastState = nullptr;
-  RecordingState::LastStateStorage = RecordingState::CurrentState;
+  RecordingState::LastStateStorage = {};
 
   return Error::Success();
-}
-
-inline auto GetShaderStages(const RenderState::State &state)
-    -> Result<std::vector<VkPipelineShaderStageCreateInfo>> {
-  ZoneScoped;
-
-  thread_local std::unordered_map<Shader *,
-                                  std::vector<VkPipelineShaderStageCreateInfo>>
-      shaderStageCache;
-
-  if (shaderStageCache.contains(state.shader.get())) {
-    return shaderStageCache[state.shader.get()];
-  }
-
-  std::vector<VkPipelineShaderStageCreateInfo> shaderStages{};
-
-  auto *shader = state.shader.get();
-
-  if (shader == nullptr) {
-    return Error::Unexpected("Shader module is null in GetShaderStages.");
-  }
-
-  for (const auto &stage : shader->entryPoints) {
-    VkPipelineShaderStageCreateInfo stageInfo = {};
-    stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stageInfo.stage = stage.second;
-    stageInfo.module = shader->module;
-    stageInfo.pName = stage.first.c_str();
-
-    shaderStages.emplace_back(stageInfo);
-  }
-
-  shaderStageCache[state.shader.get()] = shaderStages;
-
-  return shaderStages;
 }
 
 auto inline GetInputAssemblyState(const RenderState::State &state)
@@ -344,7 +314,47 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
 
   PrintDebug("Creating graphics pipeline");
 
-  auto shaderStages = CHECK_RES(GetShaderStages(state));
+  VkShaderDescriptorSetAndBindingMappingInfoEXT globalUBOMappingInfo{};
+  globalUBOMappingInfo.mappingCount = 1;
+  globalUBOMappingInfo.sType =
+      VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT;
+  globalUBOMappingInfo.pNext = nullptr;
+
+  VkDescriptorSetAndBindingMappingEXT globalUBOMapping{
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_AND_BINDING_MAPPING_EXT,
+      .pNext = nullptr,
+      .descriptorSet = 0,
+      .firstBinding = 0,
+      .bindingCount = 1,
+      .resourceMask = VK_SPIRV_RESOURCE_TYPE_UNIFORM_BUFFER_BIT_EXT,
+      .source = VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT,
+      .sourceData{
+          .pushIndex{
+              .heapOffset = 0,
+              .pushOffset = 0,
+              .heapIndexStride = 1,
+              .heapArrayStride = static_cast<uint32_t>(
+                  DescriptorHeapManager::GetInstance()
+                      .heapProperties.bufferDescriptorSize),
+          },
+      },
+  };
+
+  globalUBOMappingInfo.pMappings = &globalUBOMapping;
+  std::vector<VkPipelineShaderStageCreateInfo> shaderStages{};
+
+  assert(state.shader.get() != nullptr);
+
+  for (const auto &stage : state.shader->entryPoints) {
+    auto &stageInfo = shaderStages.emplace_back();
+
+    stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stageInfo.stage = stage.second;
+    stageInfo.module = state.shader->module;
+    stageInfo.pName = stage.first.c_str();
+    stageInfo.pNext = &globalUBOMappingInfo;
+  }
+
   auto inputAssembly = GetInputAssemblyState(state);
   auto rasterizer = GetRasterizationState(state);
 
@@ -574,6 +584,8 @@ inline auto CreatePipeline(const GraphicsContext &context,
 
   PrintDebug("Creating pipeline");
 
+  assert(state.shader.get() != nullptr);
+
   if (state.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
     return CreateGraphicsPipeline(context, state);
   }
@@ -589,6 +601,7 @@ inline auto GetPipeline(const GraphicsContext &context,
   ZoneScoped;
 
   PrintDebug("Getting pipeline");
+  assert(state.shader.get() != nullptr);
 
   {
     std::lock_guard<std::mutex> lock(GetPipelineCache().mutex);
@@ -661,6 +674,8 @@ auto Flush(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer)
       RecordingState::CurrentState == *RecordingState::LastState) {
     return false;
   }
+
+  assert(RecordingState::CurrentState.shader.get() != nullptr);
 
   RecordingState::LastStateStorage =
       RecordingState::CurrentState; // Copy current state to last state storage

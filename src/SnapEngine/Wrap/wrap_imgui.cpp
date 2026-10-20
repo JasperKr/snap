@@ -11,6 +11,7 @@
 #include "Graphics/vertexformat.hpp"
 #include "Modules/Peripherals/keyboard.hpp"
 #include "Modules/Peripherals/mouse.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/imageData.hpp"
 #include "Modules/object.hpp"
@@ -101,8 +102,9 @@ inline auto ChangeMouseState(ImGuiIO &inout) -> Error {
   return Error::Success();
 }
 
-inline auto HandleImguiCreateTextureEvent(Graphics::GraphicsContext &context,
-                                          ImTextureData *tex) -> Error {
+inline auto
+HandleImguiCreateTextureEvent(const Graphics::GraphicsContext &context,
+                              ImTextureData *tex) -> Error {
   Graphics::TextureCreationInfo createInfo{
       .size = VkExtent3D{static_cast<uint32_t>(tex->Width),
                          static_cast<uint32_t>(tex->Height), 1},
@@ -177,8 +179,9 @@ inline auto HandleImguiDestroyTextureEvent(ImTextureData *tex) -> Error {
   return Error::Success();
 }
 
-inline auto HandleImguiUpdateTextureEvent(Graphics::GraphicsContext &context,
-                                          ImTextureData *tex) -> Error {
+inline auto
+HandleImguiUpdateTextureEvent(const Graphics::GraphicsContext &context,
+                              ImTextureData *tex) -> Error {
   auto *pixels = static_cast<uint8_t *>(tex->GetPixels());
   auto pixelSpan =
       std::span<uint8_t>(pixels, static_cast<size_t>(tex->Width * tex->Height *
@@ -224,7 +227,7 @@ inline auto HandleImguiUpdateTextureEvent(Graphics::GraphicsContext &context,
 std::vector<TemporaryCommandList> TemporaryCommandLists; // NOLINT
 
 inline auto SetupTemporaryCommandLists(ImDrawData *drawData,
-                                       Graphics::GraphicsContext &ctx)
+                                       const Graphics::GraphicsContext &context)
     -> Error {
 
   TemporaryCommandLists.reserve(drawData->CmdListsCount);
@@ -254,7 +257,8 @@ inline auto SetupTemporaryCommandLists(ImDrawData *drawData,
           .debugName = "Imgui UI Mesh",
       };
 
-      temporaryCommandList.Mesh = CHECK_RES(Graphics::Mesh::Create(ctx, info));
+      temporaryCommandList.Mesh =
+          CHECK_RES(Graphics::Mesh::Create(context, info));
     }
 
     auto vertexSpan =
@@ -266,27 +270,25 @@ inline auto SetupTemporaryCommandLists(ImDrawData *drawData,
         reinterpret_cast<uint8_t *>(vertexSpan.data()),
         vertexSpan.size_bytes());
 
-    CHECK_ERR(temporaryCommandList.Mesh->SetVertices(ctx, 0, rawVertexSpan, 0));
+    CHECK_ERR(
+        temporaryCommandList.Mesh->SetVertices(context, 0, rawVertexSpan, 0));
 
     auto indexSpan = std::span<uint8_t>( // NOLINTNEXTLINE
         reinterpret_cast<uint8_t *>(commandList->IdxBuffer.Data),
-        static_cast<size_t>(commandList->IdxBuffer.size() * 2));
+        static_cast<size_t>(commandList->IdxBuffer.size_in_bytes()));
 
-    CHECK_ERR(temporaryCommandList.Mesh->SetIndices(ctx, indexSpan,
+    CHECK_ERR(temporaryCommandList.Mesh->SetIndices(context, indexSpan,
                                                     VK_INDEX_TYPE_UINT16));
   }
 
   return Error::Success();
 }
 
-inline auto DrawTemporaryCommandLists(Graphics::GraphicsContext &ctx,
+inline auto DrawTemporaryCommandLists(const Graphics::GraphicsContext &context,
                                       ImDrawData *drawData) -> Error {
 
   Graphics::RenderState::SetShader(Engine::Gui::ImGuiShaderRGBA8);
   const auto &viewport = Graphics::RenderState::GetClippedViewport();
-
-  static auto projectionMatrixKey =
-      Graphics::ResourceKey{"PushConstants", "ProjectionMatrix"};
 
   auto translationMatrix = Math::Matrix4x4::TranslationMatrix(
       {-viewport.width / 2.0F,          // NOLINT
@@ -325,10 +327,11 @@ inline auto DrawTemporaryCommandLists(Graphics::GraphicsContext &ctx,
             CHECK_NULL(reinterpret_cast<Graphics::Texture *>(pcmd.GetTexID()));
 
         auto texRef = Ref<Graphics::Texture>(texture);
-        CHECK_ERR(Engine::Gui::ImGuiShaderRGBA8->Send({"MainTexture"}, texRef));
+        CHECK_ERR(Engine::Gui::ImGuiShaderRGBA8->Send(context, "MainTexture",
+                                                      texRef));
 
         CHECK_ERR(Graphics::UniformWriter::Send(Engine::Gui::ImGuiShaderRGBA8,
-                                                projectionMatrixKey,
+                                                "ProjectionMatrix",
                                                 viewProjectionMatrix));
 
         temporaryCommandList.Mesh->SetDrawRange({
@@ -336,7 +339,7 @@ inline auto DrawTemporaryCommandLists(Graphics::GraphicsContext &ctx,
             .Count = static_cast<uint32_t>(pcmd.ElemCount),
         });
 
-        CHECK_ERR(Graphics::Draw(ctx, *temporaryCommandList.Mesh));
+        CHECK_ERR(Graphics::Draw(context, *temporaryCommandList.Mesh));
       }
     }
   }
@@ -347,7 +350,7 @@ inline auto DrawTemporaryCommandLists(Graphics::GraphicsContext &ctx,
 auto Draw(lua_State *state) -> int {
   ImGui::Render();
 
-  auto ctx = *Graphics::GetCurrentGraphicsContext();
+  const auto &context = *Graphics::GetCurrentGraphicsContext();
 
   auto inout = ImGui::GetIO();
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
@@ -358,16 +361,16 @@ auto Draw(lua_State *state) -> int {
 
   for (ImTextureData *tex : *drawData->Textures) {
     if (tex->Status == ImTextureStatus_WantCreate) {
-      LUA_CK_ERR(HandleImguiCreateTextureEvent(ctx, tex));
+      LUA_CK_ERR(HandleImguiCreateTextureEvent(context, tex));
     } else if (tex->Status == ImTextureStatus_WantDestroy) {
       LUA_CK_ERR(HandleImguiDestroyTextureEvent(tex));
     } else if (tex->Status == ImTextureStatus_WantUpdates) {
-      LUA_CK_ERR(HandleImguiUpdateTextureEvent(ctx, tex));
+      LUA_CK_ERR(HandleImguiUpdateTextureEvent(context, tex));
     }
   }
 
-  LUA_CK_ERR(SetupTemporaryCommandLists(drawData, ctx));
-  LUA_CK_ERR(DrawTemporaryCommandLists(ctx, drawData));
+  LUA_CK_ERR(SetupTemporaryCommandLists(drawData, context));
+  LUA_CK_ERR(DrawTemporaryCommandLists(context, drawData));
 
   return 0;
 }

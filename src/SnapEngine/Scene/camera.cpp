@@ -6,12 +6,11 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
+#include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
 #include "Modules/Math/math.hpp"
-#include "Modules/Math/mathTypes.hpp"
 #include "Modules/Math/vector.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/window.hpp"
@@ -193,10 +192,11 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
 
   [[likely]]
   if (OwnedTextures.BloomFinal.isValid()) {
-    CHECK_ERR(shader->Send(incomingLightKey, OwnedTextures.BloomFinal));
+    CHECK_ERR(
+        shader->Send(context, incomingLightKey, OwnedTextures.BloomFinal));
   } else {
     // Bloom might be skipped in the case of a really tiny viewport
-    CHECK_ERR(shader->Send(incomingLightKey, OwnedTextures.TAA));
+    CHECK_ERR(shader->Send(context, incomingLightKey, OwnedTextures.TAA));
   }
 
   auto temperatureKey = Graphics::ResourceKey{"Temperature"};
@@ -252,11 +252,11 @@ auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
           Renderer::ShaderKey::Skybox));
 
   static auto depthBufferKey = Graphics::ResourceKey{"DepthTexture"};
-  CHECK_ERR(shader->Send(depthBufferKey, OwnedTextures.Depth));
-  CHECK_ERR(shader->Send(cameraBufferKey, CameraBuffer));
+  CHECK_ERR(shader->Send(context, depthBufferKey, OwnedTextures.Depth));
+  CHECK_ERR(shader->Send(context, cameraBufferKey, CameraBuffer));
 
   static auto skyboxKey = Graphics::ResourceKey{"SkyboxTexture"};
-  CHECK_ERR(shader->Send(skyboxKey, environment.SkyboxTexture));
+  CHECK_ERR(shader->Send(context, skyboxKey, environment.SkyboxTexture));
 
   Graphics::RenderState::SetShader(shader);
   CHECK_ERR(Renderer::DrawFullScreen(context));
@@ -279,10 +279,10 @@ auto Camera::FillSkybox(const Graphics::GraphicsContext &context,
       CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
           Renderer::ShaderKey::FillSkybox));
 
-  CHECK_ERR(shader->Send(cameraBufferKey, CameraBuffer));
+  CHECK_ERR(shader->Send(context, cameraBufferKey, CameraBuffer));
 
   static auto skyboxKey = Graphics::ResourceKey{"SkyboxTexture"};
-  CHECK_ERR(shader->Send(skyboxKey, environment.SkyboxTexture));
+  CHECK_ERR(shader->Send(context, skyboxKey, environment.SkyboxTexture));
 
   Graphics::RenderState::SetShader(shader);
   CHECK_ERR(Renderer::DrawFullScreen(context));
@@ -373,29 +373,29 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context,
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
 
   static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
-  CHECK_ERR(shader->Send(cameraBufferKey, CameraBuffer));
+  CHECK_ERR(shader->Send(context, cameraBufferKey, CameraBuffer));
 
   CHECK_ERR(shader->Send(
-      {"IrradianceTextures"},
+      context, {"IrradianceTextures"},
       Renderer::RendererInstance.GetPrefilterManager().GetIrradianceMaps()));
   CHECK_ERR(shader->Send(
-      {"SpecularTextures"},
+      context, {"SpecularTextures"},
       Renderer::RendererInstance.GetPrefilterManager().GetRadianceMaps()));
 
-  CHECK_ERR(shader->Send(
-      {"Probes"},
-      Renderer::RendererInstance.GetLightProbeBuffer()->GetBuffer()));
+  CHECK_ERR(shader->Send(context, {"Probes"},
+                         {Renderer::RendererInstance.GetLightProbeBuffer(),
+                          Graphics::StorageTexture::read}));
 
   static auto lightProbeCountKey = Graphics::ResourceKey{"LightProbeCount"};
   CHECK_ERR(Graphics::UniformWriter::Send(
       shader, lightProbeCountKey, static_cast<uint32_t>(VisibleProbeCount)));
 
-  CHECK_ERR(shader->Send({"AlbedoTexture"}, textures.Albedo));
-  CHECK_ERR(shader->Send({"NormalTexture"}, textures.Normal));
-  CHECK_ERR(shader->Send({"MaterialTexture"}, textures.Material));
-  CHECK_ERR(shader->Send({"DepthTexture"}, textures.Depth));
-  CHECK_ERR(
-      shader->Send({"AmbientOcclusionTexture"}, textures.AmbientOcclusion));
+  CHECK_ERR(shader->Send(context, {"AlbedoTexture"}, textures.Albedo));
+  CHECK_ERR(shader->Send(context, {"NormalTexture"}, textures.Normal));
+  CHECK_ERR(shader->Send(context, {"MaterialTexture"}, textures.Material));
+  CHECK_ERR(shader->Send(context, {"DepthTexture"}, textures.Depth));
+  CHECK_ERR(shader->Send(context, {"AmbientOcclusionTexture"},
+                         textures.AmbientOcclusion));
   CHECK_ERR(Graphics::UniformWriter::Send(shader, {"SpecularEnabled"}, 1));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
@@ -520,10 +520,11 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
   }
 
   Graphics::RenderState::SetShader(taaShader);
-  CHECK_ERR(taaShader->Send({"IncomingLight"}, OwnedTextures.IncomingLight));
   CHECK_ERR(
-      taaShader->Send({"PreviousIncomingLight"}, OwnedTextures.PreviousTAA));
-  CHECK_ERR(taaShader->Send({"MotionTexture"}, OwnedTextures.Motion));
+      taaShader->Send(context, {"IncomingLight"}, OwnedTextures.IncomingLight));
+  CHECK_ERR(taaShader->Send(context, {"PreviousIncomingLight"},
+                            OwnedTextures.PreviousTAA));
+  CHECK_ERR(taaShader->Send(context, {"MotionTexture"}, OwnedTextures.Motion));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 

@@ -94,6 +94,7 @@ function snap.draw()
   end
 
   local gotBuffer = false
+  local startTime = snap.timer.getTime()
 
   while not gotBuffer do
     if thread:getStatus() ~= "running" then
@@ -101,10 +102,14 @@ function snap.draw()
       snap.event.quit()
       return
     end
-    local buffer = commandsChannel:demand(10)
-    while buffer do
-      table.insert(commandBuffers, buffer)
-      buffer = commandsChannel:pop()
+    if snap.timer.getTime() - startTime > 10 then
+      error("Timeout")
+    end
+
+    local cmdBuffer = commandsChannel:demand(0.01)
+    while cmdBuffer do
+      table.insert(commandBuffers, cmdBuffer)
+      cmdBuffer = commandsChannel:pop()
       gotBuffer = true
     end
   end

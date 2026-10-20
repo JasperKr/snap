@@ -6,6 +6,7 @@
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <cstdint>
+#include <vulkan/vulkan_core.h>
 
 namespace Graphics {
 
@@ -17,14 +18,19 @@ struct UniformWriter {
     };
   };
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Ref<Buffer> &buffer) -> Error;
+  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader,
+                   const ResourceKey &key, const Ref<Buffer> &buffer,
+                   VkDescriptorType type) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Ref<Graphics::StructuredBuffer> &buffer) -> Error;
+  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader,
+                   const ResourceKey &key,
+                   const Ref<Graphics::StructuredBuffer> &buffer,
+                   VkDescriptorType type) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Ref<Graphics::Texture> &texture) -> Error;
+  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader,
+                   const ResourceKey &key,
+                   const Ref<Graphics::Texture> &texture, VkDescriptorType type)
+      -> Error;
 
   static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
                    const std::span<const uint8_t> &data) -> Error;

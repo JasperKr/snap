@@ -10,6 +10,7 @@
 #include "vulkan/vulkan_core.h"
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <public/tracy/Tracy.hpp>
@@ -811,15 +812,18 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding)
 }
 
 struct FlatteningState {
-  FlattenedReflection *flattened = nullptr;
+  std::unordered_map<ResolvedKey, ResourceInfo> *keyToInfo;
+  std::unordered_map<ResourceKey, ResolvedKey, ResourceKeyHash> *keyMapping;
+  VkDeviceSize size;
+
   ResourceKey *currentKey = nullptr;
+  ResolvedKey keyIter = 0;
   uint32_t idx{};
   uint32_t arraySize{};
   uint32_t parentSet{};
   uint32_t parentBinding{};
   uint32_t currentOffset{};
   Standard std = Standard::Std140;
-  std::unordered_map<ResourceKey, DescriptorSlot, ResourceKeyHash> *keyToSlot;
 };
 
 // NOLINTNEXTLINE
@@ -864,9 +868,6 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
     } else {
       state.currentKey->emplace_back(resource.name);
     }
-
-    state.keyToSlot->emplace(*state.currentKey,
-                             DescriptorSlot(resource.set, resource.binding));
   }
 
   state.parentBinding = resource.binding;
@@ -915,7 +916,9 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
 
       CHECK_ERR(FlattenResource(info, newState));
     } else {
-      state.flattened->keyToInfo.emplace(*state.currentKey, resource);
+      state.keyIter++;
+      state.keyMapping->emplace(*state.currentKey, state.keyIter);
+      state.keyToInfo->emplace(state.keyIter, resource);
     }
   }
 
@@ -941,47 +944,41 @@ auto ShaderReflection::FlattenReflection() -> Error {
 
     ResourceKey currentKey;
     FlatteningState state{
-        .flattened = isPushConstant
-                         ? &pushBuffers.emplace_back()
-                         : &flattened.try_emplace(resource.set).first->second,
+        .keyToInfo = isPushConstant ? &pushBuffer.keyToInfo : &keyToInfo,
+        .keyMapping = &keyMapping,
         .currentKey = &currentKey,
         .idx = 0,
         .arraySize = resource.GetArraySize(),
-        .keyToSlot = &keyToSlot,
     };
 
     CHECK_ERR(FlattenResource(resource, state));
 
-    for (auto &entry : state.flattened->keyToInfo) {
-      state.flattened->size =
-          std::max(state.flattened->size,
-                   entry.second.GetOffset() + entry.second.GetSize());
+    for (auto &entry : *state.keyToInfo) {
+      state.size = std::max<VkDeviceSize>(
+          state.size, entry.second.GetOffset() + entry.second.GetSize());
     }
 
     if (resource.IsBuffer() && !isPushConstant) {
       bufferSlotsBySet[resource.set].emplace_back(
           DescriptorSlot(resource.set, resource.binding));
-      state.flattened->bindingToInfo.emplace(resource.binding, resource);
     } else if (resource.IsSampler()) {
       textureSlotsBySet[resource.set].emplace_back(
           DescriptorSlot(resource.set, resource.binding));
-      state.flattened->bindingToInfo.emplace(resource.binding, resource);
     } else if (resource.IsAccelerationStructure()) {
       accelerationStructureSlotsBySet[resource.set].emplace_back(
           DescriptorSlot(resource.set, resource.binding));
-      state.flattened->bindingToInfo.emplace(resource.binding, resource);
     }
   }
 
   ResourceKey currentKey;
   FlatteningState state{
-      .flattened = &flattened.try_emplace(globals.set).first->second,
+      .keyToInfo = &keyToInfo,
+      .keyMapping = &keyMapping,
       .currentKey = &currentKey,
       .idx = 0,
       .arraySize = 1,
       .parentSet = globals.set,
       .parentBinding = globals.binding,
-      .keyToSlot = &keyToSlot,
   };
 
   ResourceInfo info;
@@ -1003,10 +1000,9 @@ auto ShaderReflection::FlattenReflection() -> Error {
 
   CHECK_ERR(FlattenResource(info, state));
 
-  for (auto &entry : state.flattened->keyToInfo) {
-    state.flattened->size =
-        std::max(state.flattened->size,
-                 entry.second.GetOffset() + entry.second.GetSize());
+  for (auto &entry : *state.keyToInfo) {
+    state.size = std::max<VkDeviceSize>(state.size, entry.second.GetOffset() +
+                                                        entry.second.GetSize());
   }
 
   return {};

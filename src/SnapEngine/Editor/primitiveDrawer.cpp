@@ -1,7 +1,7 @@
 #include "primitiveDrawer.hpp"
 #include "Graphics/draw.hpp"
 #include "Graphics/renderState.hpp"
-#include "Graphics/uniformWriter.hpp"
+#include <vulkan/vulkan_core.h>
 
 namespace Engine::Renderer {
 
@@ -96,8 +96,7 @@ auto PrimitiveDrawer::Render(const Graphics::GraphicsContext &context,
   Graphics::RenderState::SetShader(Shader);
   Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
 
-  static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
-  CHECK_ERR(Shader->Send(cameraBufferKey, camera.GetBuffer()));
+  CHECK_ERR(Shader->Send(context, "CameraData", camera.GetBuffer()));
 
   if (!Primitives.empty()) {
     CHECK_ERR(GenerateMesh(context, Primitives));

@@ -1,6 +1,7 @@
 #include "uniformWriter.hpp"
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/buffer.hpp"
+#include "Graphics/graphicsContext.hpp"
 #include "Graphics/shader.hpp"
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/vector.hpp"
@@ -8,24 +9,9 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <vulkan/vulkan_core.h>
 
 namespace Graphics {
-auto UniformWriter::Send(const Ref<Shader> &shader, const ResourceKey &key,
-                         const Ref<Buffer> &buffer) -> Error {
-  return shader->Send(key, buffer);
-}
-
-auto UniformWriter::Send(const Ref<Shader> &shader, const ResourceKey &key,
-                         const Ref<Graphics::StructuredBuffer> &buffer)
-    -> Error {
-  return shader->Send(key, buffer);
-}
-
-auto UniformWriter::Send(const Ref<Shader> &shader, const ResourceKey &key,
-                         const Ref<Graphics::Texture> &texture) -> Error {
-  return shader->Send(key, texture);
-}
-
 auto UniformWriter::Send(const Ref<Shader> &shader, const ResourceKey &key,
                          const std::span<const uint8_t> &data) -> Error {
   return shader->Send(key, data);

@@ -120,6 +120,8 @@ static const std::vector<luaL_Reg> GraphicsLib = {
     {"pushDebugLabel", wrap_PushDebugLabel},
 };
 
+// TODO: Replace manual enum stuff in wrap_graphics with ::LuaWrap::LuaEnum
+
 const static std::vector<lua_CFunction> childrenInitFunctions = {
     Texture::luaopen_texture,   Mesh::luaopen_mesh,
     Shader::luaopen_shader,     Buffer::luaopen_buffer,

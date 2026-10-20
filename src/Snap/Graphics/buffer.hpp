@@ -89,10 +89,23 @@ struct Buffer : Object, Identifiable {
   // Set by cleanup function otherwise we'll try to snap_defer destruction again
   bool isDestroyed = false;
 
-  mutable std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+  struct Address {
+    VkDeviceSize address;
+    VkDescriptorType type;
+    uint32_t offset;
+    uint32_t size;
+    auto operator<(const Address &second) const -> bool {
+      return offset < second.offset;
+    }
+    static auto Less(const Address &first, const Address &second) -> bool {
+      return first.offset < second.offset;
+    }
+  };
+
+  mutable std::vector<Address> addresses;
   [[nodiscard]] auto GetAddress(const GraphicsContext &context,
-                                VkDescriptorType type) const
-      -> Result<VkDeviceSize>;
+                                VkDescriptorType type, uint32_t offset,
+                                uint32_t size) const -> Result<VkDeviceSize>;
 
   std::string debugName;
 
