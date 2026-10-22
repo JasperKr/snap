@@ -30,4 +30,4 @@ public struct SpotLight : ILight {
 }
 
 uniform uint32_t SpotLightCount;
-StructuredBuffer<SpotLight> SpotLights;
+uniform StructuredBuffer<SpotLight>.Handle SpotLights;

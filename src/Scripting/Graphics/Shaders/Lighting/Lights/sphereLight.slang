@@ -29,4 +29,4 @@ public struct SphereLight : ILight {
 }
 
 uniform uint32_t SphereLightCount;
-StructuredBuffer<SphereLight> SphereLights;
+uniform StructuredBuffer<SphereLight>.Handle SphereLights;

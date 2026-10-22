@@ -1,12 +1,12 @@
-SamplerCube Input;
+uniform SamplerCube.Handle Input;
 
-restrict WTexture2DArray<float4> Output_Mip_0;
-restrict WTexture2DArray<float4> Output_Mip_1;
-restrict WTexture2DArray<float4> Output_Mip_2;
-restrict WTexture2DArray<float4> Output_Mip_3;
-restrict WTexture2DArray<float4> Output_Mip_4;
-restrict WTexture2DArray<float4> Output_Mip_5;
-restrict WTexture2DArray<float4> Output_Mip_6;
+uniform WTexture2DArray<float4>.Handle Output_Mip_0;
+uniform WTexture2DArray<float4>.Handle Output_Mip_1;
+uniform WTexture2DArray<float4>.Handle Output_Mip_2;
+uniform WTexture2DArray<float4>.Handle Output_Mip_3;
+uniform WTexture2DArray<float4>.Handle Output_Mip_4;
+uniform WTexture2DArray<float4>.Handle Output_Mip_5;
+uniform WTexture2DArray<float4>.Handle Output_Mip_6;
 
 float signNotZero(float x) { return x < 0.0 ? -1.0 : 1.0; }
 

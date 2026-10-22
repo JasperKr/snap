@@ -1,4 +1,4 @@
-WTexture2D<uint> OutputTexture;
+uniform WTexture2D<uint>.Handle OutputTexture;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]

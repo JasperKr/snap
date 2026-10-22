@@ -117,4 +117,4 @@ public struct RectangleLight : ILight {
 }
 
 uniform uint32_t RectangleLightCount;
-StructuredBuffer<RectangleLight> RectangleLights;
+uniform StructuredBuffer<RectangleLight>.Handle RectangleLights;

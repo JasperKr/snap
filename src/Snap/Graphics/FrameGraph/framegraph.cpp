@@ -1274,7 +1274,18 @@ auto FrameGraph::BuildLoadOpModes() -> void {
       stateID = command.GetDrawState()->stateID;
     }
 
-    const GraphState &graphState = CommandStateManager::States.at(stateID);
+    // TODO: Command states are stored per-thread and need either:
+    // The whole indexing treatment with source thread ID like CommandID/CommandIndex thingy
+    // Or we combine them together and update the indices
+    // Or we mutex lock just one and share them (probably the easiest?)
+    auto &states = CommandStateManager::GetInstance().States;
+    PrintAlways("Type: {}, state ID: {} / {}",
+                CommandTypeEnumHelper.ToString(type), stateID, states.size());
+
+    assert(stateID < UINT32_MAX);
+    assert(stateID < states.size());
+
+    const GraphState &graphState = states.at(stateID);
 
     bool sameColorAttachments =
         lastColorAttachments == graphState.colorAttachments;
@@ -1370,10 +1381,11 @@ auto FrameGraph::CompactRenderPasses() -> Error {
       uint32_t stateID = command.GetDrawState()->stateID;
 
       if (!inRange) {
-        auto *renderpassCommand =
+        CommandID renderpassCommandID =
             lastCmdBuffer->GetNewCommand(CommandType::renderPass);
-        assert(renderpassCommand != nullptr);
-        assert(renderpassCommand->GetType() == CommandType::renderPass);
+        Command &renderpassCommand =
+            lastCmdBuffer->GetCommand(renderpassCommandID);
+        assert(renderpassCommand.GetType() == CommandType::renderPass);
 
         // Point the reordered command to the last index of commandIndices
 
@@ -1402,10 +1414,11 @@ auto FrameGraph::CompactRenderPasses() -> Error {
 
       if (passData.stateID != stateID) {
         // Create new command in the last command buffer
-        auto *renderpassCommand =
+        CommandID renderpassCommandID =
             lastCmdBuffer->GetNewCommand(CommandType::renderPass);
-        assert(renderpassCommand != nullptr);
-        assert(renderpassCommand->GetType() == CommandType::renderPass);
+        Command &renderpassCommand =
+            lastCmdBuffer->GetCommand(renderpassCommandID);
+        assert(renderpassCommand.GetType() == CommandType::renderPass);
 
         // Point the reordered command to the last index of commandIndices
         auto newIdx = commandIndices.size();
@@ -1488,15 +1501,15 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   //   cmdBuffer->threadInfo.FinalizeCommandWriting();
   // }
 
+  for (const auto &cmdBuffer : commandBuffers) {
+    cmdBuffer->threadInfo.FinalizeCommandWriting();
+  }
+
   CHECK_ERR(BuildGraph());
   CHECK_ERR(BuildReadyState());
 
   const auto *reordered = CHECK_RES(Reorder());
   CHECK_ERR(UpdateLevels(*reordered));
-
-  for (const auto &cmdBuffer : commandBuffers) {
-    cmdBuffer->threadInfo.FinalizeCommandWriting();
-  }
 
   for (const CommandID commandID : renderPasses) {
     auto &command = GetCommand(commandID);

@@ -4,21 +4,16 @@ import utils;
 import constants;
 import random;
 
-Sampler2D DepthTexture;
-Sampler2D PreviousDepthTexture;
+uniform Sampler2D.Handle DepthTexture;
+uniform Sampler2D.Handle PreviousDepthTexture;
 
-Sampler2D MotionTexture;
+uniform Sampler2D.Handle MotionTexture;
 
-Sampler2D<uint> RayHitTexture;
-restrict WTexture2DArray<float> OutputTexture;
-Sampler2DArray<float> PreviousOutputTexture;
+uniform Sampler2D<uint>.Handle RayHitTexture;
+uniform restrict WTexture2DArray<float>.Handle OutputTexture;
+uniform Sampler2DArray<float>.Handle PreviousOutputTexture;
 
-struct PushConstantBuffer {
-  uint LayerOffset;
-};
-
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint LayerOffset;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
@@ -32,7 +27,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     return;
   }
 
-  id.z += PushConstants.LayerOffset;
+  id.z += LayerOffset;
 
   float2 uv = (float2(id.xy) + 0.5) / float2(width, height);
 
@@ -43,7 +38,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     return;
   }
 
-  float3 worldPosition = camera.GetWorldPosition(uv, depth);
+  float3 worldPosition = CameraData[0].GetWorldPosition(uv, depth);
 
   float3 sampleCoord = float3(uv, id.z);
   sampleCoord.xy -= UnpackMotionVector(MotionTexture.Load(int3(id.xy, 0)).xy);
@@ -57,7 +52,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
 
   float previousDepth = PreviousDepthTexture.SampleLevelZero(sampleCoord.xy).x;
   float3 previousWorldPosition =
-      previousCamera.GetWorldPosition(sampleCoord.xy, previousDepth);
+      CameraData[1].GetWorldPosition(sampleCoord.xy, previousDepth);
 
   float influence = 1.0F / 20.0F;
 

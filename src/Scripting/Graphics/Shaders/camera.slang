@@ -1,6 +1,6 @@
 module camera;
 
-public struct CameraData {
+public struct _CameraData {
   public float4x4 ViewMatrix;
   public float4x4 InverseViewMatrix;
   public float4x4 ProjectionMatrix;
@@ -39,7 +39,7 @@ public struct CameraData {
 
   public float3 GetPreviousNDC(float3 worldPos) {
     float4 clipPos =
-        mul(previousCamera.ViewProjectionMatrix, float4(worldPos, 1.0));
+        mul(CameraData[1].ViewProjectionMatrix, float4(worldPos, 1.0));
     return clipPos.xyz / clipPos.w;
   }
 
@@ -50,7 +50,7 @@ public struct CameraData {
 
   public float3 GetPreviousUVs(float3 worldPos) {
     float4 clipPos =
-        mul(previousCamera.ViewProjectionMatrix, float4(worldPos, 1.0));
+        mul(CameraData[1].ViewProjectionMatrix, float4(worldPos, 1.0));
     clipPos.xyz /= clipPos.w;
     return clipPos.xyz * 0.5f + 0.5f;
   }
@@ -61,11 +61,12 @@ public struct CameraData {
   }
 };
 
-[vk::binding(0, 1)]
-public restrict cbuffer CameraData {
-  public CameraData camera;
-  public CameraData previousCamera;
-};
+// public restrict cbuffer CameraData {
+//   public CameraData camera;
+//   public CameraData previousCamera;
+// };
+
+public uniform StructuredBuffer<_CameraData>.Handle CameraData;
 
 // Reverse-Z
 public static const float DepthFarPlane = 0.0;

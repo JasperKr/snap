@@ -2,9 +2,9 @@
 
 #include "Graphics/buffer.hpp"
 #include "Graphics/texture.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
+#include "Modules/stackVector.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
@@ -158,6 +158,14 @@ struct DescriptorHeapManager {
   VkDeviceSize imageCursor{};
   VkDeviceSize samplerCursor{};
 
+  VkDeviceSize bufferDescriptorSize{};
+  VkDeviceSize imageDescriptorSize{};
+  VkDeviceSize samplerDescriptorSize{};
+
+  Math::StackVector<VkDeviceSize, 4> InvalidImageOffsets;
+  Math::StackVector<VkDeviceSize, 4> InvalidBufferOffsets;
+  Math::StackVector<VkDeviceSize, 4> InvalidSamplerOffsets;
+
   auto AllocateResource(const struct GraphicsContext &context,
                         const Buffer *buffer, VkDescriptorType type,
                         uint32_t offset, uint32_t size) -> Result<VkDeviceSize>;
@@ -171,6 +179,10 @@ struct DescriptorHeapManager {
   auto FreeImageResourceIndex(VkDeviceSize resourcePtr) -> void;
   auto FreeBufferResourceIndex(VkDeviceSize resourcePtr) -> void;
   auto FreeSamplerResourceIndex(VkDeviceSize resourcePtr) -> void;
+
+  auto IsBufferOffsetValid(uint32_t offset) -> bool;
+  auto IsImageOffsetValid(uint32_t offset) -> bool;
+  auto IsSamplerOffsetValid(uint32_t offset) -> bool;
 
   auto Initialize(const struct GraphicsContext &context) -> Error;
   auto DeInitialize() -> void;

@@ -11,7 +11,7 @@ struct VertexInput {
 };
 
 uniform float4x4 ProjectionMatrix;
-uniform uint MainTexture;
+uniform Sampler2D.Handle MainTexture;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
@@ -38,9 +38,7 @@ float3 GammaToLinear(float3 gamma) {
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {
-  Sampler2D sampler = ResourceDescriptorHeap[MainTexture];
-
-  float4 color = sampler.Sample(input.tex_coord);
+  float4 color = MainTexture.Sample(input.tex_coord);
   color *= input.color;
   // color.rgb *= color.a;
 

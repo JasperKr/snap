@@ -65,7 +65,7 @@ public struct PointLight : ILight {
     ray.TMin = 0.0f;
     ray.TMax = length(light.Base.Position.xyz - WorldPosition);
 
-    return TraceAnyHitRay(SceneBVH, ray);
+    return TraceAnyHitRay(ray);
   }
 
   public static override float3 SampleAll(const float3 WorldPosition,
@@ -79,4 +79,4 @@ public struct PointLight : ILight {
 }
 
 uniform uint32_t PointLightCount;
-StructuredBuffer<PointLight> PointLights;
+uniform StructuredBuffer<PointLight>.Handle PointLights;

@@ -4,10 +4,10 @@ import camera;
 import helpers;
 import physicallyBased;
 
-Sampler2D DepthTexture;
-Sampler2D NormalTexture;
-Sampler2D AlbedoTexture;
-Sampler2D MaterialTexture;
+uniform Sampler2D.Handle DepthTexture;
+uniform Sampler2D.Handle NormalTexture;
+uniform Sampler2D.Handle AlbedoTexture;
+uniform Sampler2D.Handle MaterialTexture;
 
 uniform bool SpecularEnabled;
 
@@ -39,11 +39,11 @@ struct LightProbeSampleInfo {
 // TODO: Volume texture for the world, storing an index and count into
 // a list of indices for probes that influence that cell, and then sample the probes in the shader
 uniform int LightProbeCount;
-restrict StructuredBuffer<LightProbe> Probes;
+uniform StructuredBuffer<LightProbe>.Handle Probes;
 
-Sampler2DArray<float3> SpecularTextures;
-Sampler2DArray<float3> IrradianceTextures;
-Sampler2D<float2> AmbientOcclusionTexture;
+uniform Sampler2DArray<float3>.Handle SpecularTextures;
+uniform Sampler2DArray<float3>.Handle IrradianceTextures;
+uniform Sampler2D<float2>.Handle AmbientOcclusionTexture;
 
 LightProbeSampleInfo SampleLightProbe(int probeIndex, float3 worldPosition,
                                       float3 normal, float3 reflectedRay,
@@ -105,7 +105,7 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
     return output;
   }
 
-  float3 worldPosition = camera.GetWorldPosition(VertexCoords, depth);
+  float3 worldPosition = CameraData[0].GetWorldPosition(VertexCoords, depth);
 
   float3 normal = normalize(NormalTexture.Sample(VertexCoords).xyz * 2.0 - 1.0);
 
@@ -114,7 +114,7 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
       MaterialChannel(MaterialTexture.Sample(VertexCoords));
   float3 albedo = AlbedoTexture.Sample(VertexCoords).rgb;
 
-  float3 viewDir = normalize(worldPosition - camera.Position);
+  float3 viewDir = normalize(worldPosition - CameraData[0].Position);
   float3 f0 = ComputeFresnel0(albedo, material.metallic, material.reflectance);
   float3 diffuse = ComputeDiffuseColor(albedo, material.metallic);
   float NoV = ClampNoV(dot(normal, -viewDir));

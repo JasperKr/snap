@@ -80,7 +80,7 @@ public struct DirectionalLight : ILight {
     ray.TMin = 0.01f;
     ray.TMax = 1e4f;
 
-    return TraceAnyHitRay(SceneBVH, ray);
+    return TraceAnyHitRay(ray);
   }
 
   public static override float3 SampleAll(const float3 WorldPosition,
@@ -99,4 +99,4 @@ public struct DirectionalLight : ILight {
 }
 
 uniform uint32_t DirectionalLightCount;
-StructuredBuffer<DirectionalLight> DirectionalLights;
+uniform StructuredBuffer<DirectionalLight>.Handle DirectionalLights;

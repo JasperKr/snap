@@ -60,10 +60,8 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
 
   Graphics::RenderState::SetShader(ThresholdShader);
-  const static Graphics::ResourceKey ThresholdKey = {"PushConstants",
-                                                     "threshold"};
 
-  CHECK_ERR(Graphics::UniformWriter::Send(ThresholdShader, ThresholdKey, 0.0F));
+  CHECK_ERR(Graphics::UniformWriter::Send(ThresholdShader, "threshold", 0.0F));
 
   CHECK_ERR(ThresholdShader->Send(context, "mainScene", textures.TAA));
 
@@ -123,7 +121,7 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
                                      DownsampleChainViews.at(mipLevel - 1)));
 
     CHECK_ERR(Graphics::UniformWriter::Send(
-        DownsampleShader, {"PushConstants", "viewportSize"},
+        DownsampleShader, {"viewportSize"},
         Math::Uvec2(view->GetWidth(), view->GetHeight())));
 
     CHECK_ERR(DrawFullScreen(context));
@@ -132,10 +130,10 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
   Graphics::RenderState::SetShader(UpsampleShader);
 
   // NOLINTNEXTLINE
+  CHECK_ERR(
+      Graphics::UniformWriter::Send(UpsampleShader, {"intensity"}, 0.25F));
   CHECK_ERR(Graphics::UniformWriter::Send(
-      UpsampleShader, {"PushConstants", "intensity"}, 0.25F));
-  CHECK_ERR(Graphics::UniformWriter::Send(
-      UpsampleShader, {"PushConstants", "viewportSize"},
+      UpsampleShader, {"viewportSize"},
       Math::Uvec2(textures.BloomDownsampleChain->GetWidth(),
                   textures.BloomDownsampleChain->GetHeight())));
 

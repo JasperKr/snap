@@ -184,9 +184,14 @@ struct GraphStateHash {
 };
 
 struct CommandStateManager {
-  static std::unordered_map<GraphState, uint32_t, GraphStateHash> StateToIndex;
-  static std::vector<GraphState> States;
-  static uint32_t CurrentStateID;
+  std::unordered_map<GraphState, uint32_t, GraphStateHash> StateToIndex;
+  std::vector<GraphState> States;
+  uint32_t CurrentStateID{};
+
+  static auto GetInstance() -> CommandStateManager & {
+    thread_local CommandStateManager manager;
+    return manager;
+  }
 };
 
 // NOLINTBEGIN(cppcoreguidelines-special-member-functions, hicpp-special-member-functions)
@@ -462,14 +467,14 @@ struct DrawState {
 
   [[nodiscard]] auto GetGraphState() const -> GraphState * {
     assert(stateID < UINT16_MAX);
-    assert(stateID < CommandStateManager::States.size());
-    return &CommandStateManager::States.at(stateID);
+    assert(stateID < CommandStateManager::GetInstance().States.size());
+    return &CommandStateManager::GetInstance().States.at(stateID);
   }
 
   [[nodiscard]] auto GetGraphState_const() const -> GraphState const * {
     assert(stateID < UINT16_MAX);
-    assert(stateID < CommandStateManager::States.size());
-    return &CommandStateManager::States.at(stateID);
+    assert(stateID < CommandStateManager::GetInstance().States.size());
+    return &CommandStateManager::GetInstance().States.at(stateID);
   }
 };
 
@@ -1204,13 +1209,13 @@ struct VirtualCommandBuffer {
 
   auto GetStateID() -> uint32_t {
     ZoneScoped;
-    auto iter = CommandStateManager::StateToIndex.find(currentState);
+    auto iter = commandStateManager->StateToIndex.find(currentState);
 
-    if (iter == CommandStateManager::StateToIndex.end()) {
-      auto newIdx = CommandStateManager::States.size();
+    if (iter == commandStateManager->StateToIndex.end()) {
+      auto newIdx = commandStateManager->States.size();
 
-      CommandStateManager::StateToIndex[currentState] = newIdx;
-      CommandStateManager::States.emplace_back(currentState);
+      commandStateManager->StateToIndex[currentState] = newIdx;
+      commandStateManager->States.emplace_back(currentState);
 
       return newIdx;
     }
@@ -1220,7 +1225,7 @@ struct VirtualCommandBuffer {
 
   auto GetGraphState() -> GraphState * { return &currentState; }
 
-  auto AddCommand(Command *command) -> Error;
+  auto AddCommand(CommandID command) -> Error;
 
   std::vector<Command> commandStorage;
   std::vector<uint16_t> commands;
@@ -1235,9 +1240,11 @@ struct VirtualCommandBuffer {
   VCmdThreadInfo threadInfo;
   bool initialized = false;
 
+  CommandStateManager *commandStateManager;
+
   auto DeInitialize() -> void { threadInfo.Shutdown(); }
 
-  auto GetNewCommand(CommandType type) -> Command *;
+  auto GetNewCommand(CommandType type) -> CommandID;
 };
 
 auto CreateCommandBuffer() -> VirtualCommandBuffer;

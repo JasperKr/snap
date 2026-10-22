@@ -21,18 +21,13 @@ struct FragmentInput {
   float4 screen_position : SV_Position;
 };
 
-struct PushConstantBuffer {
-  uint FrameRandomState;
-};
+uniform uint FrameRandomState;
 
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
-
-Sampler2D AlbedoTexture;
-Sampler2D NormalTexture;
-Sampler2D MaterialTexture;
-Sampler2D DepthTexture;
-Sampler2D EmissiveTexture;
+uniform Sampler2D.Handle AlbedoTexture;
+uniform Sampler2D.Handle NormalTexture;
+uniform Sampler2D.Handle MaterialTexture;
+uniform Sampler2D.Handle DepthTexture;
+uniform Sampler2D.Handle EmissiveTexture;
 
 [shader("fragment")]
 FragmentOutput fragmentMain(FragmentInput input) {
@@ -53,8 +48,8 @@ FragmentOutput fragmentMain(FragmentInput input) {
 
   float3 incomingLight = emissive.rgb;
 
-  float3 viewDir = -camera.GetRayDirection(input.tex_coord);
-  float3 worldPosition = camera.GetWorldPosition(input.tex_coord, depth);
+  float3 viewDir = -CameraData[0].GetRayDirection(input.tex_coord);
+  float3 worldPosition = CameraData[0].GetWorldPosition(input.tex_coord, depth);
 
   Pixel pixel;
   pixel.Normal = normal;
@@ -69,19 +64,19 @@ FragmentOutput fragmentMain(FragmentInput input) {
   float LambdaV = ComputeLambdaV(pixel.Roughness, NoV);
 
   uint state = uint(input.screen_position.x) ^ uint(input.screen_position.y);
-  state ^= PushConstants.FrameRandomState;
+  state ^= FrameRandomState;
 
   uint2 screenCoords = uint2(input.screen_position.xy);
 
-  incomingLight += DirectionalLight.SampleAll(worldPosition, pixel, viewDir,
-                                              NoV, LambdaV, state, screenCoords,
-                                              PushConstants.FrameRandomState);
+  incomingLight +=
+      DirectionalLight.SampleAll(worldPosition, pixel, viewDir, NoV, LambdaV,
+                                 state, screenCoords, FrameRandomState);
   // incomingLight +=
   //     PointLight.SampleAll(worldPosition, pixel, viewDir, NoV, LambdaV, state,
-  //                          screenCoords, PushConstants.FrameRandomState);
+  //                          screenCoords, FrameRandomState);
   // incomingLight +=
   //     SpotLight.SampleAll(worldPosition, pixel, viewDir, NoV, LambdaV, state,
-  //                         screenCoords, PushConstants.FrameRandomState);
+  //                         screenCoords, FrameRandomState);
 
   out.color = float4(incomingLight, 1.0f);
 

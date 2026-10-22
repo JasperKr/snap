@@ -12,7 +12,7 @@ public struct Light {
 };
 
 #ifndef SHADER_TYPE_SHADOW_SAMPLING
-Sampler2DArray<float> ShadowVisibilityTexture;
+uniform Sampler2DArray<float>.Handle ShadowVisibilityTexture;
 #endif
 
 public interface ILight {

@@ -126,6 +126,7 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   assert(tcontext.queueFamily == 0);
 
   auto *commandBuffer = CHECK_RES(GetThreadLocalVCmdBuffer());
+  commandBuffer->commandStateManager = &CommandStateManager::GetInstance();
   commandBuffer->Reset();
 
   threadInfo->threadData.commandBuffer = commandBuffer;

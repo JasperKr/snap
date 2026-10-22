@@ -216,8 +216,6 @@ struct Shader : Object, Identifiable {
   auto Send(const ResourceKey &key, const std::span<const uint8_t> &data)
       -> Error;
 
-  auto Send(ResolvedKey key, VkDeviceSize data) -> Error;
-
   auto Send(const GraphicsContext &context, const ResourceKey &key,
             const UniformBuffer &buffer) -> Error;
 
@@ -239,7 +237,7 @@ struct Shader : Object, Identifiable {
   auto GetUniform(const ResourceKey &key) const
       -> const Reflect::ResourceInfo *;
 
-  auto ResolveKey(const ResourceKey &key) const -> ResolvedKey;
+  auto ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey>;
 
   auto GetSlotDescription(DescriptorSlot slot) -> Reflect::ResourceInfo *;
 
@@ -265,6 +263,11 @@ struct Shader : Object, Identifiable {
   [[nodiscard]] auto GetInstanceType() const -> Type const * override {
     return Shader::GetType();
   }
+
+private:
+  auto Send(ResolvedKey key, VkDeviceSize data) -> Error;
+  auto Send(ResolvedKey key, VkDeviceSize data, VkDeviceSize samplerAddress)
+      -> Error;
 };
 
 extern Ref<Shader> DefaultShaderModule;             // NOLINT

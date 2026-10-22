@@ -26,11 +26,9 @@ struct FragmentInput {
   float4 color : COLOR;
 };
 
-uniform uint MainTexture;
+uniform DescriptorHandle<Sampler2D> MainTexture;
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {
-  Sampler2D sampler = ResourceDescriptorHeap[MainTexture];
-
-  return input.color * sampler.Sample(input.tex_coord);
+  return input.color * MainTexture.Sample(input.tex_coord);
 }

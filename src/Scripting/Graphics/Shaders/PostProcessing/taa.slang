@@ -5,9 +5,9 @@ import utils;
 
 #include "fullscreen.slang"
 
-Sampler2D<float3> IncomingLight;
-Sampler2D<float3> PreviousIncomingLight;
-Sampler2D<float2> MotionTexture;
+uniform Sampler2D<float3>.Handle IncomingLight;
+uniform Sampler2D<float3>.Handle PreviousIncomingLight;
+uniform Sampler2D<float2>.Handle MotionTexture;
 
 // The following code is licensed under the MIT license: https://gist.github.com/TheRealMJP/bc503b0b87b643d3505d41eab8b332ae
 

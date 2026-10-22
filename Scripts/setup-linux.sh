@@ -86,7 +86,7 @@ fi
 
 # If "./include/slang/" is missing or empty, or override is set:
 if [ "$override" -eq 1 ] || [ ! -d "./include/slang/" ] || [ -z "$(ls -A ./include/slang/)" ]; then
-    URL="https://github.com/shader-slang/slang/releases/download/v2026.19/slang-2026.19-linux-x86_64.zip"
+    URL="https://github.com/shader-slang/slang/releases/download/v2026.20/slang-2026.20-linux-x86_64.zip"
     TEMP_DIR="./slang_download"
 
     if [ ! -d "$TEMP_DIR" ]; then
@@ -128,11 +128,18 @@ fi
 
 
 # Download https://github.com/spnda/fastgltf.git to temp/fastgltf and copy temp/fastgltf/include/fastgltf/* to include/fastgltf/
-URL="https://github.com/spnda/fastgltf.git"
-if [ "$override" -eq 1 ] || [ ! -d "include/fastgltf" ]; then
+URL="https://github.com/spnda/fastgltf/archive/refs/tags/v0.9.1.zip"
+# if [ "$override" -eq 1 ] || [ ! -d "include/fastgltf" ]; then
     rm -rf include/fastgltf
-    git clone --depth 1 "$URL" include/fastgltf
-fi
+    mkdir -p include/fastgltf
+    curl -L "$URL" -o "include/fastgltf/fastgltf.zip"
+    unzip -q "include/fastgltf/fastgltf.zip" -d "include/fastgltf/"
+    shopt -s dotglob
+    mv include/fastgltf/fastgltf-0.9.1/* include/fastgltf/
+    shopt -u dotglob
+    rm "include/fastgltf/fastgltf.zip"
+    rmdir include/fastgltf/fastgltf-0.9.1
+# fi
 
 URL="https://github.com/simdjson/simdjson/releases/download/v4.2.4/singleheader.zip"
 if [ "$override" -eq 1 ] || [ ! -d "include/simdjson" ]; then

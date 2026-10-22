@@ -2,13 +2,9 @@ import camera;
 import material;
 
 import transform;
-struct PushConstantBuffer {
-  uint MaterialBufferIndex;
-  uint ModelTransformIndex;
-};
 
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint MaterialBufferIndex;
+uniform uint ModelTransformIndex;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -23,15 +19,15 @@ struct VertexInput {
   // float4 Color : COLOR;
 };
 
-Sampler2D AlbedoTexture;
+uniform Sampler2D.Handle AlbedoTexture;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
-  float4x4 transform = GetModelMatrix(PushConstants.ModelTransformIndex);
+  float4x4 transform = GetModelMatrix(ModelTransformIndex);
   float4 worldPos = mul(float4(input.Position, 1.0), transform);
 
   VertexStageOutput out;
-  out.sv_position = mul(camera.ViewProjectionMatrix, worldPos);
+  out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
   out.tex_coord = input.TexCoords;
 
   return out;
@@ -44,7 +40,7 @@ struct FragmentInput {
 [shader("fragment")]
 void fragmentMain(FragmentInput input) {
   float4 texColor = AlbedoTexture.Sample(input.tex_coord);
-  MaterialData matData = MaterialBuffer[PushConstants.MaterialBufferIndex];
+  MaterialData matData = MaterialBuffer[MaterialBufferIndex];
 
   float alpha = texColor.a * matData.albedoFactor.a;
 

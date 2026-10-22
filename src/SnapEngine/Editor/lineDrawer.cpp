@@ -135,10 +135,7 @@ auto LineDrawer::Render(const Graphics::GraphicsContext &context,
 
   CHECK_ERR(Shader->Send(context, "CameraData", camera.GetBuffer()));
 
-  static auto viewportSizeKey =
-      Graphics::ResourceKey{"PushConstants", "viewportSize"};
-
-  CHECK_ERR(Graphics::UniformWriter::Send(Shader, viewportSizeKey,
+  CHECK_ERR(Graphics::UniformWriter::Send(Shader, "viewportSize",
                                           camera.GetDimensions()));
 
   Mesh->SetDrawRange({.Offset = 0, .Count = 6}); // NOLINT

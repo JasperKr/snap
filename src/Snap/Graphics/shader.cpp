@@ -605,8 +605,14 @@ UniformBuffer::UniformBuffer(const Ref<StructuredBuffer> &buffer) {
 
 auto Shader::GetUniform(const ResourceKey &key) const
     -> const Reflect::ResourceInfo * {
-  const ResolvedKey resolved = ResolveKey(key);
-  auto iter = reflection.keyToInfo.find(resolved);
+  const Result<ResolvedKey> resolved = ResolveKey(key);
+
+  [[unlikely]]
+  if (Error::IsError(resolved)) {
+    return nullptr;
+  }
+
+  auto iter = reflection.keyToInfo.find(resolved.value());
 
   if (iter != reflection.keyToInfo.end()) {
     return &iter->second;
@@ -615,15 +621,20 @@ auto Shader::GetUniform(const ResourceKey &key) const
   return nullptr;
 }
 
-auto Shader::ResolveKey(const ResourceKey &key) const -> ResolvedKey {
-  return reflection.keyMapping.at(key);
+auto Shader::ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey> {
+  auto iter = reflection.keyMapping.find(key);
+
+  ERR_ASSERT_MSG(
+      iter != reflection.keyMapping.end(),
+      std::format("{} Not found.", Reflect::ResourceKeyToString(key)));
+  return iter->second;
 }
 
 auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
     -> Error {
   ZoneScopedN("Shader::Send data span");
 
-  const ResolvedKey resolved = ResolveKey(key);
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   auto iter = reflection.keyToInfo.find(resolved);
 
   ERR_ASSERT(iter != reflection.keyToInfo.end());
@@ -650,7 +661,23 @@ auto Shader::Send(const ResolvedKey key, const VkDeviceSize data) -> Error {
   // Note that we send the size of a uint32_t, as these are offsets within the heap,
   // these do not need 64-bit precision and is not allowed within the shader anyways.
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(globalUniforms.data() + info.offset, &data, sizeof(uint32_t));
+  memcpy(globalUniforms.data() + info.offset, &data, sizeof(uint64_t));
+
+  return Error::Success();
+}
+
+auto Shader::Send(const ResolvedKey key, const VkDeviceSize data,
+                  const VkDeviceSize samplerAddress) -> Error {
+  ZoneScopedN("Shader::Send texture + sampler address");
+
+  auto iter = reflection.keyToInfo.find(key);
+
+  ERR_ASSERT(iter != reflection.keyToInfo.end());
+  const auto &info = iter->second;
+
+  // NOLINTNEXTLINE, pointer arithmetic
+  memcpy(globalUniforms.data() + info.offset,
+         Math::Uvec2(data, samplerAddress).Ptr(), sizeof(uint64_t));
 
   return Error::Success();
 }
@@ -664,7 +691,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
              0U);
 
-  const ResolvedKey resolved = ResolveKey(key);
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundBuffers[resolved] = buffer;
 
   return Send(resolved, address);
@@ -679,7 +706,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
              0U);
 
-  const ResolvedKey resolved = ResolveKey(key);
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundBuffers[resolved] = UniformBuffer{buffer.resource};
 
   return Send(resolved, address);
@@ -694,7 +721,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT) !=
              0U);
 
-  const ResolvedKey resolved = ResolveKey(key);
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundBuffers[resolved] = buffer;
 
   return Send(resolved, address);
@@ -707,15 +734,16 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   VkDeviceSize address =
       CHECK_RES(texture.resource->GetAddress(context, texture.type));
 
-  // PrintAlways("Texture address: {}", address);
-
   ERR_ASSERT((texture.resource->imageMemory->usage &
               VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);
 
-  const ResolvedKey resolved = ResolveKey(key);
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundTextures[resolved] = texture;
 
-  return Send(resolved, address);
+  VkDeviceSize samplerAddress =
+      CHECK_RES(texture.resource->GetSampler(context));
+
+  return Send(resolved, address, samplerAddress);
 }
 
 auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
@@ -728,7 +756,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   ERR_ASSERT((texture.resource->imageMemory->usage &
               VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) != 0U);
 
-  const ResolvedKey resolved = ResolveKey(key);
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundTextures[resolved] = texture;
 
   return Send(resolved, address);
@@ -742,7 +770,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
       context, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0,
       accelStructure->GetTLASBuffer()->size));
 
-  const ResolvedKey resolved = ResolveKey(key);
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundAccelerationStructures[resolved] = {
       .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
       .type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,

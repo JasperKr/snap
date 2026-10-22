@@ -1,4 +1,4 @@
-Sampler2D mainScene;
+uniform Sampler2D.Handle mainScene;
 
 // better bloom weights, credit to `Schmleeb` on discord
 const static float Weights[13] = float[13](
@@ -15,16 +15,11 @@ const static float2 Coords[13] = { float2(-1.0f, 1.0f),  float2(1.0f, 1.0f),
                                    float2(-2.0f, -2.0f), float2(0.0f, -2.0f),
                                    float2(2.0f, -2.0f) };
 
-struct PushConstantsBuffer {
-  uint2 viewportSize;
-};
-
 float3 Sample(int i, float2 coords) {
   return Weights[i] * mainScene.Sample(coords).rgb;
 }
 
-[[vk::push_constant]]
-PushConstantsBuffer PushConstants;
+uniform uint2 viewportSize;
 
 float4 DownSample(float2 coords, float2 texelSize) {
   float3 color = float3(0.0);
@@ -41,7 +36,7 @@ float4 DownSample(float2 coords, float2 texelSize) {
 
 [shader("fragment")]
 float4 fragmentMain(float2 tex_coord: TEXCOORDS) {
-  float2 texelSize = 1.0 / float2(PushConstants.viewportSize);
+  float2 texelSize = 1.0 / float2(viewportSize);
   texelSize *= 0.5; // We render at half-res, so pixels are twice as big
 
   return DownSample(tex_coord, texelSize);

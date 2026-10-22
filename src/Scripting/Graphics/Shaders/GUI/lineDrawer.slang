@@ -23,8 +23,10 @@ static const float2 corners[6] = { { 0, 1 }, { 1, 1 }, { 1, 0 },
 VertexOutput vertexMain(VertexInput input, uint vertexID: SV_VertexID) {
   VertexOutput output;
 
-  float4 clipStart = mul(camera.ViewProjectionMatrix, float4(input.start, 1.0));
-  float4 clipEnd = mul(camera.ViewProjectionMatrix, float4(input.end, 1.0));
+  float4 clipStart =
+      mul(CameraData[0].ViewProjectionMatrix, float4(input.start, 1.0));
+  float4 clipEnd =
+      mul(CameraData[0].ViewProjectionMatrix, float4(input.end, 1.0));
 
   // Only use NDC for screen-space calculations.
   float3 ndcStart = clipStart.xyz / clipStart.w;

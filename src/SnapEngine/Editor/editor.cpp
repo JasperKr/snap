@@ -309,8 +309,7 @@ auto Editor::PickEntity(const Graphics::GraphicsContext &context,
   CHECK_ERR(shader->Send(context, {"TraceResults"},
                          {pickBuffer, Graphics::StorageBuffer::write}));
 
-  CHECK_ERR(
-      Graphics::UniformWriter::Send(shader, {"PushConstants", "uv"}, mousePos));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, {"uv"}, mousePos));
 
   Graphics::RenderState::SetShader(shader);
 

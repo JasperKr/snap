@@ -1,4 +1,4 @@
-uniform SamplerCube EnvironmentTexture;
+uniform SamplerCube.Handle EnvironmentTexture;
 
 #include "fullscreen.slang"
 

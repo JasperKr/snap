@@ -1,12 +1,7 @@
 import raytracing;
 import camera;
 
-struct PushConstantBuffer {
-  float2 uv;
-};
-
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform float2 uv;
 
 struct TraceResult {
   uint instanceIndex;
@@ -15,19 +10,19 @@ struct TraceResult {
   uint padding;
 };
 
-RWStructuredBuffer<TraceResult> TraceResults;
+uniform RWStructuredBuffer<TraceResult>.Handle TraceResults;
 
 [shader("compute")]
 [numthreads(1, 1, 1)]
 void computeMain(uint3 id: SV_DispatchThreadID) {
-  float3 rayOrigin = camera.Position;
-  float3 rayDirection = camera.GetRayDirection(PushConstants.uv);
+  float3 rayOrigin = CameraData[0].Position;
+  float3 rayDirection = CameraData[0].GetRayDirection(uv);
 
   RayDesc ray;
   ray.Origin = rayOrigin;
   ray.Direction = rayDirection;
-  ray.TMin = camera.Near;
-  ray.TMax = camera.Far;
+  ray.TMin = CameraData[0].Near;
+  ray.TMax = CameraData[0].Far;
 
   RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_FORCE_OPAQUE> q;
   q.TraceRayInline(SceneBVH,

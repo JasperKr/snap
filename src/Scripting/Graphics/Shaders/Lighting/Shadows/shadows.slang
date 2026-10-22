@@ -20,18 +20,13 @@ import rectangleLight;
 
 #define SHADER_TYPE_SHADOW_SAMPLING
 
-Sampler2D DepthTexture;
-Sampler2D NormalTexture;
-RWTexture2D<uint> OutputTexture;
+uniform Sampler2D.Handle DepthTexture;
+uniform Sampler2D.Handle NormalTexture;
+uniform RWTexture2D<uint>.Handle OutputTexture;
 
-struct PushConstantBuffer {
-  uint LightIndex;
-  uint LayerOffset;
-  uint FrameRandomState;
-};
-
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint LightIndex;
+uniform uint LayerOffset;
+uniform uint FrameRandomState;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
@@ -44,7 +39,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     return;
   }
 
-  id.z += PushConstants.LayerOffset;
+  id.z += LayerOffset;
 
   float2 uv = (float2(id.xy) + 0.5) / float2(width, height);
 
@@ -57,36 +52,31 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     return;
   }
 
-  float3 worldPosition = camera.GetWorldPosition(uv, depth);
+  float3 worldPosition = CameraData[0].GetWorldPosition(uv, depth);
   uint2 screenCoords = uint2(id.xy);
-  uint randomState = PushConstants.FrameRandomState + screenCoords.x * 1702 +
-                     screenCoords.y * 40301;
+  uint randomState =
+      FrameRandomState + screenCoords.x * 1702 + screenCoords.y * 40301;
 
 #ifdef SHADER_LIGHT_TYPE_DIRECTIONAL
   bool inShadow = DirectionalLight::TraceShadow(
-      worldPosition, PushConstants.LightIndex + id.z, normal, screenCoords,
-      randomState);
+      worldPosition, LightIndex + id.z, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_POINT)
-  bool inShadow =
-      PointLight::TraceShadow(worldPosition, PushConstants.LightIndex + id.z,
-                              normal, screenCoords, randomState);
+  bool inShadow = PointLight::TraceShadow(worldPosition, LightIndex + id.z,
+                                          normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPOT)
-  bool inShadow =
-      SpotLight::TraceShadow(worldPosition, PushConstants.LightIndex + id.z,
-                             normal, screenCoords, randomState);
+  bool inShadow = SpotLight::TraceShadow(worldPosition, LightIndex + id.z,
+                                         normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPHERE)
-  bool inShadow =
-      SphereLight::TraceShadow(worldPosition, PushConstants.LightIndex + id.z,
-                               normal, screenCoords, randomState);
+  bool inShadow = SphereLight::TraceShadow(worldPosition, LightIndex + id.z,
+                                           normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_RECTANGLE)
   bool inShadow = RectangleLight::TraceShadow(
-      worldPosition, PushConstants.LightIndex + id.z, normal, screenCoords,
-      randomState);
+      worldPosition, LightIndex + id.z, normal, screenCoords, randomState);
 #else
   bool inShadow = false;
 #endif
 
   uint shadowBit = inShadow ? (1U << id.z) : 0;
 
-  InterlockedOr(OutputTexture[id.xy], shadowBit);
+  // InterlockedOr(OutputTexture[id.xy], shadowBit);
 }

@@ -5,11 +5,11 @@ import constants;
 #define ERP
 
 #if defined(CUBE_MAP)
-SamplerCube SkyboxTexture;
+uniform SamplerCube.Handle SkyboxTexture;
 #elif defined(ERP)
-Sampler2D SkyboxTexture;
+uniform Sampler2D.Handle SkyboxTexture;
 #endif
-Sampler2D DepthTexture;
+uniform Sampler2D.Handle DepthTexture;
 
 #include "fullscreen.slang"
 
@@ -32,9 +32,9 @@ FragmentOutput fragmentMain(float2 tex_coord: TEXCOORDS) {
     discard;
   }
 
-  float3 rayDirection = camera.GetRayDirection(tex_coord);
+  float3 rayDirection = CameraData[0].GetRayDirection(tex_coord);
 
-  float3 previous = camera.ReprojectToPreviousUVs(tex_coord, depth);
+  float3 previous = CameraData[0].ReprojectToPreviousUVs(tex_coord, depth);
   float2 motion = PackMotionVector(tex_coord - previous.xy);
 
 #if defined(CUBE_MAP)

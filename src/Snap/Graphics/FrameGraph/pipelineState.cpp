@@ -371,8 +371,6 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   viewportState.scissorCount = 1;
   viewportState.pScissors = &scissor;
 
-  PrintAlways("Viewport: {}x{}", viewport.width, viewport.height);
-
   /// Multisampling ///
 
   VkPipelineMultisampleStateCreateInfo multisampling = {};
@@ -534,12 +532,44 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
 
   PrintDebug("Creating compute pipeline");
 
+  VkShaderDescriptorSetAndBindingMappingInfoEXT globalUBOMappingInfo{};
+  globalUBOMappingInfo.mappingCount = 1;
+  globalUBOMappingInfo.sType =
+      VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT;
+  globalUBOMappingInfo.pNext = nullptr;
+
+  VkDescriptorSetAndBindingMappingEXT globalUBOMapping{
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_AND_BINDING_MAPPING_EXT,
+      .pNext = nullptr,
+      .descriptorSet = 0,
+      .firstBinding = 0,
+      .bindingCount = 1,
+      .resourceMask = VK_SPIRV_RESOURCE_TYPE_UNIFORM_BUFFER_BIT_EXT,
+      .source = VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT,
+      .sourceData{
+          .pushIndex{
+              .heapOffset = 0,
+              .pushOffset = 0,
+              .heapIndexStride = static_cast<uint32_t>(
+                  DescriptorHeapManager::GetInstance()
+                      .heapProperties.bufferDescriptorSize),
+              .heapArrayStride = 0,
+          },
+      },
+  };
+
+  globalUBOMappingInfo.pMappings = &globalUBOMapping;
+  std::vector<VkPipelineShaderStageCreateInfo> shaderStages{};
+
+  assert(state.shader.get() != nullptr);
+
   VkComputePipelineCreateInfo pipelineInfo = {};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
   pipelineInfo.stage.sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   pipelineInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
   pipelineInfo.stage.module = state.shader->module;
+  pipelineInfo.stage.pNext = &globalUBOMappingInfo;
 
   if ((state.shader->combinedShaderStages & VK_SHADER_STAGE_COMPUTE_BIT) == 0) {
     return Error::Unexpectedf(

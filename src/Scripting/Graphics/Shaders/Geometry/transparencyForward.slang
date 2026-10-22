@@ -9,14 +9,9 @@ import Lighting.Lights.directionalLight;
 
 import transform;
 
-struct PushConstantBuffer {
-  uint MaterialBufferIndex;
-  uint ModelTransformIndex;
-  uint FrameRandomState;
-};
-
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint MaterialBufferIndex;
+uniform uint ModelTransformIndex;
+uniform uint FrameRandomState;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -39,10 +34,10 @@ struct VertexInput {
 VertexStageOutput vertexMain(VertexInput input) {
   VertexStageOutput out;
 
-  Transform transform = GetModelTransform(PushConstants.ModelTransformIndex);
+  Transform transform = GetModelTransform(ModelTransformIndex);
 
   float4 worldPos = mul(float4(input.Position, 1.0), transform.ModelMatrix);
-  out.sv_position = mul(camera.ViewProjectionMatrix, worldPos);
+  out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
 
   float3x3 NormalMatrix = float3x3(transform.NormalMatrix);
 
@@ -69,11 +64,11 @@ struct FragmentInput {
   float4 screenCoords : SV_Position;
 };
 
-Sampler2D AlbedoTexture;
-Sampler2D MetallicRoughnessTexture;
-Sampler2D NormalTexture;
-Sampler2D EmissiveTexture;
-Sampler2D ReflectanceTexture;
+uniform Sampler2D.Handle AlbedoTexture;
+uniform Sampler2D.Handle MetallicRoughnessTexture;
+uniform Sampler2D.Handle NormalTexture;
+uniform Sampler2D.Handle EmissiveTexture;
+uniform Sampler2D.Handle ReflectanceTexture;
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {
@@ -86,7 +81,7 @@ float4 fragmentMain(FragmentInput input) {
   }
 
   float4 texColor = AlbedoTexture.Sample(input.tex_coord);
-  MaterialData matData = MaterialBuffer[PushConstants.MaterialBufferIndex];
+  MaterialData matData = MaterialBuffer[MaterialBufferIndex];
 
   float alpha = texColor.a * matData.albedoFactor.a;
 
@@ -119,19 +114,19 @@ float4 fragmentMain(FragmentInput input) {
   pixel.PerceptualRoughness = perceptualRoughness;
   pixel.Fresnel0 = ComputeFresnel0(albedo, metallic, reflectance);
 
-  float3 viewDir = normalize(camera.Position - input.WorldPosition);
+  float3 viewDir = normalize(CameraData[0].Position - input.WorldPosition);
 
   float NoV = ClampNoV(dot(normal, viewDir));
   float lambdaV = ComputeLambdaV(pixel.Roughness, NoV);
 
   uint state =
       uint(input.tex_coord.x * 10000.0f) ^ uint(input.tex_coord.y * 10000.0f);
-  state ^= PushConstants.FrameRandomState;
+  state ^= FrameRandomState;
   uint2 screenCoords = uint2(input.screenCoords.xy);
 
-  float3 direct = DirectionalLight::SampleAll(
-      input.WorldPosition, pixel, viewDir, NoV, lambdaV, state, screenCoords,
-      PushConstants.FrameRandomState);
+  float3 direct = DirectionalLight::SampleAll(input.WorldPosition, pixel,
+                                              viewDir, NoV, lambdaV, state,
+                                              screenCoords, FrameRandomState);
   float3 E = prefilteredDFG(pixel.PerceptualRoughness, pixel.Fresnel0, NoV);
   float3 diffuse = ComputeDiffuseColor(pixel.Albedo, pixel.Metallic);
 

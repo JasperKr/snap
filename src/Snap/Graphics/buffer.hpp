@@ -67,7 +67,6 @@ struct Buffer : Object, Identifiable {
   VkBuffer handle = VK_NULL_HANDLE;
   VmaAllocation memory = VK_NULL_HANDLE;
   VkDeviceSize size = 0;
-  uint64_t sizeInBytes = 0;
   mutable void *mappedData = nullptr;
 
   mutable uint64_t lastUsedTimestamp{};

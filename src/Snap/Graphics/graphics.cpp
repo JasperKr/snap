@@ -332,6 +332,7 @@ static auto CreateDevice(GraphicsContext &context,
   VkPhysicalDeviceFeatures features10{};
   features10.samplerAnisotropy = VK_TRUE;
   features10.textureCompressionBC = VK_TRUE;
+  features10.shaderInt64 = VK_TRUE;
 
   // --- Features2 root ---
   VkPhysicalDeviceFeatures2 features2{
