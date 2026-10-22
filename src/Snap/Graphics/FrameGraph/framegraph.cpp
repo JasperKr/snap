@@ -733,7 +733,7 @@ auto FrameGraph::InsertBarriers() -> Error {
   return {};
 }
 
-inline auto GetRenderExtent(const Graphics::GraphState &state) -> VkExtent2D {
+inline auto GetRenderExtent(const Graphics::VirtualState &state) -> VkExtent2D {
   assert(state.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   if (!state.colorAttachments.empty()) {
@@ -755,7 +755,7 @@ inline auto GetRenderExtent(const Graphics::GraphState &state) -> VkExtent2D {
 }
 
 inline auto DrawStateToRenderingInfo(const GraphicsContext &context,
-                                     const GraphState &renderState)
+                                     const VirtualState &renderState)
     -> Result<VkRenderingInfo> {
   ZoneScoped;
 
@@ -1034,8 +1034,8 @@ auto FrameGraph::BuildReadyState() -> Error {
   return {};
 }
 
-inline auto ComparePipelineCompatability(const GraphState &state,
-                                         const GraphState &other) {
+inline auto ComparePipelineCompatability(const VirtualState &state,
+                                         const VirtualState &other) {
   if (state.colorAttachments != other.colorAttachments) {
     return false;
   }
@@ -1072,12 +1072,12 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
   const auto *childDrawState = child.GetDrawState();
 
   if (parentDrawState != nullptr) { // Parent is rendering
-    const auto *graphState = parentDrawState->GetGraphState();
+    const auto *virtualState = parentDrawState->GetGraphState();
 
     if (childDrawState != nullptr) { // Child is rendering
       const auto *childGraphState = childDrawState->GetGraphState();
 
-      if (!ComparePipelineCompatability(*graphState, *childGraphState)) {
+      if (!ComparePipelineCompatability(*virtualState, *childGraphState)) {
         cost += EndRenderingCost;
 
         if (childGraphState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
@@ -1085,7 +1085,7 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
         }
 
         // Full compat check, including blend mode, back face etc..
-      } else if (graphState != childGraphState) {
+      } else if (virtualState != childGraphState) {
         cost += DynamicStateUpdateCost;
       }
     } else { // Child is not rendering
@@ -1285,16 +1285,16 @@ auto FrameGraph::BuildLoadOpModes() -> void {
     assert(stateID < UINT32_MAX);
     assert(stateID < states.size());
 
-    const GraphState &graphState = states.at(stateID);
+    const VirtualState &virtualState = states.at(stateID);
 
     bool sameColorAttachments =
-        lastColorAttachments == graphState.colorAttachments;
+        lastColorAttachments == virtualState.colorAttachments;
 
     bool sameDepthStencil = true;
 
-    if (graphState.hasDepthStencilAttachment) {
+    if (virtualState.hasDepthStencilAttachment) {
       sameDepthStencil = lastDepthStencilAttachment ==
-                         graphState.depthStencilAttachment.texture->getID();
+                         virtualState.depthStencilAttachment.texture->getID();
     } else {
       sameDepthStencil = lastDepthStencilAttachment == UINT64_MAX;
     }
@@ -1303,15 +1303,16 @@ auto FrameGraph::BuildLoadOpModes() -> void {
 
     // Force Load Op Load if we aren't on the first iteration, and if the attachments were the same.
     loadOpConfigs.emplace(
-        command.id, LoadOpConfig::FromGraphState(
-                        graphState, !isFirstIteration && !attachmentsChanged));
+        command.id,
+        LoadOpConfig::FromGraphState(virtualState,
+                                     !isFirstIteration && !attachmentsChanged));
     isFirstIteration = false;
 
-    lastColorAttachments = graphState.colorAttachments;
+    lastColorAttachments = virtualState.colorAttachments;
 
-    if (graphState.hasDepthStencilAttachment) {
+    if (virtualState.hasDepthStencilAttachment) {
       lastDepthStencilAttachment =
-          graphState.depthStencilAttachment.texture->getID();
+          virtualState.depthStencilAttachment.texture->getID();
     } else {
       lastDepthStencilAttachment = UINT64_MAX;
     }

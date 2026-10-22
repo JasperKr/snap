@@ -1,6 +1,7 @@
 #include "commands.hpp"
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
+#include "Graphics/FrameGraph/virtualState.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/renderState.hpp"
 #include "Graphics/vkAccessHelpers.hpp"
@@ -9,11 +10,13 @@
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
+#include "commandState.hpp"
 #include "dynamicRendering.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <public/tracy/Tracy.hpp>
 #include <unordered_map>
 #include <utility>
@@ -133,47 +136,8 @@ auto DrawState::GetAccesses(
                      std::make_pair(bound.access, bound.pipelines));
   }
 
-  const auto *graphState = GetGraphState_const();
-
-  if (graphState->bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
+  if (bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
     return;
-  }
-
-  for (int i = 0; i < colorAttachments.size(); i++) {
-    const auto &attachment = colorAttachments.at(i);
-
-    const bool blendEnabled =
-        graphState->colorAttachments.at(i).blendMode.blendEnable != 0U;
-
-    VkAccessFlags2 access{};
-    VkPipelineStageFlags2 pipelines{};
-
-    // if (blendEnabled) {
-    access |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
-    // }
-
-    access |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-    pipelines |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-    accesses.emplace(attachment.resource, std::make_pair(access, pipelines));
-  }
-
-  if (depthStencilAttachment.has_value()) {
-    VkAccessFlags2 access{};
-    VkPipelineStageFlags2 pipelines{};
-
-    if (graphState->depthTestEnable != 0U) {
-      access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-      pipelines |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
-    }
-
-    if (graphState->depthWriteEnable != 0U) {
-      access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      pipelines |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
-    }
-
-    accesses.emplace(depthStencilAttachment->resource,
-                     std::make_pair(access, pipelines));
   }
 
   for (const VkBuffer buffer : vertexBuffers) {
@@ -216,21 +180,11 @@ auto DrawState::GetReadStateFor(const VulkanResource &resource,
   flags |= getFlags(boundBuffers, resource);
   flags |= getFlags(boundASs, resource);
 
-  const auto *graphState = GetGraphState();
-
-  if (graphState->bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
+  if (bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
     return flags.Get();
   }
 
-  if (resource.type == VulkanResource::ResourceType::Image) {
-    if (depthStencilAttachment.has_value() &&
-        depthStencilAttachment->Overlaps(resource) &&
-        graphState->depthWriteEnable == 0U &&
-        graphState->depthTestEnable == 1U) {
-      flags.access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-      flags.pipelines |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
-    }
-  } else if (resource.type == VulkanResource::ResourceType::Buffer) {
+  if (resource.type == VulkanResource::ResourceType::Buffer) {
     for (const auto &buffer : vertexBuffers) {
       if (buffer == resource.buffer) {
         flags.access |= VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
@@ -273,33 +227,10 @@ auto DrawState::GetWriteStateFor(const VulkanResource &resource,
   flags |= getFlags(boundBuffers, resource);
   flags |= getFlags(boundASs, resource);
 
-  const auto *graphState = GetGraphState();
-
-  if (graphState->bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
-    return flags.Get();
-  }
-
-  if (resource.type == VulkanResource::ResourceType::Buffer) {
-    for (const auto &attachment : colorAttachments) {
-      if (attachment.Overlaps(resource)) {
-        flags.access |= VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-        flags.pipelines |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-      }
-    }
-
-    if (depthStencilAttachment.has_value() &&
-        depthStencilAttachment->Overlaps(resource)) {
-      if (graphState->depthWriteEnable != 0U) {
-        flags.access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        flags.pipelines |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
-      }
-    }
-  }
-
   return flags.Get();
 }
 
-auto GraphState::GetHash() const -> uint64_t {
+auto VirtualState::GetHash() const -> uint64_t {
   if (dirty) {
     Hash::Hasher hasher{};
 
@@ -377,83 +308,6 @@ auto DrawState::Initialize(CommandType type) -> Error {
   const auto &context = *GetCurrentGraphicsContext();
 
   const auto &ctx = GetThreadContext();
-  auto *graphState = ctx.commandBuffer->GetGraphState();
-
-  if (graphState->shader != shader ||
-      graphState->bindPoint != RenderState::GetBindPoint()) {
-    graphState->MarkUpdated();
-  }
-
-  graphState->shader = shader;
-  graphState->bindPoint = RenderState::GetBindPoint();
-
-  bool isCompute =
-      (shader->combinedShaderStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
-
-  if ((!isCompute || type == CommandType::vkCmdClearAttachments)) {
-    graphState->scissor = RenderState::GetScissor();
-    graphState->viewport = RenderState::GetClippedViewport();
-    graphState->cullMode = RenderState::GetCullMode();
-    graphState->polygonMode = RenderState::GetPolygonMode();
-    graphState->depthTestEnable = RenderState::TopOfStack->depthTestEnable;
-    graphState->depthWriteEnable = RenderState::TopOfStack->depthWriteEnable;
-    graphState->depthCompareOp = RenderState::TopOfStack->depthCompareOp;
-    graphState->stencilTestEnable = RenderState::TopOfStack->stencilTestEnable;
-    graphState->frontFace = RenderState::GetWindingOrder();
-    graphState->primitiveTopology = RenderState::GetTopology();
-
-    graphState->colorBlendEquations.resize(
-        RenderState::TopOfStack->colorBlendEquations.size());
-    memcpy(graphState->colorBlendEquations.data(),
-           RenderState::TopOfStack->colorBlendEquations.data(),
-           RenderState::TopOfStack->colorBlendEquations.size() *
-               sizeof(VkColorBlendEquationEXT));
-
-    graphState->colorAttachments = RenderState::TopOfStack->colorAttachments;
-    graphState->depthStencilAttachment =
-        RenderState::TopOfStack->depthStencilAttachment;
-    graphState->hasDepthStencilAttachment =
-        RenderState::TopOfStack->hasDepthStencilAttachment;
-
-    graphState->MarkUpdated();
-
-    assert(!graphState->colorAttachments.empty());
-  }
-
-  if (!isCompute) {
-    VkAccessFlags2 depthAccess = VK_ACCESS_2_NONE;
-    VkPipelineStageFlags2 depthPipelines = VK_PIPELINE_STAGE_2_NONE;
-
-    // clang-format off
-    depthAccess |= (graphState->depthTestEnable != 0U) ? VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT : 0U;
-    depthAccess |= (graphState->depthWriteEnable != 0U) ? VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT : 0U;
-
-    depthPipelines |= (graphState->depthTestEnable != 0U) ? VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT : 0U;
-    depthPipelines |= (graphState->depthWriteEnable != 0U) ? VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT : 0U;
-    // clang-format on
-
-    colorAttachments.reserve(RenderState::TopOfStack->colorAttachments.size());
-    colorAttachments.clear();
-
-    for (const auto &target : RenderState::TopOfStack->colorAttachments) {
-      colorAttachments.emplace_back(BoundResource{
-          .resource = ImageSubresource{target.texture},
-          // clang-format off
-            .access = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT,
-            .pipelines = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-          // clang-format on
-      });
-    }
-
-    if (RenderState::TopOfStack->hasDepthStencilAttachment) {
-      depthStencilAttachment = BoundResource{
-          .resource =
-              ImageSubresource{
-                  RenderState::TopOfStack->depthStencilAttachment.texture},
-          .access = depthAccess,
-          .pipelines = depthPipelines};
-    }
-  }
 
   const auto &shaderState = shader->GetState();
   const auto &pipelines = shader->combinedPipelineStages;
@@ -492,31 +346,20 @@ auto DrawState::Initialize(CommandType type) -> Error {
     });
   }
 
-  vertexBuffers.resize(graphState->vertexBuffers.size());
-  memcpy(vertexBuffers.data(), graphState->vertexBuffers.data(), // NOLINT
-         graphState->vertexBuffers.size() * sizeof(VkBuffer));
+  VirtualState &currentState = GetVirtualCommandBuffer()->currentState;
 
-  vertexBufferOffsets.resize(graphState->vertexBufferOffsets.size());
-  memcpy(vertexBufferOffsets.data(), graphState->vertexBufferOffsets.data(),
-         graphState->vertexBufferOffsets.size() * sizeof(VkDeviceSize));
+  vertexBuffers.resize(currentState.vertexBuffers.size());
+  memcpy(vertexBuffers.data(),              // NOLINT
+         currentState.vertexBuffers.data(), // NOLINT
+         currentState.vertexBuffers.size() * sizeof(VkBuffer));
 
-  indexBuffer = graphState->indexBuffer;
-  indexBufferOffset = graphState->indexBufferOffset;
-  indexType = graphState->indexType;
+  vertexBufferOffsets.resize(currentState.vertexBufferOffsets.size());
+  memcpy(vertexBufferOffsets.data(), currentState.vertexBufferOffsets.data(),
+         currentState.vertexBufferOffsets.size() * sizeof(VkDeviceSize));
 
-  thread_local uint32_t lastID{};
-  thread_local GraphState lastState;
-  thread_local uint64_t lastStateFrameIdx = UINT64_MAX;
-
-  if (lastStateFrameIdx == context.currentFrame &&
-      ctx.commandBuffer->currentState == lastState) {
-    stateID = lastID;
-  } else {
-    stateID = ctx.commandBuffer->GetStateID();
-    lastID = stateID;
-    lastState = ctx.commandBuffer->currentState;
-    lastStateFrameIdx = context.currentFrame;
-  }
+  indexBuffer = currentState.indexBuffer;
+  indexBufferOffset = currentState.indexBufferOffset;
+  indexType = currentState.indexType;
 
   auto &buffer = GetGlobalUniformBuffer(context.frameIndex);
   auto offset = buffer.GetOffset();
@@ -531,332 +374,6 @@ auto DrawState::Initialize(CommandType type) -> Error {
                                      offset, shader->globalUniforms.size()));
 
   return {};
-}
-
-auto GetReads(const Command &command) -> const std::vector<VulkanResource> & {
-  static const std::vector<VulkanResource> empty{};
-  const auto *bound = get_if_derived<BoundResources>(command.data);
-
-  if (bound != nullptr) {
-    return bound->reads;
-  }
-
-  return empty;
-}
-
-auto GetWrites(const Command &command) -> const std::vector<VulkanResource> & {
-  static const std::vector<VulkanResource> empty{};
-  const auto *bound = get_if_derived<BoundResources>(command.data);
-
-  if (bound != nullptr) {
-    return bound->writes;
-  }
-
-  return empty;
-}
-
-inline auto GetReadsFromDrawState(DrawState &state, bool getRendertargets,
-                                  std::vector<VulkanResource> &reads) -> void {
-
-  for (const auto &image : state.boundImages) {
-    if (VkAccessHelpers::IsReadAccess(image.access)) {
-      reads.emplace_back(image.resource);
-    }
-  }
-
-  for (const auto &buffer : state.boundBuffers) {
-    if (VkAccessHelpers::IsReadAccess(buffer.access)) {
-      reads.emplace_back(buffer.resource);
-    }
-  }
-
-  for (const auto &accel : state.boundASs) {
-    reads.emplace_back(accel.resource);
-  }
-
-  if (!getRendertargets) {
-    return;
-  }
-
-  for (const auto &vertexBuffer : state.vertexBuffers) {
-    if (vertexBuffer != VK_NULL_HANDLE) {
-      reads.emplace_back(vertexBuffer);
-    }
-  }
-
-  if (state.indexBuffer != VK_NULL_HANDLE) {
-    reads.emplace_back(state.indexBuffer);
-  }
-
-  for (const auto &colorAttachment : state.colorAttachments) {
-    reads.emplace_back(colorAttachment.resource);
-  }
-
-  if (state.depthStencilAttachment.has_value()) {
-    reads.emplace_back(state.depthStencilAttachment->resource);
-  }
-}
-
-inline auto GetReadsInternal(Command &command, DrawState *drawState,
-                             std::vector<VulkanResource> &reads) -> void {
-  ZoneScoped;
-  if (drawState != nullptr) {
-    bool getRendertargets = drawState->GetGraphState()->bindPoint ==
-                            VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-    GetReadsFromDrawState(*drawState, getRendertargets, reads);
-    return;
-  }
-
-  switch (command.GetType()) {
-  case CommandType::vkCmdBlitImage: {
-    const auto &args = std::get<Args::VkCmdBlitImage>(command.data);
-    reads.append_range(args.srcResources);
-    break;
-  }
-  case CommandType::mipmapTexture: {
-    const auto &args = std::get<Args::MipmapTexture>(command.data);
-    reads.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1,
-                                        0, args.texture->GetMipmapCount()));
-    break;
-  }
-  case CommandType::vkCmdCopyBuffer: {
-    const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
-    reads.emplace_back(args.srcBuffer);
-    break;
-  }
-  case CommandType::vkCmdCopyImage: {
-    const auto &args = std::get<Args::VkCmdCopyImage>(command.data);
-    reads.append_range(args.srcResources);
-    break;
-  }
-  case CommandType::vkCmdCopyBufferToImage: {
-    const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command.data);
-    reads.emplace_back(args.srcBuffer);
-    break;
-  }
-  case CommandType::vkCmdCopyImageToBuffer: {
-    const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
-    reads.append_range(args.srcResources);
-    break;
-  }
-  case CommandType::vkCmdPipelineBarrier2: {
-    const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
-    for (const auto &barrier : args.imageMemoryBarriers) {
-      reads.emplace_back(
-          ImageSubresource(barrier.image, barrier.subresourceRange));
-    }
-
-    for (const auto &barrier : args.bufferMemoryBarriers) {
-      reads.emplace_back(barrier.buffer);
-    }
-    break;
-  }
-  case CommandType::vkCmdBuildAccelerationStructuresKHR: {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
-    reads.append_range(args.bufferReads);
-    break;
-  }
-  default:
-    return;
-  }
-}
-
-inline auto GetWritesFromDrawState(DrawState &state, bool getRendertargets,
-                                   std::vector<VulkanResource> &writes)
-    -> void {
-
-  for (const auto &buffer : state.boundBuffers) {
-    if (VkAccessHelpers::IsWriteAccess(buffer.access)) {
-      writes.emplace_back(buffer.resource);
-    }
-  }
-
-  for (const auto &image : state.boundImages) {
-    if (VkAccessHelpers::IsWriteAccess(image.access)) {
-      writes.emplace_back(image.resource);
-    }
-  }
-
-  if (!getRendertargets) {
-    return;
-  }
-
-  for (const auto &colorAttachment : state.colorAttachments) {
-    writes.emplace_back(colorAttachment.resource);
-  }
-
-  if (state.depthStencilAttachment.has_value()) {
-    writes.emplace_back(state.depthStencilAttachment->resource);
-  }
-}
-
-inline auto GetWritesInternal(Command &command, DrawState *drawState,
-                              std::vector<VulkanResource> &writes) -> void {
-  ZoneScoped;
-  if (drawState != nullptr) {
-    bool getRendertargets = drawState->GetGraphState()->bindPoint ==
-                            VK_PIPELINE_BIND_POINT_GRAPHICS;
-    getRendertargets = getRendertargets ||
-                       command.GetType() == CommandType::vkCmdClearAttachments;
-
-    GetWritesFromDrawState(*drawState, getRendertargets, writes);
-    return;
-  }
-
-  switch (command.GetType()) {
-  case CommandType::vkCmdBlitImage: {
-    const auto &args = std::get<Args::VkCmdBlitImage>(command.data);
-    writes.append_range(args.dstResources);
-    break;
-  }
-  case CommandType::mipmapTexture: {
-    const auto &args = std::get<Args::MipmapTexture>(command.data);
-    writes.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1,
-                                         0, args.texture->GetMipmapCount()));
-    break;
-  }
-  case CommandType::vkCmdCopyBuffer: {
-    const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
-    writes.emplace_back(args.dstBuffer);
-    break;
-  }
-  case CommandType::vkCmdCopyImage: {
-    const auto &args = std::get<Args::VkCmdCopyImage>(command.data);
-    writes.append_range(args.dstResources);
-    break;
-  }
-  case CommandType::vkCmdCopyBufferToImage: {
-    const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command.data);
-    writes.append_range(args.dstResources);
-    break;
-  }
-  case CommandType::vkCmdCopyImageToBuffer: {
-    const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
-    writes.emplace_back(args.dstBuffer);
-    break;
-  }
-  case CommandType::vkCmdFillBuffer: {
-    const auto &args = std::get<Args::VkCmdFillBuffer>(command.data);
-    writes.emplace_back(args.dstBuffer);
-    break;
-  }
-  case CommandType::vkCmdPipelineBarrier2: {
-    const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
-    for (const auto &barrier : args.imageMemoryBarriers) {
-      writes.emplace_back(
-          ImageSubresource(barrier.image, barrier.subresourceRange));
-    }
-
-    for (const auto &barrier : args.bufferMemoryBarriers) {
-      writes.emplace_back(barrier.buffer);
-    }
-    break;
-  }
-  case CommandType::vkCmdBuildAccelerationStructuresKHR: {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
-    writes.append_range(args.bufferWrites);
-    break;
-  }
-  default:
-    return;
-  }
-}
-
-// NOLINTNEXTLINE
-auto GetResourceAccesses(
-    const Command *command,
-    std::unordered_map<VulkanResource,
-                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
-                       VulkanResourceHash<true>> &accesses) -> void {
-  ZoneScoped;
-
-  const auto *drawState = command->GetDrawState();
-
-  if (drawState != nullptr) {
-    drawState->GetAccesses(accesses);
-  } else if (std::holds_alternative<Args::VkCmdBlitImage>(command->data)) {
-    const auto &args = std::get<Args::VkCmdBlitImage>(command->data);
-
-    for (const auto &srcResource : args.srcResources) {
-      accesses.emplace(srcResource,
-                       std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                      VK_PIPELINE_STAGE_2_TRANSFER_BIT));
-    }
-
-    for (const auto &dstResource : args.dstResources) {
-      accesses.emplace(dstResource,
-                       std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                      VK_PIPELINE_STAGE_2_TRANSFER_BIT));
-    }
-  } else if (std::holds_alternative<Args::MipmapTexture>(command->data)) {
-    const auto &args = std::get<Args::MipmapTexture>(command->data);
-    accesses.emplace(VulkanResource(ImageSubresource(args.texture)),
-                     std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                    VK_PIPELINE_STAGE_2_TRANSFER_BIT));
-  } else if (std::holds_alternative<Args::VkCmdCopyBuffer>(command->data)) {
-    const auto &args = std::get<Args::VkCmdCopyBuffer>(command->data);
-    accesses.emplace(VulkanResource(args.srcBuffer),
-                     std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                    VK_PIPELINE_STAGE_2_COPY_BIT));
-    accesses.emplace(VulkanResource(args.dstBuffer),
-                     std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                    VK_PIPELINE_STAGE_2_COPY_BIT));
-  } else if (std::holds_alternative<Args::VkCmdCopyImage>(command->data)) {
-    const auto &args = std::get<Args::VkCmdCopyImage>(command->data);
-    for (const auto &resource : args.srcResources) {
-      accesses.emplace(resource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                                VK_PIPELINE_STAGE_2_COPY_BIT));
-    }
-    for (const auto &resource : args.dstResources) {
-      accesses.emplace(resource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                                VK_PIPELINE_STAGE_2_COPY_BIT));
-    }
-  } else if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(
-                 command->data)) {
-    const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command->data);
-    accesses.emplace(args.srcBuffer,
-                     std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                    VK_PIPELINE_STAGE_2_COPY_BIT));
-    for (const auto &resource : args.dstResources) {
-      accesses.emplace(resource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                                VK_PIPELINE_STAGE_2_COPY_BIT));
-    }
-  } else if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(
-                 command->data)) {
-    const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command->data);
-    for (const auto &resource : args.srcResources) {
-      accesses.emplace(resource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                                VK_PIPELINE_STAGE_2_COPY_BIT));
-    }
-    accesses.emplace(args.dstBuffer,
-                     std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                    VK_PIPELINE_STAGE_2_COPY_BIT));
-  } else if (std::holds_alternative<Args::VkCmdFillBuffer>(command->data)) {
-    const auto &args = std::get<Args::VkCmdFillBuffer>(command->data);
-    accesses.emplace(args.dstBuffer,
-                     std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                    VK_PIPELINE_STAGE_2_TRANSFER_BIT));
-  } else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
-                 command->data)) {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command->data);
-    for (const auto &read : args.reads) {
-      accesses.emplace(
-          read, std::make_pair(
-                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                        VK_ACCESS_2_SHADER_READ_BIT,
-                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR));
-    }
-    for (const auto &write : args.writes) {
-      accesses.emplace(
-          write, std::make_pair(
-                     VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
-                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR));
-    }
-  }
 }
 
 inline auto GetNewEmptyArgs(CommandType type) -> ArgVariants {
@@ -908,6 +425,89 @@ inline auto GetNewEmptyArgs(CommandType type) -> ArgVariants {
   assert(false);
 }
 
+auto VirtualCommandBuffer::NewRenderpass() -> CommandID {
+  CommandID renderPassID = GetNewCommand(CommandType::renderPass);
+  currentRenderPass = commandStorage.at(renderPassID);
+  auto &newPassData = std::get<RenderPass>(currentRenderPass->data);
+
+  newPassData.commands.clear();
+  newPassData.reads.clear();
+  newPassData.writes.clear();
+  newPassData.accesses.clear();
+
+  auto &virtualState = newPassData.state;
+  virtualState.MarkUpdated();
+
+  auto shader = RenderState::GetShader();
+
+  virtualState.shader = shader;
+  virtualState.bindPoint = RenderState::GetBindPoint();
+
+  virtualState.scissor = RenderState::GetScissor();
+  virtualState.viewport = RenderState::GetClippedViewport();
+  virtualState.cullMode = RenderState::GetCullMode();
+  virtualState.polygonMode = RenderState::GetPolygonMode();
+  virtualState.depthTestEnable = RenderState::TopOfStack->depthTestEnable;
+  virtualState.depthWriteEnable = RenderState::TopOfStack->depthWriteEnable;
+  virtualState.depthCompareOp = RenderState::TopOfStack->depthCompareOp;
+  virtualState.stencilTestEnable = RenderState::TopOfStack->stencilTestEnable;
+  virtualState.frontFace = RenderState::GetWindingOrder();
+  virtualState.primitiveTopology = RenderState::GetTopology();
+
+  virtualState.colorBlendEquations.resize(
+      RenderState::TopOfStack->colorBlendEquations.size());
+  memcpy(virtualState.colorBlendEquations.data(),
+         RenderState::TopOfStack->colorBlendEquations.data(),
+         RenderState::TopOfStack->colorBlendEquations.size() *
+             sizeof(VkColorBlendEquationEXT));
+
+  VkAccessFlags2 depthAccess = VK_ACCESS_2_NONE;
+  VkPipelineStageFlags2 depthPipelines = VK_PIPELINE_STAGE_2_NONE;
+
+  // clang-format off
+  depthAccess |= ((virtualState.depthTestEnable | virtualState.stencilTestEnable) != 0U) ? VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT : 0U;
+  depthAccess |= ((virtualState.depthWriteEnable | virtualState.stencilTestEnable) != 0U) ? VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT : 0U;
+
+  depthPipelines |= ((virtualState.depthTestEnable | virtualState.stencilTestEnable) != 0U) ? VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT : 0U;
+  depthPipelines |= ((virtualState.depthWriteEnable | virtualState.stencilTestEnable) != 0U) ? VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT : 0U;
+  // clang-format on
+
+  virtualState.colorAttachments.clear();
+
+  for (const auto &target : RenderState::TopOfStack->colorAttachments) {
+    auto attachment = BoundResource{
+        .resource = ImageSubresource{target.texture},
+        .access = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
+                  VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT,
+        .pipelines = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+    };
+
+    virtualState.colorAttachments.emplace_back(target);
+
+    newPassData.reads.emplace_back(attachment.resource);
+    newPassData.writes.emplace_back(attachment.resource);
+
+    newPassData.accesses.emplace(
+        attachment.resource,
+        std::make_pair(attachment.access, attachment.pipelines));
+  }
+
+  virtualState.hasDepthStencilAttachment =
+      RenderState::TopOfStack->hasDepthStencilAttachment;
+  if (RenderState::TopOfStack->hasDepthStencilAttachment) {
+    virtualState.depthStencilAttachment =
+        RenderState::TopOfStack->depthStencilAttachment;
+
+    newPassData.reads.emplace_back(ImageSubresource{
+        RenderState::TopOfStack->depthStencilAttachment.texture});
+  }
+
+  assert(!virtualState.colorAttachments.empty() ||
+         virtualState.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  return renderPassID;
+}
+
 auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> CommandID {
   ZoneScoped;
 
@@ -920,15 +520,31 @@ auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> CommandID {
 
   if (cache.empty()) {
     command = commandStorage.size();
-    commands.emplace_back(command);
     commandStorage.emplace_back(GetNewEmptyArgs(type));
     commandStorage.back().id = command;
   } else {
     command = cache.back();
-    commands.emplace_back(command);
-    commandStorage.at(command).id = command;
-
     cache.pop_back();
+    commandStorage.at(command).id = command;
+  }
+
+  if (GetRequiresRendering(type)) {
+    if (!currentRenderPass.has_value()) {
+      currentRenderPass = commandStorage.at(NewRenderpass());
+    } else {
+      auto &passData = std::get<RenderPass>(currentRenderPass->data);
+
+      if (passData.state != currentState) {
+        currentRenderPass = commandStorage.at(NewRenderpass());
+      }
+    }
+
+    auto &passData = std::get<RenderPass>(currentRenderPass->data);
+
+    passData.commands.emplace_back(command);
+  } else {
+    currentRenderPass = std::nullopt;
+    commands.emplace_back(command);
   }
 
   return command;
@@ -1516,35 +1132,30 @@ auto VirtualCommandBuffer::Reset() -> void {
   currentState.dirty = true;
 }
 
-auto LoadOpConfig::FromGraphState(const GraphState &graphState,
+auto LoadOpConfig::FromGraphState(const VirtualState &virtualState,
                                   bool forceLoadOpLoad) -> LoadOpConfig {
   LoadOpConfig config{};
 
-  for (const auto &attachment : graphState.colorAttachments) {
+  for (const auto &attachment : virtualState.colorAttachments) {
     config.loadOps.emplace_back(forceLoadOpLoad ? VK_ATTACHMENT_LOAD_OP_LOAD
                                                 : attachment.loadOp);
   }
 
-  if (graphState.hasDepthStencilAttachment) {
-    config.depthStencilLoadOp = forceLoadOpLoad
-                                    ? VK_ATTACHMENT_LOAD_OP_LOAD
-                                    : graphState.depthStencilAttachment.loadOp;
+  if (virtualState.hasDepthStencilAttachment) {
+    config.depthStencilLoadOp =
+        forceLoadOpLoad ? VK_ATTACHMENT_LOAD_OP_LOAD
+                        : virtualState.depthStencilAttachment.loadOp;
   }
 
   return config;
 }
 
-auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
+auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
+                      VkCommandBuffer cmdBuffer,
                       const LoadOpConfig *loadConfig) const -> Error {
   ZoneScoped;
-  ERR_ASSERT(stateID != UINT32_MAX);
 
-  auto &manager = CommandStateManager::GetInstance();
-  const auto &state = manager.States.at(stateID);
-
-  // if (CommandStateManager::CurrentStateID == stateID) {
-  //   return {};
-  // }
+  const VirtualRenderState &state = parent.state;
 
   RecordingState::CurrentState.bindPoint = state.bindPoint;
   RecordingState::CurrentState.shader = state.shader;
@@ -1574,10 +1185,9 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
     RecordingState::CurrentState.viewport = state.viewport;
     RecordingState::CurrentState.scissor = state.scissor;
 
-    vkCmdSetVertexInputEXT(cmdBuffer, state.bindingDescriptions.size(),
-                           state.bindingDescriptions.data(),
-                           state.attributeDescriptions.size(),
-                           state.attributeDescriptions.data());
+    vkCmdSetVertexInputEXT(
+        cmdBuffer, bindingDescriptions.size(), bindingDescriptions.data(),
+        attributeDescriptions.size(), attributeDescriptions.data());
 
     if (!vertexBuffers.empty()) {
       vkCmdBindVertexBuffers(cmdBuffer, 0, vertexBuffers.size(),
@@ -1606,8 +1216,6 @@ auto DrawState::Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
 
   // CHECK_ERR(BindGlobalUBO(context, state.shader, cmdBuffer));
   CHECK_ERR(PrepareRendering(context, cmdBuffer, loadConfig));
-
-  manager.CurrentStateID = stateID;
 
   return {};
 }
