@@ -166,10 +166,6 @@ auto Buffer::UploadRing(const GraphicsContext &context,
                          "than is allocated.");
   }
 
-  if (size == 0) {
-    return Error::Success();
-  }
-
   // Use upload buffer
   auto uploadBuffer = UploadBuffers.at(context.frameIndex);
   size_t &uploadOffset = UploadBufferOffsets.at(context.frameIndex);
@@ -249,10 +245,9 @@ auto Buffer::Upload(const GraphicsContext &context,
 
   auto uploadSize = size == VK_WHOLE_SIZE ? data.size() : size;
 
-  [[unlikely]]
-  if (uploadSize == 0) {
-    return Error::Success();
-  }
+  ERR_ASSERT(uploadSize > 0);
+
+  MarkUse();
 
   ERR_ASSERT(uploadSize + offset <= this->size);
 
@@ -388,8 +383,6 @@ auto Buffer::SetData(const GraphicsContext &context,
                      VkDeviceSize offset, VkDeviceSize size) -> Error {
 
   CHECK_ERR(Upload(context, data, offset, size));
-
-  MarkUse();
 
   return Error::Success();
 }

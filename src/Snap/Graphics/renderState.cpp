@@ -340,6 +340,7 @@ auto SetRenderTargets(const GraphicsContext &context,
     ERR_ASSERT(target.texture != nullptr);
     ERR_ASSERT(target.texture->GetWidth() == expectedExtent.width);
     ERR_ASSERT(target.texture->GetHeight() == expectedExtent.height);
+    ERR_ASSERT(target.texture->subresourceRange.levelCount == 1);
 
     // Depth/Stencil is separate
     if (target.texture->IsDepthOrStencilTexture()) {
@@ -431,7 +432,6 @@ auto GetUserShader() -> Ref<Shader> {
 auto GetShader() -> Ref<Shader> { return TopOfStack->shader; }
 
 auto GetScissor() -> VkRect2D {
-
   if (!TopOfStack->hasScissor) {
     VkRect2D scissor = {};
     auto viewport = GetMaximumAllowedViewport();
@@ -441,22 +441,18 @@ auto GetScissor() -> VkRect2D {
         .height = static_cast<uint32_t>(viewport.height),
     };
 
-    scissor.extent.width = (std::max)(scissor.extent.width, 1U);
-    scissor.extent.height = (std::max)(scissor.extent.height, 1U);
+    scissor.extent.width = std::max(scissor.extent.width, 1U);
+    scissor.extent.height = std::max(scissor.extent.height, 1U);
 
     return scissor;
   }
 
   return {
-      .offset =
-          {
-              .x = TopOfStack->scissor.offset.x,
-              .y = TopOfStack->scissor.offset.y,
-          },
+      .offset = TopOfStack->scissor.offset,
       .extent =
           {
-              .width = (std::max)(TopOfStack->scissor.extent.width, 1U),
-              .height = (std::max)(TopOfStack->scissor.extent.height, 1U),
+              .width = std::max(TopOfStack->scissor.extent.width, 1U),
+              .height = std::max(TopOfStack->scissor.extent.height, 1U),
           },
   };
 }

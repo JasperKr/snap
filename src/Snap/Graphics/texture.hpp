@@ -185,8 +185,7 @@ struct Texture : Object, Identifiable {
       -> Result<Ref<Texture>>;
 
   static auto FromSwapchain(const GraphicsContext &context,
-                            VkImage swapchainImage,
-                            VkImageView swapchainImageView, VkFormat format,
+                            VkImage swapchainImage, VkFormat format,
                             uint32_t width, uint32_t height)
       -> Result<Ref<Texture>>;
 
@@ -236,7 +235,7 @@ struct Texture : Object, Identifiable {
   std::string debugName;
 
   // Flag to indicate if the sampler needs to be updated
-  bool samplerDirty = false;
+  bool samplerDirty = true;
 
   // Safety flag to prevent double releases
   bool released = false;

@@ -8,8 +8,7 @@ namespace Graphics {
 struct GraphicsContext;
 
 auto PrepareRendering(const GraphicsContext &context,
-                      VkCommandBuffer vkCommandBuffer,
-                      const LoadOpConfig *loadConfig) -> Error;
+                      VkCommandBuffer vkCommandBuffer) -> Error;
 auto EndRendering(const GraphicsContext &context,
                   VkCommandBuffer vkCommandBuffer) -> void;
 

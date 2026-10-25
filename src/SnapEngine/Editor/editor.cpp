@@ -305,7 +305,8 @@ auto Editor::PickEntity(const Graphics::GraphicsContext &context,
   const auto &camera = Editor::EditorCamera.get<Camera>();
 
   CHECK_ERR(shader->Send(context, {"SceneBVH"}, tlas));
-  CHECK_ERR(shader->Send(context, {"CameraData"}, camera.GetBuffer()));
+  CHECK_ERR(shader->Send(context, {"CameraData"},
+                         {camera.GetBuffer(), Graphics::StorageBuffer::read}));
   CHECK_ERR(shader->Send(context, {"TraceResults"},
                          {pickBuffer, Graphics::StorageBuffer::write}));
 

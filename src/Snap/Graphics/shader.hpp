@@ -81,6 +81,7 @@ struct BoundState {
   std::unordered_map<uint32_t, BoundShaderResource<Texture>> userBoundTextures;
   std::unordered_map<uint32_t, BoundShaderResource<TLAS>>
       userBoundAccelerationStructures;
+  std::vector<uint8_t> uniforms;
 };
 
 struct SampledTexture : BoundShaderResource<Texture> {
@@ -175,11 +176,16 @@ struct Shader : Object, Identifiable {
 
   static ThreadLocalState<BoundState> BoundStateManager;
   [[nodiscard]] auto GetState() const -> BoundState & {
-    return BoundStateManager.GetState(*this);
+    auto &state = BoundStateManager.GetState(*this);
+
+    if (state.uniforms.empty()) {
+      state.uniforms.resize(uniformsSize);
+    }
+
+    return state;
   }
 
-  std::vector<uint8_t> globalUniforms;
-
+  VkDeviceSize uniformsSize{};
   Math::Uvec3 threadgroupSize{1, 1, 1};
   uint32_t waveSize = 0;
 

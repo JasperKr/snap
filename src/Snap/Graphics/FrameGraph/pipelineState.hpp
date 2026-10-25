@@ -8,10 +8,6 @@ namespace Graphics {
 auto Flush(const struct GraphicsContext &context,
            VkCommandBuffer vkCommandBuffer) -> Result<bool>;
 auto GetTargetSize() -> VkExtent2D;
-auto GetMaximumAllowedViewport() -> VkViewport;
-auto GetScissor() -> VkRect2D;
-auto GetClippedViewport() -> VkViewport;
-auto GetViewport() -> VkViewport;
 auto BeginFrame(const struct GraphicsContext &context) -> Error;
 
 } // namespace Graphics

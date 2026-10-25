@@ -83,8 +83,7 @@ auto compareBlendmodes(const RenderState::State &first,
 
 // NOLINTNEXTLINE
 inline auto BeginRendering(const GraphicsContext &context,
-                           VkCommandBuffer cmdBuffer,
-                           const LoadOpConfig &loadConfig) -> Error {
+                           VkCommandBuffer cmdBuffer) -> Error {
   ZoneScoped;
 
   VkRenderingInfo renderingInfo = {};
@@ -117,14 +116,14 @@ inline auto BeginRendering(const GraphicsContext &context,
        i++) {
     const auto &rendertarget =
         RecordingState::CurrentState.colorAttachments.at(i);
-    CHECK_ERR(rendertarget.texture->UseAsAttachment(context,
-                                                    loadConfig.loadOps.at(i)));
+    CHECK_ERR(
+        rendertarget.texture->UseAsAttachment(context, rendertarget.loadOp));
 
     VkRenderingAttachmentInfo attachmentInfo = {};
     attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     attachmentInfo.imageView = rendertarget.texture->view;
     attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    attachmentInfo.loadOp = loadConfig.loadOps.at(i);
+    attachmentInfo.loadOp = rendertarget.loadOp;
     attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachmentInfo.clearValue = rendertarget.clearValue;
 
@@ -143,7 +142,7 @@ inline auto BeginRendering(const GraphicsContext &context,
     attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     attachmentInfo.imageView = rendertarget.texture->view;
     attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    attachmentInfo.loadOp = loadConfig.depthStencilLoadOp;
+    attachmentInfo.loadOp = rendertarget.loadOp;
     attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     attachmentInfo.clearValue = rendertarget.clearValue;
 
@@ -224,8 +223,7 @@ auto EndRendering(const GraphicsContext &context,
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto PrepareRendering(const GraphicsContext &context,
-                      VkCommandBuffer vkCommandBuffer,
-                      const LoadOpConfig *loadConfig) -> Error {
+                      VkCommandBuffer vkCommandBuffer) -> Error {
   ZoneScoped;
 
   bool sameViewport = false;
@@ -275,18 +273,17 @@ auto PrepareRendering(const GraphicsContext &context,
     ZoneScopedN("Dynamic state setup");
 
     if (!wasRendering) {
-      CHECK_NULL(loadConfig);
-      CHECK_ERR(BeginRendering(context, vkCommandBuffer, *loadConfig));
+      CHECK_ERR(BeginRendering(context, vkCommandBuffer));
     }
 
     if (!sameViewport) {
-      auto viewport = GetClippedViewport();
-      vkCmdSetViewport(vkCommandBuffer, 0, 1, &viewport);
+      vkCmdSetViewport(vkCommandBuffer, 0, 1,
+                       &RecordingState::CurrentState.viewport);
     }
 
     if (!sameScissor) {
-      auto scissor = GetScissor();
-      vkCmdSetScissor(vkCommandBuffer, 0, 1, &scissor);
+      vkCmdSetScissor(vkCommandBuffer, 0, 1,
+                      &RecordingState::CurrentState.scissor);
     }
 
     if (!sameDepth) {

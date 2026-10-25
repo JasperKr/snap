@@ -41,7 +41,7 @@ private:
   size_t internalSize = InitialUniformBufferSize;
   size_t offset{};
 
-  size_t minUniformBufferOffsetAlignment;
+  size_t uboAlignment;
 };
 
 extern thread_local std::vector<FrameUniformBufferObject>

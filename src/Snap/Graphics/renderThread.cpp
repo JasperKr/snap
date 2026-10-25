@@ -126,7 +126,6 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   assert(tcontext.queueFamily == 0);
 
   auto *commandBuffer = CHECK_RES(GetThreadLocalVCmdBuffer());
-  commandBuffer->commandStateManager = &CommandStateManager::GetInstance();
   commandBuffer->Reset();
 
   threadInfo->threadData.commandBuffer = commandBuffer;
@@ -214,8 +213,6 @@ auto Initialize(Graphics::GraphicsContext &context) -> Error {
 }
 
 auto Deinitialize(Graphics::GraphicsContext &context) -> Error {
-  CHECK_RES(GetThreadLocalVCmdBuffer())->DeInitialize();
-
   DeInitializeUniformBufferModule(context);
   Graphics::UploadBuffers.clear();
 

@@ -254,12 +254,15 @@ while true do
     startupSequence[frameIndex]()
   end
 
-  snap.gui.newFrame(delta)
+  -- snap.gui.newFrame(delta)
 
-  draw()
+  -- draw()
 
-  -- snap.graphics.getShader():send("MainTexture", texture)
-  -- snap.graphics.draw(mesh)
+  snap.timer.sleep(0.1)
+  snap.graphics.setRenderTarget()
+  snap.graphics.setCullMode("none")
+  snap.graphics.getShader():send("MainTexture", texture)
+  snap.graphics.draw(mesh)
 
   if frameIndex == 1 then
     -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")

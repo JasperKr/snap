@@ -96,7 +96,7 @@ endif()
 
 target_link_options(snap PRIVATE
     $<$<CONFIG:Debug>:-rdynamic>
-    $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+    # $<$<CONFIG:Debug>:-fsanitize=address,undefined>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
     $<$<CONFIG:Debug>:-g>
 )

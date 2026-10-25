@@ -86,8 +86,8 @@ public:
     PrintError("Binding {} not found in vertex format.", binding);
   }
 
-  [[nodiscard]] auto GetVkAttributes2()
-      -> std::vector<VkVertexInputAttributeDescription2EXT> & {
+  [[nodiscard]] auto GetVkAttributes2() const
+      -> const std::vector<VkVertexInputAttributeDescription2EXT> & {
     return VkAttributes2;
   }
 
@@ -118,7 +118,7 @@ public:
     return result;
   }
 
-  auto BindDynamicInputState(struct VirtualCommandBuffer *commandBuffer)
+  auto BindDynamicInputState(struct VirtualCommandBuffer *commandBuffer) const
       -> void;
 
   [[nodiscard]] auto GetBindingCount() const -> size_t {

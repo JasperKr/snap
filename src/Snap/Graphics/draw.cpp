@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <public/tracy/Tracy.hpp>
 
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
@@ -161,6 +162,11 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
                                      binding.bindings, binding.offsets);
   }
 
+  const auto &vertexFormat = mesh.GetVertexFormat();
+  vertexFormat.BindDynamicInputState(commandBuffer);
+
+  RenderState::SetTopology(mesh.GetTopology());
+
   return Error::Success();
 }
 
@@ -201,11 +207,6 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   CHECK_ERR(BindMesh(context, mesh));
-
-  RenderState::SetTopology(mesh.GetTopology());
-
-  auto &vertexFormat = mesh.GetVertexFormat();
-  vertexFormat.BindDynamicInputState(commandBuffer);
 
   {
     ZoneScopedN("Vk Draw");
@@ -356,9 +357,6 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
 
   CHECK_ERR(BindMesh(context, mesh));
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
-  auto &vertexFormat = mesh.GetVertexFormat();
-  vertexFormat.BindDynamicInputState(commandBuffer);
-  RenderState::SetTopology(mesh.GetTopology());
 
   if (offset % 4 != 0) {
     return Error::Create(

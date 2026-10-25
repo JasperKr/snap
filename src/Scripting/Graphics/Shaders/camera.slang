@@ -61,11 +61,6 @@ public struct _CameraData {
   }
 };
 
-// public restrict cbuffer CameraData {
-//   public CameraData camera;
-//   public CameraData previousCamera;
-// };
-
 public uniform StructuredBuffer<_CameraData>.Handle CameraData;
 
 // Reverse-Z

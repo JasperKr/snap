@@ -3,6 +3,7 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
+#include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Scene/camera.hpp"
 #include <vector>
@@ -13,6 +14,8 @@ struct BloomManager {
   auto Deinitialize() -> void;
 
   auto ApplyBloom(const Graphics::GraphicsContext &context, Camera &camera)
+      -> Error;
+  auto UpdateViews(const Graphics::GraphicsContext &context, Camera &camera)
       -> Error;
 
 private:

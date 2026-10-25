@@ -39,43 +39,15 @@ auto BloomManager::Deinitialize() -> void {
   DownsampleChainViews.clear();
 }
 
-// NOLINTNEXTLINE
-auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
-                              Camera &camera) -> Error {
-
+auto BloomManager::UpdateViews(const Graphics::GraphicsContext &context,
+                               Camera &camera) -> Error {
   const auto &renderTargets = camera.GetRendertargets();
   auto &textures = camera.GetOwnedTextures();
-
-  textures.BloomDownsampleChain =
-      CHECK_RES(GlobalRenderTargetManager.GetRendertarget(
-          context, renderTargets.BloomDownsampleChain));
-
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {Graphics::RenderState::RenderTarget{
-                   .blendMode = Graphics::BlendmodeNone,
-                   .texture = textures.BloomDownsampleChain,
-                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-               }}));
-
-  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
-
-  Graphics::RenderState::SetShader(ThresholdShader);
-
-  CHECK_ERR(Graphics::UniformWriter::Send(ThresholdShader, "threshold", 0.0F));
-
-  CHECK_ERR(ThresholdShader->Send(context, "mainScene", textures.TAA));
-
-  CHECK_ERR(DrawFullScreen(context));
-
-  Graphics::RenderState::SetShader(DownsampleShader);
 
   auto mipCount = textures.BloomDownsampleChain->subresourceRange.levelCount;
   if (mipCount < 2) {
     return {};
   }
-
-  auto maxDownsampleMip =
-      std::min(mipCount - 1, static_cast<uint32_t>(8)); // NOLINT
 
   if (DownsampleChainViews.size() != mipCount) {
     DownsampleChainViews.resize(mipCount);
@@ -105,6 +77,49 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
       DownsampleChainViews.at(mipLevel) = view;
     }
   }
+
+  return {};
+}
+
+// NOLINTNEXTLINE
+auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
+                              Camera &camera) -> Error {
+
+  const auto &renderTargets = camera.GetRendertargets();
+  auto &textures = camera.GetOwnedTextures();
+
+  textures.BloomDownsampleChain =
+      CHECK_RES(GlobalRenderTargetManager.GetRendertarget(
+          context, renderTargets.BloomDownsampleChain));
+
+  CHECK_ERR(UpdateViews(context, camera));
+
+  auto mipCount = textures.BloomDownsampleChain->subresourceRange.levelCount;
+  if (mipCount < 2) {
+    return {};
+  }
+
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
+                   .blendMode = Graphics::BlendmodeNone,
+                   .texture = DownsampleChainViews.at(0),
+                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+               }}));
+
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+
+  Graphics::RenderState::SetShader(ThresholdShader);
+
+  CHECK_ERR(Graphics::UniformWriter::Send(ThresholdShader, "threshold", 0.0F));
+
+  CHECK_ERR(ThresholdShader->Send(context, "mainScene", textures.TAA));
+
+  CHECK_ERR(DrawFullScreen(context));
+
+  Graphics::RenderState::SetShader(DownsampleShader);
+
+  auto maxDownsampleMip =
+      std::min(mipCount - 1, static_cast<uint32_t>(8)); // NOLINT
 
   for (uint32_t mipLevel = 1; mipLevel < maxDownsampleMip; ++mipLevel) {
     assert(mipLevel < DownsampleChainViews.size());

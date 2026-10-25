@@ -96,7 +96,8 @@ auto PrimitiveDrawer::Render(const Graphics::GraphicsContext &context,
   Graphics::RenderState::SetShader(Shader);
   Graphics::RenderState::SetDepthMode(true, false, VK_COMPARE_OP_GREATER);
 
-  CHECK_ERR(Shader->Send(context, "CameraData", camera.GetBuffer()));
+  CHECK_ERR(Shader->Send(context, "CameraData",
+                         {camera.GetBuffer(), Graphics::StorageBuffer::read}));
 
   if (!Primitives.empty()) {
     CHECK_ERR(GenerateMesh(context, Primitives));

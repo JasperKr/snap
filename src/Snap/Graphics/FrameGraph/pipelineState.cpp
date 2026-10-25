@@ -8,6 +8,7 @@
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include <cassert>
+#include <format>
 #include <mutex>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -217,92 +218,6 @@ auto GetTargetSize() -> VkExtent2D {
   return {0, 0};
 }
 
-auto GetMaximumAllowedViewport() -> VkViewport {
-  auto viewport = RecordingState::CurrentState.viewport;
-
-  auto size = GetTargetSize();
-
-  viewport.width = static_cast<float>(size.width);
-  viewport.height = static_cast<float>(size.height);
-
-  viewport.width = (std::max)(viewport.width, 1.0F);
-  viewport.height = (std::max)(viewport.height, 1.0F);
-
-  viewport.minDepth = 0.0F;
-  viewport.maxDepth = 1.0F;
-
-  return viewport;
-}
-
-auto GetScissor() -> VkRect2D {
-
-  if (!RecordingState::CurrentState.hasScissor) {
-    VkRect2D scissor = {};
-    auto viewport = GetMaximumAllowedViewport();
-    scissor.offset = {.x = 0, .y = 0};
-    scissor.extent = {
-        .width = static_cast<uint32_t>(viewport.width),
-        .height = static_cast<uint32_t>(viewport.height),
-    };
-
-    scissor.extent.width = (std::max)(scissor.extent.width, 1U);
-    scissor.extent.height = (std::max)(scissor.extent.height, 1U);
-
-    return scissor;
-  }
-
-  return {
-      .offset =
-          {
-              .x = RecordingState::CurrentState.scissor.offset.x,
-              .y = RecordingState::CurrentState.scissor.offset.y,
-          },
-      .extent =
-          {
-              .width =
-                  (std::max)(RecordingState::CurrentState.scissor.extent.width,
-                             1U),
-              .height =
-                  (std::max)(RecordingState::CurrentState.scissor.extent.height,
-                             1U),
-          },
-  };
-}
-
-auto GetClippedViewport() -> VkViewport {
-
-  if (!RecordingState::CurrentState.hasViewport) {
-    return GetMaximumAllowedViewport();
-  }
-
-  auto viewport = RecordingState::CurrentState.viewport;
-
-  // Default to size of current attachments
-  VkExtent2D size = GetTargetSize();
-
-  viewport.width = std::min(viewport.width, static_cast<float>(size.width));
-  viewport.height = std::min(viewport.height, static_cast<float>(size.height));
-
-  return viewport;
-}
-
-auto GetViewport() -> VkViewport {
-
-  if (!RecordingState::CurrentState.hasViewport) {
-    return GetMaximumAllowedViewport();
-  }
-
-  // return RecordingState::CurrentState.viewport;
-  return {
-      .x = RecordingState::CurrentState.viewport.x,
-      .y = RecordingState::CurrentState.viewport.y,
-      .width = (std::max)(RecordingState::CurrentState.viewport.width, 1.0F),
-      .height = (std::max)(RecordingState::CurrentState.viewport.height, 1.0F),
-      .minDepth = RecordingState::CurrentState.viewport.minDepth,
-      .maxDepth = RecordingState::CurrentState.viewport.maxDepth,
-  };
-}
-
 inline auto CreateGraphicsPipeline(const GraphicsContext &context,
                                    RenderState::State &state)
     -> Result<VkPipeline> {
@@ -311,6 +226,11 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
     return Error::Unexpected(
         "Attempted to create graphics pipeline with non-graphics bind point.");
   }
+
+  ERR_ASSERT_MSG(
+      state.shader->combinedShaderStages != VK_SHADER_STAGE_COMPUTE_BIT,
+      std::format("Shader: {}, Is being bound to a graphics pipeline.",
+                  state.shader->moduleName));
 
   PrintDebug("Creating graphics pipeline");
 
@@ -363,13 +283,10 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   VkPipelineViewportStateCreateInfo viewportState = {};
   viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 
-  auto viewport = GetMaximumAllowedViewport();
-  auto scissor = GetScissor();
-
   viewportState.viewportCount = 1;
-  viewportState.pViewports = &viewport;
+  viewportState.pViewports = &state.viewport;
   viewportState.scissorCount = 1;
-  viewportState.pScissors = &scissor;
+  viewportState.pScissors = &state.scissor;
 
   /// Multisampling ///
 
@@ -529,6 +446,8 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
                                   RenderState::State &state)
     -> Result<VkPipeline> {
   ZoneScoped;
+
+  ERR_ASSERT(state.shader->combinedShaderStages == VK_SHADER_STAGE_COMPUTE_BIT);
 
   PrintDebug("Creating compute pipeline");
 
@@ -729,7 +648,8 @@ auto Flush(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer)
     return result;
   }
 
-  return Error::Unexpected("Unsupported pipeline bind point in Flush.");
+  return Error::Unexpectedf("Unsupported pipeline bind point in Flush: {}.",
+                            (int)RecordingState::CurrentState.bindPoint);
 }
 
 } // namespace Graphics

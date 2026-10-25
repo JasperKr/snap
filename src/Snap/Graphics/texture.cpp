@@ -183,7 +183,6 @@ auto Texture::Create(const GraphicsContext &context,
   imageMemory->debugName =
       info.debugName.empty() ? "Unnamed Texture" : info.debugName;
 
-  texture->samplerDirty = true;
   texture->debugName = imageMemory->debugName;
 
   const auto &config = Threading::GetGraphicsConfiguration();
@@ -347,7 +346,6 @@ auto Texture::Create(const GraphicsContext &context, Texture *parentTexture,
 
   Ref<Texture> textureView = Ref<Texture>::Make();
 
-  textureView->samplerDirty = true;
   textureView->debugName = parentTexture->debugName + "_view";
   textureView->isView = true;
 
@@ -381,8 +379,7 @@ auto Texture::Create(const GraphicsContext &context, Texture *parentTexture,
 }
 
 auto Texture::FromSwapchain(const GraphicsContext &context,
-                            VkImage swapchainImage,
-                            VkImageView swapchainImageView, VkFormat format,
+                            VkImage swapchainImage, VkFormat format,
                             uint32_t width, uint32_t height)
     -> Result<Ref<Texture>> {
 
@@ -401,8 +398,18 @@ auto Texture::FromSwapchain(const GraphicsContext &context,
   texture->subresourceRange.levelCount = 1;
   texture->subresourceRange.layerCount = 1;
 
-  texture->samplerDirty = true;
-  texture->view = swapchainImageView;
+  texture->viewCreateInfo = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .flags = {},
+      .image = swapchainImage,
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = format,
+      .components = {},
+      .subresourceRange = texture->subresourceRange,
+  };
+
+  CHECK_NEW_ERR(vkCreateImageView(context.device, &texture->viewCreateInfo,
+                                  GetAllocationCallbacks(), &texture->view));
 
   imageMemory->usage = context.surfaceInfo.capabilities.supportedUsageFlags;
   imageMemory->GetState().lastUsage = TextureUsage::Swapchain;
@@ -753,7 +760,8 @@ auto ImageMemory::TransitionLayout(const GraphicsContext &context,
 
   barrier.srcAccessMask =
       VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+  barrier.dstAccessMask =
+      VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
 
   if (layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
     barrier.dstAccessMask = VK_ACCESS_2_NONE;

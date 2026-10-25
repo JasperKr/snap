@@ -250,8 +250,8 @@ add_library(snap_core OBJECT
     Graphics/FrameGraph/pipelineCache.cpp
     Graphics/FrameGraph/pipelineState.cpp
     Graphics/FrameGraph/dynamicRendering.cpp
-    Graphics/FrameGraph/heapState.cpp
     Graphics/FrameGraph/recordingState.cpp
+    Graphics/FrameGraph/commandState.cpp
 
 # Graphics Buffers
     Graphics/Buffers/uniform.cpp

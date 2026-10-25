@@ -269,10 +269,14 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       CHECK_RES(manager.GetShader(Renderer::ShaderKey::TransparencyForward));
 
   auto cameraBuffer = camera.GetBuffer();
-  CHECK_ERR(depthOpaque->Send(context, "CameraData", cameraBuffer));
-  CHECK_ERR(depthMasked->Send(context, "CameraData", cameraBuffer));
-  CHECK_ERR(deferred->Send(context, "CameraData", cameraBuffer));
-  CHECK_ERR(forward->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(depthOpaque->Send(context, "CameraData",
+                              {cameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(depthMasked->Send(context, "CameraData",
+                              {cameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(deferred->Send(context, "CameraData",
+                           {cameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(forward->Send(context, "CameraData",
+                          {cameraBuffer, Graphics::StorageBuffer::read}));
 
   auto transforms = renderer.GetModelTransformsBuffer();
   CHECK_ERR(depthOpaque->Send(context, "ModelTransforms",
@@ -361,11 +365,12 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   CHECK_ERR(renderer.AssureModelTransformBufferSize(transformCount));
 
-  auto span = std::span<const ModelTransformData>(modelTransforms.data(),
-                                                  modelTransforms.size());
-
-  CHECK_ERR(
-      renderer.GetModelTransformsBuffer()->GetBuffer()->SetData(ctx, span));
+  if (!modelTransforms.empty()) {
+    auto span = std::span<const ModelTransformData>(modelTransforms.data(),
+                                                    modelTransforms.size());
+    CHECK_ERR(
+        renderer.GetModelTransformsBuffer()->GetBuffer()->SetData(ctx, span));
+  }
 
   const auto &rendertargets = camera.GetRendertargets();
 
@@ -500,8 +505,8 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   auto lightingShader =
       CHECK_RES(manager.GetShader(Renderer::ShaderKey::SimpleLighting));
-  CHECK_ERR(
-      lightingShader->Send(context, "CameraData", UniformBuffer{cameraBuffer}));
+  CHECK_ERR(lightingShader->Send(
+      context, "CameraData", {cameraBuffer, Graphics::StorageBuffer::read}));
   CHECK_ERR(lightingShader->Send(context, "AlbedoTexture", textures.Albedo));
   CHECK_ERR(
       lightingShader->Send(context, "MaterialTexture", textures.Material));
@@ -580,7 +585,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   CHECK_ERR(UniformWriter::Send(shadowDirectional, {"LayerOffset"}, 0U));
   CHECK_ERR(UniformWriter::Send(shadowDirectional, {"LightIndex"}, 0U));
-  CHECK_ERR(shadowDirectional->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(shadowDirectional->Send(context, "CameraData", {cameraBuffer, Graphics::StorageBuffer::read}));
   // CHECK_ERR(shadowDirectional->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
 
   auto shadowsReset = CHECK_RES(manager.GetShader(Renderer::ShaderKey::Shadows_ClearHitFlags));
@@ -608,7 +613,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   }
 
   CHECK_ERR(UniformWriter::Send(shadowDenoise, {"LayerOffset"}, 0U));
-  CHECK_ERR(shadowDenoise->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(shadowDenoise->Send(context, "CameraData", {cameraBuffer, Graphics::StorageBuffer::read}));
   CHECK_ERR(shadowDenoise->Send(context, "OutputTexture", {textures.ShadowVisibility, StorageBuffer::write}));
   CHECK_ERR(shadowDenoise->Send(context, "MotionTexture", textures.Motion));
   CHECK_ERR(shadowDenoise->Send(context, "PreviousOutputTexture", textures.PreviousShadowVisibility));
@@ -640,7 +645,8 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       ambientOcclusionShader->Send(context, "NormalTexture", textures.Normal));
   CHECK_ERR(
       ambientOcclusionShader->Send(context, blueNoiseTextureKey, blueNoiseTex));
-  CHECK_ERR(ambientOcclusionShader->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(ambientOcclusionShader->Send(
+      context, "CameraData", {cameraBuffer, Graphics::StorageBuffer::read}));
   CHECK_ERR(
       ambientOcclusionShader->Send(context, tlasKey, renderer.GetSceneTLAS()));
   CHECK_ERR(ambientOcclusionShader->Send(
@@ -665,7 +671,8 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   CHECK_ERR(aoDenoiseShader->Send(context, "MotionTexture", textures.Motion));
   CHECK_ERR(aoDenoiseShader->Send(context, "RayHitTexture",
                                   textures.AmbientOcclusionSamples));
-  CHECK_ERR(aoDenoiseShader->Send(context, "CameraData", cameraBuffer));
+  CHECK_ERR(aoDenoiseShader->Send(
+      context, "CameraData", {cameraBuffer, Graphics::StorageBuffer::read}));
   CHECK_ERR(aoDenoiseShader->Send(context, "PreviousOutputTexture",
                                   textures.PreviousAmbientOcclusion));
   CHECK_ERR(aoDenoiseShader->Send(

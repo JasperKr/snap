@@ -115,14 +115,6 @@ struct BoundResources {
       accesses;
 };
 
-struct LoadOpConfig {
-  std::vector<VkAttachmentLoadOp> loadOps;
-  VkAttachmentLoadOp depthStencilLoadOp;
-
-  static auto FromGraphState(const VirtualState &virtualState,
-                             bool forceLoadOpLoad) -> LoadOpConfig;
-};
-
 struct DrawState {
   std::vector<BoundResource> boundImages;
   std::vector<BoundResource> boundBuffers;
@@ -134,10 +126,8 @@ struct DrawState {
   std::vector<VkDeviceSize> vertexBufferOffsets;
   VkIndexType indexType = VK_INDEX_TYPE_MAX_ENUM;
   VkDeviceSize indexBufferOffset{};
-  VkPipelineBindPoint bindPoint; // TODO: Set this.
 
-  std::vector<VkVertexInputBindingDescription2EXT>
-      bindingDescriptions; // and set these as well
+  std::vector<VkVertexInputBindingDescription2EXT> bindingDescriptions;
   std::vector<VkVertexInputAttributeDescription2EXT> attributeDescriptions;
 
   uint32_t uboAddress;
@@ -147,17 +137,8 @@ struct DrawState {
                          std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
                          VulkanResourceHash<true>> &accesses) const -> void;
 
-  [[nodiscard]] auto GetReadStateFor(const VulkanResource &resource,
-                                     CommandType type) const
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-
-  [[nodiscard]] auto GetWriteStateFor(const VulkanResource &resource,
-                                      CommandType type) const
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-
   auto Apply(const GraphicsContext &context, const struct RenderPass &parent,
-             VkCommandBuffer cmdBuffer, const LoadOpConfig *loadConfig) const
-      -> Error;
+             VkCommandBuffer cmdBuffer) const -> Error;
 
   auto Initialize(CommandType type) -> Error;
 };
@@ -673,6 +654,7 @@ using ArgVariants = std::variant<
 
 struct Command {
   CommandIndex id = UINT16_MAX;
+  CommandIndex parentID = UINT16_MAX;
   uint16_t uniqueID = UINT16_MAX;
 
   // Also defined in framegraph.cpp as InvalidDepth
@@ -717,7 +699,7 @@ struct ImageStateUpdate {
 auto GetReads(const Command &command) -> const std::vector<VulkanResource> &;
 auto GetWrites(const Command &command) -> const std::vector<VulkanResource> &;
 auto GetResourceAccesses(
-    const Command *command,
+    const Command &command,
     std::unordered_map<VulkanResource,
                        std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
                        VulkanResourceHash<true>> &accesses) -> void;
@@ -791,7 +773,7 @@ struct VCmdThreadInfo {
   static void ThreadMain(VirtualCommandBuffer *vcmd);
 };
 
-struct VirtualCommandBuffer {
+struct VirtualCommandBuffer { // NOLINT
   friend struct FrameGraph;
 
   auto Append(const VirtualCommandBuffer &buffer) -> Error {
@@ -860,20 +842,6 @@ struct VirtualCommandBuffer {
       uint32_t vertexAttributeDescriptionCount,
       const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
       -> void;
-  auto SetViewport(uint32_t firstViewport, uint32_t viewportCount,
-                   const VkViewport *pViewports) -> void;
-  auto SetScissor(const Args::VkCmdSetScissor &arguments) -> void;
-  auto SetDepthTestEnable(const Args::VkCmdSetDepthTestEnable &arguments)
-      -> void;
-  auto SetDepthWriteEnable(const Args::VkCmdSetDepthWriteEnable &arguments)
-      -> void;
-  auto SetDepthCompareOp(const Args::VkCmdSetDepthCompareOp &arguments) -> void;
-  auto
-  SetColorBlendEquationEXT(uint32_t firstAttachment, uint32_t attachmentCount,
-                           const VkColorBlendEquationEXT *pColorBlendEquations)
-      -> void;
-  auto SetCullMode(const Args::VkCmdSetCullMode &arguments) -> void;
-  auto SetFrontFace(const Args::VkCmdSetFrontFace &arguments) -> void;
   auto ClearAttachments(uint32_t attachmentCount,
                         const VkClearAttachment *pAttachments,
                         uint32_t rectCount, const VkClearRect *pRects) -> Error;
@@ -900,7 +868,7 @@ struct VirtualCommandBuffer {
     return commandStorage.at(identifier);
   }
 
-  std::optional<Command> currentRenderPass;
+  CommandID currentRenderPass = InvalidCommandID;
 
   uint32_t queueFamily;
   VirtualState currentState;
@@ -908,12 +876,12 @@ struct VirtualCommandBuffer {
   VCmdThreadInfo threadInfo;
   bool initialized = false;
 
-  auto DeInitialize() -> void { threadInfo.Shutdown(); }
+  ~VirtualCommandBuffer() { threadInfo.Shutdown(); }
 
   auto GetNewCommand(CommandType type) -> CommandID;
 
 private:
-  auto NewRenderpass() -> CommandID;
+  auto NewRenderpass() -> void;
 };
 
 auto CreateCommandBuffer() -> VirtualCommandBuffer;

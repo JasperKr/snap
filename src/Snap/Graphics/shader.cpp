@@ -1,6 +1,7 @@
 #include "shader.hpp"
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/allocations.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
@@ -577,8 +578,7 @@ auto Shader::Create(
       Snapshot::ShaderModuleCreateEvent(shader->module, shader->moduleName));
 #endif
 
-  shader->globalUniforms.resize(
-      shader->reflection.globalBufferFormat.GetStride());
+  shader->uniformsSize = shader->reflection.globalBufferFormat.GetStride();
 
   // shader->slangModule->release();
   // shader->linkedProgram->release();
@@ -640,12 +640,10 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
   ERR_ASSERT(iter != reflection.keyToInfo.end());
   const auto &info = iter->second;
 
-  // PrintAlways("Offset: {}, Size: {}, Target size: {}", info.offset, data.size(),
-  //             globalUniforms.size());
-  ERR_ASSERT(info.offset + data.size() <= globalUniforms.size());
+  ERR_ASSERT(info.offset + data.size() <= uniformsSize);
 
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(globalUniforms.data() + info.offset, data.data(), data.size());
+  memcpy(GetState().uniforms.data() + info.offset, data.data(), data.size());
 
   return Error::Success();
 }
@@ -658,10 +656,12 @@ auto Shader::Send(const ResolvedKey key, const VkDeviceSize data) -> Error {
   ERR_ASSERT(iter != reflection.keyToInfo.end());
   const auto &info = iter->second;
 
+  ERR_ASSERT(info.GetSize() == 8);
+
   // Note that we send the size of a uint32_t, as these are offsets within the heap,
   // these do not need 64-bit precision and is not allowed within the shader anyways.
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(globalUniforms.data() + info.offset, &data, sizeof(uint64_t));
+  memcpy(GetState().uniforms.data() + info.offset, &data, info.GetSize());
 
   return Error::Success();
 }
@@ -675,9 +675,13 @@ auto Shader::Send(const ResolvedKey key, const VkDeviceSize data,
   ERR_ASSERT(iter != reflection.keyToInfo.end());
   const auto &info = iter->second;
 
+  ERR_ASSERT(info.GetSize() == 8);
+
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(globalUniforms.data() + info.offset,
-         Math::Uvec2(data, samplerAddress).Ptr(), sizeof(uint64_t));
+  memcpy(GetState().uniforms.data() + info.offset, &data, sizeof(uint32_t));
+  // NOLINTNEXTLINE, pointer arithmetic
+  memcpy(GetState().uniforms.data() + info.offset + sizeof(uint32_t),
+         &samplerAddress, sizeof(uint32_t));
 
   return Error::Success();
 }
@@ -687,6 +691,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   ZoneScopedN("Shader::Send uniform buffer");
   VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
       context, buffer.type, 0, buffer.resource->size));
+  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
 
   ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
              0U);
@@ -702,6 +707,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   ZoneScopedN("Shader::Send dynamic uniform buffer");
   VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
       context, buffer.type, buffer.offset, buffer.size));
+  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
 
   ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
              0U);
@@ -718,6 +724,11 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
       context, buffer.type, 0, buffer.resource->size));
 
+  ERR_ASSERT(buffer.type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  ERR_ASSERT_MSG(
+      DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address),
+      address);
+
   ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT) !=
              0U);
 
@@ -733,6 +744,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
 
   VkDeviceSize address =
       CHECK_RES(texture.resource->GetAddress(context, texture.type));
+  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
 
   ERR_ASSERT((texture.resource->imageMemory->usage &
               VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);
@@ -752,6 +764,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
 
   VkDeviceSize address =
       CHECK_RES(texture.resource->GetAddress(context, texture.type));
+  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
 
   ERR_ASSERT((texture.resource->imageMemory->usage &
               VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) != 0U);

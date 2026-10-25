@@ -58,7 +58,7 @@ auto FrameUniformBufferObject::Create(GraphicsContext &context)
   info.debugName = "Frame Uniform Buffer";
 
   obj.buffer = CHECK_RES(Buffer::Create(context, info));
-  obj.minUniformBufferOffsetAlignment =
+  obj.uboAlignment =
       context.deviceProperties.limits.minUniformBufferOffsetAlignment;
 
   return obj;
@@ -79,7 +79,7 @@ auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data)
         "Tried to set uniform buffer data larger than maximum. (holy shit)");
   }
 
-  const auto requiredSize = offset + data.size();
+  const auto requiredSize = Utils::AlignUp(offset + data.size(), uboAlignment);
 
   [[unlikely]]
   if (requiredSize > internalSize) {
@@ -100,9 +100,7 @@ auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data)
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   memcpy(stagingBuffer.data() + offset, data.data(), data.size());
-
-  offset += static_cast<uint32_t>(data.size());
-  offset = Utils::AlignUp(offset, minUniformBufferOffsetAlignment);
+  offset = Utils::AlignUp(offset + data.size(), uboAlignment);
 
   return {};
 }
@@ -127,6 +125,10 @@ auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
     info.debugName = "Frame Uniform Buffer";
 
     buffer = CHECK_RES(Graphics::Buffer::Create(context, info));
+  }
+
+  if (offset == 0) {
+    return {};
   }
 
   CHECK_ERR(buffer->SetData(context, stagingBuffer, 0, offset));

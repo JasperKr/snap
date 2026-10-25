@@ -5,6 +5,7 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/units.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <algorithm>
@@ -45,7 +46,7 @@ auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
   ResourceHeap = CHECK_RES(Buffer::Create(context, {
     .size = std::min(resourceHeapSize, maxResourceHeapSize),
     .usage = VK_BUFFER_USAGE_2_DESCRIPTOR_HEAP_BIT_EXT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT,
-    .stagingBuffer = false,
+    .stagingBuffer = true,
     .persistentMapping = false,
     .debugName = "Resource heap",
   }));
@@ -53,7 +54,7 @@ auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
   SamplerHeap = CHECK_RES(Buffer::Create(context, {
     .size = std::min(samplerHeapSize, maxSamplerHeapSize),
     .usage = VK_BUFFER_USAGE_2_DESCRIPTOR_HEAP_BIT_EXT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT,
-    .stagingBuffer = false,
+    .stagingBuffer = true,
     .persistentMapping = false,
     .debugName = "Sampler heap",
   }));
@@ -175,18 +176,21 @@ auto DescriptorHeapManager::AllocateSampler() -> Result<VkDeviceSize> {
 }
 
 auto DescriptorHeapManager::IsBufferOffsetValid(uint32_t offset) -> bool {
-  return std::ranges::contains(InvalidBufferOffsets,
-                               offset * bufferDescriptorSize);
+  return !std::ranges::contains(InvalidBufferOffsets,
+                                offset * bufferDescriptorSize) &&
+         (BufferCursorOrigin - (offset * bufferDescriptorSize)) < bufferCursor;
 }
 
 auto DescriptorHeapManager::IsImageOffsetValid(uint32_t offset) -> bool {
-  return std::ranges::contains(InvalidImageOffsets,
-                               offset * imageDescriptorSize);
+  return !std::ranges::contains(InvalidImageOffsets,
+                                offset * imageDescriptorSize) &&
+         (offset * imageDescriptorSize) < imageCursor;
 }
 
 auto DescriptorHeapManager::IsSamplerOffsetValid(uint32_t offset) -> bool {
-  return std::ranges::contains(InvalidSamplerOffsets,
-                               offset * samplerDescriptorSize);
+  return !std::ranges::contains(InvalidSamplerOffsets,
+                                offset * samplerDescriptorSize) &&
+         (offset * samplerDescriptorSize) < samplerCursor;
 }
 
 auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
@@ -286,7 +290,7 @@ auto DescriptorHeapManager::AllocateSampler(
   VkDeviceSize address = CHECK_RES(AllocateSampler());
   CHECK_ERR(SamplerHeap->SetData(context, descriptor, address));
 
-  return address;
+  return address / samplerDescriptorSize;
 }
 
 auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr)
@@ -313,6 +317,8 @@ auto DescriptorHeapManager::FreeBufferResourceIndex(VkDeviceSize resourcePtr)
 
 auto DescriptorHeapManager::FreeSamplerResourceIndex(VkDeviceSize resourcePtr)
     -> void {
+  resourcePtr *= samplerDescriptorSize;
+
   assert(resourcePtr <= samplerCursor); // Cannot free outside of used range
   assert(resourcePtr >= heapProperties.minSamplerHeapReservedRange);
 
