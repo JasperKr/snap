@@ -1,5 +1,6 @@
 #include "blendmode.hpp"
 
+#include <format>
 #include <string>
 #include <vulkan/vulkan_core.h>
 
@@ -218,7 +219,7 @@ auto ToString(VkBlendFactor srcColorBlendFactor,
   return {false, "", ""};
 }
 
-auto ToString(VkPipelineColorBlendAttachmentState state)
+auto ToStringProperties(VkPipelineColorBlendAttachmentState state)
     -> std::tuple<bool, std::string, std::string> {
   if (state.blendEnable == VK_FALSE) {
     return {true, "none", ""};
@@ -227,6 +228,29 @@ auto ToString(VkPipelineColorBlendAttachmentState state)
   return ToString(state.srcColorBlendFactor, state.dstColorBlendFactor,
                   state.colorBlendOp, state.srcAlphaBlendFactor,
                   state.dstAlphaBlendFactor, state.alphaBlendOp);
+}
+
+auto ToString(VkPipelineColorBlendAttachmentState state) -> std::string {
+  if (state.blendEnable == VK_FALSE) {
+    return "Blend mode: none";
+  }
+
+  const auto &[simple, blendmode, alphamode] = ToString(
+      state.srcColorBlendFactor, state.dstColorBlendFactor, state.colorBlendOp,
+      state.srcAlphaBlendFactor, state.dstAlphaBlendFactor, state.alphaBlendOp);
+
+  if (simple) {
+    return std::format("Blend Mode: {}, Alpha Mode: {}", blendmode, alphamode);
+  }
+
+  return std::format("Blend State:\nSrc-Color={}\nDst-Color={}\nColor Op={}"
+                     "\nSrc Alpha={}\nDst Alpha={}\nAlpha Op={}",
+                     BlendMode::ToString(state.srcColorBlendFactor),
+                     BlendMode::ToString(state.dstColorBlendFactor),
+                     BlendMode::ToString(state.colorBlendOp),
+                     BlendMode::ToString(state.srcAlphaBlendFactor),
+                     BlendMode::ToString(state.dstAlphaBlendFactor),
+                     BlendMode::ToString(state.alphaBlendOp));
 }
 
 } // namespace Graphics::BlendMode

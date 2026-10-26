@@ -900,8 +900,6 @@ auto Texture::GetSampler(const GraphicsContext &context)
   if (samplerDirty) {
     sampler = CHECK_RES(GetOrCreateSampler(context, samplerDescription));
     samplerDirty = false;
-
-    return sampler;
   }
 
   return sampler;

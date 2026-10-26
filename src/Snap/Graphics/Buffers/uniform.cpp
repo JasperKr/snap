@@ -113,7 +113,7 @@ auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
   if (internalSize != buffer->size) {
     Graphics::BufferCreationInfo info{};
     info.size = internalSize;
-    info.persistentMapping = false;
+    info.persistentMapping = true;
     info.stagingBuffer = true;
     info.properties =
         static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) |
@@ -125,6 +125,7 @@ auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
     info.debugName = "Frame Uniform Buffer";
 
     buffer = CHECK_RES(Graphics::Buffer::Create(context, info));
+    PrintError("New UBO!");
   }
 
   if (offset == 0) {

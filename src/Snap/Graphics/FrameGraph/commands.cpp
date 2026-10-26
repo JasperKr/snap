@@ -7,6 +7,7 @@
 #include "Graphics/vkAccessHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -231,6 +232,7 @@ auto DrawState::Initialize(CommandType type) -> Error {
   auto offset = buffer.GetOffset();
 
   ERR_ASSERT(offset < UINT32_MAX);
+  assert(shader->GetState().uniforms.size() == shader->uniformsSize);
   CHECK_ERR(buffer.Write(shader->GetState().uniforms));
 
   assert(buffer.GetBuffer().get() != nullptr);
@@ -963,6 +965,7 @@ auto VirtualCommandBuffer::Reset() -> void {
   }
 
   commands.clear();
+  currentRenderPass = InvalidCommandID;
   queueFamily = UINT32_MAX;
   currentState = {};
   currentState.dirty = true;
@@ -1030,9 +1033,9 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
       },
   };
 
-  vkCmdPushDataEXT(cmdBuffer, &pushInfo);
-
   CHECK_ERR(PrepareRendering(context, cmdBuffer));
+
+  vkCmdPushDataEXT(cmdBuffer, &pushInfo);
 
   return {};
 }

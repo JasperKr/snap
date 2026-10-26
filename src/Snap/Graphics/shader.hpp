@@ -271,9 +271,8 @@ struct Shader : Object, Identifiable {
   }
 
 private:
-  auto Send(ResolvedKey key, VkDeviceSize data) -> Error;
-  auto Send(ResolvedKey key, VkDeviceSize data, VkDeviceSize samplerAddress)
-      -> Error;
+  auto Send(ResolvedKey key, uint32_t data) -> Error;
+  auto Send(ResolvedKey key, uint32_t data, uint32_t samplerAddress) -> Error;
 };
 
 extern Ref<Shader> DefaultShaderModule;             // NOLINT

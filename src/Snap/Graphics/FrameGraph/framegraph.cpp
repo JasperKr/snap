@@ -43,8 +43,7 @@ namespace Graphics {
 auto FrameGraph::Submit(const GraphicsContext &context,
                         std::vector<VirtualCommandBuffer *> &newCommandBuffers)
     -> Error {
-  commandBuffers.clear();
-  commandIndices.clear();
+
   uint16_t idx = 1UL;
 
   for (auto &commandBuffer : newCommandBuffers) {
@@ -1090,12 +1089,11 @@ auto FrameGraph::WriteCommand(const Command &command,
                               VkCommandBuffer cmdBuffer) -> Error {
   const auto *callable = get_if_derived<Callable>(command.data);
 
-  if (callable == nullptr) {
-    return {};
-  }
+  assert(callable != nullptr);
 
   const auto type = command.GetType();
   assert(type != CommandType::renderPass);
+
   if (GetRequiresRendering(type)) {
     const auto *state = command.GetDrawState();
     assert(state != nullptr);
@@ -1191,6 +1189,7 @@ auto FrameGraph::Write(const GraphicsContext &context,
               WriteCommand(childCommand, context, &renderPass, cmdBuffer));
         }
       } else {
+        ERR_ASSERT(!GetRequiresRendering(command.GetType()));
         CHECK_ERR(WriteCommand(command, context, nullptr, cmdBuffer));
       }
     }
@@ -1216,9 +1215,8 @@ auto FrameGraph::Reset() -> void {
   nextReady.clear();
   commands.clear();
   resourcesWritesInFrame.clear();
-  RecordingState::CurrentState = {};
-  RecordingState::LastStateStorage = {};
-  RecordingState::LastState = nullptr;
+  commandBuffers.clear();
+  commandIndices.clear();
 }
 
 } // namespace Graphics

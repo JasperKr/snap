@@ -648,7 +648,7 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
   return Error::Success();
 }
 
-auto Shader::Send(const ResolvedKey key, const VkDeviceSize data) -> Error {
+auto Shader::Send(const ResolvedKey key, const uint32_t data) -> Error {
   ZoneScopedN("Shader::Send device address");
 
   auto iter = reflection.keyToInfo.find(key);
@@ -666,8 +666,8 @@ auto Shader::Send(const ResolvedKey key, const VkDeviceSize data) -> Error {
   return Error::Success();
 }
 
-auto Shader::Send(const ResolvedKey key, const VkDeviceSize data,
-                  const VkDeviceSize samplerAddress) -> Error {
+auto Shader::Send(const ResolvedKey key, const uint32_t data,
+                  const uint32_t samplerAddress) -> Error {
   ZoneScopedN("Shader::Send texture + sampler address");
 
   auto iter = reflection.keyToInfo.find(key);

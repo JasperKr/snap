@@ -244,8 +244,6 @@ auto Present(Graphics::GraphicsContext &context,
              const std::vector<Ref<Threading::RenderThreadInfo>> &commands)
     -> Error {
   ZoneScoped;
-  PrintAlways("Rendering frame to swapchain image: {} / {}", context.frameIndex,
-              (void *)context.swapchainInfo.images.at(context.frameIndex));
 
   context.currentlyReordering = true;
 

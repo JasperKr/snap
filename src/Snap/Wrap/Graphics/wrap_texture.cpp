@@ -17,14 +17,16 @@
 #include "vulkan/vulkan_core.h"
 #include <lua.hpp>
 namespace Wrap::Graphics::Texture {
-auto inline StringToVkFilter(const char *filterStr) -> VkFilter {
+auto inline StringToVkFilter(const char *filterStr) -> Result<VkFilter> {
   if (strcmp(filterStr, "nearest") == 0) {
     return VK_FILTER_NEAREST;
   }
   if (strcmp(filterStr, "linear") == 0) {
     return VK_FILTER_LINEAR;
   }
-  return VK_FILTER_LINEAR; // Default
+
+  return Error::Unexpectedf(
+      "Unexpected filter: {}, expected 'linear' or 'nearest'", filterStr);
 }
 
 auto wrap_SetFilter(lua_State *state) -> int {
@@ -35,9 +37,9 @@ auto wrap_SetFilter(lua_State *state) -> int {
   const char *magFilterStr = luaL_checkstring(state, 3);
   const char *mipFilterStr = luaL_checkstring(state, 4);
 
-  VkFilter minFilter = StringToVkFilter(minFilterStr);
-  VkFilter magFilter = StringToVkFilter(magFilterStr);
-  VkFilter mipFilter_ = StringToVkFilter(mipFilterStr);
+  VkFilter minFilter = LUA_CK_RES(StringToVkFilter(minFilterStr));
+  VkFilter magFilter = LUA_CK_RES(StringToVkFilter(magFilterStr));
+  VkFilter mipFilter_ = LUA_CK_RES(StringToVkFilter(mipFilterStr));
   auto mipFilter = (mipFilter_ == VK_FILTER_NEAREST)
                        ? VK_SAMPLER_MIPMAP_MODE_NEAREST
                        : VK_SAMPLER_MIPMAP_MODE_LINEAR;

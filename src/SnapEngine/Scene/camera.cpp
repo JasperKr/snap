@@ -484,12 +484,12 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
                 }}));
   Graphics::PopDebugMarker();
 
-  Graphics::PushDebugMarker("Draw Lines");
-  CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
-  CHECK_ERR(
-      Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Temporal Anti-Aliasing");
+  // Graphics::PushDebugMarker("Draw Lines");
+  // CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
+  // CHECK_ERR(
+  //     Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
+  // Graphics::PopDebugMarker();
+  // Graphics::PushDebugMarker("Temporal Anti-Aliasing");
 
   auto taaShader =
       CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(

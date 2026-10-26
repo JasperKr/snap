@@ -191,6 +191,10 @@ local startupSequence = {
     texture:setFilter("linear", "linear", "linear")
     texture:setWrap("repeat", "repeat", "repeat")
 
+    texture2 = snap.graphics.newTexture("src/Assets/skybox.hdr", { sampler = true, mipmaps = "none" })
+    texture2:setFilter("nearest", "nearest", "nearest")
+    texture2:setWrap("clampzero", "clampzero", "clampzero")
+
     local min = 0.2
     local max = 0.8
 
@@ -200,8 +204,8 @@ local startupSequence = {
       { format = "unorm8vec4", location = 2, name = "Color" },
     }, {
       { min, min, 0, 0, 1, 0, 0, 1 },
-      { max, min, 1, 0, 0, 1, 0, 1 },
-      { min, max, 0, 1, 0, 0, 1, 1 },
+      { max, min, 2, 0, 0, 1, 0, 1 },
+      { min, max, 0, 2, 0, 0, 1, 1 },
     })
 
     -- local env = scene:newEnvironment("Test environment", texture)
@@ -258,10 +262,13 @@ while true do
 
   -- draw()
 
-  snap.timer.sleep(0.1)
+  -- snap.timer.sleep(0.1)
   snap.graphics.setRenderTarget()
+  snap.graphics.clear()
   snap.graphics.setCullMode("none")
-  snap.graphics.getShader():send("MainTexture", texture)
+  snap.graphics.setDepthMode("always", false)
+
+  snap.graphics.getShader():send("MainTexture", frameIndex % 2 == 0 and texture or texture2)
   snap.graphics.draw(mesh)
 
   if frameIndex == 1 then
