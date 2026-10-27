@@ -10,6 +10,7 @@
 #include "Graphics/shader.hpp"
 #include "Graphics/snapshot.hpp"
 #include "Graphics/texture.hpp"
+#include "Modules/console.hpp"
 #include "Modules/object.hpp"
 #include "Wrap/Graphics/wrap_color.hpp"
 #include "Wrap/Helpers/lua_enum.hpp"

@@ -48,17 +48,20 @@ float3 SampleTextureCatmullRom(Sampler2D<float3> tex, float2 uv, float2 texSize,
   texPos12 *= texelSize;
 
   float3 result = 0.0f;
-  result += tex.SampleLevelZero(float2(texPos0.x, texPos0.y)) * w0.x * w0.y;
-  result += tex.SampleLevelZero(float2(texPos12.x, texPos0.y)) * w12.x * w0.y;
-  result += tex.SampleLevelZero(float2(texPos3.x, texPos0.y)) * w3.x * w0.y;
 
-  result += tex.SampleLevelZero(float2(texPos0.x, texPos12.y)) * w0.x * w12.y;
-  result += tex.SampleLevelZero(float2(texPos12.x, texPos12.y)) * w12.x * w12.y;
-  result += tex.SampleLevelZero(float2(texPos3.x, texPos12.y)) * w3.x * w12.y;
+  // clang-format off
+  result += Sanitise(tex.SampleLevelZero(float2(texPos0.x, texPos0.y))) * w0.x * w0.y;
+  result += Sanitise(tex.SampleLevelZero(float2(texPos12.x, texPos0.y))) * w12.x * w0.y;
+  result += Sanitise(tex.SampleLevelZero(float2(texPos3.x, texPos0.y))) * w3.x * w0.y;
 
-  result += tex.SampleLevelZero(float2(texPos0.x, texPos3.y)) * w0.x * w3.y;
-  result += tex.SampleLevelZero(float2(texPos12.x, texPos3.y)) * w12.x * w3.y;
-  result += tex.SampleLevelZero(float2(texPos3.x, texPos3.y)) * w3.x * w3.y;
+  result += Sanitise(tex.SampleLevelZero(float2(texPos0.x, texPos12.y))) * w0.x * w12.y;
+  result += Sanitise(tex.SampleLevelZero(float2(texPos12.x, texPos12.y))) * w12.x * w12.y;
+  result += Sanitise(tex.SampleLevelZero(float2(texPos3.x, texPos12.y))) * w3.x * w12.y;
+
+  result += Sanitise(tex.SampleLevelZero(float2(texPos0.x, texPos3.y))) * w0.x * w3.y;
+  result += Sanitise(tex.SampleLevelZero(float2(texPos12.x, texPos3.y))) * w12.x * w3.y;
+  result += Sanitise(tex.SampleLevelZero(float2(texPos3.x, texPos3.y))) * w3.x * w3.y;
+  // clang-format on
 
   return result;
 }
@@ -91,7 +94,8 @@ float3 fragmentMain(float2 texCoords: TEXCOORDS) {
         continue;
       }
 
-      float3 sampleColor = IncomingLight.SampleLevelZero(sampleCoords);
+      float3 sampleColor =
+          Sanitise(IncomingLight.SampleLevelZero(sampleCoords));
       neighbourMin = min(neighbourMin, sampleColor);
       neighbourMax = max(neighbourMax, sampleColor);
       neighbourSum += sampleColor;

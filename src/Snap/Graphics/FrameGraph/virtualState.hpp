@@ -40,15 +40,8 @@ struct VirtualStateHash {
 };
 
 struct VirtualRenderState {
-  VkCullModeFlags cullMode = VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
-  VkFrontFace frontFace = VK_FRONT_FACE_MAX_ENUM;
-  VkBool32 depthTestEnable = 1;
-  VkBool32 depthWriteEnable = 1;
-  VkCompareOp depthCompareOp = VK_COMPARE_OP_MAX_ENUM;
   VkBool32 stencilTestEnable = 0;
   VkPolygonMode polygonMode = VK_POLYGON_MODE_MAX_ENUM;
-  VkViewport viewport{};
-  VkRect2D scissor{};
 
   mutable bool dirty = true;
 
@@ -100,7 +93,34 @@ struct VirtualRenderState {
     return true;
   }
 
-  auto operator==(const VirtualState &other) const -> bool { return true; }
+  auto operator==(const RenderState::State &other) const -> bool {
+    if (colorAttachments != other.colorAttachments) {
+      return false;
+    }
+
+    if (shader != other.shader) {
+      return false;
+    }
+
+    if (stencilTestEnable != other.stencilTestEnable ||
+        polygonMode != other.polygonMode ||
+        primitiveTopology != other.primitiveTopology ||
+        bindPoint != other.bindPoint) {
+      return false;
+    }
+
+    if (hasDepthStencilAttachment != other.hasDepthStencilAttachment) {
+      return false;
+    }
+
+    if (hasDepthStencilAttachment) {
+      if (depthStencilAttachment != other.depthStencilAttachment) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 
   auto ToString() const -> std::string;
 };

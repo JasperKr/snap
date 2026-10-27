@@ -4,7 +4,6 @@
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/texture.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/image.hpp"
 #include "Wrap/Helpers/lua_enum.hpp"
@@ -17,32 +16,14 @@
 #include "vulkan/vulkan_core.h"
 #include <lua.hpp>
 namespace Wrap::Graphics::Texture {
-auto inline StringToVkFilter(const char *filterStr) -> Result<VkFilter> {
-  if (strcmp(filterStr, "nearest") == 0) {
-    return VK_FILTER_NEAREST;
-  }
-  if (strcmp(filterStr, "linear") == 0) {
-    return VK_FILTER_LINEAR;
-  }
-
-  return Error::Unexpectedf(
-      "Unexpected filter: {}, expected 'linear' or 'nearest'", filterStr);
-}
-
 auto wrap_SetFilter(lua_State *state) -> int {
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-  const char *minFilterStr = luaL_checkstring(state, 2);
-  const char *magFilterStr = luaL_checkstring(state, 3);
-  const char *mipFilterStr = luaL_checkstring(state, 4);
-
-  VkFilter minFilter = LUA_CK_RES(StringToVkFilter(minFilterStr));
-  VkFilter magFilter = LUA_CK_RES(StringToVkFilter(magFilterStr));
-  VkFilter mipFilter_ = LUA_CK_RES(StringToVkFilter(mipFilterStr));
-  auto mipFilter = (mipFilter_ == VK_FILTER_NEAREST)
-                       ? VK_SAMPLER_MIPMAP_MODE_NEAREST
-                       : VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  VkFilter minFilter = LUA_CK_RES(FilterModeEnum.FromLua(state, 2));
+  VkFilter magFilter = LUA_CK_RES(FilterModeEnum.FromLua(state, 3));
+  VkSamplerMipmapMode mipFilter =
+      LUA_CK_RES(MipFilterModeEnum.FromLua(state, 4));
 
   texture->SetFilter(minFilter, magFilter, mipFilter);
 
@@ -50,26 +31,14 @@ auto wrap_SetFilter(lua_State *state) -> int {
 }
 
 auto wrap_GetFilter(lua_State *state) -> int {
-  PrintWarning("Getting texture filter");
-  PrintWarning("Texture type ptr: {}", (void *)::Graphics::Texture::GetType());
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-  VkFilter minFilter = VK_FILTER_LINEAR;
-  VkFilter magFilter = VK_FILTER_LINEAR;
-  VkSamplerMipmapMode mipFilter = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  std::tie(minFilter, magFilter, mipFilter) = texture->GetFilter();
+  auto [minFilter, magFilter, mipFilter] = texture->GetFilter();
 
-  const char *minFilterStr =
-      (minFilter == VK_FILTER_NEAREST) ? "nearest" : "linear";
-  const char *magFilterStr =
-      (magFilter == VK_FILTER_NEAREST) ? "nearest" : "linear";
-  const char *mipFilterStr =
-      (mipFilter == VK_SAMPLER_MIPMAP_MODE_NEAREST) ? "nearest" : "linear";
-
-  lua_pushstring(state, minFilterStr);
-  lua_pushstring(state, magFilterStr);
-  lua_pushstring(state, mipFilterStr);
+  LUA_CK_ERR(FilterModeEnum.ToLua(state, minFilter));
+  LUA_CK_ERR(FilterModeEnum.ToLua(state, magFilter));
+  LUA_CK_ERR(MipFilterModeEnum.ToLua(state, mipFilter));
 
   return 3;
 }
@@ -95,69 +64,52 @@ auto wrap_GetAnisotropy(lua_State *state) -> int {
   return 1;
 }
 
-auto inline StringToAddressMode(const char *addressModeStr)
-    -> VkSamplerAddressMode {
-  if (strcmp(addressModeStr, "repeat") == 0) {
-    return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  }
-  if (strcmp(addressModeStr, "mirrored_repeat") == 0) {
-    return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-  }
-  if (strcmp(addressModeStr, "clamp_to_edge") == 0) {
-    return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  }
-  return VK_SAMPLER_ADDRESS_MODE_REPEAT; // Default
-}
-
 auto wrap_SetWrapmode(lua_State *state) -> int {
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-  const char *addressModeUStr = luaL_checkstring(state, 2);
-  const char *addressModeVStr = luaL_checkstring(state, 3);
-  const char *addressModeWStr = luaL_checkstring(state, 4);
-
-  VkSamplerAddressMode addressModeU = StringToAddressMode(addressModeUStr);
-  VkSamplerAddressMode addressModeV = StringToAddressMode(addressModeVStr);
-  VkSamplerAddressMode addressModeW = StringToAddressMode(addressModeWStr);
+  auto addressModeU = LUA_CK_RES(WrapModeEnum.FromLua(state, 2));
+  auto addressModeV = LUA_CK_RES(WrapModeEnum.FromLua(state, 3));
+  auto addressModeW = LUA_CK_RES(WrapModeEnum.FromLua(state, 4));
 
   texture->SetWrapmode(addressModeU, addressModeV, addressModeW);
 
   return 0;
 }
 
-auto inline AddressModeToString(VkSamplerAddressMode addressMode) -> const
-    char * {
-  switch (addressMode) {
-  case VK_SAMPLER_ADDRESS_MODE_REPEAT:
-    return "repeat";
-  case VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT:
-    return "mirrored_repeat";
-  case VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE:
-    return "clamp_to_edge";
-  default:
-    return "repeat";
-  }
-}
-
 auto wrap_GetWrapmode(lua_State *state) -> int {
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-  VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  VkSamplerAddressMode addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  std::tie(addressModeU, addressModeV, addressModeW) = texture->GetWrap();
+  auto [addressModeU, addressModeV, addressModeW] = texture->GetWrap();
 
-  const char *addressModeUStr = AddressModeToString(addressModeU);
-  const char *addressModeVStr = AddressModeToString(addressModeV);
-  const char *addressModeWStr = AddressModeToString(addressModeW);
-
-  lua_pushstring(state, addressModeUStr);
-  lua_pushstring(state, addressModeVStr);
-  lua_pushstring(state, addressModeWStr);
+  LUA_CK_ERR(WrapModeEnum.ToLua(state, addressModeU));
+  LUA_CK_ERR(WrapModeEnum.ToLua(state, addressModeV));
+  LUA_CK_ERR(WrapModeEnum.ToLua(state, addressModeW));
 
   return 3;
+}
+
+auto wrap_SetBorderColor(lua_State *state) -> int {
+  auto texture =
+      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
+
+  auto borderColor = LUA_CK_RES(BorderColorEnum.FromLua(state, 2));
+
+  texture->SetBorderColor(borderColor);
+
+  return 0;
+}
+
+auto wrap_GetBorderColor(lua_State *state) -> int {
+  auto texture =
+      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
+
+  auto borderColor = texture->GetBorderColor();
+
+  LUA_CK_ERR(BorderColorEnum.ToLua(state, borderColor));
+
+  return 1;
 }
 
 auto wrap_SetLodBias(lua_State *state) -> int {
@@ -185,10 +137,6 @@ auto wrap_SetLodRange(lua_State *state) -> int {
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-  if (texture == nullptr) {
-    return luaL_error(state, "Expected Texture as first argument");
-  }
-
   auto minLod = static_cast<float>(luaL_checknumber(state, 2));
   auto maxLod = static_cast<float>(luaL_checknumber(state, 3));
 
@@ -201,67 +149,11 @@ auto wrap_GetLodRange(lua_State *state) -> int {
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-  if (texture == nullptr) {
-    return luaL_error(state, "Expected Texture as first argument");
-  }
-
-  float minLod = 0.0F;
-  float maxLod = 0.0F;
-  std::tie(minLod, maxLod) = texture->GetLodRange();
+  auto [minLod, maxLod] = texture->GetLodRange();
 
   lua_pushnumber(state, static_cast<lua_Number>(minLod));
   lua_pushnumber(state, static_cast<lua_Number>(maxLod));
   return 2;
-}
-
-inline auto StringToCompareOp(const char *compareOpStr) -> VkCompareOp {
-  if (strcmp(compareOpStr, "never") == 0) {
-    return VK_COMPARE_OP_NEVER;
-  }
-  if (strcmp(compareOpStr, "less") == 0) {
-    return VK_COMPARE_OP_LESS;
-  }
-  if (strcmp(compareOpStr, "equal") == 0) {
-    return VK_COMPARE_OP_EQUAL;
-  }
-  if (strcmp(compareOpStr, "lequal") == 0) {
-    return VK_COMPARE_OP_LESS_OR_EQUAL;
-  }
-  if (strcmp(compareOpStr, "greater") == 0) {
-    return VK_COMPARE_OP_GREATER;
-  }
-  if (strcmp(compareOpStr, "notequal") == 0) {
-    return VK_COMPARE_OP_NOT_EQUAL;
-  }
-  if (strcmp(compareOpStr, "gequal") == 0) {
-    return VK_COMPARE_OP_GREATER_OR_EQUAL;
-  }
-  if (strcmp(compareOpStr, "always") == 0) {
-    return VK_COMPARE_OP_ALWAYS;
-  }
-  return VK_COMPARE_OP_ALWAYS; // Default
-}
-
-inline auto CompareOpToString(VkCompareOp compareOp) -> const char * {
-  switch (compareOp) {
-  case VK_COMPARE_OP_NEVER:
-    return "never";
-  case VK_COMPARE_OP_LESS:
-    return "less";
-  case VK_COMPARE_OP_EQUAL:
-    return "equal";
-  case VK_COMPARE_OP_LESS_OR_EQUAL:
-    return "lequal";
-  case VK_COMPARE_OP_GREATER:
-    return "greater";
-  case VK_COMPARE_OP_NOT_EQUAL:
-    return "notequal";
-  case VK_COMPARE_OP_GREATER_OR_EQUAL:
-    return "gequal";
-  case VK_COMPARE_OP_ALWAYS:
-  default:
-    return "always";
-  }
 }
 
 auto wrap_SetDepthCompare(lua_State *state) -> int {
@@ -273,7 +165,7 @@ auto wrap_SetDepthCompare(lua_State *state) -> int {
     return 0;
   }
 
-  auto compareOp = StringToCompareOp(luaL_checkstring(state, 2));
+  auto compareOp = LUA_CK_RES(CompareOpEnum.FromLua(state, 2));
   auto enable = compareOp != VK_COMPARE_OP_ALWAYS;
   texture->SetDepthCompare(enable, compareOp);
 
@@ -284,11 +176,9 @@ auto wrap_GetDepthCompare(lua_State *state) -> int {
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
-  bool enable = false;
-  VkCompareOp compareOp = VK_COMPARE_OP_ALWAYS;
-  std::tie(enable, compareOp) = texture->GetDepthCompare();
+  auto [enable, compareOp] = texture->GetDepthCompare();
 
-  lua_pushstring(state, CompareOpToString(compareOp));
+  LUA_CK_ERR(CompareOpEnum.ToLua(state, compareOp))
   return 1;
 }
 
@@ -346,10 +236,6 @@ auto wrap_GetMipmapCount(lua_State *state) -> int {
 auto wrap_GetFormat(lua_State *state) -> int {
   auto texture =
       LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
-
-  if (texture == nullptr) {
-    return luaL_error(state, "Expected Texture as first argument");
-  }
 
   VkFormat format = texture->GetFormat();
 

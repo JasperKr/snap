@@ -191,10 +191,6 @@ local startupSequence = {
     texture:setFilter("linear", "linear", "linear")
     texture:setWrap("repeat", "repeat", "repeat")
 
-    texture2 = snap.graphics.newTexture("src/Assets/skybox.hdr", { sampler = true, mipmaps = "none" })
-    texture2:setFilter("nearest", "nearest", "nearest")
-    texture2:setWrap("clampzero", "clampzero", "clampzero")
-
     local min = 0.2
     local max = 0.8
 
@@ -208,8 +204,8 @@ local startupSequence = {
       { min, max, 0, 2, 0, 0, 1, 1 },
     })
 
-    -- local env = scene:newEnvironment("Test environment", texture)
-    -- scene:setEnvironment(env)
+    local env = scene:newEnvironment("Test environment", texture)
+    scene:setEnvironment(env)
   end
 }
 
@@ -258,21 +254,12 @@ while true do
     startupSequence[frameIndex]()
   end
 
-  -- snap.gui.newFrame(delta)
+  snap.gui.newFrame(delta)
 
-  -- draw()
-
-  -- snap.timer.sleep(0.1)
-  snap.graphics.setRenderTarget()
-  snap.graphics.clear()
-  snap.graphics.setCullMode("none")
-  snap.graphics.setDepthMode("always", false)
-
-  snap.graphics.getShader():send("MainTexture", frameIndex % 2 == 0 and texture or texture2)
-  snap.graphics.draw(mesh)
+  draw()
 
   if frameIndex == 1 then
-    -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
     -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
   end
 

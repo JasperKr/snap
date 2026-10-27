@@ -283,7 +283,7 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(
           ShaderKey::PrefilterRadiance));
 
   CHECK_ERR(prefilterRadianceShader->Send(
-      context, "Coefficient",
+      context, "Coefficients",
       {PrefilteredRadianceCoeffsBuffer, Graphics::StorageTexture::read}));
   CHECK_ERR(prefilterRadianceShader->Send(context, "InputTexture", envMap));
 

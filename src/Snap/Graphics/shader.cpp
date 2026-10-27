@@ -626,7 +626,7 @@ auto Shader::ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey> {
 
   ERR_ASSERT_MSG(
       iter != reflection.keyMapping.end(),
-      std::format("{} Not found.", Reflect::ResourceKeyToString(key)));
+      std::format("Key '{}' Not found.", Reflect::ResourceKeyToString(key)));
   return iter->second;
 }
 
@@ -641,6 +641,7 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
   const auto &info = iter->second;
 
   ERR_ASSERT(info.offset + data.size() <= uniformsSize);
+  ERR_ASSERT(info.GetSize() == data.size());
 
   // NOLINTNEXTLINE, pointer arithmetic
   memcpy(GetState().uniforms.data() + info.offset, data.data(), data.size());

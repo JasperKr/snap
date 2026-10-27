@@ -819,7 +819,30 @@ auto Texture::GetFilter() const
           samplerDescription.mipmapMode};
 }
 
+inline auto ConvertToIntegerBorderColor(VkBorderColor color) {
+  switch (color) {
+  case VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK:
+  case VK_BORDER_COLOR_INT_TRANSPARENT_BLACK:
+    return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+  case VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK:
+  case VK_BORDER_COLOR_INT_OPAQUE_BLACK:
+    return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  case VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE:
+  case VK_BORDER_COLOR_INT_OPAQUE_WHITE:
+    return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+  case VK_BORDER_COLOR_FLOAT_CUSTOM_EXT:
+  case VK_BORDER_COLOR_INT_CUSTOM_EXT:
+    return VK_BORDER_COLOR_INT_CUSTOM_EXT;
+  case VK_BORDER_COLOR_MAX_ENUM:
+    return VK_BORDER_COLOR_MAX_ENUM;
+  }
+}
+
 auto Texture::SetBorderColor(VkBorderColor borderColor) -> void {
+  if (Image::IsIntegerFormat(imageMemory->format)) {
+    borderColor = ConvertToIntegerBorderColor(borderColor);
+  }
+
   samplerDescription.borderColor = borderColor;
 
   samplerDirty = true;

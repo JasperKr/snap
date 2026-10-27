@@ -168,6 +168,14 @@ auto DrawState::Initialize(CommandType type) -> Error {
 
   assert(shader.get() != nullptr);
 
+  scissor = RenderState::GetScissor();
+  viewport = RenderState::GetClippedViewport();
+  cullMode = RenderState::GetCullMode();
+  depthTestEnable = RenderState::TopOfStack->depthTestEnable;
+  depthWriteEnable = RenderState::TopOfStack->depthWriteEnable;
+  depthCompareOp = RenderState::TopOfStack->depthCompareOp;
+  frontFace = RenderState::GetWindingOrder();
+
   boundImages.reserve(shaderState.userBoundTextures.size());
   boundBuffers.reserve(shaderState.userBoundBuffers.size());
   boundASs.reserve(shaderState.userBoundAccelerationStructures.size());
@@ -302,20 +310,11 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
   auto &virtualState = newPassData.state;
   virtualState.MarkUpdated();
 
-  auto shader = RenderState::GetShader();
-
-  virtualState.shader = shader;
+  virtualState.shader = RenderState::GetShader();
   virtualState.bindPoint = RenderState::GetBindPoint();
 
-  virtualState.scissor = RenderState::GetScissor();
-  virtualState.viewport = RenderState::GetClippedViewport();
-  virtualState.cullMode = RenderState::GetCullMode();
-  virtualState.polygonMode = RenderState::GetPolygonMode();
-  virtualState.depthTestEnable = RenderState::TopOfStack->depthTestEnable;
-  virtualState.depthWriteEnable = RenderState::TopOfStack->depthWriteEnable;
-  virtualState.depthCompareOp = RenderState::TopOfStack->depthCompareOp;
   virtualState.stencilTestEnable = RenderState::TopOfStack->stencilTestEnable;
-  virtualState.frontFace = RenderState::GetWindingOrder();
+  virtualState.polygonMode = RenderState::GetPolygonMode();
   virtualState.primitiveTopology = RenderState::GetTopology();
 
   virtualState.colorBlendEquations.resize(
@@ -329,11 +328,11 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
   VkPipelineStageFlags2 depthPipelines = VK_PIPELINE_STAGE_2_NONE;
 
   // clang-format off
-  depthAccess |= ((virtualState.depthTestEnable | virtualState.stencilTestEnable) != 0U) ? VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT : 0U;
-  depthAccess |= ((virtualState.depthWriteEnable | virtualState.stencilTestEnable) != 0U) ? VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT : 0U;
+  depthAccess |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT ;
+  depthAccess |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-  depthPipelines |= ((virtualState.depthTestEnable | virtualState.stencilTestEnable) != 0U) ? VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT : 0U;
-  depthPipelines |= ((virtualState.depthWriteEnable | virtualState.stencilTestEnable) != 0U) ? VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT : 0U;
+  depthPipelines |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+  depthPipelines |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
   // clang-format on
 
   virtualState.colorAttachments.clear();
@@ -365,17 +364,12 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
     newPassData.reads.emplace_back(
         RenderState::TopOfStack->depthStencilAttachment.texture);
 
-    if ((virtualState.depthTestEnable | virtualState.stencilTestEnable) != 0U) {
-      newPassData.writes.emplace_back(
-          RenderState::TopOfStack->depthStencilAttachment.texture);
-    }
+    newPassData.writes.emplace_back(
+        RenderState::TopOfStack->depthStencilAttachment.texture);
 
     newPassData.accesses.emplace(virtualState.depthStencilAttachment.texture,
                                  std::make_pair(depthAccess, depthPipelines));
   }
-
-  assert(!virtualState.colorAttachments.empty() ||
-         virtualState.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS);
 }
 
 auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> CommandID {
@@ -418,7 +412,7 @@ auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> CommandID {
       renderPass =
           &std::get<RenderPass>(commandStorage.at(currentRenderPass).data);
 
-      if (renderPass->state != currentState) {
+      if (renderPass->state != *RenderState::TopOfStack) {
         NewRenderpass();
 
         renderPass =
@@ -984,8 +978,6 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
   if (state.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
     ZoneScopedN("Update state");
 
-    assert(!state.colorAttachments.empty());
-
     RecordingState::CurrentState.colorAttachments = state.colorAttachments;
     RecordingState::CurrentState.depthStencilAttachment =
         state.depthStencilAttachment;
@@ -994,15 +986,15 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
     RecordingState::CurrentState.primitiveTopology = state.primitiveTopology;
     RecordingState::CurrentState.colorBlendEquations =
         state.colorBlendEquations;
-    RecordingState::CurrentState.cullMode = state.cullMode;
-    RecordingState::CurrentState.frontFace = state.frontFace;
-    RecordingState::CurrentState.depthTestEnable = state.depthTestEnable;
-    RecordingState::CurrentState.depthWriteEnable = state.depthWriteEnable;
-    RecordingState::CurrentState.depthCompareOp = state.depthCompareOp;
+    RecordingState::CurrentState.cullMode = cullMode;
+    RecordingState::CurrentState.frontFace = frontFace;
+    RecordingState::CurrentState.depthTestEnable = depthTestEnable;
+    RecordingState::CurrentState.depthWriteEnable = depthWriteEnable;
+    RecordingState::CurrentState.depthCompareOp = depthCompareOp;
     RecordingState::CurrentState.stencilTestEnable = state.stencilTestEnable;
     RecordingState::CurrentState.polygonMode = state.polygonMode;
-    RecordingState::CurrentState.viewport = state.viewport;
-    RecordingState::CurrentState.scissor = state.scissor;
+    RecordingState::CurrentState.viewport = viewport;
+    RecordingState::CurrentState.scissor = scissor;
 
     vkCmdSetVertexInputEXT(
         cmdBuffer, bindingDescriptions.size(), bindingDescriptions.data(),

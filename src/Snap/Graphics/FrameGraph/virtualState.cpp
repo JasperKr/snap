@@ -156,15 +156,15 @@ inline auto ToString(VkClearValue clearValue, bool isDepthStencil)
 
 auto VirtualRenderState::ToString() const -> std::string {
   std::stringstream stream;
-  stream << "Cull mode: " << ::Graphics::ToString(cullMode) << "\n";
-  stream << "Front face: " << ::Graphics::ToString(frontFace) << "\n";
-  stream << "Depth test enable: " << depthTestEnable << "\n";
-  stream << "Depth write enable: " << depthWriteEnable << "\n";
+  // stream << "Cull mode: " << ::Graphics::ToString(cullMode) << "\n";
+  // stream << "Front face: " << ::Graphics::ToString(frontFace) << "\n";
+  // stream << "Depth test enable: " << depthTestEnable << "\n";
+  // stream << "Depth write enable: " << depthWriteEnable << "\n";
   stream << "Stencil test enable: " << stencilTestEnable << "\n";
-  stream << "Depth compare: " << ::Graphics::ToString(depthCompareOp) << "\n";
+  // stream << "Depth compare: " << ::Graphics::ToString(depthCompareOp) << "\n";
   stream << "Polygon mode: " << ::Graphics::ToString(polygonMode) << "\n";
-  stream << "Viewport: " << ::Graphics::ToString(viewport) << "\n";
-  stream << "Scissor: " << ::Graphics::ToString(scissor) << "\n";
+  // stream << "Viewport: " << ::Graphics::ToString(viewport) << "\n";
+  // stream << "Scissor: " << ::Graphics::ToString(scissor) << "\n";
   stream << "Shader: " << shader->name << "\n";
   stream << "Primitive topology: " << ::Graphics::ToString(primitiveTopology)
          << "\n";
