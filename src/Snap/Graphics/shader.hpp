@@ -271,7 +271,7 @@ struct Shader : Object, Identifiable {
   }
 
 private:
-  auto Send(ResolvedKey key, uint32_t data) -> Error;
+  auto Send(ResolvedKey key, uint64_t data) -> Error;
   auto Send(ResolvedKey key, uint32_t data, uint32_t samplerAddress) -> Error;
 };
 

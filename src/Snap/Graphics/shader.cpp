@@ -649,7 +649,7 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
   return Error::Success();
 }
 
-auto Shader::Send(const ResolvedKey key, const uint32_t data) -> Error {
+auto Shader::Send(const ResolvedKey key, const uint64_t data) -> Error {
   ZoneScopedN("Shader::Send device address");
 
   auto iter = reflection.keyToInfo.find(key);
@@ -659,8 +659,6 @@ auto Shader::Send(const ResolvedKey key, const uint32_t data) -> Error {
 
   ERR_ASSERT(info.GetSize() == 8);
 
-  // Note that we send the size of a uint32_t, as these are offsets within the heap,
-  // these do not need 64-bit precision and is not allowed within the shader anyways.
   // NOLINTNEXTLINE, pointer arithmetic
   memcpy(GetState().uniforms.data() + info.offset, &data, info.GetSize());
 
@@ -782,9 +780,13 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
                   const Ref<TLAS> &accelStructure) -> Error {
   ZoneScopedN("Shader::Send acceleration structure");
 
-  VkDeviceSize address = CHECK_RES(accelStructure->GetTLASBuffer()->GetAddress(
-      context, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0,
-      accelStructure->GetTLASBuffer()->size));
+  VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
+      .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+      .accelerationStructure = accelStructure->GetAccelerationStructure(),
+  };
+
+  auto deviceAddress =
+      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundAccelerationStructures[resolved] = {
@@ -793,7 +795,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
       .resource = accelStructure,
   };
 
-  return Send(resolved, address);
+  return Send(resolved, accelStructure->GetDeviceAddress());
 }
 
 auto Shader::hash() const -> size_t {

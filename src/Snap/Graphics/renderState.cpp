@@ -335,6 +335,7 @@ auto SetRenderTargets(const GraphicsContext &context,
 
   TopOfStack->colorAttachments.clear();
   TopOfStack->colorBlendEquations.clear();
+  TopOfStack->rendertargetsUpdated = true;
 
   for (const auto &target : renderTargets) {
     ERR_ASSERT(target.texture != nullptr);

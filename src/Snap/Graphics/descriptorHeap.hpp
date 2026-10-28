@@ -169,6 +169,9 @@ struct DescriptorHeapManager {
   auto AllocateResource(const struct GraphicsContext &context,
                         const Buffer *buffer, VkDescriptorType type,
                         uint32_t offset, uint32_t size) -> Result<VkDeviceSize>;
+  auto AllocateResource(const GraphicsContext &context,
+                        VkAccelerationStructureKHR accelerationStructure,
+                        uint32_t size) -> Result<VkDeviceSize>;
   auto AllocateResource(const struct GraphicsContext &context,
                         const Texture *texture, VkDescriptorType type)
       -> Result<VkDeviceSize>;
@@ -199,6 +202,10 @@ struct DescriptorHeapManager {
 private:
   auto AllocateResource(bool isImage) -> Result<VkDeviceSize>;
   auto AllocateSampler() -> Result<VkDeviceSize>;
+
+  auto AllocateResource(const GraphicsContext &context,
+                        VkDeviceAddress deviceAddress, VkDescriptorType type,
+                        uint32_t offset, uint32_t size) -> Result<VkDeviceSize>;
 };
 
 } // namespace Graphics

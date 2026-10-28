@@ -6,6 +6,7 @@
 #include "Graphics/renderState.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -343,6 +344,10 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
 
     virtualState.colorAttachments.emplace_back(target);
 
+    if (!RenderState::TopOfStack->rendertargetsUpdated) {
+      virtualState.colorAttachments.back().loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    }
+
     newPassData.reads.emplace_back(attachment.resource);
     newPassData.writes.emplace_back(attachment.resource);
 
@@ -357,6 +362,10 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
     virtualState.depthStencilAttachment =
         RenderState::TopOfStack->depthStencilAttachment;
 
+    if (!RenderState::TopOfStack->rendertargetsUpdated) {
+      virtualState.depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    }
+
     newPassData.reads.emplace_back(
         RenderState::TopOfStack->depthStencilAttachment.texture);
 
@@ -366,6 +375,8 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
     newPassData.accesses.emplace(virtualState.depthStencilAttachment.texture,
                                  std::make_pair(depthAccess, depthPipelines));
   }
+
+  RenderState::TopOfStack->rendertargetsUpdated = false;
 }
 
 auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> CommandID {

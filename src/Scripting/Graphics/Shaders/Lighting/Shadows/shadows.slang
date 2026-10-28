@@ -76,10 +76,11 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
   bool inShadow =
       light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #else
+#error "Invalid light type";
   bool inShadow = false;
 #endif
 
   uint shadowBit = inShadow ? (1U << id.z) : 0;
 
-  OutputTexture[id.xy] += shadowBit;
+  OutputTexture[id.xy] = shadowBit;
 }

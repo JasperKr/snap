@@ -268,15 +268,16 @@ auto PrepareRendering(const GraphicsContext &context,
       CHECK_ERR(BeginRendering(context, vkCommandBuffer));
     }
 
-    if (!sameViewport) {
-      vkCmdSetViewport(vkCommandBuffer, 0, 1,
-                       &RecordingState::CurrentState.viewport);
-    }
+    // TODO: for some reason these are not updated correctly if the if statements are left in place
+    // if (!sameViewport) {
+    vkCmdSetViewport(vkCommandBuffer, 0, 1,
+                     &RecordingState::CurrentState.viewport);
+    // }
 
-    if (!sameScissor) {
-      vkCmdSetScissor(vkCommandBuffer, 0, 1,
-                      &RecordingState::CurrentState.scissor);
-    }
+    // if (!sameScissor) {
+    vkCmdSetScissor(vkCommandBuffer, 0, 1,
+                    &RecordingState::CurrentState.scissor);
+    // }
 
     if (!sameDepth) {
       vkCmdSetDepthTestEnable(vkCommandBuffer,

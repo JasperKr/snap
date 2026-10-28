@@ -120,6 +120,9 @@ struct State {
 
   VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
   Math::StackVector<RenderTarget, MAX_COLOR_ATTACHMENTS> colorAttachments;
+  // If this is false, all load-ops will be forced to LOAD
+  bool rendertargetsUpdated = true;
+
   RenderTarget depthStencilAttachment;
   bool hasDepthStencilAttachment = false;
 

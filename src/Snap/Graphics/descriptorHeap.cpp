@@ -197,8 +197,34 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
                                              VkDescriptorType type,
                                              uint32_t offset, uint32_t size)
     -> Result<VkDeviceSize> {
-
   auto deviceAddress = CHECK_RES(buffer->GetDeviceAddress(context));
+
+  return AllocateResource(context, deviceAddress, type, offset, size);
+}
+
+auto DescriptorHeapManager::AllocateResource(
+    const GraphicsContext &context,
+    VkAccelerationStructureKHR accelerationStructure, uint32_t size)
+    -> Result<VkDeviceSize> {
+
+  VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
+      .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+      .accelerationStructure = accelerationStructure,
+  };
+
+  auto deviceAddress =
+      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
+
+  return AllocateResource(context, deviceAddress,
+                          VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0,
+                          size);
+}
+
+auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
+                                             VkDeviceAddress deviceAddress,
+                                             VkDescriptorType type,
+                                             uint32_t offset, uint32_t size)
+    -> Result<VkDeviceSize> {
 
   VkDeviceAddressRangeKHR addressRange{
       .address = deviceAddress + offset,
