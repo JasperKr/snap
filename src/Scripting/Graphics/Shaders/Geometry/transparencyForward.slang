@@ -116,18 +116,20 @@ float4 fragmentMain(FragmentInput input) {
 
   float3 viewDir = normalize(CameraData[0].Position - input.WorldPosition);
 
-  float NoV = ClampNoV(dot(normal, viewDir));
-  float lambdaV = ComputeLambdaV(pixel.Roughness, NoV);
+  pixel.NoV = ClampNoV(dot(normal, viewDir));
+  pixel.LambdaV = ComputeLambdaV(pixel.Roughness, pixel.NoV);
 
-  uint state =
-      uint(input.tex_coord.x * 10000.0f) ^ uint(input.tex_coord.y * 10000.0f);
-  state ^= FrameRandomState;
   uint2 screenCoords = uint2(input.screenCoords.xy);
+  float3 direct = float3(0.0);
 
-  float3 direct = DirectionalLight::SampleAll(input.WorldPosition, pixel,
-                                              viewDir, NoV, lambdaV, state,
-                                              screenCoords, FrameRandomState);
-  float3 E = prefilteredDFG(pixel.PerceptualRoughness, pixel.Fresnel0, NoV);
+  for (int i = 0; i < DirectionalLightCount; i++) {
+    var light = DirectionalLights.Load(i);
+
+    direct += light.GetIntensityAt(input.WorldPosition, pixel, viewDir);
+  }
+
+  float3 E =
+      prefilteredDFG(pixel.PerceptualRoughness, pixel.Fresnel0, pixel.NoV);
   float3 diffuse = ComputeDiffuseColor(pixel.Albedo, pixel.Metallic);
 
   float3 irradiance = float3(0.5, 0.5, 0.5); // Some ambient lighting

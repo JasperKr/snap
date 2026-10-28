@@ -322,6 +322,7 @@ auto Buffer::Create(const GraphicsContext &context,
 
   allocInfo.requiredFlags = info.properties;
   allocInfo.flags = 0;
+  allocInfo.minAlignment = info.minAlignment;
 
   {
     std::lock_guard<std::mutex> lock(

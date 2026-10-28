@@ -5,7 +5,6 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/units.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <algorithm>
@@ -117,18 +116,18 @@ auto DescriptorHeapManager::AllocateResource(bool isImage)
   auto *memoryManager = isImage ? &imageMemoryManager : &bufferMemoryManager;
   VkDeviceSize size = isImage ? imageDescriptorSize : bufferDescriptorSize;
 
-  // auto addressFromGap = CHECK_RES(memoryManager->TryAllocateFromGap(size));
+  auto addressFromGap = CHECK_RES(memoryManager->TryAllocateFromGap(size));
 
-  // if (addressFromGap.has_value()) {
-  //   auto offset = addressFromGap.value();
+  if (addressFromGap.has_value()) {
+    auto offset = addressFromGap.value();
 
-  //   if (!isImage) {
-  //     // Resource allocator does not work in reverse, so we just reverse the pointer at the end.
-  //     offset = BufferCursorOrigin - offset;
-  //   }
+    if (!isImage) {
+      // Resource allocator does not work in reverse, so we just reverse the pointer at the end.
+      offset = BufferCursorOrigin - offset;
+    }
 
-  //   return offset;
-  // }
+    return offset;
+  }
 
   // We do not need align with heapProperties.imageDescriptorAlignment / heapProperties.bufferDescriptorAlignment
   // As "the spec requires that the descriptorAlignment is less than or equal to the *descriptorSize, so you are always able to tightly pack an array of descriptors together."
@@ -157,12 +156,12 @@ auto DescriptorHeapManager::AllocateResource(bool isImage)
 
 auto DescriptorHeapManager::AllocateSampler() -> Result<VkDeviceSize> {
   VkDeviceSize size = samplerDescriptorSize;
-  // auto addressFromGap =
-  //     CHECK_RES(samplerMemoryManager.TryAllocateFromGap(size));
+  auto addressFromGap =
+      CHECK_RES(samplerMemoryManager.TryAllocateFromGap(size));
 
-  // if (addressFromGap.has_value()) {
-  //   return addressFromGap.value();
-  // }
+  if (addressFromGap.has_value()) {
+    return addressFromGap.value();
+  }
 
   VkDeviceSize offset = samplerCursor;
   ERR_ASSERT_MSG(offset + size < SamplerHeap->size, "Out of heap memory");

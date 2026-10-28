@@ -22,7 +22,8 @@ public:
   static auto Create(GraphicsContext &context)
       -> Result<FrameUniformBufferObject>;
 
-  auto Write(const std::span<const uint8_t> &data) -> Error;
+  auto Write(const GraphicsContext &context,
+             const std::span<const uint8_t> &data) -> Error;
 
   [[nodiscard]] auto GetOffset() const -> size_t { return offset; }
   [[nodiscard]] auto GetSize() const -> size_t { return buffer->size; }

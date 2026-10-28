@@ -2,7 +2,6 @@
 #include "Editor/editor.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/draw.hpp"
-#include "Graphics/format.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
@@ -14,7 +13,6 @@
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/bindings.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/reflectBindings.hpp"
@@ -382,7 +380,6 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   RenderState::SetDepthMode(true, true, VK_COMPARE_OP_GREATER);
   RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
-  RenderState::SetShader(depthOpaque);
 
   CHECK_ERR(RenderState::SetRenderTargets(
       ctx, {{
@@ -398,6 +395,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
 
   PushDebugMarker("Depth Opaque Prepass");
 
+  RenderState::SetShader(depthOpaque);
   for (const auto &item : OpaqueDrawItems) {
     CHECK_ERR(RenderDrawItem(item, depthOpaque, ctx, opaqueConfig));
   }
@@ -571,22 +569,16 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   // CHECK_ERR(shadowRectangle->Send(context, blueNoiseTextureKey, blueNoiseTex));
   CHECK_ERR(forward->Send(context, blueNoiseTextureKey, blueNoiseTex));
 
-  CHECK_ERR(
-      UniformWriter::Send(lightingShader, "FrameRandomState", frameRandomState));
-  CHECK_ERR(
-      UniformWriter::Send(forward, "FrameRandomState", frameRandomState));
-
-  static auto tlasKey = ResourceKey{"SceneBVH"};
-  CHECK_ERR(shadowDirectional->Send(context, tlasKey, renderer.GetSceneTLAS()));
+  CHECK_ERR(shadowDirectional->Send(context, "SceneBVH", renderer.GetSceneTLAS()));
   CHECK_ERR(shadowDirectional->Send(context, blueNoiseTextureKey, blueNoiseTex));
-  CHECK_ERR(forward->Send(context, tlasKey, renderer.GetSceneTLAS()));
+  CHECK_ERR(forward->Send(context, "SceneBVH", renderer.GetSceneTLAS()));
 
   CHECK_ERR(renderer.BindLightBuffers(ctx, shadowDirectional));
 
-  CHECK_ERR(UniformWriter::Send(shadowDirectional, {"LayerOffset"}, 0U));
-  CHECK_ERR(UniformWriter::Send(shadowDirectional, {"LightIndex"}, 0U));
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, "LayerOffset", 0U));
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, "LightIndex", 0U));
   CHECK_ERR(shadowDirectional->Send(context, "CameraData", {cameraBuffer, Graphics::StorageBuffer::read}));
-  // CHECK_ERR(shadowDirectional->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
+  CHECK_ERR(shadowDirectional->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
 
   auto shadowsReset = CHECK_RES(manager.GetShader(Renderer::ShaderKey::Shadows_ClearHitFlags));
   CHECK_ERR(shadowsReset->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
@@ -594,13 +586,13 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   auto width = textures.ShadowHitFlags->GetWidth();
   auto height = textures.ShadowHitFlags->GetHeight();
 
-  // RenderState::SetShader(shadowsReset);
+  RenderState::SetShader(shadowsReset);
 
-  // CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width / 4, height / 4, 1)));
+  CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width / 4, height / 4, 1)));
 
-  // RenderState::SetShader(shadowDirectional);
+  RenderState::SetShader(shadowDirectional);
 
-  // CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
+  CHECK_ERR(DispatchWithin(ctx, Math::Uvec3(width, height, 1)));
 
   textures.ShadowVisibility =
       CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
@@ -617,7 +609,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   CHECK_ERR(shadowDenoise->Send(context, "OutputTexture", {textures.ShadowVisibility, StorageBuffer::write}));
   CHECK_ERR(shadowDenoise->Send(context, "MotionTexture", textures.Motion));
   CHECK_ERR(shadowDenoise->Send(context, "PreviousOutputTexture", textures.PreviousShadowVisibility));
-  CHECK_ERR(shadowDenoise->Send(context, "RayHitTexture", {textures.ShadowHitFlags, StorageBuffer::read}));
+  CHECK_ERR(shadowDenoise->Send(context, "RayHitTexture", textures.ShadowHitFlags));
 
   RenderState::SetShader(shadowDenoise);
 
@@ -647,8 +639,8 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
       ambientOcclusionShader->Send(context, blueNoiseTextureKey, blueNoiseTex));
   CHECK_ERR(ambientOcclusionShader->Send(
       context, "CameraData", {cameraBuffer, Graphics::StorageBuffer::read}));
-  CHECK_ERR(
-      ambientOcclusionShader->Send(context, tlasKey, renderer.GetSceneTLAS()));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "SceneBVH",
+                                         renderer.GetSceneTLAS()));
   CHECK_ERR(ambientOcclusionShader->Send(
       context, "OutputTexture",
       {textures.AmbientOcclusionSamples, StorageTexture::write}));
@@ -693,8 +685,7 @@ auto Scene::DrawModels(Camera &camera, Frustum &frustum,
   textures.PreviousAmbientOcclusion = textures.AmbientOcclusion;
 
   RenderState::SetShader(lightingShader);
-  static ResourceKey ShadowVisibilityTextureKey = {"ShadowVisibilityTexture"};
-  CHECK_ERR(lightingShader->Send(context, ShadowVisibilityTextureKey,
+  CHECK_ERR(lightingShader->Send(context, "ShadowVisibilityTexture",
                                  textures.ShadowVisibility));
 
   textures.DirectLighting =

@@ -2,17 +2,13 @@
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/dynamicRendering.hpp"
 #include "Graphics/FrameGraph/pipelineState.hpp"
-#include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
-#include "Graphics/graphicsState.hpp"
-#include "Graphics/renderState.hpp"
 #include "Graphics/vkAccessHelpers.hpp"
 #include "Graphics/vkPipelineHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -23,7 +19,6 @@
 #include <sstream>
 #include <string>
 #include <unordered_set>
-#include <variant>
 #if OUTPUT_DEBUG_GRAPH
 #include "Modules/filesystem.hpp"
 #include <format>
@@ -348,12 +343,12 @@ auto FrameGraph::BuildGraph() -> Error {
     graph[command.level].commands.emplace_back(command.id);
 
 #if OUTPUT_DEBUG_GRAPH
-    for (const CommandID parentId : commandParents[command.id]) {
-      const auto &parent = commands.at(parentId);
+    for (const CommandID parentID : commandParents[command.id]) {
+      const auto &parent = GetCommand(parentID);
 
       if (parent.GetType() != CommandType::vkCmdPipelineBarrier2 &&
           command.GetType() != CommandType::vkCmdPipelineBarrier2) {
-        dependencies.emplace((uint32_t(parentId) << UINT16_WIDTH) | command.id);
+        dependencies.emplace((uint32_t(parentID) << UINT16_WIDTH) | command.id);
       }
     }
 #endif
@@ -409,11 +404,11 @@ auto FrameGraph::DebugOutput() -> Error {
   const static bool ExportRWLabels = true;
 
   for (const auto &level : graph) {
-    stream << std::format("subgraph cluster_level_{} {{\n", level->level);
-    stream << std::format("label = \"Level {}\";\n", level->level);
+    stream << std::format("subgraph cluster_level_{} {{\n", level.level);
+    stream << std::format("label = \"Level {}\";\n", level.level);
 
     for (const auto commandID : level.commands) {
-      const auto &command = commands.at(commandID);
+      const auto &command = GetCommand(commandID);
       if (ExportRWLabels) {
         const auto &reads = GetReads(command);
         const auto &writes = GetWrites(command);
@@ -437,18 +432,18 @@ auto FrameGraph::DebugOutput() -> Error {
           }
         }
 
-        stream << std::format(
-            "{} [label=\"{}: {}\nR: {}\nW: {}\"];\n", command->id,
-            command->level, CommandTypeEnumHelper.ToString(command->GetType()),
-            readStr.str(), writeStr.str());
+        stream << std::format("{} [label=\"{}: {}\nR: {}\nW: {}\"];\n",
+                              command.id, command.level,
+                              CommandTypeEnumHelper.ToString(command.GetType()),
+                              readStr.str(), writeStr.str());
       } else {
         stream << std::format(
-            "{} [label=\"{}: {}\"];\n", command->id, command->level,
-            CommandTypeEnumHelper.ToString(command->GetType()));
+            "{} [label=\"{}: {}\"];\n", command.id, command.level,
+            CommandTypeEnumHelper.ToString(command.GetType()));
       }
     }
 
-    stream << std::format("barriers_{} [\n", level->level);
+    stream << std::format("barriers_{} [\n", level.level);
 
     std::stringstream barriers{};
 
@@ -466,11 +461,10 @@ auto FrameGraph::DebugOutput() -> Error {
     uint32_t child = dependency & UINT16_MAX;
 
     ERR_ASSERT_MSG(
-        commands.at(child)->level > commands.at(parent)->level,
+        GetCommand(child).level > GetCommand(parent).level,
         std::format(
             "child: {} with parent: {}, child level {} <= parent level {}",
-            child, parent, commands.at(child)->level,
-            commands.at(parent)->level));
+            child, parent, GetCommand(child).level, GetCommand(parent).level));
 
     stream << "\"" << parent << "\" -> \"" << child << "\";\n";
   }

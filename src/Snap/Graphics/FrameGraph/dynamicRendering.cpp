@@ -1,5 +1,4 @@
 #include "dynamicRendering.hpp"
-#include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/renderState.hpp"
 #include "Modules/error.hpp"
@@ -248,13 +247,6 @@ auto PrepareRendering(const GraphicsContext &context,
     sameFFWinding = RecordingState::CurrentState.frontFace ==
                     RecordingState::LastState->frontFace;
   }
-
-  sameViewport = false;
-  sameScissor = false;
-  sameDepth = false;
-  sameBlendMode = false;
-  sameCullmode = false;
-  sameFFWinding = false;
 
   bool isGraphics =
       RecordingState::CurrentState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;

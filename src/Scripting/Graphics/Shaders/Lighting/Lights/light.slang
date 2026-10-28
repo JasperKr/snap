@@ -2,51 +2,23 @@ module light;
 
 import pixel;
 
-public struct Light {
-  public float3 Color;
-  public float Intensity;
-  public int ShadowBufferIndex;
+public struct Light {};
 
-  public float4 Position;
-  public float4 Rotation;
-};
-
-#ifndef SHADER_TYPE_SHADOW_SAMPLING
-uniform Sampler2DArray<float>.Handle ShadowVisibilityTexture;
-#endif
+public uniform Sampler2DArray<float>.Handle ShadowVisibilityTexture;
 
 public interface ILight {
-  Light GetLight();
+  float3 GetPosition();
+  float4 GetRotation();
+  float GetIntensity();
+  float3 GetColor();
 
-  static float3 Sample(const float3 WorldPosition, const uint32_t LightIndex,
-                       const Pixel pixel, const float3 ViewDirection,
-                       const float NoV, const float LambdaV, inout uint state,
-                       uint2 screenCoords, uint frameRandomState) {
-    return float3(0.0f);
-  }
+  float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel,
+                        const float3 ViewDirection);
 
-  static float3 SampleAll(const float3 WorldPosition, const Pixel pixel,
-                          const float3 ViewDirection, const float NoV,
-                          const float LambdaV, inout uint state,
-                          uint2 screenCoords, uint frameRandomState) {
-    return float3(0.0f);
-  }
+  bool TraceShadow(const float3 WorldPosition, const float3 Normal,
+                   uint2 screenCoords, const uint frameRandomState);
 
-  static bool TraceShadow(const float3 WorldPosition, const uint LightIndex,
-                          const float3 Normal, uint2 screenCoords,
-                          const uint frameRandomState) {
-    return false;
-  }
-
-  static float ReadShadowVisibility(const int ShadowBufferIndex,
-                                    const uint2 screenCoords) {
-    if (ShadowBufferIndex < 0) {
-      return 1.0f;
-    }
-
-    return ShadowVisibilityTexture.Load(
-        int4(screenCoords, 0, ShadowBufferIndex));
-  }
+  float SampleShadow(int2 screenCoords);
 };
 
 public float AttenuateCusp(float distance, float radius, float falloff) {

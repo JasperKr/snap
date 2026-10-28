@@ -5,6 +5,8 @@ import pixel;
 import physicallyBased;
 import constants;
 import utils;
+import random;
+import raytracing;
 
 float RectangleSolidAngle(half3 V0, half3 V1, half3 V2, half3 V3) {
   mediump half3 n0 = normalize(cross(V0, V1));
@@ -34,14 +36,25 @@ float3 RayPlaneIntersect(float3 rayOrigin, float3 rayDirection,
 }
 
 public struct RectangleLight : ILight {
-  public Light Base;
+  public float3 Color;
+  public float Intensity;
+  public int ShadowBufferIndex;
+
+  public float4 Position;
+  public float4 Rotation;
+
+  public float3 GetPosition() { return Position.xyz; }
+  public float4 GetRotation() { return Rotation; }
+  public float3 GetColor() { return Color; }
+  public float GetIntensity() { return Intensity; }
+
   public float2 Size;
   public float Range;
 
   public float3 GetForward() {
     const float3 Forward = float3(0.0f, 0.0f, 1.0f);
 
-    return Rotate(Forward, Base.Rotation);
+    return Rotate(Forward, Rotation);
   }
 
   public half3 GetForwardh() { return half3(GetForward()); }
@@ -49,7 +62,7 @@ public struct RectangleLight : ILight {
   public float3 GetRight() {
     const float3 Right = float3(1.0f, 0.0f, 0.0f);
 
-    return Rotate(Right, Base.Rotation);
+    return Rotate(Right, Rotation);
   }
 
   public half3 GetRighth() { return half3(GetRight()); }
@@ -57,32 +70,26 @@ public struct RectangleLight : ILight {
   public float3 GetUp() {
     const float3 Up = float3(0.0f, 1.0f, 0.0f);
 
-    return Rotate(Up, Base.Rotation);
+    return Rotate(Up, Rotation);
   }
 
   public half3 GetUph() { return half3(GetUp()); }
 
-  public static override float3 Sample(const float3 WorldPosition,
-                                       const uint LightIndex, const Pixel pixel,
-                                       const float3 ViewDirection,
-                                       const float NoV, const float LambdaV,
-                                       inout uint state, uint2 screenCoords,
-                                       uint frameRandomState) {
-    RectangleLight light = RectangleLights[LightIndex];
+  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel,
+                               const float3 ViewDirection) {
+    half2 halfSize = half2(Size) * 0.5h;
+    half3 forward = GetForwardh();
+    half3 right = GetRighth();
+    half3 up = GetUph();
 
-    half2 halfSize = half2(light.Size) * 0.5h;
-    half3 forward = light.GetForwardh();
-    half3 right = light.GetRighth();
-    half3 up = light.GetUph();
-
-    half3 pixelToCenter = half3(light.Base.Position.xyz - WorldPosition);
+    half3 pixelToCenter = half3(Position.xyz - WorldPosition);
 
     half3 v0 = normalize(pixelToCenter + halfSize.x * right + halfSize.y * up);
     half3 v1 = normalize(pixelToCenter - halfSize.x * right + halfSize.y * up);
     half3 v2 = normalize(pixelToCenter - halfSize.x * right - halfSize.y * up);
     half3 v3 = normalize(pixelToCenter + halfSize.x * right - halfSize.y * up);
 
-    float3 Radiance = light.Base.Color * light.Base.Intensity;
+    float3 Radiance = Color * Intensity;
     float solidAngle = RectangleSolidAngle(v0, v1, v2, v3);
 
     pixelToCenter = normalize(pixelToCenter);
@@ -96,25 +103,37 @@ public struct RectangleLight : ILight {
     return Radiance * NoL;
   }
 
-  public static override float3 SampleAll(const float3 WorldPosition,
-                                          const Pixel pixel,
-                                          const float3 ViewDirection,
-                                          const float NoV, const float LambdaV,
-                                          inout uint state, uint2 screenCoords,
-                                          uint frameRandomState) {
-    return float3(0.0f);
+  public bool TraceShadow(const float3 WorldPosition, const float3 Normal,
+                          uint2 screenCoords, const uint frameRandomState) {
+    screenCoords += uint2(frameRandomState, frameRandomState * 84313U);
+
+    float rnd0 = BlueNoiseTexture.Load(int3(screenCoords % 128, 0)).r;
+    screenCoords += uint2(frameRandomState * 3913U, frameRandomState);
+    float rnd1 = BlueNoiseTexture.Load(int3(screenCoords % 128, 0)).r;
+
+    float3 position =
+        GetRight() * (rnd0 - 0.5f) * Size.x + GetUp() * (rnd1 - 0.5f) * Size.y;
+
+    float3 sampleDirection = normalize(position - WorldPosition);
+
+    RayDesc ray;
+    ray.Origin = WorldPosition + Normal * 1e-2f;
+    ray.Direction = sampleDirection;
+    ray.TMin = 0.01f;
+    ray.TMax = distance(position, WorldPosition);
+
+    return TraceAnyHitRay(ray);
   }
 
-  public static override bool TraceShadow(const float3 WorldPosition,
-                                          const uint LightIndex,
-                                          const float3 Normal,
-                                          uint2 screenCoords,
-                                          const uint frameRandomState) {
-    return false;
-  }
+  public float SampleShadow(int2 screenCoords) {
+    if (ShadowBufferIndex < 0) {
+      return 1.0f;
+    }
 
-  public Light GetLight() { return Base; }
+    return ShadowVisibilityTexture.Load(
+        int4(screenCoords, 0, ShadowBufferIndex));
+  }
 }
 
-uniform uint32_t RectangleLightCount;
-uniform StructuredBuffer<RectangleLight>.Handle RectangleLights;
+public uniform uint32_t RectangleLightCount;
+public uniform StructuredBuffer<RectangleLight>.Handle RectangleLights;

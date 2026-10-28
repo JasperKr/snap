@@ -645,6 +645,7 @@ auto BLAS::FinalizeCompaction(const GraphicsContext &context,
           .stagingBuffer = false,
           .persistentMapping = false,
           .debugName = "BLAS Buffer (Compacted)",
+          .minAlignment = 256,
       }));
 
   VkAccelerationStructureKHR compactedAccelerationStructure = VK_NULL_HANDLE;
@@ -793,6 +794,7 @@ auto TLAS::Create(const GraphicsContext &context,
           .stagingBuffer = false,
           .persistentMapping = false,
           .debugName = "TLAS Buffer",
+          .minAlignment = 256,
       }));
   TLAS::TotalAllocatedMemory.fetch_add(sizeInfo.accelerationStructureSize);
 
@@ -1075,6 +1077,7 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
             .stagingBuffer = false,
             .persistentMapping = false,
             .debugName = "TLAS Buffer",
+            .minAlignment = 256,
         }));
     TLAS::TotalAllocatedMemory.fetch_sub(oldSize);
     TLAS::TotalAllocatedMemory.fetch_add(sizeInfo.accelerationStructureSize);

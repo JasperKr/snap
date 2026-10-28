@@ -4,10 +4,8 @@
 #include "Graphics/FrameGraph/virtualState.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/renderState.hpp"
-#include "Graphics/vkAccessHelpers.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/hasher.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -241,9 +239,7 @@ auto DrawState::Initialize(CommandType type) -> Error {
 
   ERR_ASSERT(offset < UINT32_MAX);
   assert(shader->GetState().uniforms.size() == shader->uniformsSize);
-  CHECK_ERR(buffer.Write(shader->GetState().uniforms));
-
-  assert(buffer.GetBuffer().get() != nullptr);
+  CHECK_ERR(buffer.Write(context, shader->GetState().uniforms));
 
   uboAddress = CHECK_RES(
       buffer.GetBuffer()->GetAddress(context, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -708,20 +704,18 @@ auto VirtualCommandBuffer::BuildAccelerationStructuresKHR(
   commandInfo.bufferReads.resize(readCount);
   commandInfo.bufferWrites.resize(writeCount);
 
-  if (infoCount != 0U) {
-    memcpy(commandInfo.infos.data(), pInfos,
-           sizeof(VkAccelerationStructureBuildGeometryInfoKHR) * infoCount);
-  }
+  assert(readCount != 0U);
+  assert(writeCount != 0U);
+  assert(infoCount != 0U);
 
-  if (readCount != 0U) {
-    memcpy(commandInfo.bufferReads.data(), bufferReads, // NOLINT
-           sizeof(VkBuffer) * readCount);
-  }
+  memcpy(commandInfo.infos.data(), pInfos,
+         sizeof(VkAccelerationStructureBuildGeometryInfoKHR) * infoCount);
 
-  if (writeCount != 0U) {
-    memcpy(commandInfo.bufferWrites.data(), bufferWrites, // NOLINT
-           sizeof(VkBuffer) * writeCount);
-  }
+  memcpy(commandInfo.bufferReads.data(), bufferReads, // NOLINT
+         sizeof(VkBuffer) * readCount);
+
+  memcpy(commandInfo.bufferWrites.data(), bufferWrites, // NOLINT
+         sizeof(VkBuffer) * writeCount);
 
   size_t geometryCount{};
 

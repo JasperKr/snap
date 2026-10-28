@@ -678,6 +678,8 @@ auto Shader::Send(const ResolvedKey key, const uint32_t data,
 
   ERR_ASSERT(info.GetSize() == 8);
 
+  ERR_ASSERT(data != 0 && samplerAddress != 0);
+
   // NOLINTNEXTLINE, pointer arithmetic
   memcpy(GetState().uniforms.data() + info.offset, &data, sizeof(uint32_t));
   // NOLINTNEXTLINE, pointer arithmetic

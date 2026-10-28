@@ -2,14 +2,12 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include <cassert>
-#include <cstddef>
 #include <cstdint>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <vector>
 
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -47,7 +45,7 @@ auto FrameUniformBufferObject::Create(GraphicsContext &context)
   FrameUniformBufferObject obj{};
   BufferCreationInfo info{};
   info.size = InitialUniformBufferSize;
-  info.persistentMapping = true;
+  info.persistentMapping = false;
   info.stagingBuffer = true;
   info.properties = static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) |
                     static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
@@ -64,7 +62,8 @@ auto FrameUniformBufferObject::Create(GraphicsContext &context)
   return obj;
 }
 
-auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data)
+auto FrameUniformBufferObject::Write(const GraphicsContext &context,
+                                     const std::span<const uint8_t> &data)
     -> Error {
   ZoneScoped;
 
@@ -93,6 +92,21 @@ auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data)
     }
 
     stagingBuffer.resize(internalSize);
+
+    Graphics::BufferCreationInfo info{};
+    info.size = internalSize;
+    info.persistentMapping = false;
+    info.stagingBuffer = true;
+    info.properties =
+        static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) |
+        static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
+        static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
+                 static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    info.debugName = "Frame Uniform Buffer";
+
+    buffer = CHECK_RES(Graphics::Buffer::Create(context, info));
   }
 
   assert(requiredSize <= stagingBuffer.size() &&
@@ -108,25 +122,6 @@ auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data)
 auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
     -> Error {
   ZoneScoped;
-
-  [[unlikely]]
-  if (internalSize != buffer->size) {
-    Graphics::BufferCreationInfo info{};
-    info.size = internalSize;
-    info.persistentMapping = true;
-    info.stagingBuffer = true;
-    info.properties =
-        static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) |
-        static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
-        static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-                 static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
-                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    info.debugName = "Frame Uniform Buffer";
-
-    buffer = CHECK_RES(Graphics::Buffer::Create(context, info));
-    PrintError("New UBO!");
-  }
 
   if (offset == 0) {
     return {};

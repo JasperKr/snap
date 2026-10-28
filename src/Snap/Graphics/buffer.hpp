@@ -31,6 +31,8 @@ struct BufferCreationInfo {
 
   // Debug name for the buffer
   std::string debugName;
+
+  VkDeviceSize minAlignment{};
 };
 
 const static Type LuaBufferReadbackType = Type("BufferReadback");

@@ -8,52 +8,50 @@ import raytracing;
 import random;
 
 public struct DirectionalLight : ILight {
-  public Light Base;
+  public float3 Color;
+  public float Intensity;
+  public int ShadowBufferIndex;
 
-  public Light GetLight() { return Base; }
+  public float4 Position;
+  public float4 Rotation;
 
-  public static override float3 Sample(const float3 WorldPosition,
-                                       const uint LightIndex, const Pixel pixel,
-                                       const float3 ViewDirection,
-                                       const float NoV, const float LambdaV,
-                                       inout uint state, uint2 screenCoords,
-                                       uint frameRandomState) {
-    DirectionalLight light = DirectionalLights[LightIndex];
-    float3 Color = light.Base.Color * light.Base.Intensity;
+  public float3 GetPosition() { return Position.xyz; }
+  public float4 GetRotation() { return Rotation; }
+  public float3 GetColor() { return Color; }
+  public float GetIntensity() { return Intensity; }
+
+  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel,
+                               const float3 ViewDirection) {
+    float3 Color = Color * Intensity;
 
     const float3 LocalForward = float3(0.0f, 0.0f, 1.0f);
     const float3 LocalUp = float3(0.0f, 1.0f, 0.0f);
-    const float3 WorldForward = Rotate(LocalForward, light.Base.Rotation);
-    const float3 WorldUp = Rotate(LocalUp, light.Base.Rotation);
+    const float3 WorldForward = Rotate(LocalForward, Rotation);
+    const float3 WorldUp = Rotate(LocalUp, Rotation);
 
     float NdotL = saturate(dot(pixel.Normal, WorldForward));
     float3 Diffuse = ComputeDiffuseColor(pixel.Albedo, pixel.Metallic);
 
-    float3 brdf =
-        SampleBRDF(ViewDirection, WorldForward, NoV, pixel.Normal,
-                   pixel.Roughness, pixel.Fresnel0, Diffuse, NdotL, LambdaV);
+    float3 brdf = SampleBRDF(ViewDirection, WorldForward, pixel.NoV,
+                             pixel.Normal, pixel.Roughness, pixel.Fresnel0,
+                             Diffuse, NdotL, pixel.LambdaV);
 
-#ifndef SHADER_TYPE_SHADOW_SAMPLING
-    float visibility =
-        ReadShadowVisibility(light.GetLight().ShadowBufferIndex, screenCoords);
-#else
-    float visibility = 1.0;
-#endif
-
-    return Color * brdf * visibility;
+    return Color * brdf;
   }
 
-  public static override bool TraceShadow(const float3 WorldPosition,
-                                          const uint LightIndex,
-                                          const float3 Normal,
-                                          uint2 screenCoords,
-                                          const uint frameRandomState) {
-    DirectionalLight light = DirectionalLights[LightIndex];
+  public float SampleShadow(int2 screenCoords) {
+    if (ShadowBufferIndex < 0) {
+      return 1.0f;
+    }
 
-    const float3 WorldForward =
-        Rotate(float3(0.0f, 0.0f, 1.0f), light.Base.Rotation);
-    const float3 WorldUp =
-        Rotate(float3(0.0f, 1.0f, 0.0f), light.Base.Rotation);
+    return ShadowVisibilityTexture.Load(
+        int4(screenCoords, 0, ShadowBufferIndex));
+  }
+
+  public bool TraceShadow(const float3 WorldPosition, const float3 Normal,
+                          uint2 screenCoords, const uint frameRandomState) {
+    const float3 WorldForward = Rotate(float3(0.0f, 0.0f, 1.0f), Rotation);
+    const float3 WorldUp = Rotate(float3(0.0f, 1.0f, 0.0f), Rotation);
 
     float NoL = dot(Normal, WorldForward);
     if (NoL <= 0.0f) {
@@ -82,21 +80,7 @@ public struct DirectionalLight : ILight {
 
     return TraceAnyHitRay(ray);
   }
-
-  public static override float3 SampleAll(const float3 WorldPosition,
-                                          const Pixel pixel,
-                                          const float3 ViewDirection,
-                                          const float NoV, const float LambdaV,
-                                          inout uint state, uint2 screenCoords,
-                                          uint frameRandomState) {
-    float3 result = float3(0.0f);
-    for (uint i = 0; i < DirectionalLightCount; i++) {
-      result += Sample(WorldPosition, i, pixel, ViewDirection, NoV, LambdaV,
-                       state, screenCoords, frameRandomState);
-    }
-    return result;
-  }
 }
 
-uniform uint32_t DirectionalLightCount;
-uniform StructuredBuffer<DirectionalLight>.Handle DirectionalLights;
+public uniform uint32_t DirectionalLightCount;
+public uniform StructuredBuffer<DirectionalLight>.Handle DirectionalLights;

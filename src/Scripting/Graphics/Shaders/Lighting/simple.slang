@@ -21,8 +21,6 @@ struct FragmentInput {
   float4 screen_position : SV_Position;
 };
 
-uniform uint FrameRandomState;
-
 uniform Sampler2D.Handle AlbedoTexture;
 uniform Sampler2D.Handle NormalTexture;
 uniform Sampler2D.Handle MaterialTexture;
@@ -59,18 +57,18 @@ FragmentOutput fragmentMain(FragmentInput input) {
   pixel.Roughness = material.roughness;
   pixel.Fresnel0 =
       ComputeFresnel0(albedo, material.metallic, material.reflectance);
-
-  float NoV = ClampNoV(dot(normal, viewDir));
-  float LambdaV = ComputeLambdaV(pixel.Roughness, NoV);
-
-  uint state = uint(input.screen_position.x) ^ uint(input.screen_position.y);
-  state ^= FrameRandomState;
+  pixel.NoV = ClampNoV(dot(normal, viewDir));
+  pixel.LambdaV = ComputeLambdaV(pixel.Roughness, pixel.NoV);
 
   uint2 screenCoords = uint2(input.screen_position.xy);
 
-  incomingLight +=
-      DirectionalLight.SampleAll(worldPosition, pixel, viewDir, NoV, LambdaV,
-                                 state, screenCoords, FrameRandomState);
+  for (int i = 0; i < DirectionalLightCount; i++) {
+    var light = DirectionalLights.Load(i);
+
+    incomingLight += light.GetIntensityAt(worldPosition, pixel, viewDir) *
+                     light.SampleShadow(screenCoords);
+  }
+
   // incomingLight +=
   //     PointLight.SampleAll(worldPosition, pixel, viewDir, NoV, LambdaV, state,
   //                          screenCoords, FrameRandomState);

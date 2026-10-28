@@ -18,8 +18,6 @@ import rectangleLight;
 #error "No light type defined for shadow sampling shader"
 #endif
 
-#define SHADER_TYPE_SHADOW_SAMPLING
-
 uniform Sampler2D.Handle DepthTexture;
 uniform Sampler2D.Handle NormalTexture;
 uniform RWTexture2D<uint>.Handle OutputTexture;
@@ -58,25 +56,30 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
       FrameRandomState + screenCoords.x * 1702 + screenCoords.y * 40301;
 
 #ifdef SHADER_LIGHT_TYPE_DIRECTIONAL
-  bool inShadow = DirectionalLight::TraceShadow(
-      worldPosition, LightIndex + id.z, normal, screenCoords, randomState);
+  var light = DirectionalLights.Load(LightIndex + id.z);
+  bool inShadow =
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_POINT)
-  bool inShadow = PointLight::TraceShadow(worldPosition, LightIndex + id.z,
-                                          normal, screenCoords, randomState);
+  var light = PointLights.Load(LightIndex + id.z);
+  bool inShadow =
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPOT)
-  bool inShadow = SpotLight::TraceShadow(worldPosition, LightIndex + id.z,
-                                         normal, screenCoords, randomState);
+  var light = SpotLights.Load(LightIndex + id.z);
+  bool inShadow =
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPHERE)
-  bool inShadow = SphereLight::TraceShadow(worldPosition, LightIndex + id.z,
-                                           normal, screenCoords, randomState);
+  var light = SphereLights.Load(LightIndex + id.z);
+  bool inShadow =
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_RECTANGLE)
-  bool inShadow = RectangleLight::TraceShadow(
-      worldPosition, LightIndex + id.z, normal, screenCoords, randomState);
+  var light = RectangleLights.Load(LightIndex + id.z);
+  bool inShadow =
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #else
   bool inShadow = false;
 #endif
 
   uint shadowBit = inShadow ? (1U << id.z) : 0;
 
-  // InterlockedOr(OutputTexture[id.xy], shadowBit);
+  OutputTexture[id.xy] += shadowBit;
 }

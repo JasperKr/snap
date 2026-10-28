@@ -19,6 +19,8 @@ struct VertexInput {
   // float4 Color : COLOR;
 };
 
+uniform uint2 testPadding;
+
 uniform Sampler2D.Handle AlbedoTexture;
 
 [shader("vertex")]

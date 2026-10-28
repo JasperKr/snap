@@ -7,4 +7,6 @@ public struct Pixel {
   public float Roughness;
   public float3 Fresnel0;
   public float Metallic;
+  public float NoV;
+  public float LambdaV;
 };
