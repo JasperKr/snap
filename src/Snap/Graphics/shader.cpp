@@ -150,8 +150,8 @@ auto LoadShaderModule() -> Error {
   ERR_ASSERT(SpvTargetDesc.profile != SLANG_PROFILE_UNKNOWN);
 
   auto *options = GetCompilerOptions();
-  const std::vector<string_view> capabilities = {"spvRayQueryKHR",
-                                                 "spvDescriptorHeapEXT"};
+  const std::vector<string_view> capabilities = {
+      "spvRayQueryKHR", "spvDescriptorHeapEXT", "spvRayTracingKHR"};
 
   for (auto capability : capabilities) {
     auto &option = options->emplace_back();
@@ -660,7 +660,7 @@ auto Shader::Send(const ResolvedKey key, const uint64_t data) -> Error {
   ERR_ASSERT(info.GetSize() == 8);
 
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(GetState().uniforms.data() + info.offset, &data, info.GetSize());
+  memcpy(GetState().uniforms.data() + info.offset, &data, sizeof(uint64_t));
 
   return Error::Success();
 }
@@ -779,14 +779,6 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
 auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
                   const Ref<TLAS> &accelStructure) -> Error {
   ZoneScopedN("Shader::Send acceleration structure");
-
-  VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
-      .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
-      .accelerationStructure = accelStructure->GetAccelerationStructure(),
-  };
-
-  auto deviceAddress =
-      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundAccelerationStructures[resolved] = {

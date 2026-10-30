@@ -188,6 +188,8 @@ struct TLAS : Object, Identifiable {
     }
   }
 
+  auto GetHeapAddress() const -> VkDeviceSize { return heapAddress; }
+
   static std::atomic<size_t> TotalAllocatedMemory;
 
 private:
@@ -202,6 +204,9 @@ private:
 
   size_t instanceCapacity = InitialTLASInstanceBufferCapacity;
   std::string debugName = "Unnamed TLAS";
+
+  auto UpdateAddresses(const GraphicsContext &context) -> Error;
+  VkDeviceSize heapAddress{};
 };
 
 } // namespace Graphics

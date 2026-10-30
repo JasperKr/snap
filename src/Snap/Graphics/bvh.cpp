@@ -40,6 +40,8 @@ auto BVHManager::GetBVHScratchBuffer(const GraphicsContext &context,
         .stagingBuffer = false,
         .persistentMapping = false,
         .debugName = "BVH Scratch Buffer",
+        .minAlignment = context.accelerationStructureProperties
+                            .minAccelerationStructureScratchOffsetAlignment,
     };
 
     BvhScratchBuffer = CHECK_RES(Buffer::Create(context, info));
@@ -57,6 +59,8 @@ auto BVHManager::Initialize(const GraphicsContext &context) -> Error {
       .stagingBuffer = false,
       .persistentMapping = false,
       .debugName = "BVH Scratch Buffer",
+      .minAlignment = context.accelerationStructureProperties
+                          .minAccelerationStructureScratchOffsetAlignment,
   };
 
   BvhScratchBuffer = CHECK_RES(Buffer::Create(context, info));
@@ -215,13 +219,9 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh)
         &bvh->accelerationStructure));
   }
 
-  auto alignment = context.accelerationStructureProperties
-                       .minAccelerationStructureScratchOffsetAlignment;
-
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
-      context, sizeInfo.buildScratchSize + alignment));
+      context, sizeInfo.buildScratchSize));
   auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
-  scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   // Finalize build info
   buildInfo.dstAccelerationStructure = bvh->accelerationStructure;
@@ -341,13 +341,9 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
       context.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
       &buildInfo, &primitiveCount, &sizeInfo);
 
-  auto alignment = context.accelerationStructureProperties
-                       .minAccelerationStructureScratchOffsetAlignment;
-
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
-      context, sizeInfo.updateScratchSize + alignment));
+      context, sizeInfo.updateScratchSize));
   auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
-  scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   buildInfo.scratchData.deviceAddress = scratchAddress;
 
@@ -429,8 +425,13 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
       .accelerationStructure = accelerationStructure,
   };
 
-  accelerationStructureAddress =
-      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
+  {
+    std::lock_guard<std::mutex> lockDevice(
+        Graphics::GraphicsContext::mutexes.device);
+
+    accelerationStructureAddress = vkGetAccelerationStructureDeviceAddressKHR(
+        context.device, &addressInfo);
+  }
 
   return Error::Success();
 }
@@ -536,8 +537,13 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
       .accelerationStructure = accelerationStructure,
   };
 
-  accelerationStructureAddress =
-      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
+  {
+    std::lock_guard<std::mutex> lockDevice(
+        Graphics::GraphicsContext::mutexes.device);
+
+    accelerationStructureAddress = vkGetAccelerationStructureDeviceAddressKHR(
+        context.device, &addressInfo);
+  }
 
   return Error::Success();
 }
@@ -719,6 +725,31 @@ auto TLAS::GetDeviceAddress() const -> VkDeviceAddress {
   return accelerationStructureAddress;
 }
 
+auto TLAS::UpdateAddresses(const GraphicsContext &context) -> Error {
+  {
+    std::lock_guard<std::mutex> lockDevice(
+        Graphics::GraphicsContext::mutexes.device);
+
+    VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
+        .sType =
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+        .accelerationStructure = accelerationStructure,
+    };
+
+    accelerationStructureAddress = vkGetAccelerationStructureDeviceAddressKHR(
+        context.device, &addressInfo);
+  }
+
+  if (heapAddress != 0) {
+    DescriptorHeapManager::GetInstance().FreeBufferResourceIndex(heapAddress);
+  }
+
+  heapAddress = CHECK_RES(DescriptorHeapManager::GetInstance().AllocateResource(
+      context, accelerationStructure));
+
+  return {};
+}
+
 auto TLAS::Create(const GraphicsContext &context,
                   const std::string_view &debugname) -> Result<Ref<TLAS>> {
   std::lock_guard<std::mutex> lock(BVHManager::ScratchBufferMutex);
@@ -815,13 +846,9 @@ auto TLAS::Create(const GraphicsContext &context,
         &tlas->accelerationStructure));
   }
 
-  auto alignment = context.accelerationStructureProperties
-                       .minAccelerationStructureScratchOffsetAlignment;
-
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
-      context, sizeInfo.buildScratchSize + alignment));
+      context, sizeInfo.buildScratchSize));
   auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
-  scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   // Finalize build info
 
@@ -858,8 +885,7 @@ auto TLAS::Create(const GraphicsContext &context,
       .accelerationStructure = tlas->accelerationStructure,
   };
 
-  tlas->accelerationStructureAddress =
-      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
+  CHECK_ERR(tlas->UpdateAddresses(context));
 
   tlas->instanceCount = static_cast<uint32_t>(tlas->instances.size());
 
@@ -962,13 +988,9 @@ auto TLAS::Refit(const GraphicsContext &context) -> Error {
       context.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
       &buildInfo, &primitiveCount, &sizeInfo);
 
-  auto alignment = context.accelerationStructureProperties
-                       .minAccelerationStructureScratchOffsetAlignment;
-
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
-      context, sizeInfo.updateScratchSize + alignment));
+      context, sizeInfo.updateScratchSize));
   auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
-  scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   buildInfo.scratchData.deviceAddress = scratchAddress;
 
@@ -1100,16 +1122,11 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
     }
   }
 
-  auto alignment = context.accelerationStructureProperties
-                       .minAccelerationStructureScratchOffsetAlignment;
-
   auto scratchBuffer = CHECK_RES(BVHManagerInstance.GetBVHScratchBuffer(
-      context, sizeInfo.buildScratchSize + alignment));
+      context, sizeInfo.buildScratchSize));
   auto scratchAddress = CHECK_RES(scratchBuffer->GetDeviceAddress(context));
-  scratchAddress = Utils::AlignUp(scratchAddress, alignment);
 
   buildInfo.scratchData.deviceAddress = scratchAddress;
-
   buildInfo.dstAccelerationStructure = accelerationStructure;
 
   VkAccelerationStructureBuildRangeInfoKHR range{
@@ -1133,13 +1150,7 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
       1, &buildInfo, &rangePtr, reads.size(), reads.data(), writes.size(),
       writes.data()));
 
-  VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
-      .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
-      .accelerationStructure = accelerationStructure,
-  };
-
-  accelerationStructureAddress =
-      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
+  CHECK_ERR(UpdateAddresses(context));
 
   instanceCount = static_cast<uint32_t>(instances.size());
 

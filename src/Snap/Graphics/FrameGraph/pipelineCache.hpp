@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
@@ -33,7 +34,7 @@ struct StateKey {
   VkPolygonMode polygonMode;
   VkPrimitiveTopology primitiveTopology;
 
-  explicit StateKey(const RenderState::State &state)
+  explicit StateKey(const VirtualRenderState &state)
       : hasDepthStencilAttachment(state.hasDepthStencilAttachment),
         shaderModuleID(state.shader->getID()), bindPoint(state.bindPoint),
         stencilTestEnable(state.stencilTestEnable),

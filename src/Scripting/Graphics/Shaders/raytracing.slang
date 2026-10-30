@@ -1,24 +1,27 @@
 module raytracing;
 
-public uniform RaytracingAccelerationStructure.Handle SceneBVH;
+public uniform uint2 SceneBVH;
+
+public RaytracingAccelerationStructure GetSceneBVH() {
+  uint64_t address = SceneBVH.x;
+  address |= (uint64_t)(SceneBVH.y) << 32;
+
+  return (RaytracingAccelerationStructure)address;
+}
 
 public bool TraceAnyHitRay(RayDesc ray) {
-  return false;
+  RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
+           RAY_FLAG_CULL_BACK_FACING_TRIANGLES |
+           RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
 
-  // TODO: CRASHES
+  q.TraceRayInline(GetSceneBVH(),
+                   RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
+                       RAY_FLAG_CULL_BACK_FACING_TRIANGLES |
+                       RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+                   0xff, ray);
 
-  // RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-  //          RAY_FLAG_CULL_BACK_FACING_TRIANGLES |
-  //          RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+  while (q.Proceed()) {
+  }
 
-  // q.TraceRayInline(SceneBVH,
-  //                  RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-  //                      RAY_FLAG_CULL_BACK_FACING_TRIANGLES |
-  //                      RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
-  //                  0xff, ray);
-
-  // while (q.Proceed()) {
-  // }
-
-  // return q.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+  return q.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
 }

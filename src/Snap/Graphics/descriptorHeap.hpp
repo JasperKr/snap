@@ -170,8 +170,8 @@ struct DescriptorHeapManager {
                         const Buffer *buffer, VkDescriptorType type,
                         uint32_t offset, uint32_t size) -> Result<VkDeviceSize>;
   auto AllocateResource(const GraphicsContext &context,
-                        VkAccelerationStructureKHR accelerationStructure,
-                        uint32_t size) -> Result<VkDeviceSize>;
+                        VkAccelerationStructureKHR accelerationStructure)
+      -> Result<VkDeviceSize>;
   auto AllocateResource(const struct GraphicsContext &context,
                         const Texture *texture, VkDescriptorType type)
       -> Result<VkDeviceSize>;

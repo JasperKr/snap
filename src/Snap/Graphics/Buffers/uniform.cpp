@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -91,6 +92,8 @@ auto FrameUniformBufferObject::Write(const GraphicsContext &context,
       return Error::Create("Uniform buffer exceeded maximum allowed size.");
     }
 
+    // Cannot set offset to 0 here because the previous offset must be valid
+    CHECK_ERR(buffer->SetData(context, stagingBuffer, 0, offset));
     stagingBuffer.resize(internalSize);
 
     Graphics::BufferCreationInfo info{};

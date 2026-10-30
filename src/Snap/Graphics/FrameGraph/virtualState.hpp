@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Graphics/renderState.hpp"
+#include "Graphics/renderTarget.hpp"
 #include "Graphics/shader.hpp"
 #include "Modules/color.hpp"
 #include "Modules/object.hpp"
@@ -8,6 +8,10 @@
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
+
+namespace RenderState {
+struct State;
+}
 
 struct VirtualState {
   mutable bool dirty = true;
@@ -93,34 +97,7 @@ struct VirtualRenderState {
     return true;
   }
 
-  auto operator==(const RenderState::State &other) const -> bool {
-    if (colorAttachments != other.colorAttachments) {
-      return false;
-    }
-
-    if (shader != other.shader) {
-      return false;
-    }
-
-    if (stencilTestEnable != other.stencilTestEnable ||
-        polygonMode != other.polygonMode ||
-        primitiveTopology != other.primitiveTopology ||
-        bindPoint != other.bindPoint) {
-      return false;
-    }
-
-    if (hasDepthStencilAttachment != other.hasDepthStencilAttachment) {
-      return false;
-    }
-
-    if (hasDepthStencilAttachment) {
-      if (depthStencilAttachment != other.depthStencilAttachment) {
-        return false;
-      }
-    }
-
-    return true;
-  }
+  auto operator==(const RenderState::State &other) const -> bool;
 
   auto ToString() const -> std::string;
 };

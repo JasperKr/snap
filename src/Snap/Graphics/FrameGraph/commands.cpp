@@ -976,28 +976,17 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
 
   const VirtualRenderState &state = parent.state;
 
-  RecordingState::CurrentState.bindPoint = state.bindPoint;
-  RecordingState::CurrentState.shader = state.shader;
-  assert(RecordingState::CurrentState.shader.get() != nullptr);
+  RecordingState::CurrentState.renderState = &parent.state;
+  assert(RecordingState::CurrentState.renderState->shader.get() != nullptr);
 
   if (state.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
     ZoneScopedN("Update state");
 
-    RecordingState::CurrentState.colorAttachments = state.colorAttachments;
-    RecordingState::CurrentState.depthStencilAttachment =
-        state.depthStencilAttachment;
-    RecordingState::CurrentState.hasDepthStencilAttachment =
-        state.hasDepthStencilAttachment;
-    RecordingState::CurrentState.primitiveTopology = state.primitiveTopology;
-    RecordingState::CurrentState.colorBlendEquations =
-        state.colorBlendEquations;
     RecordingState::CurrentState.cullMode = cullMode;
     RecordingState::CurrentState.frontFace = frontFace;
     RecordingState::CurrentState.depthTestEnable = depthTestEnable;
     RecordingState::CurrentState.depthWriteEnable = depthWriteEnable;
     RecordingState::CurrentState.depthCompareOp = depthCompareOp;
-    RecordingState::CurrentState.stencilTestEnable = state.stencilTestEnable;
-    RecordingState::CurrentState.polygonMode = state.polygonMode;
     RecordingState::CurrentState.viewport = viewport;
     RecordingState::CurrentState.scissor = scissor;
 
@@ -1017,8 +1006,6 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
   } else {
     ERR_ASSERT(state.bindPoint == VK_PIPELINE_BIND_POINT_COMPUTE);
   }
-
-  RecordingState::CurrentState.MarkUpdated();
 
   VkPushDataInfoEXT pushInfo{
       .sType = VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT,

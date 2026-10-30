@@ -25,7 +25,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
   ray.TMax = CameraData[0].Far;
 
   RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_FORCE_OPAQUE> q;
-  q.TraceRayInline(SceneBVH,
+  q.TraceRayInline(GetSceneBVH(),
                    RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_FORCE_OPAQUE,
                    0xff, ray);
 

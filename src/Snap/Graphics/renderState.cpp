@@ -1,6 +1,6 @@
-#include "renderState.hpp"
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/commands.hpp"
+#include "renderTarget.hpp"
 
 #include "Graphics/FrameGraph/pipelineCache.hpp"
 #include "Graphics/draw.hpp"
@@ -34,26 +34,11 @@ thread_local State *TopOfStack = nullptr;
 
 thread_local Stats CurrentStats;
 
-auto CompareVkPipelineColorBlendAttachmentState(
-    const VkPipelineColorBlendAttachmentState &first,
-    const VkPipelineColorBlendAttachmentState &second) -> bool {
-  return first.blendEnable == second.blendEnable &&
-         first.srcColorBlendFactor == second.srcColorBlendFactor &&
-         first.dstColorBlendFactor == second.dstColorBlendFactor &&
-         first.colorBlendOp == second.colorBlendOp &&
-         first.srcAlphaBlendFactor == second.srcAlphaBlendFactor &&
-         first.dstAlphaBlendFactor == second.dstAlphaBlendFactor &&
-         first.alphaBlendOp == second.alphaBlendOp &&
-         first.colorWriteMask == second.colorWriteMask;
-}
-
 inline auto SetupDefaultState(const GraphicsContext &context) -> Result<State> {
   auto defaultState = State();
 
   defaultState.viewport = {};
   defaultState.scissor = {};
-
-  defaultState.shader = DefaultShaderModule;
 
   auto const &texture =
       context.swapchainInfo.textures[context.swapchainImageIndex];
@@ -65,12 +50,6 @@ inline auto SetupDefaultState(const GraphicsContext &context) -> Result<State> {
   swapchainRendertarget.blendMode = DefaultBlendMode;
   swapchainRendertarget.clearValue = {0.0F, 0.0F, 0.0F, 1.0F};
   swapchainRendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-
-  PrintDebug("Setup default state with swapchain handle: {}",
-             (void *)texture->view);
-
-  defaultState.colorAttachments.emplace_back(swapchainRendertarget);
-  defaultState.hasDepthStencilAttachment = false;
 
   return defaultState;
 }
@@ -617,15 +596,6 @@ auto Clear(const GraphicsContext &context, const ClearInfo &clearInfo)
 auto RenderTarget::GetHash() const -> uint64_t {
   if (dirty) {
     hash = HashRenderTarget(*this);
-    dirty = false;
-  }
-
-  return hash;
-}
-
-auto State::GetHash() const -> uint64_t {
-  if (dirty) {
-    hash = StateKeyHash::Hash(StateKey(*this));
     dirty = false;
   }
 

@@ -6,11 +6,10 @@ import random;
 
 uniform Sampler2D.Handle DepthTexture;
 uniform Sampler2D.Handle PreviousDepthTexture;
-
 uniform Sampler2D.Handle MotionTexture;
 
 uniform Sampler2D<uint>.Handle RayHitTexture;
-uniform restrict WTexture2DArray<float>.Handle OutputTexture;
+uniform WTexture2DArray<float>.Handle OutputTexture;
 uniform Sampler2DArray<float>.Handle PreviousOutputTexture;
 
 uniform uint LayerOffset;

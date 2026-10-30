@@ -5,11 +5,13 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/units.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <mutex>
 #include <span>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -204,20 +206,24 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
 
 auto DescriptorHeapManager::AllocateResource(
     const GraphicsContext &context,
-    VkAccelerationStructureKHR accelerationStructure, uint32_t size)
-    -> Result<VkDeviceSize> {
+    VkAccelerationStructureKHR accelerationStructure) -> Result<VkDeviceSize> {
 
   VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
       .accelerationStructure = accelerationStructure,
   };
 
-  auto deviceAddress =
-      vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
+  VkDeviceAddress deviceAddress{};
+
+  {
+    std::lock_guard<std::mutex> lock(GraphicsContext::mutexes.device);
+
+    deviceAddress = vkGetAccelerationStructureDeviceAddressKHR(context.device,
+                                                               &addressInfo);
+  }
 
   return AllocateResource(context, deviceAddress,
-                          VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0,
-                          size);
+                          VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0, 0);
 }
 
 auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,

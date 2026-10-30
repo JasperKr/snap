@@ -1,5 +1,8 @@
 #include "virtualState.hpp"
 #include "Graphics/blendmode.hpp"
+#include "Graphics/renderState.hpp"
+#include "Modules/Helpers/hasher.hpp"
+#include <cstdint>
 #include <format>
 #include <sstream>
 #include <string>
@@ -196,6 +199,53 @@ auto VirtualRenderState::ToString() const -> std::string {
   }
 
   return stream.str();
+}
+
+auto VirtualRenderState::operator==(const RenderState::State &other) const
+    -> bool {
+  if (colorAttachments != other.colorAttachments) {
+    return false;
+  }
+
+  if (shader != other.shader) {
+    return false;
+  }
+
+  if (stencilTestEnable != other.stencilTestEnable ||
+      polygonMode != other.polygonMode ||
+      primitiveTopology != other.primitiveTopology ||
+      bindPoint != other.bindPoint) {
+    return false;
+  }
+
+  if (hasDepthStencilAttachment != other.hasDepthStencilAttachment) {
+    return false;
+  }
+
+  if (hasDepthStencilAttachment) {
+    if (depthStencilAttachment != other.depthStencilAttachment) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+auto VirtualRenderState::GetHash() const -> uint64_t {
+  Hash::Hasher hash{};
+
+  for (const auto &attachment : colorAttachments) {
+    hash.Add(attachment.GetHash());
+  }
+
+  hash.Add(shader->getID());
+  hash.Add(stencilTestEnable);
+  hash.Add((uint64_t)polygonMode);
+  hash.Add((uint64_t)primitiveTopology);
+  hash.Add((uint64_t)bindPoint);
+  hash.Add(hasDepthStencilAttachment ? depthStencilAttachment.GetHash() : 0UL);
+
+  return hash.Get();
 }
 
 } // namespace Graphics

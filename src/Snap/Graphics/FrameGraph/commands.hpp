@@ -1,12 +1,12 @@
 #pragma once
 
 #include "Graphics/FrameGraph/resourceUsage.hpp"
+#include "Graphics/FrameGraph/virtualState.hpp"
 #include "Graphics/FrameGraph/vulkanResource.hpp"
 #include "Graphics/graphics.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"
-#include "virtualState.hpp"
 #include <atomic>
 #include <cassert>
 #include <condition_variable>

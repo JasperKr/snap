@@ -80,7 +80,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
   bool inShadow = false;
 #endif
 
-  uint shadowBit = inShadow ? (1U << id.z) : 0;
+  uint shadowBit = inShadow ? 1 : 0;
 
   OutputTexture[id.xy] = shadowBit;
 }
