@@ -599,10 +599,8 @@ auto Flush(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer)
 
   [[likely]]
   if (!Graphics::GetIsStateDirty() && RecordingState::LastState != nullptr &&
-      RecordingState::CurrentState.renderState->GetHash() ==
-          RecordingState::LastState->renderState->GetHash() &&
-      *RecordingState::CurrentState.renderState ==
-          *RecordingState::LastState->renderState) {
+      RecordingState::CurrentState.renderState ==
+          RecordingState::LastState->renderState) {
     return false;
   }
 

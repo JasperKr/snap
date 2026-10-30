@@ -2,6 +2,7 @@
 
 #include "Graphics/graphicsState.hpp"
 #include "Libraries/vma.hpp"
+#include "Modules/Helpers/hasher.hpp"
 #include "Modules/bytedata.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -11,6 +12,7 @@
 #include <mutex>
 #include <span>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -91,7 +93,6 @@ struct Buffer : Object, Identifiable {
   bool isDestroyed = false;
 
   struct Address {
-    VkDeviceSize address;
     VkDescriptorType type;
     uint32_t offset;
     uint32_t size;
@@ -101,9 +102,29 @@ struct Buffer : Object, Identifiable {
     static auto Less(const Address &first, const Address &second) -> bool {
       return first.offset < second.offset;
     }
+
+    auto operator==(const Address &other) const -> bool {
+      return type == other.type && offset == other.offset && size == other.size;
+    }
+
+    [[nodiscard]] auto GetHash() const -> uint64_t {
+      Hash::Hasher hasher{};
+
+      hasher.Add((uint64_t)type);
+      hasher.Add(offset);
+      hasher.Add(size);
+
+      return hasher.Get();
+    }
   };
 
-  mutable std::vector<Address> addresses;
+  struct AddressHash {
+    static auto operator()(const Address &addr) -> uint64_t {
+      return addr.GetHash();
+    }
+  };
+
+  mutable std::unordered_map<Address, VkDeviceSize, AddressHash> addresses;
   [[nodiscard]] auto GetAddress(const GraphicsContext &context,
                                 VkDescriptorType type, uint32_t offset,
                                 uint32_t size) const -> Result<VkDeviceSize>;

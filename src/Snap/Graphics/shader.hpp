@@ -219,7 +219,7 @@ struct Shader : Object, Identifiable {
                      const std::vector<slang::PreprocessorMacroDesc>
                          *preprocessorMacros = nullptr) -> Result<Ref<Shader>>;
 
-  auto Send(const ResourceKey &key, const std::span<const uint8_t> &data)
+  auto Send(const ResourceKey &key, const std::span<const uint8_t> &data) const
       -> Error;
 
   auto Send(const GraphicsContext &context, const ResourceKey &key,
@@ -242,6 +242,7 @@ struct Shader : Object, Identifiable {
 
   auto GetUniform(const ResourceKey &key) const
       -> const Reflect::ResourceInfo *;
+  auto GetUniform(ResolvedKey key) const -> const Reflect::ResourceInfo *;
 
   auto ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey>;
 
@@ -271,8 +272,9 @@ struct Shader : Object, Identifiable {
   }
 
 private:
-  auto Send(ResolvedKey key, uint64_t data) -> Error;
-  auto Send(ResolvedKey key, uint32_t data, uint32_t samplerAddress) -> Error;
+  auto Send(ResolvedKey key, uint64_t data) const -> Error;
+  auto Send(ResolvedKey key, uint32_t data, uint32_t samplerAddress) const
+      -> Error;
 };
 
 extern Ref<Shader> DefaultShaderModule;             // NOLINT

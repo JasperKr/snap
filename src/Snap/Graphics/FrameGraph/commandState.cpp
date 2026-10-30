@@ -227,6 +227,7 @@ auto GetResourceAccesses(
     info.second |= access.second;
   };
 
+  [[likely]]
   if (drawState != nullptr) {
     drawState->GetAccesses(accesses);
   } else if (std::holds_alternative<Args::VkCmdBlitImage>(command.data)) {

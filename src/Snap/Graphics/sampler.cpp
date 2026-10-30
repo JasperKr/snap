@@ -2,6 +2,7 @@
 #include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Modules/error.hpp"
+#include <public/tracy/Tracy.hpp>
 #include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
@@ -13,6 +14,7 @@ std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash>
 auto GetOrCreateSampler(const GraphicsContext &context,
                         const SamplerDescription &description)
     -> Result<VkDeviceSize> {
+  ZoneScoped;
 
   auto iter = SamplerCache.find(description);
   if (iter != SamplerCache.end()) {

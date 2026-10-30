@@ -23,6 +23,7 @@
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "array"
@@ -669,16 +670,16 @@ Buffer::~Buffer() {
   struct Info {
     VkBuffer buffer;
     VmaAllocation allocation;
-    std::vector<Address> addresses;
+    std::unordered_map<Address, VkDeviceAddress, AddressHash> addresses;
   };
 
   ScheduleDestruction<Info>(
       [](const GraphicsContext &context, Info &info) -> auto {
         vmaDestroyBuffer(context.vmaAllocator, info.buffer, info.allocation);
 
-        for (const auto addressPair : info.addresses) {
+        for (const auto &addressPair : info.addresses) {
           DescriptorHeapManager::GetInstance().FreeBufferResourceIndex(
-              addressPair.address);
+              addressPair.second);
         }
       },
       lastUsedTimestamp,
@@ -713,26 +714,30 @@ auto Buffer::GetDeviceAddress(const GraphicsContext &context) const
 auto Buffer::GetAddress(const GraphicsContext &context, VkDescriptorType type,
                         uint32_t offset, uint32_t size) const
     -> Result<VkDeviceSize> {
+  ZoneScoped;
 
-  auto iter = std::ranges::find_if(
-      addresses, [type, offset, size](const Address &address) -> bool {
-        return address.offset == offset && address.type == type &&
-               address.size == size;
-      });
+  // auto iter = std::ranges::find_if(
+  //     addresses, [type, offset, size](const Address &address) -> bool {
+  //       return address.offset == offset && address.type == type &&
+  //              address.size == size;
+  //     });
+
+  auto iter = addresses.find(Address(type, offset, size));
 
   if (iter != addresses.end()) {
-    return iter->address;
+    return iter->second;
   }
 
   VkDeviceSize address =
       CHECK_RES(DescriptorHeapManager::GetInstance().AllocateResource(
           context, this, type, offset, size));
 
-  auto item =
-      Address{.address = address, .type = type, .offset = offset, .size = size};
+  auto item = Address{.type = type, .offset = offset, .size = size};
 
-  addresses.insert(std::ranges::upper_bound(addresses, item, Address::Less),
-                   item);
+  // addresses.insert(std::ranges::upper_bound(addresses, item, Address::Less),
+  //                  item);
+
+  addresses.emplace(item, address);
 
   return address;
 }

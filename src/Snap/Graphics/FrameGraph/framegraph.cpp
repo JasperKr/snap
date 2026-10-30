@@ -1020,6 +1020,10 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   commands.resize(commandIndices.size());
   std::ranges::iota(commands, 0);
 
+  for (const auto &cmdBuffer : commandBuffers) {
+    cmdBuffer->threadInfo.StartCommandWriting();
+  }
+
   CommandIndex idx{};
 
   {
@@ -1047,16 +1051,12 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   ERR_ASSERT(commands.size() <= commandIndices.size());
   ERR_ASSERT(idx == commands.size());
 
-  for (const auto &cmdBuffer : commandBuffers) {
-    cmdBuffer->threadInfo.StartCommandWriting();
-  }
+  CHECK_ERR(BuildGraph());
+  CHECK_ERR(BuildReadyState());
 
   for (const auto &cmdBuffer : commandBuffers) {
     cmdBuffer->threadInfo.FinalizeCommandWriting();
   }
-
-  CHECK_ERR(BuildGraph());
-  CHECK_ERR(BuildReadyState());
 
   const auto *reordered = CHECK_RES(Reorder());
   CHECK_ERR(UpdateLevels(*reordered));

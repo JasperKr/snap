@@ -1633,6 +1633,8 @@ auto Texture::GenerateMipmaps(const GraphicsContext &context,
 
 auto Texture::GetAddress(const GraphicsContext &context,
                          VkDescriptorType type) const -> Result<VkDeviceSize> {
+  ZoneScoped;
+
   for (const auto &addressPair : addresses) {
     if (addressPair.second == type) {
       return addressPair.first;

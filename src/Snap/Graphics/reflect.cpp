@@ -904,9 +904,8 @@ auto ShaderReflection::FlattenResource(ResourceInfo &resource,
       CHECK_ERR(FlattenResource(info, newState, children, mapToGlobals));
     } else {
       if (mapToGlobals) {
-        auto key = keyMapping.size();
-        keyMapping.emplace(*state.currentKey, key);
-        keyToInfo.emplace(key, resource);
+        keyMapping.emplace(*state.currentKey, keyToInfo.size());
+        keyToInfo.emplace_back(resource);
       }
 
       children.emplace_back(resource);

@@ -612,13 +612,16 @@ auto Shader::GetUniform(const ResourceKey &key) const
     return nullptr;
   }
 
-  auto iter = reflection.keyToInfo.find(resolved.value());
+  return GetUniform(resolved.value());
+}
 
-  if (iter != reflection.keyToInfo.end()) {
-    return &iter->second;
+auto Shader::GetUniform(ResolvedKey key) const
+    -> const Reflect::ResourceInfo * {
+  if (key >= reflection.keyToInfo.size()) {
+    return nullptr;
   }
 
-  return nullptr;
+  return &reflection.keyToInfo.at(key);
 }
 
 auto Shader::ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey> {
@@ -630,15 +633,11 @@ auto Shader::ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey> {
   return iter->second;
 }
 
-auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
-    -> Error {
+auto Shader::Send(const ResourceKey &key,
+                  const std::span<const uint8_t> &data) const -> Error {
   ZoneScopedN("Shader::Send data span");
 
-  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
-  auto iter = reflection.keyToInfo.find(resolved);
-
-  ERR_ASSERT(iter != reflection.keyToInfo.end());
-  const auto &info = iter->second;
+  const auto &info = *CHECK_NULL(GetUniform(key));
 
   ERR_ASSERT(info.offset + data.size() <= uniformsSize);
   ERR_ASSERT(info.GetSize() == data.size());
@@ -649,13 +648,10 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
   return Error::Success();
 }
 
-auto Shader::Send(const ResolvedKey key, const uint64_t data) -> Error {
+auto Shader::Send(const ResolvedKey key, const uint64_t data) const -> Error {
   ZoneScopedN("Shader::Send device address");
 
-  auto iter = reflection.keyToInfo.find(key);
-
-  ERR_ASSERT(iter != reflection.keyToInfo.end());
-  const auto &info = iter->second;
+  const auto &info = *CHECK_NULL(GetUniform(key));
 
   ERR_ASSERT(info.GetSize() == 8);
 
@@ -666,17 +662,13 @@ auto Shader::Send(const ResolvedKey key, const uint64_t data) -> Error {
 }
 
 auto Shader::Send(const ResolvedKey key, const uint32_t data,
-                  const uint32_t samplerAddress) -> Error {
+                  const uint32_t samplerAddress) const -> Error {
   ZoneScopedN("Shader::Send texture + sampler address");
 
-  auto iter = reflection.keyToInfo.find(key);
+  const auto &info = *CHECK_NULL(GetUniform(key));
 
-  ERR_ASSERT(iter != reflection.keyToInfo.end());
-  const auto &info = iter->second;
-
-  ERR_ASSERT(info.GetSize() == 8);
-
-  ERR_ASSERT(data != 0 && samplerAddress != 0);
+  assert(info.GetSize() == 8);
+  assert(data != 0 && samplerAddress != 0);
 
   // NOLINTNEXTLINE, pointer arithmetic
   memcpy(GetState().uniforms.data() + info.offset, &data, sizeof(uint32_t));
@@ -726,9 +718,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
       context, buffer.type, 0, buffer.resource->size));
 
   ERR_ASSERT(buffer.type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  ERR_ASSERT_MSG(
-      DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address),
-      address);
+  assert(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
 
   ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT) !=
              0U);
@@ -745,7 +735,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
 
   VkDeviceSize address =
       CHECK_RES(texture.resource->GetAddress(context, texture.type));
-  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
+  assert(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
 
   ERR_ASSERT((texture.resource->imageMemory->usage &
               VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);

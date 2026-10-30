@@ -480,7 +480,7 @@ auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std)
 struct ShaderReflection {
   VkDeviceSize size;
 
-  std::unordered_map<ResolvedKey, ResourceInfo> keyToInfo;
+  std::vector<ResourceInfo> keyToInfo;
   std::unordered_map<ResourceKey, ResolvedKey, ResourceKeyHash> keyMapping;
 
   std::vector<ResourceInfo> resources;

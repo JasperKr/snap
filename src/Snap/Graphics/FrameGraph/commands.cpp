@@ -115,6 +115,7 @@ auto DrawState::GetAccesses(
                        std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
                        VulkanResourceHash<true>> &accesses) const -> void {
 
+  // TODO: This will break if we bind the same buffer twice
   for (const auto &bound : boundImages) {
     accesses.emplace(bound.resource,
                      std::make_pair(bound.access, bound.pipelines));
@@ -131,10 +132,12 @@ auto DrawState::GetAccesses(
   }
 
   for (const VkBuffer buffer : vertexBuffers) {
-    accesses.emplace(
-        VulkanResource(buffer),
-        std::make_pair(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
-                       VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT));
+    if (buffer != nullptr) {
+      accesses.emplace(
+          VulkanResource(buffer),
+          std::make_pair(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
+                         VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT));
+    }
   }
 
   if (indexBuffer != nullptr) {
@@ -160,10 +163,8 @@ auto DrawState::Initialize(CommandType type) -> Error {
   ZoneScoped;
 
   const auto &shader = RenderState::GetShader();
-  const auto &context = *GetCurrentGraphicsContext();
-  const auto &ctx = GetThreadContext();
   const auto &shaderState = shader->GetState();
-  const auto &pipelines = shader->combinedPipelineStages;
+  const auto pipelines = shader->combinedPipelineStages;
 
   assert(shader.get() != nullptr);
 
@@ -174,10 +175,6 @@ auto DrawState::Initialize(CommandType type) -> Error {
   depthWriteEnable = RenderState::TopOfStack->depthWriteEnable;
   depthCompareOp = RenderState::TopOfStack->depthCompareOp;
   frontFace = RenderState::GetWindingOrder();
-
-  boundImages.reserve(shaderState.userBoundTextures.size());
-  boundBuffers.reserve(shaderState.userBoundBuffers.size());
-  boundASs.reserve(shaderState.userBoundAccelerationStructures.size());
 
   boundImages.clear();
   boundBuffers.clear();
@@ -210,7 +207,6 @@ auto DrawState::Initialize(CommandType type) -> Error {
   }
 
   VirtualState &currentState = GetVirtualCommandBuffer()->currentState;
-
   if (RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS) {
     vertexBuffers.resize(currentState.vertexBuffers.size());
     memcpy(vertexBuffers.data(),              // NOLINT
@@ -227,14 +223,9 @@ auto DrawState::Initialize(CommandType type) -> Error {
 
     bindingDescriptions = currentState.bindingDescriptions;
     attributeDescriptions = currentState.attributeDescriptions;
-  } else {
-    vertexBuffers.clear();
-    indexBuffer = nullptr;
-
-    bindingDescriptions.clear();
-    attributeDescriptions.clear();
   }
 
+  const auto &context = *GetCurrentGraphicsContext();
   auto &buffer = GetGlobalUniformBuffer(context.frameIndex);
   auto offset = buffer.GetOffset();
 
@@ -299,6 +290,8 @@ inline auto GetNewEmptyArgs(CommandType type) -> ArgVariants {
 }
 
 auto VirtualCommandBuffer::NewRenderpass() -> void {
+  ZoneScoped;
+
   currentRenderPass = GetNewCommand(CommandType::renderPass);
   Command &renderpassCommand = GetCommand(currentRenderPass);
   auto &newPassData = std::get<RenderPass>(renderpassCommand.data);
@@ -990,16 +983,21 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
     RecordingState::CurrentState.viewport = viewport;
     RecordingState::CurrentState.scissor = scissor;
 
-    vkCmdSetVertexInputEXT(
-        cmdBuffer, bindingDescriptions.size(), bindingDescriptions.data(),
-        attributeDescriptions.size(), attributeDescriptions.data());
+    {
+      ZoneScopedN("vkCmdSetVertexInputEXT");
+      vkCmdSetVertexInputEXT(
+          cmdBuffer, bindingDescriptions.size(), bindingDescriptions.data(),
+          attributeDescriptions.size(), attributeDescriptions.data());
+    }
 
     if (!vertexBuffers.empty()) {
+      ZoneScopedN("vkCmdBindVertexBuffers");
       vkCmdBindVertexBuffers(cmdBuffer, 0, vertexBuffers.size(),
                              vertexBuffers.data(), vertexBufferOffsets.data());
     }
 
     if (indexBuffer != VK_NULL_HANDLE) {
+      ZoneScopedN("vkCmdBindIndexBuffer");
       vkCmdBindIndexBuffer(cmdBuffer, indexBuffer, indexBufferOffset,
                            indexType);
     }
