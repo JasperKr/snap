@@ -363,8 +363,6 @@ auto Present(Graphics::GraphicsContext &context,
   // TODO: Improve this
   if (windowContext->swapchainOutOfDate) {
     windowContext->swapchainOutOfDate = false;
-    PrintAlways("Window swapchain settings changed.");
-
     swapchainManager.MakeDirty();
   }
 
