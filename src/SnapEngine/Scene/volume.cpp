@@ -3,6 +3,7 @@
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
+#include "Scene/Geometry/boundingBox.hpp"
 #include "Scene/displayName.hpp"
 #include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
@@ -60,6 +61,7 @@ auto LuaVolume::Create(lua_State *state) -> int {
   volumeEntity.set<Volume>(newVolume);
   volumeEntity.add<Userdata>();
   volumeEntity.add<Transform>();
+  volumeEntity.add<WorldBounds>();
   volumeEntity.set<DisplayName>({name});
 
   auto environment = Ref<LuaVolume>::Make(volumeEntity);

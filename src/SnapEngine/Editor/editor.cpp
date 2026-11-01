@@ -12,12 +12,15 @@
 #include "Modules/object.hpp"
 #include "Modules/window.hpp"
 #include "Renderer/shaderManager.hpp"
+#include "Scene/Geometry/boundingBox.hpp"
 #include "Scene/Geometry/geometry.hpp"
 #include "Scene/cameraMatrices.hpp"
 #include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
+#include "flecs/addons/cpp/entity.hpp"
 #include "renderer.hpp"
 #include <format>
+#include <functional>
 #include <imgui.h>
 #include <lua.h>
 #include <mutex>
@@ -200,6 +203,18 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene)
   ImGui::PopID();
 }
 
+inline auto DrawTree(flecs::entity parent) -> void {
+  auto *worldBounds = parent.try_get_mut<WorldBounds>();
+
+  if (worldBounds != nullptr) {
+    Renderer::RendererInstance.GetLineDrawer().OverlayWireframeBox(
+        worldBounds->Bounds.Min, worldBounds->Bounds.Max,
+        {0.7F, 0.7F, 0.7F, 1.0F}, 2.0F);
+  }
+
+  parent.children([&](flecs::entity child) -> void { DrawTree(child); });
+}
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   if (ImGui::GetTextLineHeightWithSpacing() == 0) {
@@ -261,6 +276,24 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
     });
   }
   ImGui::EndChild();
+
+  if (DrawBoundingBox) {
+    for (const auto &entity : Editor::SelectedEntities) {
+      auto *worldBounds = entity.try_get_mut<WorldBounds>();
+
+      if (worldBounds == nullptr) {
+        continue;
+      }
+
+      Renderer::RendererInstance.GetLineDrawer().OverlayWireframeBox(
+          worldBounds->Bounds.Min, worldBounds->Bounds.Max,
+          {0.7F, 0.7F, 0.7F, 1.0F}, 2.0F);
+
+      if (DrawBoundsRecursively) {
+        DrawTree(entity);
+      }
+    }
+  }
 
   auto cursorPos = ImGui::GetCursorPos();
 
