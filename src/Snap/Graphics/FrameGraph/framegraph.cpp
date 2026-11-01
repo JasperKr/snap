@@ -668,7 +668,7 @@ auto FrameGraph::InsertBarriers() -> Error {
             const auto &command = GetCommand(commandID);
 
             if (command.GetType() == CommandType::vkCmdPipelineBarrier2) {
-              level.userBarriers.emplace_back(commandID);
+              level.userBarriers.emplace_back(commandIndex);
 
               return true;
             }
@@ -1048,8 +1048,8 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
     }
   }
 
-  ERR_ASSERT(commands.size() <= commandIndices.size());
-  ERR_ASSERT(idx == commands.size());
+  assert(commands.size() <= commandIndices.size());
+  assert(idx == commands.size());
 
   CHECK_ERR(BuildGraph());
   CHECK_ERR(BuildReadyState());
@@ -1111,14 +1111,14 @@ auto FrameGraph::Write(const GraphicsContext &context,
 
   CHECK_ERR(BeginFrame(context));
 
-  for (const auto &level : graph) {
+  for (auto &level : graph) {
     ZoneScopedN("Write level");
 
     if (!level.userBarriers.empty()) {
       EndRendering(context, cmdBuffer);
 
       for (const CommandIndex barrier : level.userBarriers) {
-        const auto &command = GetCommand(barrier);
+        const auto &command = GetCommand(commands.at(barrier));
         const auto *callable = get_if_derived<Callable>(command.data);
 
         CHECK_ERR(callable->Call(cmdBuffer));
@@ -1152,13 +1152,13 @@ auto FrameGraph::Write(const GraphicsContext &context,
     //       });
     // }
 
-    if (!barriers.empty()) {
+    if (!level.barriers.empty()) {
       EndRendering(context, cmdBuffer);
 
       VkDependencyInfo depInfo = {};
       depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-      depInfo.memoryBarrierCount = barriers.size();
-      depInfo.pMemoryBarriers = barriers.data();
+      depInfo.memoryBarrierCount = level.barriers.size();
+      depInfo.pMemoryBarriers = level.barriers.data();
 
       vkCmdPipelineBarrier2(cmdBuffer, &depInfo);
     }

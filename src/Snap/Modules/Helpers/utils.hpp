@@ -103,15 +103,6 @@ template <typename T> auto DeDuplicate(std::vector<T> &data) {
   data.erase(first, last);
 }
 
-template <class T, class F> constexpr void ForEachBit(T mask, F &&func) {
-  static_assert(std::is_unsigned_v<T>, "mask must be unsigned");
-  while (mask) {
-    unsigned bit = std::countr_zero(mask);
-    std::forward<F>(func)(bit);
-    mask &= (mask - 1);
-  }
-}
-
 // Returns the index of each set bit in the mask
 // 23 -> 0, 1, 2, 4
 template <class T> struct BitIndexRange {
