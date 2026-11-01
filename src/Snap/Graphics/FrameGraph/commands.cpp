@@ -118,32 +118,36 @@ auto DrawState::GetAccesses(
   // TODO: This will break if we bind the same buffer twice
   for (const auto &bound : boundImages) {
     accesses.emplace(bound.resource,
-                     std::make_pair(bound.access, bound.pipelines));
+                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
+                         bound.access, bound.pipelines});
   }
 
   for (const auto &bound : boundBuffers) {
     accesses.emplace(bound.resource,
-                     std::make_pair(bound.access, bound.pipelines));
+                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
+                         bound.access, bound.pipelines});
   }
 
   for (const auto &bound : boundASs) {
     accesses.emplace(bound.resource,
-                     std::make_pair(bound.access, bound.pipelines));
+                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
+                         bound.access, bound.pipelines});
   }
 
   for (const VkBuffer buffer : vertexBuffers) {
     if (buffer != nullptr) {
-      accesses.emplace(
-          VulkanResource(buffer),
-          std::make_pair(VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
-                         VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT));
+      accesses.emplace(VulkanResource(buffer),
+                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
+                           VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
+                           VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT});
     }
   }
 
   if (indexBuffer != nullptr) {
-    accesses.emplace(VulkanResource(indexBuffer),
-                     std::make_pair(VK_ACCESS_2_INDEX_READ_BIT,
-                                    VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT));
+    accesses.emplace(
+        VulkanResource(indexBuffer),
+        std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
+            VK_ACCESS_2_INDEX_READ_BIT, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT});
   }
 }
 
@@ -296,6 +300,7 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
   Command &renderpassCommand = GetCommand(currentRenderPass);
   auto &newPassData = std::get<RenderPass>(renderpassCommand.data);
   newPassData.commands.clear();
+  newPassData.knownReads.clear();
 
   auto &virtualState = newPassData.state;
   virtualState.MarkUpdated();
@@ -443,17 +448,20 @@ auto VirtualCommandBuffer::AddCommand(CommandID command) -> Error {
     cmd = &GetCommand(command);
   }
 
+  std::unordered_set<VulkanResource, VulkanResourceHash<true>> *knownReads{};
   BoundResources *boundState = nullptr;
   if (cmd->parentID == UINT16_MAX) {
     boundState = get_if_derived<BoundResources>(cmd->data);
   } else {
     boundState = get_if_derived<BoundResources>(GetCommand(cmd->parentID).data);
+    knownReads =
+        &std::get<RenderPass>(GetCommand(cmd->parentID).data).knownReads;
   }
 
   if (boundState != nullptr) {
     ZoneScopedN("map read & writes");
 
-    GetReadsInternal(*cmd, state, boundState->reads);
+    GetReadsInternal(*cmd, state, boundState->reads, knownReads);
     GetWritesInternal(*cmd, state, boundState->writes);
 
     assert(threadInfo.parent == this);

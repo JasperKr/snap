@@ -2,6 +2,9 @@
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/vulkanResource.hpp"
 #include "Graphics/vkAccessHelpers.hpp"
+#include "Modules/Helpers/utils.hpp"
+#include "Modules/object.hpp"
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -30,23 +33,32 @@ auto GetWrites(const Command &command) -> const std::vector<VulkanResource> & {
   return empty;
 }
 
-inline auto GetReadsFromDrawState(DrawState &state,
-                                  std::vector<VulkanResource> &reads) -> void {
+inline auto GetReadsFromDrawState(
+    DrawState &state, std::vector<VulkanResource> &reads,
+    std::unordered_set<VulkanResource, VulkanResourceHash<true>> &knownReads)
+    -> void {
 
   for (const auto &image : state.boundImages) {
-    if (VkAccessHelpers::IsReadAccess(image.access)) {
+    if (VkAccessHelpers::IsReadAccess(image.access) &&
+        !knownReads.contains(image.resource)) {
       reads.emplace_back(image.resource);
+      knownReads.emplace(image.resource);
     }
   }
 
   for (const auto &buffer : state.boundBuffers) {
-    if (VkAccessHelpers::IsReadAccess(buffer.access)) {
+    if (VkAccessHelpers::IsReadAccess(buffer.access) &&
+        !knownReads.contains(buffer.resource)) {
       reads.emplace_back(buffer.resource);
+      knownReads.emplace(buffer.resource);
     }
   }
 
   for (const auto &accel : state.boundASs) {
-    reads.emplace_back(accel.resource);
+    if (!knownReads.contains(accel.resource)) {
+      reads.emplace_back(accel.resource);
+      knownReads.emplace(accel.resource);
+    }
   }
 
   for (const auto &vertexBuffer : state.vertexBuffers) {
@@ -60,11 +72,14 @@ inline auto GetReadsFromDrawState(DrawState &state,
   }
 }
 
-auto GetReadsInternal(Command &command, DrawState *drawState,
-                      std::vector<VulkanResource> &reads) -> void {
+auto GetReadsInternal(
+    Command &command, DrawState *drawState, std::vector<VulkanResource> &reads,
+    std::unordered_set<VulkanResource, VulkanResourceHash<true>> *knownReads)
+    -> void {
   ZoneScoped;
   if (drawState != nullptr) {
-    GetReadsFromDrawState(*drawState, reads);
+    ASSUME(knownReads != nullptr);
+    GetReadsFromDrawState(*drawState, reads, *knownReads);
     return;
   }
 

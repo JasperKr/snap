@@ -1,10 +1,15 @@
 #pragma once
 
+#include "Graphics/FrameGraph/vulkanResource.hpp"
+#include <unordered_set>
 #include <vector>
 namespace Graphics {
 
-auto GetReadsInternal(struct Command &command, struct DrawState *drawState,
-                      std::vector<struct VulkanResource> &reads) -> void;
+auto GetReadsInternal(
+    struct Command &command, struct DrawState *drawState,
+    std::vector<struct VulkanResource> &reads,
+    std::unordered_set<VulkanResource, VulkanResourceHash<true>> *knownReads)
+    -> void;
 
 auto GetWritesInternal(struct Command &command, struct DrawState *drawState,
                        std::vector<struct VulkanResource> &writes) -> void;

@@ -612,19 +612,18 @@ auto Shader::GetUniform(const ResourceKey &key) const
     return nullptr;
   }
 
-  return GetUniform(resolved.value());
+  return &GetUniform(resolved.value());
 }
 
 auto Shader::GetUniform(ResolvedKey key) const
-    -> const Reflect::ResourceInfo * {
-  if (key >= reflection.keyToInfo.size()) {
-    return nullptr;
-  }
-
-  return &reflection.keyToInfo.at(key);
+    -> const Reflect::ResourceInfo & {
+  assert(key < reflection.keyToInfo.size());
+  return reflection.keyToInfo.at(key);
 }
 
 auto Shader::ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey> {
+  ZoneScoped;
+
   auto iter = reflection.keyMapping.find(key);
 
   ERR_ASSERT_MSG(
@@ -651,7 +650,7 @@ auto Shader::Send(const ResourceKey &key,
 auto Shader::Send(const ResolvedKey key, const uint64_t data) const -> Error {
   ZoneScopedN("Shader::Send device address");
 
-  const auto &info = *CHECK_NULL(GetUniform(key));
+  const auto &info = GetUniform(key);
 
   ERR_ASSERT(info.GetSize() == 8);
 
@@ -661,20 +660,18 @@ auto Shader::Send(const ResolvedKey key, const uint64_t data) const -> Error {
   return Error::Success();
 }
 
-auto Shader::Send(const ResolvedKey key, const uint32_t data,
-                  const uint32_t samplerAddress) const -> Error {
+auto Shader::Send(const ResolvedKey key,
+                  const CombinedImageSampler address) const -> Error {
   ZoneScopedN("Shader::Send texture + sampler address");
 
-  const auto &info = *CHECK_NULL(GetUniform(key));
+  const auto &info = GetUniform(key);
 
   assert(info.GetSize() == 8);
-  assert(data != 0 && samplerAddress != 0);
+  assert(address.image != 0 && address.sampler != 0);
 
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(GetState().uniforms.data() + info.offset, &data, sizeof(uint32_t));
-  // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(GetState().uniforms.data() + info.offset + sizeof(uint32_t),
-         &samplerAddress, sizeof(uint32_t));
+  memcpy(GetState().uniforms.data() + info.offset, &address,
+         sizeof(CombinedImageSampler));
 
   return Error::Success();
 }
@@ -746,7 +743,10 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   VkDeviceSize samplerAddress =
       CHECK_RES(texture.resource->GetSampler(context));
 
-  return Send(resolved, address, samplerAddress);
+  return Send(resolved, {
+                            .image = static_cast<uint32_t>(address),
+                            .sampler = static_cast<uint32_t>(samplerAddress),
+                        });
 }
 
 auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,

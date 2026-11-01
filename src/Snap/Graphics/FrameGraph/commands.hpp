@@ -7,6 +7,7 @@
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"
+#include "Modules/object.hpp"
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
@@ -17,6 +18,7 @@
 #include <public/tracy/Tracy.hpp>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -611,6 +613,9 @@ struct RenderPass : BoundResources {
 
   std::vector<CommandID> commands;
   VirtualRenderState state;
+
+  // Most duplicates come from reading
+  std::unordered_set<VulkanResource, VulkanResourceHash<true>> knownReads;
 };
 
 template <typename T, typename... Ts>

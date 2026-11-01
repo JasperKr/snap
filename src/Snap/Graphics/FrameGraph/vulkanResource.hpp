@@ -57,15 +57,17 @@ struct VulkanResource {
 
   VulkanResource() = default;
 
+  uint64_t hash;
+
   VulkanResource(const ImageSubresource &image)
-      : type(ResourceType::Image), image(image) {}
+      : type(ResourceType::Image), image(image), hash(Hash()) {}
 
   VulkanResource(VkBuffer buffer)
-      : type(ResourceType::Buffer), buffer(buffer) {}
+      : type(ResourceType::Buffer), buffer(buffer), hash(Hash()) {}
 
   VulkanResource(VkAccelerationStructureKHR accelerationStructure)
       : type(ResourceType::AccelerationStructure),
-        accelerationStructure(accelerationStructure) {}
+        accelerationStructure(accelerationStructure), hash(Hash()) {}
 
   [[nodiscard]] auto Hash() const -> uint64_t {
     Hash::Hasher hasher{};
@@ -90,6 +92,8 @@ struct VulkanResource {
 
     return hasher.Get();
   }
+
+  [[nodiscard]] auto GetHash() const -> uint64_t { return hash; }
 
   [[nodiscard]]
   auto Overlaps(const VulkanResource &other) const -> bool {
@@ -174,7 +178,7 @@ struct VulkanResource {
 template <bool precise> struct VulkanResourceHash {
   auto operator()(const VulkanResource &resource) const noexcept -> uint64_t {
     if constexpr (precise) {
-      return resource.Hash();
+      return resource.GetHash();
     } else {
       Hash::Hasher hasher;
       hasher.Add(static_cast<uint32_t>(resource.type));

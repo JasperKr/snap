@@ -242,7 +242,7 @@ struct Shader : Object, Identifiable {
 
   auto GetUniform(const ResourceKey &key) const
       -> const Reflect::ResourceInfo *;
-  auto GetUniform(ResolvedKey key) const -> const Reflect::ResourceInfo *;
+  auto GetUniform(ResolvedKey key) const -> const Reflect::ResourceInfo &;
 
   auto ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey>;
 
@@ -272,9 +272,13 @@ struct Shader : Object, Identifiable {
   }
 
 private:
+  struct CombinedImageSampler {
+    uint32_t image;
+    uint32_t sampler;
+  };
+
   auto Send(ResolvedKey key, uint64_t data) const -> Error;
-  auto Send(ResolvedKey key, uint32_t data, uint32_t samplerAddress) const
-      -> Error;
+  auto Send(ResolvedKey key, CombinedImageSampler address) const -> Error;
 };
 
 extern Ref<Shader> DefaultShaderModule;             // NOLINT

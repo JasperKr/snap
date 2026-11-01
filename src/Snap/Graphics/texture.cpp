@@ -920,6 +920,8 @@ auto Texture::GetDepthCompare() const -> std::tuple<bool, VkCompareOp> {
 
 auto Texture::GetSampler(const GraphicsContext &context)
     -> Result<VkDeviceSize> {
+
+  [[unlikely]]
   if (samplerDirty) {
     sampler = CHECK_RES(GetOrCreateSampler(context, samplerDescription));
     samplerDirty = false;
