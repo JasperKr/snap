@@ -1,6 +1,8 @@
 #include "buffer.hpp"
 
 #include "Graphics/FrameGraph/commands.hpp"
+#include "Graphics/FrameGraph/dynamicRendering.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
@@ -21,6 +23,7 @@
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "array"
@@ -38,28 +41,11 @@ thread_local std::array<size_t, FRAMES_IN_FLIGHT> UploadBufferOffsets;
 
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-inline auto NameBuffer(VkBuffer buffer, VmaAllocation memory,
-                       const std::string &name) -> Error {
-  auto *contextPtr = GetCurrentGraphicsContext();
-
-  if (contextPtr == nullptr) {
-    return Error::Create(
-        "Attempted to name a buffer, but no graphics context is current.");
-  }
-
-  if (name.empty()) {
-    return Error::Create("Buffer name cannot be empty.");
-  }
-
-  if (buffer == VK_NULL_HANDLE) {
-    return Error::Create("Buffer handle is null.");
-  }
-
-  if (memory == VK_NULL_HANDLE) {
-    return Error::Create("Buffer memory handle is null.");
-  }
-
-  auto &context = *contextPtr;
+inline auto NameBuffer(const GraphicsContext &context, VkBuffer buffer,
+                       VmaAllocation memory, const std::string &name) -> Error {
+  ERR_ASSERT_MSG(!name.empty(), "Buffer name cannot be empty.");
+  CHECK_NULL(buffer);
+  CHECK_NULL(memory);
 
   VkDebugUtilsObjectNameInfoEXT debugNameInfo{
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -68,6 +54,7 @@ inline auto NameBuffer(VkBuffer buffer, VmaAllocation memory,
           static_cast<uint64_t>(reinterpret_cast<uintptr_t>(buffer)), // NOLINT
       .pObjectName = name.c_str(),
   };
+
   CHECK_NEW_ERR(vkSetDebugUtilsObjectNameEXT(context.device, &debugNameInfo));
 
   {
@@ -126,17 +113,6 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
     -> Error {
   ZoneScoped;
 
-  auto uploadSize = size == VK_WHOLE_SIZE ? data.size() : size;
-
-  if (uploadSize > this->size) {
-    return Error::Create("Error uploading large data, cannot upload more data "
-                         "than is allocated.");
-  }
-
-  if (uploadSize == 0) {
-    return Error::Success();
-  }
-
   static BufferCreationInfo stagingBufferInfo{
       .usage =
           VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -146,7 +122,7 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
       .persistentMapping = false,
       .debugName = "Staging Buffer",
   };
-  stagingBufferInfo.size = uploadSize;
+  stagingBufferInfo.size = size;
 
   // TODO: Use separate queue for copying.
   // See: https://gpuopen.com/learn/rdna-performance-guide/
@@ -156,22 +132,24 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
   CHECK_ERR(stagingBuffer->MapMemory(context));
 
   std::memcpy(static_cast<uint8_t *>(stagingBuffer->mappedData), data.data(),
-              uploadSize);
+              size);
   stagingBuffer->UnmapMemory(context);
 
-  auto *commandBuffer = GetVirtualCommandBuffer();
-
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for buffer upload.");
-  }
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   VkBufferCopy copyRegion = {};
   copyRegion.srcOffset = 0;
   copyRegion.dstOffset = offset;
-  copyRegion.size = uploadSize;
+  copyRegion.size = size;
 
-  CHECK_ERR(
-      commandBuffer->CopyBuffer(stagingBuffer->handle, handle, 1, &copyRegion));
+  if (commandBuffer != nullptr) {
+    CHECK_ERR(commandBuffer->CopyBuffer(stagingBuffer->handle, handle, 1,
+                                        &copyRegion));
+  } else {
+    VkCommandBuffer cmdBuffer = CHECK_NULL(GetVkCommandBuffer());
+    EndRendering(context, cmdBuffer);
+    vkCmdCopyBuffer(cmdBuffer, stagingBuffer->handle, handle, 1, &copyRegion);
+  }
 
   stagingBuffer->MarkUse();
   MarkUse();
@@ -184,24 +162,18 @@ auto Buffer::UploadRing(const GraphicsContext &context,
                         VkDeviceSize offset, VkDeviceSize size) const -> Error {
   ZoneScoped;
 
-  auto uploadSize = size == VK_WHOLE_SIZE ? data.size() : size;
-
-  if (uploadSize > this->size) {
+  if (size > this->size) {
     return Error::Create("Error uploading ring data, cannot upload more data "
                          "than is allocated.");
-  }
-
-  if (uploadSize == 0) {
-    return Error::Success();
   }
 
   // Use upload buffer
   auto uploadBuffer = UploadBuffers.at(context.frameIndex);
   size_t &uploadOffset = UploadBufferOffsets.at(context.frameIndex);
   if (uploadBuffer.get() == nullptr ||
-      uploadBuffer->sizeInBytes < uploadSize + uploadOffset) {
+      uploadBuffer->size < size + uploadOffset) {
     size_t newSize = UploadBufferSize;
-    while (newSize < uploadSize + uploadOffset) {
+    while (newSize < size + uploadOffset) {
       newSize *= 2;
     }
 
@@ -233,25 +205,27 @@ auto Buffer::UploadRing(const GraphicsContext &context,
     ZoneScoped;
     // NOLINTNEXTLINE, because of pointer arithmetic
     std::memcpy(static_cast<uint8_t *>(uploadBuffer->mappedData) + uploadOffset,
-                data.data(), uploadSize);
+                data.data(), size);
   }
   uploadBuffer->UnmapMemory(context);
 
   // Record copy command
   auto *commandBuffer = GetVirtualCommandBuffer();
 
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for buffer upload.");
-  }
-
   VkBufferCopy copyRegion = {};
   copyRegion.srcOffset = uploadOffset;
   copyRegion.dstOffset = offset;
-  copyRegion.size = uploadSize;
+  copyRegion.size = size;
 
-  CHECK_ERR(
-      commandBuffer->CopyBuffer(uploadBuffer->handle, handle, 1, &copyRegion));
-  uploadOffset += uploadSize;
+  if (commandBuffer != nullptr) {
+    CHECK_ERR(commandBuffer->CopyBuffer(uploadBuffer->handle, handle, 1,
+                                        &copyRegion));
+  } else {
+    VkCommandBuffer cmdBuffer = CHECK_NULL(GetVkCommandBuffer());
+    EndRendering(context, cmdBuffer);
+    vkCmdCopyBuffer(cmdBuffer, uploadBuffer->handle, handle, 1, &copyRegion);
+  }
+  uploadOffset += size;
 
   uploadBuffer->MarkUse();
   MarkUse();
@@ -260,7 +234,7 @@ auto Buffer::UploadRing(const GraphicsContext &context,
       context.deviceProperties.limits.minUniformBufferOffsetAlignment;
 
   // Align to minUniformBufferOffsetAlignment
-  uploadOffset = Utils::AlignUp(uploadOffset, alignment);
+  // uploadOffset = Utils::AlignUp(uploadOffset, alignment);
 
   return Error::Success();
 }
@@ -272,10 +246,11 @@ auto Buffer::Upload(const GraphicsContext &context,
 
   auto uploadSize = size == VK_WHOLE_SIZE ? data.size() : size;
 
-  if (uploadSize + offset > this->size) {
-    return Error::Create(
-        "Error uploading data, cannot upload more data than is allocated.");
-  }
+  ERR_ASSERT(uploadSize > 0);
+
+  MarkUse();
+
+  ERR_ASSERT(uploadSize + offset <= this->size);
 
 #if Enable_Snapshots
   Snapshot::CaptureEvent(Snapshot::BufferUploadEvent(
@@ -301,15 +276,14 @@ auto Buffer::Upload(const GraphicsContext &context,
     return Error::Success();
   }
 
-  if (((usage)&VK_BUFFER_USAGE_TRANSFER_DST_BIT) == 0) {
-    return Error::Create(
-        "Buffer was not created with TRANSFER_DST usage flag for upload.");
-  }
+  ERR_ASSERT_MSG(
+      ((usage)&VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0,
+      "Buffer was not created with TRANSFER_DST usage flag for upload.");
 
   if (uploadSize > LargeUploadThreshold) {
-    CHECK_ERR(UploadLarge(context, data, offset, size));
+    CHECK_ERR(UploadLarge(context, data, offset, uploadSize));
   } else {
-    CHECK_ERR(UploadRing(context, data, offset, size));
+    CHECK_ERR(UploadRing(context, data, offset, uploadSize));
   }
 
   return Error::Success();
@@ -337,7 +311,7 @@ auto Buffer::Create(const GraphicsContext &context,
   VkBufferCreateInfo bufferInfo = {};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = info.size;
-  bufferInfo.usage = info.usage;
+  bufferInfo.usage = info.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
   VmaAllocationCreateInfo allocInfo = {};
@@ -349,6 +323,7 @@ auto Buffer::Create(const GraphicsContext &context,
 
   allocInfo.requiredFlags = info.properties;
   allocInfo.flags = 0;
+  allocInfo.minAlignment = info.minAlignment;
 
   {
     std::lock_guard<std::mutex> lock(
@@ -359,7 +334,8 @@ auto Buffer::Create(const GraphicsContext &context,
   }
 
   if (!buffer->debugName.empty()) {
-    auto err = NameBuffer(buffer->handle, buffer->memory, buffer->debugName);
+    auto err =
+        NameBuffer(context, buffer->handle, buffer->memory, buffer->debugName);
     if (Error::IsError(err)) {
       PrintWarning("Failed to set debug name for buffer: {}", err.message);
     }
@@ -368,7 +344,7 @@ auto Buffer::Create(const GraphicsContext &context,
   }
 
   buffer->size = info.size;
-  buffer->usage = info.usage;
+  buffer->usage = info.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
   buffer->properties = info.properties;
 
   PrintDebug("Buffer created with handle {}", (void *)buffer->handle);
@@ -381,8 +357,7 @@ auto Buffer::Create(const GraphicsContext &context,
     vmaGetAllocationInfo(context.vmaAllocator, buffer->memory,
                          &memRequirements);
   }
-  buffer->sizeInBytes = memRequirements.size;
-  Buffer::TotalAllocatedMemory += buffer->sizeInBytes;
+  Buffer::TotalAllocatedMemory += buffer->size;
 
   if (info.persistentMapping) {
     PrintDebug("Persistently mapping buffer memory.");
@@ -394,7 +369,7 @@ auto Buffer::Create(const GraphicsContext &context,
                                &buffer->mappedData));
   }
 
-  PrintDebug("Buffer size in bytes: {}", buffer->sizeInBytes);
+  PrintDebug("Buffer size in bytes: {}", buffer->size);
   buffer->lastUsedTimestamp = 0;
 
   // {
@@ -410,8 +385,6 @@ auto Buffer::SetData(const GraphicsContext &context,
                      VkDeviceSize offset, VkDeviceSize size) -> Error {
 
   CHECK_ERR(Upload(context, data, offset, size));
-
-  MarkUse();
 
   return Error::Success();
 }
@@ -484,8 +457,8 @@ auto Buffer::CopyTo(const GraphicsContext &context, Texture &dstTexture,
   }
 
   if ((usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) == 0) {
-    return Error::Create(
-        "Source buffer was not created with TRANSFER_SRC usage flag for copy.");
+    return Error::Create("Source buffer was not created with TRANSFER_SRC "
+                         "usage flag for copy.");
   }
 
   CHECK_ERR(dstTexture.UseAsTransferDst(context));
@@ -697,32 +670,76 @@ Buffer::~Buffer() {
   struct Info {
     VkBuffer buffer;
     VmaAllocation allocation;
+    std::unordered_map<Address, VkDeviceAddress, AddressHash> addresses;
   };
 
   ScheduleDestruction<Info>(
       [](const GraphicsContext &context, Info &info) -> auto {
         vmaDestroyBuffer(context.vmaAllocator, info.buffer, info.allocation);
+
+        for (const auto &addressPair : info.addresses) {
+          DescriptorHeapManager::GetInstance().FreeBufferResourceIndex(
+              addressPair.second);
+        }
       },
-      lastUsedTimestamp, Info{.buffer = handle, .allocation = memory});
+      lastUsedTimestamp,
+      Info{
+          .buffer = handle,
+          .allocation = memory,
+          .addresses = std::move(addresses),
+      });
 
   if (persistentMapping && mappedData != nullptr) {
     vmaUnmapMemory(context->vmaAllocator, memory);
     mappedData = nullptr;
   }
 
-  Buffer::TotalAllocatedMemory -= sizeInBytes;
+  Buffer::TotalAllocatedMemory -= size;
 }
 
-auto Buffer::GetDeviceAddress() const -> Result<VkDeviceAddress> {
+auto Buffer::GetDeviceAddress(const GraphicsContext &context) const
+    -> Result<VkDeviceAddress> {
   ERR_ASSERT((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0);
-
-  auto *context = GetCurrentGraphicsContext();
 
   VkBufferDeviceAddressInfo bufferDeviceAddressInfo{};
   bufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+  bufferDeviceAddressInfo.pNext = nullptr;
   bufferDeviceAddressInfo.buffer = handle;
 
-  return vkGetBufferDeviceAddress(context->device, &bufferDeviceAddressInfo);
+  std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
+
+  return vkGetBufferDeviceAddress(context.device, &bufferDeviceAddressInfo);
+}
+
+auto Buffer::GetAddress(const GraphicsContext &context, VkDescriptorType type,
+                        uint32_t offset, uint32_t size) const
+    -> Result<VkDeviceSize> {
+  ZoneScoped;
+
+  // auto iter = std::ranges::find_if(
+  //     addresses, [type, offset, size](const Address &address) -> bool {
+  //       return address.offset == offset && address.type == type &&
+  //              address.size == size;
+  //     });
+
+  auto iter = addresses.find(Address(type, offset, size));
+
+  if (iter != addresses.end()) {
+    return iter->second;
+  }
+
+  VkDeviceSize address =
+      CHECK_RES(DescriptorHeapManager::GetInstance().AllocateResource(
+          context, this, type, offset, size));
+
+  auto item = Address{.type = type, .offset = offset, .size = size};
+
+  // addresses.insert(std::ranges::upper_bound(addresses, item, Address::Less),
+  //                  item);
+
+  addresses.emplace(item, address);
+
+  return address;
 }
 
 std::atomic<VkDeviceSize> Buffer::TotalAllocatedMemory{};

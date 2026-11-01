@@ -185,8 +185,7 @@ struct Texture : Object, Identifiable {
       -> Result<Ref<Texture>>;
 
   static auto FromSwapchain(const GraphicsContext &context,
-                            VkImage swapchainImage,
-                            VkImageView swapchainImageView, VkFormat format,
+                            VkImage swapchainImage, VkFormat format,
                             uint32_t width, uint32_t height)
       -> Result<Ref<Texture>>;
 
@@ -227,17 +226,16 @@ struct Texture : Object, Identifiable {
   SamplerDescription samplerDescription{};
 
   VkImageView view = VK_NULL_HANDLE;
-  VkSampler sampler = VK_NULL_HANDLE;
+  VkDeviceSize sampler{};
 
-  uint32_t baseMipLevel{};
-  uint32_t levelCount{1};
-  uint32_t baseArrayLayer{};
-  uint32_t layerCount{1};
+  VkImageSubresourceRange subresourceRange{};
+  VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+  VkImageViewCreateInfo viewCreateInfo{};
 
   std::string debugName;
 
   // Flag to indicate if the sampler needs to be updated
-  bool samplerDirty = false;
+  bool samplerDirty = true;
 
   // Safety flag to prevent double releases
   bool released = false;
@@ -249,26 +247,27 @@ struct Texture : Object, Identifiable {
 
   std::shared_ptr<ImageMemory> imageMemory;
 
+  mutable std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+
   auto UseAs(const GraphicsContext &context, TextureUsage newUsage,
              VkPipelineStageFlags2 stage,
              VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE)
+             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const
       -> Error;
 
-  auto
-  UseAsAttachment(const GraphicsContext &context,
-                  VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                  VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE)
-      -> Error;
-  auto UseAsSampler(const GraphicsContext &context, VkPipelineStageFlags2 stage)
-      -> Error;
-  auto UseAsTransferSrc(const GraphicsContext &context) -> Error;
-  auto UseAsTransferDst(const GraphicsContext &context) -> Error;
-  auto UseAsStorage(const GraphicsContext &context, VkPipelineStageFlags2 stage)
-      -> Error;
-  auto UseAsPresentSrc(const GraphicsContext &context) -> Error;
+  auto UseAsAttachment(const GraphicsContext &context,
+                       VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                       VkAttachmentStoreOp storeOp =
+                           VK_ATTACHMENT_STORE_OP_STORE) const -> Error;
+  auto UseAsSampler(const GraphicsContext &context,
+                    VkPipelineStageFlags2 stage) const -> Error;
+  auto UseAsTransferSrc(const GraphicsContext &context) const -> Error;
+  auto UseAsTransferDst(const GraphicsContext &context) const -> Error;
+  auto UseAsStorage(const GraphicsContext &context,
+                    VkPipelineStageFlags2 stage) const -> Error;
+  auto UseAsPresentSrc(const GraphicsContext &context) const -> Error;
 
-  auto GetTimestamp() const -> uint64_t {
+  [[nodiscard]] auto GetTimestamp() const -> uint64_t {
     return imageMemory->lastUsedTimestamp;
   }
 
@@ -309,15 +308,15 @@ struct Texture : Object, Identifiable {
   [[nodiscard]] auto GetDepthCompare() const -> std::tuple<bool, VkCompareOp>;
   [[nodiscard]] auto GetWidth() const -> uint32_t {
     auto baseWidth = imageMemory->size.width;
-    return baseWidth >> baseMipLevel;
+    return baseWidth >> subresourceRange.baseMipLevel;
   };
   [[nodiscard]] auto GetHeight() const -> uint32_t {
     auto baseHeight = imageMemory->size.height;
-    return baseHeight >> baseMipLevel;
+    return baseHeight >> subresourceRange.baseMipLevel;
   };
   [[nodiscard]] auto GetDepth() const -> uint32_t {
     auto baseDepth = imageMemory->size.depth;
-    return baseDepth >> baseMipLevel;
+    return baseDepth >> subresourceRange.baseMipLevel;
   };
   [[nodiscard]] auto GetDimensions() const -> VkExtent2D {
     return {GetWidth(), GetHeight()};
@@ -326,7 +325,7 @@ struct Texture : Object, Identifiable {
     return {GetWidth(), GetHeight(), GetDepth()};
   };
 
-  auto GetSampler(const GraphicsContext &context) -> VkSampler;
+  auto GetSampler(const GraphicsContext &context) -> Result<VkDeviceSize>;
   // Copies data from a 1D/2D/3D region from the provided data to the texture
   // sourceSize is the dimensions of the underlying data
   // sourceOffset is the offset within the data to start copying from
@@ -340,9 +339,13 @@ struct Texture : Object, Identifiable {
                  VkOffset3D target, VkExtent3D targetSize) -> Error;
   auto SetPixels(const GraphicsContext &context, Image::ImageData &imageData,
                  uint32_t mipLevel = 0, uint32_t arrayLayer = 0) -> Error;
-  [[nodiscard]] auto GetMipmapCount() const -> size_t { return levelCount; }
+  [[nodiscard]] auto GetMipmapCount() const -> size_t {
+    return subresourceRange.levelCount;
+  }
 
-  [[nodiscard]] auto GetArrayLayerCount() const -> size_t { return layerCount; }
+  [[nodiscard]] auto GetArrayLayerCount() const -> size_t {
+    return subresourceRange.layerCount;
+  }
 
   [[nodiscard]] auto GetFormat() const -> VkFormat {
     return imageMemory->format;
@@ -393,6 +396,10 @@ struct Texture : Object, Identifiable {
   auto operator!=(const Texture &other) const -> bool {
     return !(*this == other);
   }
+
+  [[nodiscard]] auto GetAddress(const GraphicsContext &context,
+                                VkDescriptorType type) const
+      -> Result<VkDeviceSize>;
 };
 
 } // namespace Graphics

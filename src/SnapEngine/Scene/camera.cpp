@@ -6,10 +6,10 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
+#include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
 #include "Modules/Math/math.hpp"
-#include "Modules/Math/mathTypes.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
@@ -153,7 +153,7 @@ auto Camera::Create(const Graphics::GraphicsContext &context,
 
   Graphics::StructuredBufferCreationInfo info{
       .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+      .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) |
                     static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
                     static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
       .debugName = "Camera Buffer",
@@ -193,10 +193,11 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
 
   [[likely]]
   if (OwnedTextures.BloomFinal.isValid()) {
-    CHECK_ERR(shader->Send(incomingLightKey, OwnedTextures.BloomFinal));
+    CHECK_ERR(
+        shader->Send(context, incomingLightKey, OwnedTextures.BloomFinal));
   } else {
     // Bloom might be skipped in the case of a really tiny viewport
-    CHECK_ERR(shader->Send(incomingLightKey, OwnedTextures.TAA));
+    CHECK_ERR(shader->Send(context, incomingLightKey, OwnedTextures.TAA));
   }
 
   auto temperatureKey = Graphics::ResourceKey{"Temperature"};
@@ -234,7 +235,6 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
 auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
                           const Environment &environment) -> Error {
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
-  static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {{
@@ -251,12 +251,10 @@ auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
       CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
           Renderer::ShaderKey::Skybox));
 
-  static auto depthBufferKey = Graphics::ResourceKey{"DepthTexture"};
-  CHECK_ERR(shader->Send(depthBufferKey, OwnedTextures.Depth));
-  CHECK_ERR(shader->Send(cameraBufferKey, CameraBuffer));
-
-  static auto skyboxKey = Graphics::ResourceKey{"SkyboxTexture"};
-  CHECK_ERR(shader->Send(skyboxKey, environment.SkyboxTexture));
+  CHECK_ERR(shader->Send(context, "DepthTexture", OwnedTextures.Depth));
+  CHECK_ERR(shader->Send(context, "CameraData",
+                         {CameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(shader->Send(context, "SkyboxTexture", environment.SkyboxTexture));
 
   Graphics::RenderState::SetShader(shader);
   CHECK_ERR(Renderer::DrawFullScreen(context));
@@ -267,7 +265,6 @@ auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
 auto Camera::FillSkybox(const Graphics::GraphicsContext &context,
                         const Environment &environment) -> Error {
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
-  static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {{
@@ -279,10 +276,9 @@ auto Camera::FillSkybox(const Graphics::GraphicsContext &context,
       CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
           Renderer::ShaderKey::FillSkybox));
 
-  CHECK_ERR(shader->Send(cameraBufferKey, CameraBuffer));
-
-  static auto skyboxKey = Graphics::ResourceKey{"SkyboxTexture"};
-  CHECK_ERR(shader->Send(skyboxKey, environment.SkyboxTexture));
+  CHECK_ERR(shader->Send(context, "CameraData",
+                         {CameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(shader->Send(context, "SkyboxTexture", environment.SkyboxTexture));
 
   Graphics::RenderState::SetShader(shader);
   CHECK_ERR(Renderer::DrawFullScreen(context));
@@ -372,31 +368,28 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context,
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
 
-  static auto cameraBufferKey = Graphics::ResourceKey{"CameraData"};
-  CHECK_ERR(shader->Send(cameraBufferKey, CameraBuffer));
+  auto &prefilterManager = Renderer::RendererInstance.GetPrefilterManager();
+  CHECK_ERR(shader->Send(context, "CameraData",
+                         {CameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(shader->Send(context, "IrradianceTextures",
+                         prefilterManager.GetIrradianceMaps()));
+  CHECK_ERR(shader->Send(context, "SpecularTextures",
+                         prefilterManager.GetRadianceMaps()));
 
-  CHECK_ERR(shader->Send(
-      {"IrradianceTextures"},
-      Renderer::RendererInstance.GetPrefilterManager().GetIrradianceMaps()));
-  CHECK_ERR(shader->Send(
-      {"SpecularTextures"},
-      Renderer::RendererInstance.GetPrefilterManager().GetRadianceMaps()));
+  CHECK_ERR(shader->Send(context, "Probes",
+                         {Renderer::RendererInstance.GetLightProbeBuffer(),
+                          Graphics::StorageTexture::read}));
 
-  CHECK_ERR(shader->Send(
-      {"Probes"},
-      Renderer::RendererInstance.GetLightProbeBuffer()->GetBuffer()));
-
-  static auto lightProbeCountKey = Graphics::ResourceKey{"LightProbeCount"};
   CHECK_ERR(Graphics::UniformWriter::Send(
-      shader, lightProbeCountKey, static_cast<uint32_t>(VisibleProbeCount)));
+      shader, "LightProbeCount", static_cast<uint32_t>(VisibleProbeCount)));
 
-  CHECK_ERR(shader->Send({"AlbedoTexture"}, textures.Albedo));
-  CHECK_ERR(shader->Send({"NormalTexture"}, textures.Normal));
-  CHECK_ERR(shader->Send({"MaterialTexture"}, textures.Material));
-  CHECK_ERR(shader->Send({"DepthTexture"}, textures.Depth));
-  CHECK_ERR(
-      shader->Send({"AmbientOcclusionTexture"}, textures.AmbientOcclusion));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, {"SpecularEnabled"}, 1));
+  CHECK_ERR(shader->Send(context, "AlbedoTexture", textures.Albedo));
+  CHECK_ERR(shader->Send(context, "NormalTexture", textures.Normal));
+  CHECK_ERR(shader->Send(context, "MaterialTexture", textures.Material));
+  CHECK_ERR(shader->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(shader->Send(context, "AmbientOcclusionTexture",
+                         textures.AmbientOcclusion));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, "SpecularEnabled", 1));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
@@ -467,7 +460,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                }}));
 
-  CHECK_ERR(Graphics::Draw(context, *OwnedTextures.DirectLighting));
+  CHECK_ERR(Graphics::Draw(context, OwnedTextures.DirectLighting));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {Graphics::RenderState::RenderTarget{
@@ -476,7 +469,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                }}));
 
-  CHECK_ERR(Graphics::Draw(context, *OwnedTextures.Irradiance));
+  CHECK_ERR(Graphics::Draw(context, OwnedTextures.Irradiance));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {Graphics::RenderState::RenderTarget{
@@ -491,12 +484,12 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
                 }}));
   Graphics::PopDebugMarker();
 
-  Graphics::PushDebugMarker("Draw Lines");
-  CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
-  CHECK_ERR(
-      Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Temporal Anti-Aliasing");
+  // Graphics::PushDebugMarker("Draw Lines");
+  // CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
+  // CHECK_ERR(
+  //     Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
+  // Graphics::PopDebugMarker();
+  // Graphics::PushDebugMarker("Temporal Anti-Aliasing");
 
   auto taaShader =
       CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
@@ -520,10 +513,11 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
   }
 
   Graphics::RenderState::SetShader(taaShader);
-  CHECK_ERR(taaShader->Send({"IncomingLight"}, OwnedTextures.IncomingLight));
   CHECK_ERR(
-      taaShader->Send({"PreviousIncomingLight"}, OwnedTextures.PreviousTAA));
-  CHECK_ERR(taaShader->Send({"MotionTexture"}, OwnedTextures.Motion));
+      taaShader->Send(context, {"IncomingLight"}, OwnedTextures.IncomingLight));
+  CHECK_ERR(taaShader->Send(context, {"PreviousIncomingLight"},
+                            OwnedTextures.PreviousTAA));
+  CHECK_ERR(taaShader->Send(context, {"MotionTexture"}, OwnedTextures.Motion));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 

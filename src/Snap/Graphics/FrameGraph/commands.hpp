@@ -1,16 +1,13 @@
 #pragma once
 
 #include "Graphics/FrameGraph/resourceUsage.hpp"
+#include "Graphics/FrameGraph/virtualState.hpp"
+#include "Graphics/FrameGraph/vulkanResource.hpp"
 #include "Graphics/graphics.hpp"
-#include "Graphics/graphicsState.hpp"
-#include "Graphics/renderState.hpp"
 #include "Libraries/vma.hpp"
-#include "Modules/Helpers/hasher.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
-#include "Modules/stackVector.hpp"
-#include "Modules/timer.hpp"
+#include "Modules/object.hpp"
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
@@ -19,13 +16,14 @@
 #include <mutex>
 #include <optional>
 #include <public/tracy/Tracy.hpp>
-#include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+
 namespace Graphics {
 
 using CommandID = uint16_t;
@@ -101,108 +99,6 @@ static const Utils::EnumStringHelper<CommandType> CommandTypeEnumHelper{{
     "renderPass",
 }};
 
-struct GraphState {
-  VkCullModeFlags cullMode = VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
-  VkFrontFace frontFace = VK_FRONT_FACE_MAX_ENUM;
-  VkBool32 depthTestEnable = 1;
-  VkBool32 depthWriteEnable = 1;
-  VkCompareOp depthCompareOp = VK_COMPARE_OP_MAX_ENUM;
-  VkBool32 stencilTestEnable = 0;
-  VkPolygonMode polygonMode = VK_POLYGON_MODE_MAX_ENUM;
-  VkViewport viewport{};
-  VkRect2D scissor{};
-
-  mutable bool dirty = true;
-
-  std::string currentDebugMarker;
-  std::optional<Color> currentDebugMarkerColor;
-  Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS>
-      colorBlendEquations;
-
-  Ref<Shader> shader;
-
-  VkPrimitiveTopology primitiveTopology = VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
-
-  VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_MAX_ENUM;
-  Math::StackVector<RenderState::RenderTarget, MAX_COLOR_ATTACHMENTS>
-      colorAttachments;
-  RenderState::RenderTarget depthStencilAttachment;
-  bool hasDepthStencilAttachment = false;
-
-  std::vector<VkVertexInputBindingDescription2EXT> bindingDescriptions;
-  std::vector<VkVertexInputAttributeDescription2EXT> attributeDescriptions;
-
-  // Fields down from here are not taken into account for hashing,
-  // and are used purely for copying to per-draw state
-  std::vector<char> pushConstants;
-
-  std::vector<VkBuffer> vertexBuffers;
-  std::vector<VkDeviceSize> vertexBufferOffsets;
-  VkBuffer indexBuffer = VK_NULL_HANDLE;
-  VkIndexType indexType = VK_INDEX_TYPE_MAX_ENUM;
-  VkDeviceSize indexBufferOffset{};
-
-  mutable uint64_t hash{};
-
-  // Incremented each time the state is modified
-  mutable uint64_t generation = 0;
-
-  void MarkUpdated() {
-    generation++;
-    dirty = true;
-  }
-
-  auto GetHash() const -> uint64_t;
-
-  auto operator==(const GraphState &other) const -> bool {
-    [[likely]]
-    if (generation == other.generation) { // quick equal
-      return true;
-    }
-
-    if (colorAttachments != other.colorAttachments) {
-      return false;
-    }
-
-    if (shader != other.shader) {
-      return false;
-    }
-
-    if (stencilTestEnable != other.stencilTestEnable ||
-        polygonMode != other.polygonMode ||
-        primitiveTopology != other.primitiveTopology ||
-        bindPoint != other.bindPoint) {
-      return false;
-    }
-
-    if (hasDepthStencilAttachment != other.hasDepthStencilAttachment) {
-      return false;
-    }
-
-    if (hasDepthStencilAttachment) {
-      if (depthStencilAttachment != other.depthStencilAttachment) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  auto ToString() const -> std::string;
-};
-
-struct GraphStateHash {
-  auto operator()(const GraphState &state) const -> uint64_t {
-    return state.GetHash();
-  };
-};
-
-struct CommandStateManager {
-  static std::unordered_map<GraphState, uint32_t, GraphStateHash> StateToIndex;
-  static std::vector<GraphState> States;
-  static uint32_t CurrentStateID;
-};
-
 // NOLINTBEGIN(cppcoreguidelines-special-member-functions, hicpp-special-member-functions)
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines-pro-type-reinterpret-cast)
 // NOLINTBEGIN(hicpp-explicit-conversions)
@@ -210,195 +106,6 @@ struct CommandStateManager {
 struct Callable {
   virtual ~Callable() = default;
   virtual auto Call(VkCommandBuffer cmdBuffer) const -> Error = 0;
-};
-
-struct ImageSubresource {
-  VkImage image;
-
-  uint16_t layerStart;
-  uint16_t layerCount;
-  uint16_t mipStart;
-  uint16_t mipCount;
-
-  ImageSubresource() = default;
-  ImageSubresource(const Ref<Texture> &texture);
-  ImageSubresource(const Texture *texture);
-  ImageSubresource(VkImage image, uint16_t layerStart, uint16_t layerCount,
-                   uint16_t mipStart, uint16_t mipCount)
-      : image(image), layerCount(layerCount), layerStart(layerStart),
-        mipCount(mipCount), mipStart(mipStart) {}
-  ImageSubresource(VkImage image, VkImageSubresourceRange range)
-      : image(image), layerCount(range.layerCount),
-        layerStart(range.baseArrayLayer), mipCount(range.levelCount),
-        mipStart(range.baseMipLevel) {}
-
-  [[nodiscard]] auto Overlaps(const ImageSubresource &other) const -> bool {
-    assert(mipCount != 0);
-    assert(other.mipCount != 0);
-    return image == other.image &&
-           layerStart < (other.layerStart + other.layerCount) &&
-           other.layerStart < (layerStart + layerCount) &&
-           mipStart < (other.mipStart + other.mipCount) &&
-           other.mipStart < (mipStart + mipCount);
-  }
-};
-
-struct VulkanResource {
-  enum class ResourceType : uint8_t {
-    Image,
-    Buffer,
-    AccelerationStructure,
-  };
-
-  ResourceType type;
-
-  union {
-    ImageSubresource image;
-    VkBuffer buffer;
-    VkAccelerationStructureKHR accelerationStructure;
-  };
-
-  VulkanResource() = default;
-
-  VulkanResource(const ImageSubresource &image)
-      : type(ResourceType::Image), image(image) {}
-
-  VulkanResource(VkBuffer buffer)
-      : type(ResourceType::Buffer), buffer(buffer) {}
-
-  VulkanResource(VkAccelerationStructureKHR accelerationStructure)
-      : type(ResourceType::AccelerationStructure),
-        accelerationStructure(accelerationStructure) {}
-
-  [[nodiscard]] auto Hash() const -> uint64_t {
-    Hash::Hasher hasher{};
-
-    hasher.Add((uint32_t)type);
-
-    if (type == ResourceType::AccelerationStructure) {
-      hasher.Add(accelerationStructure);
-      return hasher.Get();
-    }
-
-    if (type == ResourceType::Buffer) {
-      hasher.Add(buffer);
-      return hasher.Get();
-    }
-
-    hasher.Add(image.image);
-    hasher.Add(image.layerStart);
-    hasher.Add(image.layerCount);
-    hasher.Add(image.mipStart);
-    hasher.Add(image.mipCount);
-
-    return hasher.Get();
-  }
-
-  [[nodiscard]]
-  auto Overlaps(const VulkanResource &other) const -> bool {
-    if (type != other.type) {
-      return false;
-    }
-
-    switch (type) {
-    case ResourceType::Image:
-      return image.Overlaps(other.image);
-    case ResourceType::Buffer:
-      return buffer == other.buffer;
-    case ResourceType::AccelerationStructure:
-      return accelerationStructure == other.accelerationStructure;
-    default:
-      assert(false && "Unreachable");
-    }
-  }
-
-  auto operator<(const VulkanResource &other) const -> bool {
-    if (type != other.type) {
-      return type < other.type;
-    }
-
-    switch (type) {
-    case ResourceType::Image:
-      return std::tie(image.image, image.layerStart, image.layerCount,
-                      image.mipStart, image.mipCount) <
-             std::tie(other.image.image, other.image.layerStart,
-                      other.image.layerCount, other.image.mipStart,
-                      other.image.mipCount);
-    case ResourceType::Buffer:
-      return buffer < other.buffer;
-    case ResourceType::AccelerationStructure:
-      return accelerationStructure < other.accelerationStructure;
-    }
-  }
-
-  [[nodiscard]] auto ToString() const -> std::string {
-    switch (type) {
-    case ResourceType::AccelerationStructure:
-      return std::format("Acceleration structure {}",
-                         (void *)accelerationStructure);
-    case ResourceType::Buffer:
-      return std::format("Buffer {}", (void *)buffer);
-    case ResourceType::Image:
-      return std::format("Image {}", (void *)image.image);
-    }
-  }
-
-  auto operator==(const VulkanResource &other) const noexcept -> bool {
-    if (type != other.type) {
-      return false;
-    }
-
-    switch (type) {
-    case ResourceType::AccelerationStructure:
-      return accelerationStructure == other.accelerationStructure;
-    case ResourceType::Buffer:
-      return buffer == other.buffer;
-    case ResourceType::Image:
-      return image.image == other.image.image &&
-             image.layerStart == other.image.layerStart &&
-             image.layerCount == other.image.layerCount &&
-             image.mipStart == other.image.mipStart &&
-             image.mipCount == other.image.mipCount;
-    }
-  }
-
-  [[nodiscard]] auto Ptr() const -> void * {
-    switch (type) {
-    case ResourceType::AccelerationStructure:
-      return accelerationStructure;
-    case ResourceType::Buffer:
-      return buffer;
-    case ResourceType::Image:
-      return image.image;
-    }
-  }
-};
-
-template <bool precise> struct VulkanResourceHash {
-  auto operator()(const VulkanResource &resource) const noexcept -> uint64_t {
-    if constexpr (precise) {
-      return resource.Hash();
-    } else {
-      Hash::Hasher hasher;
-      hasher.Add(static_cast<uint32_t>(resource.type));
-
-      switch (resource.type) {
-      case VulkanResource::ResourceType::Image:
-        hasher.Add(resource.image.image);
-        break;
-      case VulkanResource::ResourceType::Buffer:
-        hasher.Add(resource.buffer);
-        break;
-      case VulkanResource::ResourceType::AccelerationStructure:
-        hasher.Add(resource.accelerationStructure);
-        break;
-      default:
-        assert(false && "Unreachable");
-      }
-
-      return hasher.Get();
-    }
-  }
 };
 
 struct BoundResources {
@@ -410,37 +117,18 @@ struct BoundResources {
       accesses;
 };
 
-struct BoundResource {
-  VulkanResource resource;
-  VkAccessFlags2 access;
-  VkPipelineStageFlags2 pipelines;
-
-  [[nodiscard]]
-  auto Overlaps(const BoundResource &other) const -> bool {
-    return resource.Overlaps(other.resource);
-  }
-
-  [[nodiscard]]
-  auto Overlaps(const VulkanResource &other) const -> bool {
-    return resource.Overlaps(other);
-  }
-};
-
-struct LoadOpConfig {
-  std::vector<VkAttachmentLoadOp> loadOps;
-  VkAttachmentLoadOp depthStencilLoadOp;
-
-  static auto FromGraphState(const GraphState &graphState, bool forceLoadOpLoad)
-      -> LoadOpConfig;
-};
-
 struct DrawState {
+  VkCullModeFlags cullMode = VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
+  VkFrontFace frontFace = VK_FRONT_FACE_MAX_ENUM;
+  VkBool32 depthTestEnable = 1;
+  VkBool32 depthWriteEnable = 1;
+  VkCompareOp depthCompareOp = VK_COMPARE_OP_MAX_ENUM;
+  VkViewport viewport{};
+  VkRect2D scissor{};
+
   std::vector<BoundResource> boundImages;
   std::vector<BoundResource> boundBuffers;
   std::vector<BoundResource> boundASs;
-
-  std::vector<BoundResource> colorAttachments;
-  std::optional<BoundResource> depthStencilAttachment;
 
   std::vector<VkBuffer> vertexBuffers;
   VkBuffer indexBuffer = VK_NULL_HANDLE;
@@ -449,43 +137,20 @@ struct DrawState {
   VkIndexType indexType = VK_INDEX_TYPE_MAX_ENUM;
   VkDeviceSize indexBufferOffset{};
 
-  // Copied from graph state.
-  std::vector<char> pushConstants;
+  std::vector<VkVertexInputBindingDescription2EXT> bindingDescriptions;
+  std::vector<VkVertexInputAttributeDescription2EXT> attributeDescriptions;
 
-  Math::StackVector<VkDescriptorSet, 16> descriptorSets; // NOLINT
-  Math::StackVector<uint32_t, 16> dynamicOffsets;        // NOLINT
-
-  uint32_t stateID = UINT32_MAX;
+  uint32_t uboAddress;
 
   auto GetAccesses(
       std::unordered_map<VulkanResource,
                          std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
                          VulkanResourceHash<true>> &accesses) const -> void;
 
-  [[nodiscard]] auto GetReadStateFor(const VulkanResource &resource,
-                                     CommandType type) const
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-
-  [[nodiscard]] auto GetWriteStateFor(const VulkanResource &resource,
-                                      CommandType type) const
-      -> std::pair<VkAccessFlags2, VkPipelineStageFlags2>;
-
-  auto Apply(const GraphicsContext &context, VkCommandBuffer cmdBuffer,
-             const LoadOpConfig *loadConfig) const -> Error;
+  auto Apply(const GraphicsContext &context, const struct RenderPass &parent,
+             VkCommandBuffer cmdBuffer) const -> Error;
 
   auto Initialize(CommandType type) -> Error;
-
-  [[nodiscard]] auto GetGraphState() const -> GraphState * {
-    assert(stateID < UINT16_MAX);
-    assert(stateID < CommandStateManager::States.size());
-    return &CommandStateManager::States.at(stateID);
-  }
-
-  [[nodiscard]] auto GetGraphState_const() const -> GraphState const * {
-    assert(stateID < UINT16_MAX);
-    assert(stateID < CommandStateManager::States.size());
-    return &CommandStateManager::States.at(stateID);
-  }
 };
 
 namespace Args {
@@ -610,7 +275,6 @@ struct VkCmdBlitImage : Callable, BoundResources {
 struct VkCmdPushConstants {
   VkCmdPushConstants() = default;
 
-  VkPipelineLayout layout{};
   VkShaderStageFlags stageFlags{};
   uint32_t offset{};
   std::vector<char> values;
@@ -833,25 +497,6 @@ struct VkCmdBindPipeline {
       : pipelineBindPoint(pipelineBindPoint), pipeline(pipeline) {}
 };
 
-struct VkCmdBindDescriptorSets {
-  VkPipelineBindPoint pipelineBindPoint;
-  VkPipelineLayout layout;
-  uint32_t firstSet;
-  std::vector<VkDescriptorSet> descriptorSets;
-  std::vector<uint32_t> dynamicOffsets;
-
-  VkCmdBindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
-                          VkPipelineLayout layout, uint32_t firstSet,
-                          uint32_t descriptorSetCount,
-                          const VkDescriptorSet *pDescriptorSets,
-                          uint32_t dynamicOffsetCount,
-                          const uint32_t *pDynamicOffsets)
-      : pipelineBindPoint(pipelineBindPoint), layout(layout),
-        firstSet(firstSet),
-        descriptorSets(pDescriptorSets, pDescriptorSets + descriptorSetCount),
-        dynamicOffsets(pDynamicOffsets, pDynamicOffsets + dynamicOffsetCount) {}
-};
-
 struct VkCmdSetScissor {
   uint32_t firstScissor;
   std::vector<VkRect2D> scissors;
@@ -940,12 +585,11 @@ struct VkCmdPipelineBarrier2 : Callable, BoundResources {
     dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
 
     dep.pMemoryBarriers = memoryBarriers.data();
-    dep.memoryBarrierCount = memoryBarriers.size();
-
     dep.pBufferMemoryBarriers = bufferMemoryBarriers.data();
-    dep.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
-
     dep.pImageMemoryBarriers = imageMemoryBarriers.data();
+
+    dep.memoryBarrierCount = memoryBarriers.size();
+    dep.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
     dep.imageMemoryBarrierCount = imageMemoryBarriers.size();
 
     vkCmdPipelineBarrier2(cmdBuffer, &dep);
@@ -967,13 +611,18 @@ using RenderPassCommands =
 struct RenderPass : BoundResources {
   static const CommandType type = CommandType::renderPass;
 
-  uint32_t stateID;
   std::vector<CommandID> commands;
+  VirtualRenderState state;
+
+  // Most duplicates come from reading
+  std::unordered_set<VulkanResource, VulkanResourceHash<true>> knownReads;
 };
 
 template <typename T, typename... Ts>
 auto get_if_derived(std::variant<Ts...> &variant) -> T * {
   T *result = nullptr;
+
+  assert(!variant.valueless_by_exception());
 
   std::visit(
       [&](auto &value) -> auto {
@@ -1018,6 +667,7 @@ using ArgVariants = std::variant<
 
 struct Command {
   CommandIndex id = UINT16_MAX;
+  CommandIndex parentID = UINT16_MAX;
   uint16_t uniqueID = UINT16_MAX;
 
   // Also defined in framegraph.cpp as InvalidDepth
@@ -1062,7 +712,7 @@ struct ImageStateUpdate {
 auto GetReads(const Command &command) -> const std::vector<VulkanResource> &;
 auto GetWrites(const Command &command) -> const std::vector<VulkanResource> &;
 auto GetResourceAccesses(
-    const Command *command,
+    const Command &command,
     std::unordered_map<VulkanResource,
                        std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
                        VulkanResourceHash<true>> &accesses) -> void;
@@ -1095,6 +745,7 @@ struct VCmdThreadInfo {
   std::vector<uint16_t> commandsQueue;
   std::vector<uint16_t> queuedCommands; // Local to worker thread
   std::vector<uint16_t> commandsQueueBacklog;
+  std::mutex commandsQueueMutex;
 
   ReadyInfo mainToWorker;
   ReadyInfo workerToMain;
@@ -1105,7 +756,7 @@ struct VCmdThreadInfo {
   VirtualCommandBuffer *parent;
 
   void Shutdown() {
-    shutdown = true;
+    shutdown.store(true);
     mainToWorker.Notify();
   }
   void Initialize(VirtualCommandBuffer *vcmd);
@@ -1116,7 +767,10 @@ struct VCmdThreadInfo {
     TracyMessageL("Started");
     started = true;
 
-    commandsQueue.append_range(commandsQueueBacklog);
+    {
+      std::lock_guard<std::mutex> lock(commandsQueueMutex);
+      commandsQueue.append_range(commandsQueueBacklog);
+    }
     commandsQueueBacklog.clear();
 
     mainToWorker.Notify();
@@ -1132,7 +786,7 @@ struct VCmdThreadInfo {
   static void ThreadMain(VirtualCommandBuffer *vcmd);
 };
 
-struct VirtualCommandBuffer {
+struct VirtualCommandBuffer { // NOLINT
   friend struct FrameGraph;
 
   auto Append(const VirtualCommandBuffer &buffer) -> Error {
@@ -1159,9 +813,6 @@ struct VirtualCommandBuffer {
                  VkImage dstImage, VkImageLayout dstImageLayout,
                  uint32_t regionCount, const VkImageBlit *pRegions,
                  VkFilter filter) -> Error;
-  auto PushConstants(VkPipelineLayout layout, VkShaderStageFlags stageFlags,
-                     uint32_t offset, uint32_t size, const void *pValues)
-      -> void;
   auto CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount,
                   const VkBufferCopy *pRegions) -> Error;
   auto CopyImage(VkImage srcImage, VkImageLayout srcImageLayout,
@@ -1204,20 +855,6 @@ struct VirtualCommandBuffer {
       uint32_t vertexAttributeDescriptionCount,
       const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
       -> void;
-  auto SetViewport(uint32_t firstViewport, uint32_t viewportCount,
-                   const VkViewport *pViewports) -> void;
-  auto SetScissor(const Args::VkCmdSetScissor &arguments) -> void;
-  auto SetDepthTestEnable(const Args::VkCmdSetDepthTestEnable &arguments)
-      -> void;
-  auto SetDepthWriteEnable(const Args::VkCmdSetDepthWriteEnable &arguments)
-      -> void;
-  auto SetDepthCompareOp(const Args::VkCmdSetDepthCompareOp &arguments) -> void;
-  auto
-  SetColorBlendEquationEXT(uint32_t firstAttachment, uint32_t attachmentCount,
-                           const VkColorBlendEquationEXT *pColorBlendEquations)
-      -> void;
-  auto SetCullMode(const Args::VkCmdSetCullMode &arguments) -> void;
-  auto SetFrontFace(const Args::VkCmdSetFrontFace &arguments) -> void;
   auto ClearAttachments(uint32_t attachmentCount,
                         const VkClearAttachment *pAttachments,
                         uint32_t rectCount, const VkClearRect *pRects) -> Error;
@@ -1235,25 +872,7 @@ struct VirtualCommandBuffer {
 
   auto Reset() -> void;
 
-  auto GetStateID() -> uint32_t {
-    ZoneScoped;
-    auto iter = CommandStateManager::StateToIndex.find(currentState);
-
-    if (iter == CommandStateManager::StateToIndex.end()) {
-      auto newIdx = CommandStateManager::States.size();
-
-      CommandStateManager::StateToIndex[currentState] = newIdx;
-      CommandStateManager::States.emplace_back(currentState);
-
-      return newIdx;
-    }
-
-    return iter->second;
-  }
-
-  auto GetGraphState() -> GraphState * { return &currentState; }
-
-  auto AddCommand(Command *command) -> Error;
+  auto AddCommand(CommandID command) -> Error;
 
   std::vector<Command> commandStorage;
   std::vector<uint16_t> commands;
@@ -1262,23 +881,20 @@ struct VirtualCommandBuffer {
     return commandStorage.at(identifier);
   }
 
+  CommandID currentRenderPass = InvalidCommandID;
+
   uint32_t queueFamily;
-  GraphState currentState;
+  VirtualState currentState;
   std::vector<std::vector<uint32_t>> caches;
   VCmdThreadInfo threadInfo;
   bool initialized = false;
 
-  auto Initialize() -> Error {
-    ERR_ASSERT(!initialized);
+  ~VirtualCommandBuffer() { threadInfo.Shutdown(); }
 
-    initialized = true;
+  auto GetNewCommand(CommandType type) -> CommandID;
 
-    return {};
-  }
-
-  auto DeInitialize() -> void { threadInfo.Shutdown(); }
-
-  auto GetNewCommand(CommandType type) -> Command *;
+private:
+  auto NewRenderpass() -> void;
 };
 
 auto CreateCommandBuffer() -> VirtualCommandBuffer;

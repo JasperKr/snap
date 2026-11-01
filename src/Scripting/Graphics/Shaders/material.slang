@@ -17,6 +17,5 @@ public enum AlphaMode {
   Blend = 2,
 };
 
-[vk::binding(0, 2)]
-public restrict StructuredBuffer<MaterialData> MaterialBuffer;
+public uniform StructuredBuffer<MaterialData>.Handle MaterialBuffer;
 

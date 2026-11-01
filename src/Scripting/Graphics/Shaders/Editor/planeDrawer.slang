@@ -1,13 +1,8 @@
 import camera;
 import constants;
 
-struct PushConstantBuffer {
-  float4 plane;
-  float4 color;
-};
-
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform float4 plane;
+uniform float4 color;
 
 float RayPlaneIntersection(float3 rayOrigin, float3 rayDirection,
                            float4 plane) {
@@ -29,13 +24,13 @@ float RayPlaneIntersection(float3 rayOrigin, float3 rayDirection,
 
 [shader("fragment")]
 float4 fragmentMain(float2 texcoords: TEXCOORDS) {
-  float3 rayDirection = camera.GetRayDirection(texcoords);
-  float3 rayOrigin = camera.Position;
+  float3 rayDirection = CameraData[0].GetRayDirection(texcoords);
+  float3 rayOrigin = CameraData[0].Position;
 
-  float t = RayPlaneIntersection(rayOrigin, rayDirection, PushConstants.plane);
+  float t = RayPlaneIntersection(rayOrigin, rayDirection, plane);
   if (t < 0.0) {
     discard; // No intersection, discard the fragment
   }
 
-  return PushConstants.color;
+  return color;
 }

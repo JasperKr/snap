@@ -39,6 +39,9 @@ constexpr auto GetSize(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32_UINT, 4},
       {VK_FORMAT_R32_SINT, 4},
       {VK_FORMAT_R32_SFLOAT, 4},
+      {VK_FORMAT_R64_UINT, 8},
+      {VK_FORMAT_R64_SINT, 8},
+      {VK_FORMAT_R64_SFLOAT, 8},
       // 2 channel
       {VK_FORMAT_R8G8_UNORM, 2},
       {VK_FORMAT_R8G8_SNORM, 2},
@@ -53,6 +56,9 @@ constexpr auto GetSize(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32G32_UINT, 8},
       {VK_FORMAT_R32G32_SINT, 8},
       {VK_FORMAT_R32G32_SFLOAT, 8},
+      {VK_FORMAT_R64G64_UINT, 16},
+      {VK_FORMAT_R64G64_SINT, 16},
+      {VK_FORMAT_R64G64_SFLOAT, 16},
       // 3 channel
       {VK_FORMAT_R8G8B8_UNORM, 3},
       {VK_FORMAT_R8G8B8_SRGB, 3},
@@ -66,6 +72,9 @@ constexpr auto GetSize(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32G32B32_UINT, 12},
       {VK_FORMAT_R32G32B32_SINT, 12},
       {VK_FORMAT_R32G32B32_SFLOAT, 12},
+      {VK_FORMAT_R64G64B64_UINT, 24},
+      {VK_FORMAT_R64G64B64_SINT, 24},
+      {VK_FORMAT_R64G64B64_SFLOAT, 24},
       {VK_FORMAT_B10G11R11_UFLOAT_PACK32, 4},
       {VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, 4},
       // 4 channel
@@ -84,6 +93,9 @@ constexpr auto GetSize(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32G32B32A32_UINT, 16},
       {VK_FORMAT_R32G32B32A32_SINT, 16},
       {VK_FORMAT_R32G32B32A32_SFLOAT, 16},
+      {VK_FORMAT_R64G64B64A64_UINT, 32},
+      {VK_FORMAT_R64G64B64A64_SINT, 32},
+      {VK_FORMAT_R64G64B64A64_SFLOAT, 32},
       // Depth / Stencil
       {VK_FORMAT_D16_UNORM, 2},
       {VK_FORMAT_D24_UNORM_S8_UINT, 4},

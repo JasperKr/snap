@@ -264,7 +264,9 @@ auto Renderer::BindLightBuffers(const Graphics::GraphicsContext &context,
   // }
 
   key = Key{"DirectionalLights"};
-  auto error = shader->Send(key, SceneLightBuffers.DirectionalLightsBuffer);
+  auto error = shader->Send(context, key,
+                            {SceneLightBuffers.DirectionalLightsBuffer,
+                             Graphics::StorageBuffer::read});
   if (Error::IsError(error)) {
     return error;
   }

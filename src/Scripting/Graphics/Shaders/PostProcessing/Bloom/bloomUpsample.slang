@@ -1,12 +1,7 @@
-Sampler2D mainScene;
+uniform Sampler2D.Handle mainScene;
 
-struct PushConstantsBuffer {
-  uint2 viewportSize;
-  float intensity;
-};
-
-[[vk::push_constant]]
-PushConstantsBuffer PushConstants;
+uniform uint2 viewportSize;
+uniform float intensity;
 
 const static float2 Coords[9] = { float2(-1.0f, 1.0f),  float2(0.0f, 1.0f),
                                   float2(1.0f, 1.0f),   float2(-1.0f, 0.0f),
@@ -34,7 +29,7 @@ float4 UpSample(float2 coords) {
     color += Sample(Coords[i] * pixelSize + coords).rgb * Weights[i];
   }
 
-  color *= PushConstants.intensity;
+  color *= intensity;
 
   return float4(color, 1.0);
 }

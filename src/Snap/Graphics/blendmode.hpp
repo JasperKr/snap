@@ -13,7 +13,8 @@ auto ToString(VkBlendFactor srcColorBlendFactor,
               VkBlendFactor srcAlphaBlendFactor,
               VkBlendFactor dstAlphaBlendFactor, VkBlendOp alphaBlendOp)
     -> std::tuple<bool, std::string, std::string>;
-auto ToString(VkPipelineColorBlendAttachmentState state)
+auto ToStringProperties(VkPipelineColorBlendAttachmentState state)
     -> std::tuple<bool, std::string, std::string>;
+auto ToString(VkPipelineColorBlendAttachmentState state) -> std::string;
 
 } // namespace Graphics::BlendMode

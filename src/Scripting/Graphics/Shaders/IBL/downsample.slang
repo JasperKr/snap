@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-SamplerCube tex_hi_res;
+uniform SamplerCube.Handle tex_hi_res;
 // uniform highp samplerCube tex_hi_res;
-restrict WTexture2DArray<float4> tex_lo_res;
+uniform WTexture2DArray<float4>.Handle tex_lo_res;
 
 // layout(r11f_g11f_b10f) uniform restrict writeonly imageCube tex_lo_res;
 

@@ -39,46 +39,15 @@ auto BloomManager::Deinitialize() -> void {
   DownsampleChainViews.clear();
 }
 
-// NOLINTNEXTLINE
-auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
-                              Camera &camera) -> Error {
-
+auto BloomManager::UpdateViews(const Graphics::GraphicsContext &context,
+                               Camera &camera) -> Error {
   const auto &renderTargets = camera.GetRendertargets();
   auto &textures = camera.GetOwnedTextures();
 
-  textures.BloomDownsampleChain =
-      CHECK_RES(GlobalRenderTargetManager.GetRendertarget(
-          context, renderTargets.BloomDownsampleChain));
-
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {Graphics::RenderState::RenderTarget{
-                   .blendMode = Graphics::BlendmodeNone,
-                   .texture = textures.BloomDownsampleChain,
-                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-               }}));
-
-  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
-
-  Graphics::RenderState::SetShader(ThresholdShader);
-  const static Graphics::ResourceKey ThresholdKey = {"PushConstants",
-                                                     "threshold"};
-
-  CHECK_ERR(Graphics::UniformWriter::Send(ThresholdShader, ThresholdKey, 0.0F));
-
-  const static Graphics::ResourceKey MainSceneKey = {"mainScene"};
-  CHECK_ERR(ThresholdShader->Send(MainSceneKey, textures.TAA));
-
-  CHECK_ERR(DrawFullScreen(context));
-
-  Graphics::RenderState::SetShader(DownsampleShader);
-
-  auto mipCount = textures.BloomDownsampleChain->levelCount;
+  auto mipCount = textures.BloomDownsampleChain->subresourceRange.levelCount;
   if (mipCount < 2) {
     return {};
   }
-
-  auto maxDownsampleMip =
-      std::min(mipCount - 1, static_cast<uint32_t>(8)); // NOLINT
 
   if (DownsampleChainViews.size() != mipCount) {
     DownsampleChainViews.resize(mipCount);
@@ -109,6 +78,49 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
     }
   }
 
+  return {};
+}
+
+// NOLINTNEXTLINE
+auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
+                              Camera &camera) -> Error {
+
+  const auto &renderTargets = camera.GetRendertargets();
+  auto &textures = camera.GetOwnedTextures();
+
+  textures.BloomDownsampleChain =
+      CHECK_RES(GlobalRenderTargetManager.GetRendertarget(
+          context, renderTargets.BloomDownsampleChain));
+
+  CHECK_ERR(UpdateViews(context, camera));
+
+  auto mipCount = textures.BloomDownsampleChain->subresourceRange.levelCount;
+  if (mipCount < 2) {
+    return {};
+  }
+
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
+      context, {Graphics::RenderState::RenderTarget{
+                   .blendMode = Graphics::BlendmodeNone,
+                   .texture = DownsampleChainViews.at(0),
+                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+               }}));
+
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+
+  Graphics::RenderState::SetShader(ThresholdShader);
+
+  CHECK_ERR(Graphics::UniformWriter::Send(ThresholdShader, "threshold", 0.0F));
+
+  CHECK_ERR(ThresholdShader->Send(context, "mainScene", textures.TAA));
+
+  CHECK_ERR(DrawFullScreen(context));
+
+  Graphics::RenderState::SetShader(DownsampleShader);
+
+  auto maxDownsampleMip =
+      std::min(mipCount - 1, static_cast<uint32_t>(8)); // NOLINT
+
   for (uint32_t mipLevel = 1; mipLevel < maxDownsampleMip; ++mipLevel) {
     assert(mipLevel < DownsampleChainViews.size());
     auto &view = DownsampleChainViews.at(mipLevel);
@@ -120,14 +132,11 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
                      .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                  }}));
 
-    const static Graphics::ResourceKey DownsampleKey = {"mainScene"};
-    CHECK_ERR(DownsampleShader->Send(DownsampleKey,
+    CHECK_ERR(DownsampleShader->Send(context, "mainScene",
                                      DownsampleChainViews.at(mipLevel - 1)));
 
-    const static Graphics::ResourceKey ViewportSizeKey = {"PushConstants",
-                                                          "viewportSize"};
     CHECK_ERR(Graphics::UniformWriter::Send(
-        DownsampleShader, ViewportSizeKey,
+        DownsampleShader, {"viewportSize"},
         Math::Uvec2(view->GetWidth(), view->GetHeight())));
 
     CHECK_ERR(DrawFullScreen(context));
@@ -135,15 +144,11 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
 
   Graphics::RenderState::SetShader(UpsampleShader);
 
-  const static Graphics::ResourceKey IntensityKey = {"PushConstants",
-                                                     "intensity"};
-  const static Graphics::ResourceKey ViewportSizeKey = {"PushConstants",
-                                                        "viewportSize"};
-
   // NOLINTNEXTLINE
-  CHECK_ERR(Graphics::UniformWriter::Send(UpsampleShader, IntensityKey, 0.25F));
+  CHECK_ERR(
+      Graphics::UniformWriter::Send(UpsampleShader, {"intensity"}, 0.25F));
   CHECK_ERR(Graphics::UniformWriter::Send(
-      UpsampleShader, ViewportSizeKey,
+      UpsampleShader, {"viewportSize"},
       Math::Uvec2(textures.BloomDownsampleChain->GetWidth(),
                   textures.BloomDownsampleChain->GetHeight())));
 
@@ -158,15 +163,12 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
                      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                  }}));
 
-    const static Graphics::ResourceKey DownsampleKey = {"mainScene"};
-    CHECK_ERR(UpsampleShader->Send(DownsampleKey, view));
-
+    CHECK_ERR(UpsampleShader->Send(context, "mainScene", view));
     CHECK_ERR(DrawFullScreen(context));
   }
 
   Graphics::RenderState::SetShader(DirtShader);
-  const static Graphics::ResourceKey DirtTextureKey = {"mainScene"};
-  CHECK_ERR(DirtShader->Send(DirtTextureKey, DirtTexture));
+  CHECK_ERR(DirtShader->Send(context, "mainScene", DirtTexture));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(
       context, {Graphics::RenderState::RenderTarget{
@@ -188,8 +190,8 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context,
                }}));
 
   Graphics::RenderState::SetShader({});
-  CHECK_ERR(Graphics::Draw(context, *textures.TAA));
-  CHECK_ERR(Graphics::Draw(context, *DownsampleChainViews.at(1)));
+  CHECK_ERR(Graphics::Draw(context, textures.TAA));
+  CHECK_ERR(Graphics::Draw(context, DownsampleChainViews.at(1)));
 
   CHECK_ERR(GlobalRenderTargetManager.ReleaseRendertarget(
       textures.BloomDownsampleChain));

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Graphics/FrameGraph/recordingState.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Graphics/renderState.hpp"
@@ -8,7 +9,6 @@
 #include "Modules/stackVector.hpp"
 #include <cstddef>
 #include <mutex>
-#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
@@ -24,11 +24,6 @@ struct RendertargetKey {
   }
 };
 
-struct PipelineLayout {
-  VkPipelineLayout layout;
-  Math::StackVector<VkDescriptorSetLayout, 16> descriptorSetLayouts; // NOLINT
-};
-
 struct StateKey {
   Math::StackVector<RendertargetKey, MAX_COLOR_ATTACHMENTS> colorAttachments;
   bool hasDepthStencilAttachment;
@@ -39,7 +34,7 @@ struct StateKey {
   VkPolygonMode polygonMode;
   VkPrimitiveTopology primitiveTopology;
 
-  explicit StateKey(const RenderState::State &state)
+  explicit StateKey(const VirtualRenderState &state)
       : hasDepthStencilAttachment(state.hasDepthStencilAttachment),
         shaderModuleID(state.shader->getID()), bindPoint(state.bindPoint),
         stencilTestEnable(state.stencilTestEnable),
@@ -120,19 +115,12 @@ struct StateKeyHash {
 
 struct PipelineCache {
   std::mutex mutex;
-  LRUCache<StateKey, std::pair<VkPipeline, PipelineLayout>, StateKeyHash> cache{
-      1};
-  std::unordered_map<ObjectID, PipelineLayout> layouts;
+  LRUCache<StateKey, VkPipeline, StateKeyHash> cache{1};
 
-  PipelineLayout currentLayout;
   std::vector<VkPipeline> pipelines;
-  std::vector<PipelineLayout> pipelineLayouts;
 
   auto Initialize(const GraphicsContext &context) -> Error;
   auto DeInitialize(const GraphicsContext &context) -> void;
-
-  auto GetPipelineLayout(const GraphicsContext &context, Shader *shader)
-      -> Result<PipelineLayout>;
 };
 
 auto GetPipelineCache() -> PipelineCache &;

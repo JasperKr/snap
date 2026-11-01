@@ -1,9 +1,10 @@
 #include "shader.hpp"
-#include "Graphics/Buffers/push.hpp"
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/allocations.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
+#include "Graphics/graphicsState.hpp"
 #include "Graphics/reflect.hpp"
 #include "Graphics/snapshot.hpp"
 #include "Graphics/texture.hpp"
@@ -20,7 +21,6 @@
 #include <condition_variable>
 #include <cstring>
 #include <format>
-#include <memory>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string_view>
@@ -88,52 +88,56 @@ inline auto ReleaseGlobalSlangSession() -> void {
   }
 }
 
-static const std::vector<slang::CompilerOptionEntry> CompilerOptions = {
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::Optimization,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 = SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::EmitSpirvMethod,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 = SlangEmitSpirvMethod::SLANG_EMIT_SPIRV_DIRECTLY,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::VulkanUseEntryPointName,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 = 1,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::DebugInformation,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 =
-                    SlangDebugInfoLevel::SLANG_DEBUG_INFO_LEVEL_MAXIMAL,
-            }},
-    slang::CompilerOptionEntry{
-        .name = slang::CompilerOptionName::FloatingPointMode,
-        .value =
-            slang::CompilerOptionValue{
-                .kind = slang::CompilerOptionValueKind::Int,
-                .intValue0 =
-                    SlangFloatingPointMode::SLANG_FLOATING_POINT_MODE_FAST,
-            }},
-};
+auto GetCompilerOptions() -> std::vector<slang::CompilerOptionEntry> * {
+  static std::vector<slang::CompilerOptionEntry> CompilerOptions = {
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::Optimization,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 = SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::EmitSpirvMethod,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 = SlangEmitSpirvMethod::SLANG_EMIT_SPIRV_DIRECTLY,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::VulkanUseEntryPointName,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 = 1,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::DebugInformation,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 =
+                      SlangDebugInfoLevel::SLANG_DEBUG_INFO_LEVEL_MAXIMAL,
+              }},
+      slang::CompilerOptionEntry{
+          .name = slang::CompilerOptionName::FloatingPointMode,
+          .value =
+              slang::CompilerOptionValue{
+                  .kind = slang::CompilerOptionValueKind::Int,
+                  .intValue0 =
+                      SlangFloatingPointMode::SLANG_FLOATING_POINT_MODE_FAST,
+              }},
+  };
+
+  return &CompilerOptions;
+}
 
 // NOLINTNEXTLINE
 static slang::TargetDesc SpvTargetDesc = {
     .format = SLANG_SPIRV,
     .profile = SLANG_PROFILE_UNKNOWN,
-    .compilerOptionEntries = CompilerOptions.data(),
-    .compilerOptionEntryCount = static_cast<uint32_t>(CompilerOptions.size()),
+    .compilerOptionEntries = nullptr,
+    .compilerOptionEntryCount = 0,
 };
 
 Ref<Shader> DefaultShaderModule = {}; // NOLINT
@@ -142,7 +146,24 @@ auto LoadShaderModule() -> Error {
   ZoneScoped;
 
   auto *session = CHECK_RES(GetGlobalSlangSession());
-  SpvTargetDesc.profile = session->findProfile("spirv_1_5+spvRayQueryKHR");
+  SpvTargetDesc.profile = session->findProfile("spirv_1_5");
+  ERR_ASSERT(SpvTargetDesc.profile != SLANG_PROFILE_UNKNOWN);
+
+  auto *options = GetCompilerOptions();
+  const std::vector<string_view> capabilities = {
+      "spvRayQueryKHR", "spvDescriptorHeapEXT", "spvRayTracingKHR"};
+
+  for (auto capability : capabilities) {
+    auto &option = options->emplace_back();
+
+    option.name = slang::CompilerOptionName::Capability;
+    option.value.kind = slang::CompilerOptionValueKind::Int;
+    option.value.intValue0 = session->findCapability(capability.data());
+  }
+
+  SpvTargetDesc.compilerOptionEntries = options->data();
+  SpvTargetDesc.compilerOptionEntryCount = options->size();
+
   ReleaseGlobalSlangSession();
 
   DefaultShaderModule = CHECK_RES(Shader::Create(
@@ -294,7 +315,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
   }
 
   if (diagnosticsBlob != nullptr) {
-    auto diagnostics = std::string_view(
+    auto diagnostics = std::string(
         static_cast<const char *>(diagnosticsBlob->getBufferPointer()),
         diagnosticsBlob->getBufferSize());
 
@@ -302,6 +323,8 @@ static inline auto LoadSlang(const GraphicsContext &context,
         (diagnosticsBlob->getBufferSize() == 0U)) {
       return Error::Create("Unknown error");
     }
+
+    PrintAlways("{}", diagnostics);
 
     return Error::Createf("Diagnostics:\n{}", diagnostics);
   }
@@ -549,20 +572,13 @@ auto Shader::Create(
   CHECK_ERR(LoadSlang(context, shader));
 
   CHECK_ERR(ReflectShader(context, shader->programLayout, shader->reflection));
-  ERR_ASSERT(shader->reflection.pushBuffers.size() <= 1);
-
-  if (!shader->reflection.pushBuffers.empty()) {
-    shader->pushBuffer =
-        std::make_unique<PushBuffer>(shader->reflection.pushBuffers.front());
-  }
 
 #if Enable_Snapshots
   Snapshot::CaptureEvent(
       Snapshot::ShaderModuleCreateEvent(shader->module, shader->moduleName));
 #endif
 
-  shader->globalUniforms.resize(
-      shader->reflection.globalBufferFormat.GetStride());
+  shader->uniformsSize = shader->reflection.globalBufferFormat.GetStride();
 
   // shader->slangModule->release();
   // shader->linkedProgram->release();
@@ -574,207 +590,194 @@ auto Shader::Create(
   return shader;
 }
 
-inline auto ValidateBuffers(const Shader *shader) -> Error {
-  ZoneScoped;
-  // Loop over shader->reflection.resources, and check if all buffers are
-  // set up in shader->buffers,
-  // this is done outside the shader as the user must manage these
-  // resources themselves.
-
-  for (const auto &resource : shader->reflection.resources) {
-    if (!resource.IsBuffer()) {
-      continue;
-    }
-
-    const auto &bufferInfo = std::get<Reflect::BufferInfo>(resource.info);
-
-    // Not sent by the user
-    if (bufferInfo.bufferType == Reflect::BufferType::PushConstant) {
-      continue;
-    }
-
-    auto locationKey = DescriptorSlot(bufferInfo.set, bufferInfo.binding);
-
-    if (!shader->GetState().userBoundBuffers.contains(locationKey)) {
-      return Error::Createf("Buffer '{}' not set up in shader.", resource.name);
-    }
-  }
-
-  return Error::Success();
+StorageBuffer::StorageBuffer(const Ref<StructuredBuffer> &buffer,
+                             uint64_t access) {
+  resource = buffer->GetBuffer();
+  this->access = access;
+  type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 }
 
-inline auto ValidateAccelerationStructures(const Shader *shader) -> Error {
-  ZoneScoped;
-  for (const auto &resource : shader->reflection.resources) {
-    if (!resource.IsAccelerationStructure()) {
-      continue;
-    }
-
-    const auto &accelStructInfo =
-        std::get<Reflect::AccelerationStructureInfo>(resource.info);
-
-    auto locationKey =
-        DescriptorSlot(accelStructInfo.set, accelStructInfo.binding);
-
-    if (!shader->GetState().userBoundAccelerationStructures.contains(
-            locationKey)) {
-      return Error::Createf("Acceleration structure '{}' not set up in shader.",
-                            resource.name);
-    }
-  }
-
-  return Error::Success();
-}
-
-void append(ResourceKey &dest, const ResourceKey &src) {
-  dest.insert(dest.end(), src.begin(), src.end());
+UniformBuffer::UniformBuffer(const Ref<StructuredBuffer> &buffer) {
+  resource = buffer->GetBuffer();
+  access = VK_ACCESS_2_UNIFORM_READ_BIT;
+  type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 }
 
 auto Shader::GetUniform(const ResourceKey &key) const
     -> const Reflect::ResourceInfo * {
-  if (pushBuffer != nullptr) {
-    if (const auto *info = pushBuffer->GetUniform(key)) {
-      return info;
-    }
-  }
-
-  const auto &globalInfo = reflection.flattened.at(reflection.globals.set);
-  auto iter = globalInfo.keyToInfo.find(key);
-  if (iter != globalInfo.keyToInfo.end()) {
-    return &iter->second;
-  }
-  return nullptr;
-}
-
-auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data)
-    -> Error {
-  ZoneScopedN("Shader::Send data span");
-
-  if (pushBuffer && pushBuffer->ContainsUniform(key)) {
-    return pushBuffer->SetData(key, data);
-  }
-
-  const auto &globalInfo = reflection.flattened.at(reflection.globals.set);
-  auto iter = globalInfo.keyToInfo.find(key);
+  const Result<ResolvedKey> resolved = ResolveKey(key);
 
   [[unlikely]]
-  if (iter == globalInfo.keyToInfo.end()) {
-    auto keyname = Reflect::ResourceKeyToString(key);
-    return Error::Createf("Uniform {} not found in shader reflection: {}",
-                          keyname, name);
+  if (Error::IsError(resolved)) {
+    return nullptr;
   }
 
-  const auto &info = iter->second;
+  return &GetUniform(resolved.value());
+}
 
-  ERR_ASSERT(info.offset + data.size() <= globalUniforms.size());
+auto Shader::GetUniform(ResolvedKey key) const
+    -> const Reflect::ResourceInfo & {
+  assert(key < reflection.keyToInfo.size());
+  return reflection.keyToInfo.at(key);
+}
+
+auto Shader::ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey> {
+  ZoneScoped;
+
+  auto iter = reflection.keyMapping.find(key);
+
+  ERR_ASSERT_MSG(
+      iter != reflection.keyMapping.end(),
+      std::format("Key '{}' Not found.", Reflect::ResourceKeyToString(key)));
+  return iter->second;
+}
+
+auto Shader::Send(const ResourceKey &key,
+                  const std::span<const uint8_t> &data) const -> Error {
+  ZoneScopedN("Shader::Send data span");
+
+  const auto &info = *CHECK_NULL(GetUniform(key));
+
+  ERR_ASSERT(info.offset + data.size() <= uniformsSize);
+  ERR_ASSERT(info.GetSize() == data.size());
 
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(globalUniforms.data() + info.offset, data.data(), data.size());
+  memcpy(GetState().uniforms.data() + info.offset, data.data(), data.size());
 
   return Error::Success();
 }
 
-auto Shader::Send(const ResourceKey &key, const Ref<Buffer> &buffer) -> Error {
-  ZoneScopedN("Shader::Send structured buffer");
+auto Shader::Send(const ResolvedKey key, const uint64_t data) const -> Error {
+  ZoneScopedN("Shader::Send device address");
 
-  auto iter = reflection.keyToSlot.find(key);
+  const auto &info = GetUniform(key);
 
-  CHECK_NULL(buffer);
-  ERR_ASSERT(iter != reflection.keyToSlot.end());
+  ERR_ASSERT(info.GetSize() == 8);
 
-  const auto *info = GetSlotDescription(iter->second);
-  const auto *bufferInfo = std::get_if<Reflect::BufferInfo>(&info->info);
-  CHECK_NULL(bufferInfo);
+  // NOLINTNEXTLINE, pointer arithmetic
+  memcpy(GetState().uniforms.data() + info.offset, &data, sizeof(uint64_t));
 
-  auto &state = GetState();
-
-  state.userBoundBuffers[iter->second] = BoundBufferPair{buffer, bufferInfo};
-  // state.descriptorKeys.at()
-
-  return {};
+  return Error::Success();
 }
 
-auto Shader::Send(const ResourceKey &key,
-                  const Ref<::Graphics::StructuredBuffer> &buffer) -> Error {
-  ZoneScopedN("Shader::Send structured buffer");
-  return Send(key, buffer->GetBuffer());
+auto Shader::Send(const ResolvedKey key,
+                  const CombinedImageSampler address) const -> Error {
+  ZoneScopedN("Shader::Send texture + sampler address");
+
+  const auto &info = GetUniform(key);
+
+  assert(info.GetSize() == 8);
+  assert(address.image != 0 && address.sampler != 0);
+
+  // NOLINTNEXTLINE, pointer arithmetic
+  memcpy(GetState().uniforms.data() + info.offset, &address,
+         sizeof(CombinedImageSampler));
+
+  return Error::Success();
 }
 
-auto Shader::Send(const ResourceKey &key, const Ref<TLAS> &accelStructure)
-    -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const UniformBuffer &buffer) -> Error {
+  ZoneScopedN("Shader::Send uniform buffer");
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
+      context, buffer.type, 0, buffer.resource->size));
+  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
+
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
+             0U);
+
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
+  GetState().userBoundBuffers[resolved] = buffer;
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const DynamicUniformBuffer &buffer) -> Error {
+  ZoneScopedN("Shader::Send dynamic uniform buffer");
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
+      context, buffer.type, buffer.offset, buffer.size));
+  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
+
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
+             0U);
+
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
+  GetState().userBoundBuffers[resolved] = UniformBuffer{buffer.resource};
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const StorageBuffer &buffer) -> Error {
+  ZoneScopedN("Shader::Send storage buffer");
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
+      context, buffer.type, 0, buffer.resource->size));
+
+  ERR_ASSERT(buffer.type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  assert(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
+
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT) !=
+             0U);
+
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
+  GetState().userBoundBuffers[resolved] = buffer;
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const SampledTexture &texture) -> Error {
+  ZoneScopedN("Shader::Send sampled texture");
+
+  VkDeviceSize address =
+      CHECK_RES(texture.resource->GetAddress(context, texture.type));
+  assert(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
+
+  ERR_ASSERT((texture.resource->imageMemory->usage &
+              VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);
+
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
+  GetState().userBoundTextures[resolved] = texture;
+
+  VkDeviceSize samplerAddress =
+      CHECK_RES(texture.resource->GetSampler(context));
+
+  return Send(resolved, {
+                            .image = static_cast<uint32_t>(address),
+                            .sampler = static_cast<uint32_t>(samplerAddress),
+                        });
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const StorageTexture &texture) -> Error {
+  ZoneScopedN("Shader::Send storage texture");
+
+  VkDeviceSize address =
+      CHECK_RES(texture.resource->GetAddress(context, texture.type));
+  ERR_ASSERT(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
+
+  ERR_ASSERT((texture.resource->imageMemory->usage &
+              VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) != 0U);
+
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
+  GetState().userBoundTextures[resolved] = texture;
+
+  return Send(resolved, address);
+}
+
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
+                  const Ref<TLAS> &accelStructure) -> Error {
   ZoneScopedN("Shader::Send acceleration structure");
 
-  if (!accelStructure.isValid()) {
-    return Error::Create("Acceleration structure is null.");
-  }
+  const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
+  GetState().userBoundAccelerationStructures[resolved] = {
+      .access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+      .type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+      .resource = accelStructure,
+  };
 
-  auto iter = reflection.keyToSlot.find(key);
-  if (iter != reflection.keyToSlot.end()) {
-    auto *info = GetSlotDescription(iter->second);
-
-    if (info == nullptr) {
-      auto keyname = Reflect::ResourceKeyToString(key);
-      return Error::Createf("Resource {} is not found in shader reflection: {}",
-                            keyname, name);
-    }
-
-    auto *accelStructInfo =
-        std::get_if<Reflect::AccelerationStructureInfo>(&info->info);
-
-    if (accelStructInfo == nullptr) {
-      auto keyname = Reflect::ResourceKeyToString(key);
-      return Error::Createf(
-          "Resource {} is not an acceleration structure in shader reflection: "
-          "{} ({})",
-          keyname, name, info->ToString());
-    }
-
-    GetState().userBoundAccelerationStructures[iter->second] =
-        BoundASPair{accelStructure, accelStructInfo};
-    return Error::Success();
-  }
-
-  auto keyname = Reflect::ResourceKeyToString(key);
-  return Error::Createf(
-      "Acceleration structure {} not found in shader reflection: {}", keyname,
-      name);
-}
-
-auto Shader::Send(const ResourceKey &key, const Ref<Graphics::Texture> &texture)
-    -> Error {
-  ZoneScopedN("Shader::Send texture");
-
-  [[unlikely]]
-  if (!texture.isValid()) {
-    auto keyname = Reflect::ResourceKeyToString(key);
-    return Error::Createf("Texture {} is null.", keyname);
-  }
-
-  [[unlikely]]
-  if (texture->view == VK_NULL_HANDLE) {
-    auto keyname = Reflect::ResourceKeyToString(key);
-    return Error::Createf("Texture {} has no valid image view.", keyname);
-  }
-
-  auto iter = reflection.keyToSlot.find(key);
-  if (iter != reflection.keyToSlot.end()) {
-    auto *info = GetSlotDescription(iter->second);
-    auto *samplerInfo = std::get_if<Reflect::SamplerInfo>(&info->info);
-    if (samplerInfo == nullptr) {
-      auto keyname = Reflect::ResourceKeyToString(key);
-      return Error::Createf(
-          "Resource {} is not a sampler in shader reflection: {}", keyname,
-          name);
-    }
-
-    GetState().userBoundTextures[iter->second] =
-        BoundTexturePair{texture, samplerInfo};
-    return Error::Success();
-  }
-
-  auto keyname = Reflect::ResourceKeyToString(key);
-  return Error::Createf("Sampler {}, not found in shader reflection: {}",
-                        keyname, name);
+  return Send(resolved, accelStructure->GetDeviceAddress());
 }
 
 auto Shader::hash() const -> size_t {

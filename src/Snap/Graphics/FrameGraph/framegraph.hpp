@@ -3,7 +3,6 @@
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Modules/error.hpp"
 #include <cstdint>
-#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -52,9 +51,6 @@ private:
   std::vector<CommandIDPair> commandIndices;
 
   std::vector<Level> graph;
-  std::unordered_map<CommandIndex, LoadOpConfig> loadOpConfigs;
-
-  std::vector<CommandID> renderPasses;
 
   // Direct dependencies per command, after transitive reduction. Used for
   // scheduling (levels, reordering) only: a dropped edge here is redundant
@@ -95,8 +91,6 @@ private:
   auto ReduceParents(CommandIndex idx,
                      const std::vector<CommandIndex> &candidates) -> void;
   auto CompactRenderPasses() -> Error;
-  auto BuildRenderRegions(const GraphicsContext &context)
-      -> Result<std::vector<RenderingInfo>>;
 
   auto InsertBarriers() -> Error;
   auto BuildReadyState() -> Error;
@@ -117,12 +111,11 @@ private:
   auto UpdateLevels(const std::vector<CommandIndex> &reordered) -> Error;
   auto GetCommandLevel(CommandIndex commandId) -> CommandLevel;
   auto Reset() -> void;
-  auto BuildLoadOpModes() -> void;
   auto GetCommand(CommandIDPair identifier) -> Command &;
   auto GetCommand(CommandID identifier) -> Command &;
   static auto WriteCommand(const Command &command,
                            const GraphicsContext &context,
-                           VkCommandBuffer cmdBuffer,
-                           const LoadOpConfig *loadOpConfig) -> Error;
+                           const RenderPass *parent, VkCommandBuffer cmdBuffer)
+      -> Error;
 };
 } // namespace Graphics

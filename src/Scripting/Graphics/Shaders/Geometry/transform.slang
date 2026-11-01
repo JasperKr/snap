@@ -5,8 +5,7 @@ public struct Transform {
   public float4x4 NormalMatrix;
 };
 
-[vk::binding(0, 3)]
-public StructuredBuffer<Transform> ModelTransforms;
+public uniform StructuredBuffer<Transform>.Handle ModelTransforms;
 
 public Transform GetModelTransform(uint index) {
   return ModelTransforms[index];

@@ -2,13 +2,13 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
 #include <cassert>
-#include <cstddef>
 #include <cstdint>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <vector>
 
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -46,38 +46,40 @@ auto FrameUniformBufferObject::Create(GraphicsContext &context)
   FrameUniformBufferObject obj{};
   BufferCreationInfo info{};
   info.size = InitialUniformBufferSize;
-  info.persistentMapping = true;
+  info.persistentMapping = false;
   info.stagingBuffer = true;
   info.properties = static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) |
                     static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
                     static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
   info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-               static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+               static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
   info.debugName = "Frame Uniform Buffer";
 
   obj.buffer = CHECK_RES(Buffer::Create(context, info));
-  obj.minUniformBufferOffsetAlignment =
+  obj.uboAlignment =
       context.deviceProperties.limits.minUniformBufferOffsetAlignment;
 
   return obj;
 }
 
-auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data,
-                                     size_t writeOffset) -> Error {
+auto FrameUniformBufferObject::Write(const GraphicsContext &context,
+                                     const std::span<const uint8_t> &data)
+    -> Error {
   ZoneScoped;
 
   [[unlikely]]
-  if (data.size_bytes() == 0) {
+  if (data.size() == 0) {
     return {};
   }
 
   [[unlikely]]
-  if (data.size_bytes() > MaximumUniformBufferSize) {
+  if (data.size() > MaximumUniformBufferSize) {
     return Error::Create(
         "Tried to set uniform buffer data larger than maximum. (holy shit)");
   }
 
-  const auto requiredSize = offset + data.size_bytes() + writeOffset;
+  const auto requiredSize = Utils::AlignUp(offset + data.size(), uboAlignment);
 
   [[unlikely]]
   if (requiredSize > internalSize) {
@@ -90,28 +92,10 @@ auto FrameUniformBufferObject::Write(const std::span<const uint8_t> &data,
       return Error::Create("Uniform buffer exceeded maximum allowed size.");
     }
 
+    // Cannot set offset to 0 here because the previous offset must be valid
+    CHECK_ERR(buffer->SetData(context, stagingBuffer, 0, offset));
     stagingBuffer.resize(internalSize);
-  }
 
-  assert(requiredSize <= stagingBuffer.size() &&
-         "Write operation exceeds the size of the staging buffer.");
-
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  memcpy(stagingBuffer.data() + offset + writeOffset, data.data(),
-         data.size_bytes());
-
-  offset += static_cast<uint32_t>(data.size_bytes() + writeOffset);
-  offset = Utils::AlignUp(offset, minUniformBufferOffsetAlignment);
-
-  return {};
-}
-
-auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
-    -> Error {
-  ZoneScoped;
-
-  [[unlikely]]
-  if (internalSize != buffer->size) {
     Graphics::BufferCreationInfo info{};
     info.size = internalSize;
     info.persistentMapping = false;
@@ -121,10 +105,29 @@ auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
         static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
         static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-                 static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+                 static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     info.debugName = "Frame Uniform Buffer";
 
     buffer = CHECK_RES(Graphics::Buffer::Create(context, info));
+  }
+
+  assert(requiredSize <= stagingBuffer.size() &&
+         "Write operation exceeds the size of the staging buffer.");
+
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  memcpy(stagingBuffer.data() + offset, data.data(), data.size());
+  offset = Utils::AlignUp(offset + data.size(), uboAlignment);
+
+  return {};
+}
+
+auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
+    -> Error {
+  ZoneScoped;
+
+  if (offset == 0) {
+    return {};
   }
 
   CHECK_ERR(buffer->SetData(context, stagingBuffer, 0, offset));

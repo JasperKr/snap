@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Graphics/buffer.hpp"
+#include "Modules/Helpers/units.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <atomic>
@@ -8,8 +9,8 @@
 #include <cstdint>
 #include <vector>
 
-constexpr size_t InitialUniformBufferSize = 64L * 1024;
-constexpr size_t MaximumUniformBufferSize = 64L * 1024 * 1024;
+constexpr size_t InitialUniformBufferSize = Units::Memory::KiBToBytes(64);
+constexpr size_t MaximumUniformBufferSize = Units::Memory::MiBToBytes(64);
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 extern std::atomic<int> UniformBufferObjectCount;
@@ -21,8 +22,8 @@ public:
   static auto Create(GraphicsContext &context)
       -> Result<FrameUniformBufferObject>;
 
-  auto Write(const std::span<const uint8_t> &data, size_t writeOffset = 0UL)
-      -> Error;
+  auto Write(const GraphicsContext &context,
+             const std::span<const uint8_t> &data) -> Error;
 
   [[nodiscard]] auto GetOffset() const -> size_t { return offset; }
   [[nodiscard]] auto GetSize() const -> size_t { return buffer->size; }
@@ -41,7 +42,7 @@ private:
   size_t internalSize = InitialUniformBufferSize;
   size_t offset{};
 
-  size_t minUniformBufferOffsetAlignment;
+  size_t uboAlignment;
 };
 
 extern thread_local std::vector<FrameUniformBufferObject>

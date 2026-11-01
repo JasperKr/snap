@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Modules/Helpers/hasher.hpp"
+#include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 #include <unordered_map>
 
@@ -24,44 +26,35 @@ struct SamplerDescription {
   auto operator==(const SamplerDescription &other) const -> bool = default;
 };
 
-auto inline Hash(size_t seed, size_t value) -> size_t {
-  constexpr size_t offset = 0x9e3779b9;
-  constexpr size_t lshift = 6;
-  constexpr size_t rshift = 2;
-
-  return seed ^ (value + offset + (seed << lshift) + (seed >> rshift));
-}
-
 struct SamplerDescHash {
   auto operator()(const SamplerDescription &desc) const -> size_t {
-    size_t hash = 0;
+    Hash::Hasher hash;
 
-    auto Hasher = [&](size_t value) -> void { hash = Hash(hash, value); };
+    hash.Add(desc.magFilter);
+    hash.Add(desc.minFilter);
+    hash.Add(desc.mipmapMode);
+    hash.Add(desc.addressModeU);
+    hash.Add(desc.addressModeV);
+    hash.Add(desc.addressModeW);
+    hash.Add(desc.mipLodBias);
+    hash.Add((int)desc.anisotropyEnable);
+    hash.Add(desc.maxAnisotropy);
+    hash.Add((int)desc.compareEnable);
+    hash.Add(desc.compareOp);
+    hash.Add(desc.minLod);
+    hash.Add(desc.maxLod);
+    hash.Add(desc.borderColor);
 
-    Hasher(desc.magFilter);
-    Hasher(desc.minFilter);
-    Hasher(desc.mipmapMode);
-    Hasher(desc.addressModeU);
-    Hasher(desc.addressModeV);
-    Hasher(desc.addressModeW);
-    Hasher(std::hash<float>()(desc.mipLodBias));
-    Hasher(static_cast<size_t>(desc.anisotropyEnable));
-    Hasher(std::hash<float>()(desc.maxAnisotropy));
-    Hasher(static_cast<size_t>(desc.compareEnable));
-    Hasher(desc.compareOp);
-    Hasher(std::hash<float>()(desc.minLod));
-    Hasher(std::hash<float>()(desc.maxLod));
-    Hasher(desc.borderColor);
-
-    return hash;
+    return hash.Get();
   }
 };
 
-extern std::unordered_map<SamplerDescription, VkSampler, SamplerDescHash>
+extern std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash>
     SamplerCache; // NOLINT
 
 auto GetOrCreateSampler(const struct GraphicsContext &context,
-                        const SamplerDescription &description) -> VkSampler;
+                        const SamplerDescription &description)
+    -> Result<VkDeviceSize>;
 
 auto DestroySamplers(const struct GraphicsContext &context) -> void;
 

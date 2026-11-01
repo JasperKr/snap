@@ -133,7 +133,7 @@ struct FragmentInput {
   float2 tex_coord : TEXCOORDS;
 };
 
-Sampler2D IncomingLight;
+uniform Sampler2D.Handle IncomingLight;
 uniform float Temperature;
 uniform float Tint;
 uniform bool ApplyAGX;

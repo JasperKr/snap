@@ -2,11 +2,9 @@
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/dynamicRendering.hpp"
 #include "Graphics/FrameGraph/pipelineState.hpp"
-#include "Graphics/FrameGraph/recordingState.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
-#include "Graphics/graphicsState.hpp"
-#include "Graphics/renderState.hpp"
 #include "Graphics/vkAccessHelpers.hpp"
 #include "Graphics/vkPipelineHelpers.hpp"
 #include "Libraries/vma.hpp"
@@ -17,6 +15,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -39,13 +38,12 @@ namespace Graphics {
 auto FrameGraph::Submit(const GraphicsContext &context,
                         std::vector<VirtualCommandBuffer *> &newCommandBuffers)
     -> Error {
-  commandBuffers.clear();
-  commandIndices.clear();
+
   uint16_t idx = 1UL;
 
   for (auto &commandBuffer : newCommandBuffers) {
     commandBuffers.emplace_back(commandBuffer);
-    for (auto identifier : commandBuffer->commands) {
+    for (CommandID identifier : commandBuffer->commands) {
       commandIndices.emplace_back(identifier, idx);
     }
 
@@ -165,8 +163,6 @@ auto FrameGraph::ReduceParents(CommandIndex idx,
 // NOLINTNEXTLINE
 auto FrameGraph::PreCompile() -> Error {
   ZoneScoped;
-
-  BuildLoadOpModes();
 
   const auto commandCount = commands.size();
 
@@ -347,12 +343,12 @@ auto FrameGraph::BuildGraph() -> Error {
     graph[command.level].commands.emplace_back(command.id);
 
 #if OUTPUT_DEBUG_GRAPH
-    for (const CommandID parentId : commandParents[command.id]) {
-      const auto &parent = commands.at(parentId);
+    for (const CommandID parentID : commandParents[command.id]) {
+      const auto &parent = GetCommand(parentID);
 
       if (parent.GetType() != CommandType::vkCmdPipelineBarrier2 &&
           command.GetType() != CommandType::vkCmdPipelineBarrier2) {
-        dependencies.emplace((uint32_t(parentId) << UINT16_WIDTH) | command.id);
+        dependencies.emplace((uint32_t(parentID) << UINT16_WIDTH) | command.id);
       }
     }
 #endif
@@ -408,11 +404,11 @@ auto FrameGraph::DebugOutput() -> Error {
   const static bool ExportRWLabels = true;
 
   for (const auto &level : graph) {
-    stream << std::format("subgraph cluster_level_{} {{\n", level->level);
-    stream << std::format("label = \"Level {}\";\n", level->level);
+    stream << std::format("subgraph cluster_level_{} {{\n", level.level);
+    stream << std::format("label = \"Level {}\";\n", level.level);
 
     for (const auto commandID : level.commands) {
-      const auto &command = commands.at(commandID);
+      const auto &command = GetCommand(commandID);
       if (ExportRWLabels) {
         const auto &reads = GetReads(command);
         const auto &writes = GetWrites(command);
@@ -436,18 +432,18 @@ auto FrameGraph::DebugOutput() -> Error {
           }
         }
 
-        stream << std::format(
-            "{} [label=\"{}: {}\nR: {}\nW: {}\"];\n", command->id,
-            command->level, CommandTypeEnumHelper.ToString(command->GetType()),
-            readStr.str(), writeStr.str());
+        stream << std::format("{} [label=\"{}: {}\nR: {}\nW: {}\"];\n",
+                              command.id, command.level,
+                              CommandTypeEnumHelper.ToString(command.GetType()),
+                              readStr.str(), writeStr.str());
       } else {
         stream << std::format(
-            "{} [label=\"{}: {}\"];\n", command->id, command->level,
-            CommandTypeEnumHelper.ToString(command->GetType()));
+            "{} [label=\"{}: {}\"];\n", command.id, command.level,
+            CommandTypeEnumHelper.ToString(command.GetType()));
       }
     }
 
-    stream << std::format("barriers_{} [\n", level->level);
+    stream << std::format("barriers_{} [\n", level.level);
 
     std::stringstream barriers{};
 
@@ -465,11 +461,10 @@ auto FrameGraph::DebugOutput() -> Error {
     uint32_t child = dependency & UINT16_MAX;
 
     ERR_ASSERT_MSG(
-        commands.at(child)->level > commands.at(parent)->level,
+        GetCommand(child).level > GetCommand(parent).level,
         std::format(
             "child: {} with parent: {}, child level {} <= parent level {}",
-            child, parent, commands.at(child)->level,
-            commands.at(parent)->level));
+            child, parent, GetCommand(child).level, GetCommand(parent).level));
 
     stream << "\"" << parent << "\" -> \"" << child << "\";\n";
   }
@@ -730,234 +725,6 @@ auto FrameGraph::InsertBarriers() -> Error {
   return {};
 }
 
-inline auto GetRenderExtent(const Graphics::GraphState &state) -> VkExtent2D {
-
-  if (!state.colorAttachments.empty()) {
-    return VkExtent2D{
-        .width = state.colorAttachments.front().texture->GetWidth(),
-        .height = state.colorAttachments.front().texture->GetHeight(),
-    };
-  }
-
-  if (state.hasDepthStencilAttachment) {
-    return VkExtent2D{
-        .width = state.depthStencilAttachment.texture->GetWidth(),
-        .height = state.depthStencilAttachment.texture->GetHeight(),
-    };
-  }
-
-  assert(false && "Trying to get render extent with no attachments.");
-  return VkExtent2D{0, 0};
-}
-
-inline auto DrawStateToRenderingInfo(const GraphicsContext &context,
-                                     const GraphState &renderState)
-    -> Result<VkRenderingInfo> {
-  ZoneScoped;
-
-  VkRenderingInfo renderingInfo = {};
-  renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-
-  renderingInfo.renderArea.offset = {.x = 0, .y = 0};
-  renderingInfo.renderArea.extent = GetRenderExtent(renderState);
-  renderingInfo.layerCount = 1;
-  renderingInfo.viewMask = 0;
-  renderingInfo.flags = 0;
-
-  if (renderState.colorAttachments.size() >
-      context.deviceProperties.limits.maxColorAttachments) {
-    return Error::Create(
-        "Number of bound render targets exceeds device limits.");
-  }
-
-  if (renderingInfo.renderArea.extent.width == 0 ||
-      renderingInfo.renderArea.extent.height == 0) {
-    return Error::Create("Render area has zero width or height.");
-  }
-
-  auto colorAttachments =
-      std::array<VkRenderingAttachmentInfo, MAX_COLOR_ATTACHMENTS>{};
-  auto depthAttachment = VkRenderingAttachmentInfo{};
-  auto stencilAttachment = VkRenderingAttachmentInfo{};
-
-  for (int i = 0; i < renderState.colorAttachments.size(); i++) {
-    const auto &rendertarget = renderState.colorAttachments.at(i);
-    // CHECK_ERR(
-    //     rendertarget.texture->UseAsAttachment(context, rendertarget.loadOp));
-
-    VkRenderingAttachmentInfo attachmentInfo = {};
-    attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    attachmentInfo.imageView = rendertarget.texture->view;
-    attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    attachmentInfo.loadOp = rendertarget.loadOp;
-    attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachmentInfo.clearValue = rendertarget.clearValue;
-
-    colorAttachments.at(i) = attachmentInfo;
-  }
-
-  bool hasDepth = false;
-  bool hasStencil = false;
-
-  if (renderState.hasDepthStencilAttachment) {
-    const auto &rendertarget = renderState.depthStencilAttachment;
-    VkRenderingAttachmentInfo attachmentInfo = {};
-    attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    attachmentInfo.imageView = rendertarget.texture->view;
-    attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-    attachmentInfo.loadOp = rendertarget.loadOp;
-    attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachmentInfo.clearValue = rendertarget.clearValue;
-
-    if (rendertarget.texture->IsDepthTexture()) {
-      depthAttachment = attachmentInfo;
-      hasDepth = true;
-    }
-
-    if (rendertarget.texture->IsStencilTexture()) {
-      stencilAttachment = attachmentInfo;
-      hasStencil = true;
-    }
-  }
-
-  renderingInfo.colorAttachmentCount = renderState.colorAttachments.size();
-  renderingInfo.pColorAttachments = colorAttachments.data();
-
-  renderingInfo.pStencilAttachment = hasStencil ? &stencilAttachment : nullptr;
-  renderingInfo.pDepthAttachment = hasDepth ? &depthAttachment : nullptr;
-
-  // Make sure subsequent renders load from the existing content if we ever need to re-bind mid-pass
-  // for (auto &rendertarget : renderState.colorAttachments) {
-  //   rendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-  // }
-
-  // if (renderState.hasDepthStencilAttachment) {
-  //   renderState.depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-  // }
-
-  return renderingInfo;
-}
-
-inline auto CompareRenderingInfos(const VkRenderingInfo &first,
-                                  const VkRenderingInfo &second) -> bool {
-  if (first.renderArea.offset.x != second.renderArea.offset.x ||
-      first.renderArea.offset.y != second.renderArea.offset.y ||
-      first.renderArea.extent.width != second.renderArea.extent.width ||
-      first.renderArea.extent.height != second.renderArea.extent.height) {
-    return false;
-  }
-
-  if (first.colorAttachmentCount != second.colorAttachmentCount) {
-    return false;
-  }
-
-  std::span<const VkRenderingAttachmentInfo> firstColors(
-      first.pColorAttachments, first.colorAttachmentCount);
-  std::span<const VkRenderingAttachmentInfo> secondColors(
-      second.pColorAttachments, second.colorAttachmentCount);
-
-  for (size_t i = 0; i < firstColors.size(); ++i) {
-    const auto &firstAttach = firstColors[i];
-    const auto &secondAttach = secondColors[i];
-    if (firstAttach.imageView != secondAttach.imageView ||
-        firstAttach.imageLayout != secondAttach.imageLayout ||
-        firstAttach.loadOp != secondAttach.loadOp ||
-        firstAttach.storeOp != secondAttach.storeOp) {
-      return false;
-    }
-  }
-
-  const bool firstHasDepth = first.pDepthAttachment != nullptr;
-  const bool secondHasDepth = second.pDepthAttachment != nullptr;
-  if (firstHasDepth != secondHasDepth) {
-    return false;
-  }
-  if (firstHasDepth && secondHasDepth) {
-    if (first.pDepthAttachment->imageView !=
-            second.pDepthAttachment->imageView ||
-        first.pDepthAttachment->imageLayout !=
-            second.pDepthAttachment->imageLayout ||
-        first.pDepthAttachment->loadOp != second.pDepthAttachment->loadOp ||
-        first.pDepthAttachment->storeOp != second.pDepthAttachment->storeOp) {
-      return false;
-    }
-  }
-
-  const bool firstHasStencil = first.pStencilAttachment != nullptr;
-  const bool secondHasStencil = second.pStencilAttachment != nullptr;
-  if (firstHasStencil != secondHasStencil) {
-    return false;
-  }
-  if (firstHasStencil && secondHasStencil) {
-    if (first.pStencilAttachment->imageView !=
-            second.pStencilAttachment->imageView ||
-        first.pStencilAttachment->imageLayout !=
-            second.pStencilAttachment->imageLayout ||
-        first.pStencilAttachment->loadOp != second.pStencilAttachment->loadOp ||
-        first.pStencilAttachment->storeOp !=
-            second.pStencilAttachment->storeOp) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-auto FrameGraph::BuildRenderRegions(const GraphicsContext &context)
-    -> Result<std::vector<RenderingInfo>> {
-  ZoneScoped;
-
-  std::vector<RenderingInfo> infos{};
-  size_t currentIndex = SIZE_MAX;
-
-  for (const auto &level : graph) {
-    for (const CommandID commandID : level.commands) {
-      const auto &command = GetCommand(commandID);
-
-      const auto *drawState = command.GetDrawState();
-      const auto *callableState = get_if_derived<Callable>(command.data);
-      const auto type = command.GetType();
-
-      // Any non-draw command breaks the current contiguous rendering region.
-      if ((drawState == nullptr || callableState == nullptr ||
-           !GetRequiresRendering(type)) &&
-          type != CommandType::renderPass) {
-        currentIndex = SIZE_MAX;
-        continue;
-      }
-
-      uint32_t stateID{};
-
-      if (type == CommandType::renderPass) {
-        stateID = std::get<RenderPass>(command.data).stateID;
-      } else {
-        stateID = drawState->stateID;
-      }
-
-      const auto &renderState = CommandStateManager::States.at(stateID);
-
-      if (renderState.bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
-        currentIndex = SIZE_MAX;
-        continue;
-      }
-
-      const auto &renderingInfo =
-          CHECK_RES(DrawStateToRenderingInfo(context, renderState));
-
-      if (currentIndex == SIZE_MAX ||
-          !CompareRenderingInfos(renderingInfo, infos[currentIndex].info)) {
-        infos.emplace_back(renderingInfo);
-        currentIndex = infos.size() - 1;
-        infos[currentIndex].from = commandID;
-      }
-
-      infos[currentIndex].to = commandID;
-    }
-  }
-
-  return infos;
-}
-
 auto FrameGraph::BuildReadyState() -> Error {
   ZoneScoped;
 
@@ -1030,8 +797,8 @@ auto FrameGraph::BuildReadyState() -> Error {
   return {};
 }
 
-inline auto ComparePipelineCompatability(const GraphState &state,
-                                         const GraphState &other) {
+inline auto ComparePipelineCompatability(const VirtualRenderState &state,
+                                         const VirtualRenderState &other) {
   if (state.colorAttachments != other.colorAttachments) {
     return false;
   }
@@ -1067,29 +834,30 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
   const auto *parentDrawState = parent.GetDrawState();
   const auto *childDrawState = child.GetDrawState();
 
-  if (parentDrawState != nullptr) { // Parent is rendering
-    const auto *graphState = parentDrawState->GetGraphState();
+  if (parent.GetType() == CommandType::renderPass) { // Parent is rendering
+    const auto &virtualState = std::get<RenderPass>(parent.data).state;
 
-    if (childDrawState != nullptr) { // Child is rendering
-      const auto *childGraphState = childDrawState->GetGraphState();
+    if (child.GetType() == CommandType::renderPass) { // Child is rendering
+      const auto &childVirtualState = std::get<RenderPass>(child.data).state;
 
-      if (!ComparePipelineCompatability(*graphState, *childGraphState)) {
+      if (!ComparePipelineCompatability(virtualState, childVirtualState)) {
         cost += EndRenderingCost;
 
-        if (childGraphState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+        if (childVirtualState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
           cost += StartRenderingCost;
         }
 
         // Full compat check, including blend mode, back face etc..
-      } else if (graphState != childGraphState) {
+      } else if (virtualState != childVirtualState) {
         cost += DynamicStateUpdateCost;
       }
     } else { // Child is not rendering
       cost += EndRenderingCost;
     }
-  } else if (childDrawState != nullptr) { // Child is rendering but parent isn't
-    const auto &childGraphState = childDrawState->GetGraphState();
-    if (childGraphState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
+  } else if (child.GetType() ==
+             CommandType::renderPass) { // Child is rendering but parent isn't
+    const auto &childVirtualState = std::get<RenderPass>(child.data).state;
+    if (childVirtualState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
       cost += StartRenderingCost;
     }
   } else { // Neither child nor parent are rendering
@@ -1244,183 +1012,16 @@ auto FrameGraph::UpdateLevels(const std::vector<CommandIndex> &reordered)
   return {};
 }
 
-auto FrameGraph::BuildLoadOpModes() -> void {
+// NOLINTNEXTLINE
+auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   ZoneScoped;
 
-  Math::StackVector<RenderState::RenderTarget, MAX_COLOR_ATTACHMENTS>
-      lastColorAttachments;
-  ObjectID lastDepthStencilAttachment = UINT64_MAX;
-  bool isFirstIteration = true;
+  CHECK_ERR(MapResourceUsages());
+  commands.resize(commandIndices.size());
+  std::ranges::iota(commands, 0);
 
-  for (const auto commandID : commands) {
-    const auto &command = GetCommand(commandID);
-    const auto type = command.GetType();
-
-    if (type != CommandType::renderPass &&
-        type != CommandType::vkCmdClearAttachments) {
-      continue;
-    }
-
-    uint32_t stateID{};
-
-    if (type == CommandType::renderPass) {
-      const auto &renderPass = std::get<RenderPass>(command.data);
-      stateID = renderPass.stateID;
-    } else {
-      stateID = command.GetDrawState()->stateID;
-    }
-
-    const GraphState &graphState = CommandStateManager::States.at(stateID);
-
-    bool sameColorAttachments =
-        lastColorAttachments == graphState.colorAttachments;
-
-    bool sameDepthStencil = true;
-
-    if (graphState.hasDepthStencilAttachment) {
-      sameDepthStencil = lastDepthStencilAttachment ==
-                         graphState.depthStencilAttachment.texture->getID();
-    } else {
-      sameDepthStencil = lastDepthStencilAttachment == UINT64_MAX;
-    }
-
-    bool attachmentsChanged = !sameColorAttachments || !sameDepthStencil;
-
-    // Force Load Op Load if we aren't on the first iteration, and if the attachments were the same.
-    loadOpConfigs.emplace(
-        command.id, LoadOpConfig::FromGraphState(
-                        graphState, !isFirstIteration && !attachmentsChanged));
-    isFirstIteration = false;
-
-    lastColorAttachments = graphState.colorAttachments;
-
-    if (graphState.hasDepthStencilAttachment) {
-      lastDepthStencilAttachment =
-          graphState.depthStencilAttachment.texture->getID();
-    } else {
-      lastDepthStencilAttachment = UINT64_MAX;
-    }
-  }
-}
-
-inline auto GetCachedRenderPass(uint32_t stateID) -> RenderPass & {
-  static std::vector<RenderPass> passCache{};
-  static uint64_t lastFrameIdx = UINT64_MAX;
-  static int currentCacheIdx = 0;
-  if (lastFrameIdx != GetCurrentGraphicsContext()->currentFrame) {
-    currentCacheIdx = 0;
-  }
-
-  lastFrameIdx = GetCurrentGraphicsContext()->currentFrame;
-
-  if (currentCacheIdx >= passCache.size()) {
-    currentCacheIdx++;
-    return passCache.emplace_back(RenderPass{.stateID = stateID});
-  }
-
-  auto &pass = passCache.at(currentCacheIdx);
-  currentCacheIdx++;
-
-  pass.stateID = stateID;
-  pass.commands.clear();
-  pass.accesses.clear();
-  pass.reads.clear();
-  pass.writes.clear();
-
-  return pass;
-}
-
-auto FrameGraph::CompactRenderPasses() -> Error {
-  ZoneScoped;
-  bool inRange{};
-
-  // Amount of items merged, excluding one per range since the range object becomes a command
-  int count = 0;
-
-  RenderPass *currentPass = nullptr;
-
-  inRange = false;
-  int drawStateMismatches = 0;
-
-  auto commandCount = commandIndices.size();
-  assert(commandCount <= UINT16_MAX);
-
-  assert(commands.empty());
-
-  // NOLINTNEXTLINE
-  for (CommandID commandID = 0; commandID < commandCount; commandID++) {
-    const auto &command = GetCommand(commandID);
-    const auto type = command.GetType();
-
-    if (type == CommandType::vkCmdDraw ||
-        type == CommandType::vkCmdDrawIndexed ||
-        type == CommandType::vkCmdDrawIndexedIndirect ||
-        type == CommandType::vkCmdDrawIndirect) {
-      uint32_t stateID = command.GetDrawState()->stateID;
-
-      if (!inRange) {
-        auto *renderpassCommand =
-            commandBuffers.back()->GetNewCommand(CommandType::renderPass);
-        // Point the reordered command to the last index of commandIndices
-
-        auto newIdx = commandIndices.size();
-        commands.emplace_back(newIdx);
-        renderPasses.emplace_back(newIdx);
-
-        renderpassCommand->UpdateType();
-        assert(renderpassCommand->GetType() == CommandType::renderPass);
-
-        // Create the new command pointer in the last command buffer's commands, pointing to the last index
-        commandIndices.emplace_back(commandBuffers.back()->commands.back(),
-                                    commandBuffers.size());
-
-        currentPass = &std::get<RenderPass>(renderpassCommand->data);
-        currentPass->reads.clear();
-        currentPass->writes.clear();
-        currentPass->accesses.clear();
-        currentPass->commands.clear();
-        currentPass->stateID = stateID;
-      }
-      inRange = true;
-
-      if (currentPass->stateID != stateID) {
-        // Create new command in the last command buffer
-        auto *renderpassCommand =
-            commandBuffers.back()->GetNewCommand(CommandType::renderPass);
-        // Point the reordered command to the last index of commandIndices
-        auto newIdx = commandIndices.size();
-        commands.emplace_back(newIdx);
-        renderPasses.emplace_back(newIdx);
-
-        renderpassCommand->UpdateType();
-        assert(renderpassCommand->GetType() == CommandType::renderPass);
-
-        // Create the new command pointer in the last command buffer's commands, pointing to the last index
-        commandIndices.emplace_back(commandBuffers.back()->commands.back(),
-                                    commandBuffers.size());
-
-        currentPass = &std::get<RenderPass>(renderpassCommand->data);
-        currentPass->reads.clear();
-        currentPass->writes.clear();
-        currentPass->accesses.clear();
-        currentPass->commands.clear();
-        currentPass->stateID = stateID;
-
-        drawStateMismatches++;
-      }
-
-      const auto *bound = get_if_derived<BoundResources>(command.data);
-      ASSUME(bound != nullptr);
-      currentPass->commands.emplace_back(commandID);
-
-      currentPass->reads.append_range(bound->reads);
-      currentPass->writes.append_range(bound->writes);
-    } else {
-      currentPass = nullptr;
-
-      inRange = false;
-      commands.emplace_back(commandID);
-    }
+  for (const auto &cmdBuffer : commandBuffers) {
+    cmdBuffer->threadInfo.StartCommandWriting();
   }
 
   CommandIndex idx{};
@@ -1450,52 +1051,20 @@ auto FrameGraph::CompactRenderPasses() -> Error {
   assert(commands.size() <= commandIndices.size());
   assert(idx == commands.size());
 
-  return {};
-}
-
-// NOLINTNEXTLINE
-auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
-  ZoneScoped;
-
-  CHECK_ERR(MapResourceUsages());
-
-  for (const auto &cmdBuffer : commandBuffers) {
-    cmdBuffer->threadInfo.StartCommandWriting();
-  }
-
-  CHECK_ERR(CompactRenderPasses());
   CHECK_ERR(BuildGraph());
   CHECK_ERR(BuildReadyState());
-
-  const auto *reordered = CHECK_RES(Reorder());
-  CHECK_ERR(UpdateLevels(*reordered));
 
   for (const auto &cmdBuffer : commandBuffers) {
     cmdBuffer->threadInfo.FinalizeCommandWriting();
   }
 
-  for (const CommandID commandID : renderPasses) {
-    auto &command = GetCommand(commandID);
-    assert(command.GetType() == CommandType::renderPass);
-
-    auto &renderPass = std::get<RenderPass>(command.data);
-
-    for (const CommandID childCmdID : renderPass.commands) {
-      const auto &childCommand = GetCommand(childCmdID);
-      const auto &bound = get_if_derived<BoundResources>(childCommand.data);
-
-      for (const auto &access : bound->accesses) {
-        renderPass.accesses.emplace(access);
-      }
-    }
-  }
+  const auto *reordered = CHECK_RES(Reorder());
+  CHECK_ERR(UpdateLevels(*reordered));
 
   CHECK_ERR(InsertBarriers());
 
   // PrintAlways("Command count: {}", commands.size());
   // PrintAlways("Level count: {}", graph.size());
-
-  const auto &regions = CHECK_RES(BuildRenderRegions(context));
 
 #if OUTPUT_DEBUG_GRAPH
   CHECK_ERR(DebugOutput());
@@ -1510,24 +1079,24 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
 
 auto FrameGraph::WriteCommand(const Command &command,
                               const GraphicsContext &context,
-                              VkCommandBuffer cmdBuffer,
-                              const LoadOpConfig *loadOpConfig) -> Error {
+                              const RenderPass *parent,
+                              VkCommandBuffer cmdBuffer) -> Error {
   const auto *callable = get_if_derived<Callable>(command.data);
-  const auto *state = command.GetDrawState();
+
+  assert(callable != nullptr);
+
   const auto type = command.GetType();
+  assert(type != CommandType::renderPass);
 
-  if (callable != nullptr && GetRequiresRendering(type)) {
-    if (state != nullptr) {
-      CHECK_ERR(state->Apply(context, cmdBuffer, loadOpConfig));
-    }
+  if (GetRequiresRendering(type)) {
+    const auto *state = command.GetDrawState();
+    assert(state != nullptr);
+    CHECK_ERR(state->Apply(context, *parent, cmdBuffer));
+  } else {
+    EndRendering(context, cmdBuffer);
   }
 
-  if (callable != nullptr) {
-    if (!GetRequiresRendering(type)) {
-      EndRendering(context, cmdBuffer);
-    }
-    CHECK_ERR(callable->Call(cmdBuffer));
-  }
+  CHECK_ERR(callable->Call(cmdBuffer));
 
   return {};
 }
@@ -1536,12 +1105,9 @@ auto FrameGraph::Write(const GraphicsContext &context,
                        VkCommandBuffer cmdBuffer) -> Error {
   ZoneScoped;
 
-  VkCommandBufferBeginInfo beginInfo = {};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-  vkBeginCommandBuffer(cmdBuffer, &beginInfo);
   GetThreadContext().workingCommandBuffer = cmdBuffer;
+
+  CHECK_ERR(DescriptorHeapManager::GetInstance().Bind(cmdBuffer));
 
   CHECK_ERR(BeginFrame(context));
 
@@ -1559,30 +1125,32 @@ auto FrameGraph::Write(const GraphicsContext &context,
       }
     }
 
-    if (GetIsCurrentlyRendering()) {
-      // Remove any color / depth attachment WaW barriers if we kept rendering.
+    std::vector<VkMemoryBarrier2> barriers = level.barriers;
 
-      Utils::UnorderedErase(
-          level.barriers, [](const VkMemoryBarrier2 &barrier) -> bool {
-            constexpr auto colorOutput =
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-            constexpr auto depthOutput =
-                VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
-                VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+    // if (GetIsCurrentlyRendering()) {
+    //   // Remove any color / depth attachment WaW barriers if we kept rendering.
 
-            if (barrier.srcStageMask == colorOutput &&
-                barrier.dstStageMask == colorOutput) {
-              return true;
-            }
+    //   Utils::UnorderedErase(
+    //       barriers, [](const VkMemoryBarrier2 &barrier) -> bool {
+    //         constexpr auto colorOutput =
+    //             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    //         constexpr auto depthOutput =
+    //             VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+    //             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
 
-            if ((barrier.srcStageMask & depthOutput) != 0U &&
-                (barrier.dstStageMask & depthOutput) != 0U) {
-              return true;
-            }
+    //         if (barrier.srcStageMask == colorOutput &&
+    //             barrier.dstStageMask == colorOutput) {
+    //           return true;
+    //         }
 
-            return false;
-          });
-    }
+    //         if ((barrier.srcStageMask & depthOutput) != 0U &&
+    //             (barrier.dstStageMask & depthOutput) != 0U) {
+    //           return true;
+    //         }
+
+    //         return false;
+    //       });
+    // }
 
     if (!level.barriers.empty()) {
       EndRendering(context, cmdBuffer);
@@ -1602,31 +1170,27 @@ auto FrameGraph::Write(const GraphicsContext &context,
 
       if (type == CommandType::renderPass) {
         ZoneScopedN("Write render pass");
-        const auto *loadOpConfig = &loadOpConfigs.at(levelCmdID);
         const auto &renderPass = std::get<RenderPass>(command.data);
-        const auto &levelCommands = renderPass.commands;
 
-        for (const CommandID childCommandId : levelCommands) {
-          const auto &childCommand = GetCommand(childCommandId);
+        const auto ParentCmdBufferID = commandIndices.at(commandID).second;
+
+        for (const CommandID childCommandID : renderPass.commands) {
+          // Here we create an ID pointing to the render pass's cmd buffer + child ID
+          const auto &childCommand =
+              GetCommand(CommandIDPair(childCommandID, ParentCmdBufferID));
+
           CHECK_ERR(
-              WriteCommand(childCommand, context, cmdBuffer, loadOpConfig));
+              WriteCommand(childCommand, context, &renderPass, cmdBuffer));
         }
       } else {
-        auto configIter = loadOpConfigs.find(levelCmdID);
-        if (configIter == loadOpConfigs.end()) {
-          CHECK_ERR(WriteCommand(command, context, cmdBuffer, nullptr));
-        } else {
-          CHECK_ERR(
-              WriteCommand(command, context, cmdBuffer, &configIter->second));
-        }
+        ERR_ASSERT(!GetRequiresRendering(command.GetType()));
+        CHECK_ERR(WriteCommand(command, context, nullptr, cmdBuffer));
       }
     }
   }
 
   EndRendering(context, cmdBuffer);
   GetThreadContext().workingCommandBuffer = nullptr;
-  vkEndCommandBuffer(cmdBuffer);
-  CommandStateManager::CurrentStateID = UINT32_MAX;
 
   Reset();
 
@@ -1643,14 +1207,10 @@ auto FrameGraph::Reset() -> void {
   commandParents.clear();
   commandHazardSources.clear();
   nextReady.clear();
-  loadOpConfigs.clear();
   commands.clear();
   resourcesWritesInFrame.clear();
-  renderPasses.clear();
-  CommandStateManager::StateToIndex.clear();
-  CommandStateManager::States.clear();
-  RecordingState::CurrentState = {};
-  RecordingState::LastStateStorage = {};
+  commandBuffers.clear();
+  commandIndices.clear();
 }
 
 } // namespace Graphics

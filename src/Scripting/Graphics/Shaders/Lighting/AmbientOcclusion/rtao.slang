@@ -4,16 +4,11 @@ import utils;
 import constants;
 import random;
 
-Sampler2D DepthTexture;
-Sampler2D NormalTexture;
-WTexture2D<float> OutputTexture;
+uniform Sampler2D.Handle DepthTexture;
+uniform Sampler2D.Handle NormalTexture;
+uniform WTexture2D<float>.Handle OutputTexture;
 
-struct PushConstantBuffer {
-  uint FrameRandomState;
-};
-
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint FrameRandomState;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
@@ -37,10 +32,10 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     return;
   }
 
-  float3 worldPosition = camera.GetWorldPosition(uv, depth);
+  float3 worldPosition = CameraData[0].GetWorldPosition(uv, depth);
   uint2 screenCoords = uint2(id.xy);
-  uint randomState = PushConstants.FrameRandomState + screenCoords.x * 1702 +
-                     screenCoords.y * 40301;
+  uint randomState =
+      FrameRandomState + screenCoords.x * 1702 + screenCoords.y * 40301;
 
   worldPosition += normal * 0.01f;
 
@@ -60,7 +55,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     ray.TMin = 0.001f;
     ray.TMax = 1.0f;
 
-    bool hit = TraceAnyHitRay(SceneBVH, ray);
+    bool hit = TraceAnyHitRay(ray);
 
     if (hit) {
       hitCount++;

@@ -18,7 +18,7 @@ struct StitchInfo {
 extern StitchInfo GlobalStitchInfo;
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-extern SwapchainManager::SwapchainManager swapchainManager;
+extern SwapchainManager swapchainManager;
 
 auto Present(GraphicsContext &context,
              const std::vector<Ref<Threading::RenderThreadInfo>> &commands)

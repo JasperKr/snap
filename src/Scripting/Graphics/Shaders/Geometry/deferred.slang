@@ -6,13 +6,9 @@ import Lighting.physicallyBased;
 import constants;
 
 import transform;
-struct PushConstantBuffer {
-  uint MaterialBufferIndex;
-  uint ModelTransformIndex;
-};
 
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint MaterialBufferIndex;
+uniform uint ModelTransformIndex;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -36,12 +32,12 @@ struct VertexInput {
 VertexStageOutput vertexMain(VertexInput input) {
   VertexStageOutput out;
 
-  Transform transform = GetModelTransform(PushConstants.ModelTransformIndex);
+  Transform transform = GetModelTransform(ModelTransformIndex);
 
   float4 worldPos = mul(float4(input.Position, 1.0), transform.ModelMatrix);
-  out.sv_position = mul(camera.ViewProjectionMatrix, worldPos);
+  out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
   out.currentClip = out.sv_position;
-  out.previousClip = mul(previousCamera.ViewProjectionMatrix, worldPos);
+  out.previousClip = mul(CameraData[1].ViewProjectionMatrix, worldPos);
 
   float3x3 NormalMatrix = float3x3(transform.NormalMatrix);
 
@@ -68,11 +64,11 @@ struct FragmentInput {
   bool isFrontFace : SV_IsFrontFace;
 };
 
-Sampler2D AlbedoTexture;
-Sampler2D MetallicRoughnessTexture;
-Sampler2D NormalTexture;
-Sampler2D EmissiveTexture;
-Sampler2D ReflectanceTexture;
+uniform Sampler2D.Handle AlbedoTexture;
+uniform Sampler2D.Handle MetallicRoughnessTexture;
+uniform Sampler2D.Handle NormalTexture;
+uniform Sampler2D.Handle EmissiveTexture;
+uniform Sampler2D.Handle ReflectanceTexture;
 
 struct FragmentOutput {
   float4 Albedo : SV_Target0;
@@ -93,7 +89,7 @@ FragmentOutput fragmentMain(FragmentInput input) {
   }
 
   float4 texColor = AlbedoTexture.Sample(input.tex_coord);
-  MaterialData matData = MaterialBuffer[PushConstants.MaterialBufferIndex];
+  MaterialData matData = MaterialBuffer[MaterialBufferIndex];
 
   float3 albedo = texColor.rgb * matData.albedoFactor.rgb;
 

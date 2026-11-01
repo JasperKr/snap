@@ -3,9 +3,8 @@
 
 namespace Graphics {
 
-auto VertexFormat::BindDynamicInputState(VirtualCommandBuffer *commandBuffer)
-    -> void {
-  auto currentHash = GetHash();
+auto VertexFormat::BindDynamicInputState(
+    VirtualCommandBuffer *commandBuffer) const -> void {
   auto &threadContext = GetThreadContext();
 
   const auto &bindings = GetBindings();

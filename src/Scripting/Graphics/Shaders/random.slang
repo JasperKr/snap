@@ -2,7 +2,7 @@ module random;
 
 import constants;
 
-public Sampler2D BlueNoiseTexture;
+public uniform Sampler2D.Handle BlueNoiseTexture;
 
 public float RandomValue(inout uint state) {
   state = state * 747796405u + 2891336453u;

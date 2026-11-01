@@ -15,7 +15,7 @@
 #include "vulkan/vulkan_core.h"
 #include <cstdint>
 #include <vector>
-namespace Graphics::SwapchainManager {
+namespace Graphics {
 
 using PM = VkPresentModeKHR;
 
@@ -212,13 +212,11 @@ inline auto FindSurfaceFormat(Window::ColorSpace colorspace,
 }
 
 inline auto GetSwapchainTextures(GraphicsContext &context) -> Error {
-  context.swapchainInfo.textures.clear();
   context.swapchainInfo.textures.resize(context.swapchainInfo.imageCount);
 
   for (uint32_t i = 0; i < context.swapchainInfo.imageCount; i++) {
     auto texture = CHECK_RES(Graphics::Texture::FromSwapchain(
-        context, context.swapchainInfo.images[i],
-        context.swapchainInfo.imageViews[i], context.swapchainInfo.format,
+        context, context.swapchainInfo.images[i], context.swapchainInfo.format,
         context.swapchainInfo.extent.width,
         context.swapchainInfo.extent.height));
 
@@ -267,6 +265,7 @@ auto SwapchainManager::Deinitialize(GraphicsContext &context) -> void {
   currentTextures.clear();
   context.swapchainInfo.textures.clear();
 }
+
 auto SwapchainManager::RecreateSwapchain(GraphicsContext &context,
                                          Window::WindowContext &wcontext)
     -> Error {
@@ -284,11 +283,13 @@ auto SwapchainManager::RecreateSwapchain(GraphicsContext &context,
 
   CHECK_ERR(CreateVkSwapchain(context, wcontext));
 
+  currentSwapchain = context.swapchainInfo.swapchain;
   currentTextures = context.swapchainInfo.textures;
   isDirty = false;
 
   return Error::Success();
 }
+
 auto SwapchainManager::CleanupOldSwapchains(GraphicsContext &context,
                                             uint64_t currentFrame) -> void {
   Utils::UnorderedErase(
@@ -321,6 +322,7 @@ auto SwapchainManager::CleanupOldSwapchains(GraphicsContext &context,
 auto SwapchainManager::GetCurrentSwapchain() -> VkSwapchainKHR {
   return currentSwapchain;
 }
+
 auto SwapchainManager::GetCurrentSwapchainTexture(
     const GraphicsContext &context) -> Ref<Texture> {
   return currentTextures.at(context.swapchainImageIndex);
@@ -345,6 +347,7 @@ auto SwapchainManager::NewFrame(GraphicsContext &context,
 
   return Error::Success();
 }
+
 auto SwapchainManager::EndFrame(const GraphicsContext &context) -> Error {
   ZoneScoped;
 
@@ -456,34 +459,6 @@ auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context,
   }
 
   context.swapchainInfo.images.resize(context.swapchainInfo.imageCount);
-  context.swapchainInfo.imageViews.resize(context.swapchainInfo.imageCount);
-
-  {
-    std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    for (uint32_t i = 0; i < context.swapchainInfo.imageCount; i++) {
-      VkImageViewCreateInfo imageViewInfo = {};
-
-      imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      imageViewInfo.image = context.swapchainInfo.images[i];
-      imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      imageViewInfo.format = context.swapchainInfo.format;
-      imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-      imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-      imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-      imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-      imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      imageViewInfo.subresourceRange.baseMipLevel = 0;
-      imageViewInfo.subresourceRange.levelCount = 1;
-      imageViewInfo.subresourceRange.baseArrayLayer = 0;
-      imageViewInfo.subresourceRange.layerCount = 1;
-
-      VkImageView imageView = VK_NULL_HANDLE;
-      CHECK_NEW_ERR(vkCreateImageView(context.device, &imageViewInfo,
-                                      GetAllocationCallbacks(), &imageView));
-
-      context.swapchainInfo.imageViews[i] = imageView;
-    }
-  }
 
   CHECK_ERR(GetSwapchainTextures(context));
 
@@ -494,4 +469,4 @@ auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context,
 
 auto SwapchainManager::MakeDirty() -> void { isDirty = true; }
 
-} // namespace Graphics::SwapchainManager
+} // namespace Graphics

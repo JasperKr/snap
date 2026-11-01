@@ -10,8 +10,8 @@ uniform int Slice;
 // uniform highp sampler2DArray RadianceInput;
 // layout(r11f_g11f_b10f) uniform restrict writeonly image2DArray IrradianceOutput;
 
-Sampler2DArray RadianceInput;
-restrict WTexture2DArray<float4> IrradianceOutput;
+uniform Sampler2DArray.Handle RadianceInput;
+uniform WTexture2DArray<float4>.Handle IrradianceOutput;
 
 /*
 

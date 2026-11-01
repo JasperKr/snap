@@ -15,7 +15,7 @@ import camera;
 VertexOutput vertexMain(VertexInput input) {
   VertexOutput output;
   output.position =
-      mul(camera.ViewProjectionMatrix, float4(input.position, 1.0));
+      mul(CameraData[0].ViewProjectionMatrix, float4(input.position, 1.0));
   output.color = input.color;
   return output;
 }

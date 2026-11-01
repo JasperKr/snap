@@ -26,9 +26,9 @@ float fragmentMain(float2 texCoords: TEXCOORDS) {
     return 1.0;
   }
 
-  float3 worldPosition = camera.GetWorldPosition(texCoords, depth);
+  float3 worldPosition = CameraData[0].GetWorldPosition(texCoords, depth);
   float3 previousWorldPosition =
-      camera.GetWorldPosition(previousTexCoords, previousDepth);
+      CameraData[0].GetWorldPosition(previousTexCoords, previousDepth);
 
   float distance = length(worldPosition - previousWorldPosition);
 
@@ -68,7 +68,8 @@ float fragmentMain(float2 texCoords: TEXCOORDS) {
         continue;
       }
 
-      float3 sampleWorldPosition = camera.GetWorldPosition(sampleCoords, depth);
+      float3 sampleWorldPosition =
+          CameraData[0].GetWorldPosition(sampleCoords, depth);
       float3 sampleNormal =
           UnpackNormal(NormalTexture.SampleLevelZero(sampleCoords));
 

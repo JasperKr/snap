@@ -30,7 +30,6 @@ struct SwapchainInfo {
   uint32_t imageCount;
   Math::StackVector<Ref<Texture>, MaxImageCount> textures;
   Math::StackVector<VkImage, MaxImageCount> images;
-  Math::StackVector<VkImageView, MaxImageCount> imageViews;
 };
 
 struct GraphicsMutexes {

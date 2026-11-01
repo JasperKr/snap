@@ -4,14 +4,14 @@ import utils;
 import constants;
 import random;
 
-Sampler2D<float> DepthTexture;
-Sampler2D<float> PreviousDepthTexture;
+uniform Sampler2D<float>.Handle DepthTexture;
+uniform Sampler2D<float>.Handle PreviousDepthTexture;
 
-Sampler2D<float2> MotionTexture;
+uniform Sampler2D<float2>.Handle MotionTexture;
 
-Sampler2D<float> RayHitTexture;
-restrict WTexture2D<float2> OutputTexture;
-Sampler2D<float2> PreviousOutputTexture;
+uniform Sampler2D<float>.Handle RayHitTexture;
+uniform WTexture2D<float2>.Handle OutputTexture;
+uniform Sampler2D<float2>.Handle PreviousOutputTexture;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
@@ -35,7 +35,7 @@ void computeMain(uint2 id: SV_DispatchThreadID) {
     return;
   }
 
-  float3 worldPosition = camera.GetWorldPosition(uv, depth);
+  float3 worldPosition = CameraData[0].GetWorldPosition(uv, depth);
 
   float2 sampleCoord = float2(uv);
   sampleCoord.xy -= UnpackMotionVector(MotionTexture.Load(int3(id, 0)));
@@ -50,7 +50,7 @@ void computeMain(uint2 id: SV_DispatchThreadID) {
 
   float previousDepth = PreviousDepthTexture.SampleLevelZero(sampleCoord);
   float3 previousWorldPosition =
-      previousCamera.GetWorldPosition(sampleCoord, previousDepth);
+      CameraData[1].GetWorldPosition(sampleCoord, previousDepth);
 
   float rejection = 0.0F;
 

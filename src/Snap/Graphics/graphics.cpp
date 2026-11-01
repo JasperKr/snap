@@ -1,9 +1,9 @@
 #include "graphics.hpp"
 #include "Graphics/FrameGraph/commands.hpp"
-#include "Graphics/FrameGraph/descriptorCache.hpp"
 #include "Graphics/FrameGraph/pipelineCache.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/bvh.hpp"
+#include "Graphics/descriptorHeap.hpp"
 #include "Graphics/deviceSettings.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
@@ -301,6 +301,20 @@ static auto CreateDevice(GraphicsContext &context,
       .bufferDeviceAddress = VK_TRUE,
   };
 
+  VkPhysicalDeviceDescriptorHeapFeaturesEXT descriptorHeapFeatures{
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_FEATURES_EXT,
+      .pNext = &features12,
+      .descriptorHeap = VK_TRUE,
+      .descriptorHeapCaptureReplay = VK_FALSE,
+  };
+  // clang-format off
+  VkPhysicalDeviceShaderUntypedPointersFeaturesKHR untypedPointersFeatures {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_UNTYPED_POINTERS_FEATURES_KHR,
+    .pNext = &descriptorHeapFeatures,
+    .shaderUntypedPointers = VK_TRUE,
+  };
+  //clang-format on
+
   PrintDebug(
       "Enabled Vulkan 1.2 features: descriptorIndexing, "
       "shaderSampledImageArrayNonUniformIndexing, "
@@ -310,7 +324,7 @@ static auto CreateDevice(GraphicsContext &context,
   // --- Vulkan 1.1 features ---
   VkPhysicalDeviceVulkan11Features features11{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-      .pNext = &features12,
+      .pNext = &untypedPointersFeatures,
       .shaderDrawParameters = VK_TRUE,
   };
 
@@ -318,6 +332,7 @@ static auto CreateDevice(GraphicsContext &context,
   VkPhysicalDeviceFeatures features10{};
   features10.samplerAnisotropy = VK_TRUE;
   features10.textureCompressionBC = VK_TRUE;
+  features10.shaderInt64 = VK_TRUE;
 
   // --- Features2 root ---
   VkPhysicalDeviceFeatures2 features2{
@@ -350,6 +365,8 @@ static auto CreateDevice(GraphicsContext &context,
       {VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME, extOptional},
       {VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, extRequired},
       {VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, extRequired},
+      {VK_EXT_DESCRIPTOR_HEAP_EXTENSION_NAME, extRequired},
+      {VK_KHR_SHADER_UNTYPED_POINTERS_EXTENSION_NAME, extRequired},
 
       {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
        settings.hardwareRaytracing},
@@ -651,7 +668,8 @@ auto Initialize(GraphicsContext &context, Window::WindowContext &wcontext,
   CHECK_ERR(CreateSemaphores(context));
   PrintDebug("called: CreateSemaphores...");
   CHECK_ERR(GetPipelineCache().Initialize(context));
-  CHECK_ERR(GetDescriptorCache().Initialize(context));
+
+  CHECK_ERR(DescriptorHeapManager::GetInstance().Initialize(context));
 
   return Error::Success();
 }
@@ -675,7 +693,7 @@ void Deinitialize(GraphicsContext &context) {
   Graphics::RenderState::Destroy(context);
   Graphics::DeInitializeBVHModule();
   GetPipelineCache().DeInitialize(context);
-  GetDescriptorCache().DeInitialize(context);
+  DescriptorHeapManager::GetInstance().DeInitialize();
 
   // (BEFORE device, allocator lock)
   Graphics::ProcessReleasedResources(context);
@@ -683,11 +701,6 @@ void Deinitialize(GraphicsContext &context) {
   std::scoped_lock<std::mutex, std::mutex> lock(
       Graphics::GraphicsContext::mutexes.device,
       Graphics::GraphicsContext::mutexes.vmaAllocator);
-
-  for (auto &descriptorPoolInfo : GetThreadContext().descriptorPools) {
-    vkDestroyDescriptorPool(context.device, descriptorPoolInfo.descriptorPool,
-                            GetAllocationCallbacks());
-  }
 
   vmaDestroyAllocator(context.vmaAllocator);
 

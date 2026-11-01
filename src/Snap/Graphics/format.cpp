@@ -23,6 +23,9 @@ auto GetChannelCount(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32_UINT, 1},
       {VK_FORMAT_R32_SINT, 1},
       {VK_FORMAT_R32_SFLOAT, 1},
+      {VK_FORMAT_R64_UINT, 1},
+      {VK_FORMAT_R64_SINT, 1},
+      {VK_FORMAT_R64_SFLOAT, 1},
 
       {VK_FORMAT_R8G8_UNORM, 2},
       {VK_FORMAT_R8G8_SNORM, 2},
@@ -37,6 +40,9 @@ auto GetChannelCount(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32G32_UINT, 2},
       {VK_FORMAT_R32G32_SINT, 2},
       {VK_FORMAT_R32G32_SFLOAT, 2},
+      {VK_FORMAT_R64G64_UINT, 2},
+      {VK_FORMAT_R64G64_SINT, 2},
+      {VK_FORMAT_R64G64_SFLOAT, 2},
 
       {VK_FORMAT_R8G8B8_UNORM, 3},
       {VK_FORMAT_R8G8B8_SNORM, 3},
@@ -52,6 +58,9 @@ auto GetChannelCount(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32G32B32_UINT, 3},
       {VK_FORMAT_R32G32B32_SINT, 3},
       {VK_FORMAT_R32G32B32_SFLOAT, 3},
+      {VK_FORMAT_R64G64B64_UINT, 3},
+      {VK_FORMAT_R64G64B64_SINT, 3},
+      {VK_FORMAT_R64G64B64_SFLOAT, 3},
 
       {VK_FORMAT_R8G8B8A8_UNORM, 4},
       {VK_FORMAT_R8G8B8A8_SRGB, 4},
@@ -65,6 +74,9 @@ auto GetChannelCount(VkFormat format) -> uint32_t {
       {VK_FORMAT_R32G32B32A32_UINT, 4},
       {VK_FORMAT_R32G32B32A32_SINT, 4},
       {VK_FORMAT_R32G32B32A32_SFLOAT, 4},
+      {VK_FORMAT_R64G64B64A64_UINT, 4},
+      {VK_FORMAT_R64G64B64A64_SINT, 4},
+      {VK_FORMAT_R64G64B64A64_SFLOAT, 4},
   };
 
   auto iter = FormatChannelCounts.find(format);
@@ -582,6 +594,14 @@ auto GetVec4Variant(VkFormat format) -> VkFormat {
   case VK_FORMAT_R16G16_SNORM:
   case VK_FORMAT_R16G16B16_SNORM:
     return VK_FORMAT_R16G16B16A16_SNORM;
+  case VK_FORMAT_R64_UINT:
+  case VK_FORMAT_R64G64_UINT:
+  case VK_FORMAT_R64G64B64_UINT:
+    return VK_FORMAT_R64G64B64A64_UINT;
+  case VK_FORMAT_R64_SINT:
+  case VK_FORMAT_R64G64_SINT:
+  case VK_FORMAT_R64G64B64_SINT:
+    return VK_FORMAT_R64G64B64A64_SINT;
   default:
     return format; // If no specific vec4 variant, return the original format
   }
@@ -589,6 +609,12 @@ auto GetVec4Variant(VkFormat format) -> VkFormat {
 
 auto GetBaseFormat(VkFormat format) -> VkFormat {
   switch (format) {
+  case VK_FORMAT_R64G64B64A64_SFLOAT:
+  case VK_FORMAT_R64G64B64_SFLOAT:
+  case VK_FORMAT_R64G64_SFLOAT:
+  case VK_FORMAT_R64_SFLOAT:
+    return VK_FORMAT_R64_SFLOAT;
+
   case VK_FORMAT_R32G32B32A32_SFLOAT:
   case VK_FORMAT_R32G32B32_SFLOAT:
   case VK_FORMAT_R32G32_SFLOAT:

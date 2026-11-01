@@ -306,7 +306,8 @@ inline auto DrawRendertargetImGui(const RenderState::RenderTarget &target,
     auto blend = target.blendMode;
     BooleanFlag("Blend Mode:", blend.blendEnable != 0U);
 
-    auto [isDefault, blendmode, alphamode] = BlendMode::ToString(blend);
+    auto [isDefault, blendmode, alphamode] =
+        BlendMode::ToStringProperties(blend);
     if (isDefault) {
       ImGui::Text("Blend Mode: %s, Alpha Mode: %s", blendmode.c_str(),
                   alphamode.c_str());

@@ -1,7 +1,5 @@
 // Default shader
 
-module default2D;
-
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
   float2 tex_coord : TEXCOORD0;
@@ -28,7 +26,7 @@ struct FragmentInput {
   float4 color : COLOR;
 };
 
-Sampler2D MainTexture;
+uniform DescriptorHandle<Sampler2D> MainTexture;
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {

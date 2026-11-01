@@ -10,10 +10,12 @@
 #include "vulkan/vulkan_core.h"
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <public/tracy/Tracy.hpp>
 #include <variant>
+#include <vector>
 
 namespace Graphics::Reflect {
 
@@ -810,22 +812,11 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding)
   return {};
 }
 
-struct FlatteningState {
-  FlattenedReflection *flattened = nullptr;
-  ResourceKey *currentKey = nullptr;
-  uint32_t idx{};
-  uint32_t arraySize{};
-  uint32_t parentSet{};
-  uint32_t parentBinding{};
-  uint32_t currentOffset{};
-  Standard std = Standard::Std140;
-  std::unordered_map<ResourceKey, DescriptorSlot, ResourceKeyHash> *keyToSlot;
-};
-
 // NOLINTNEXTLINE
-inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
-    -> Error {
-
+auto ShaderReflection::FlattenResource(ResourceInfo &resource,
+                                       FlatteningState &state,
+                                       std::vector<ResourceInfo> &children,
+                                       bool mapToGlobals) -> Error {
   if (resource.IsBuffer()) {
     const auto &bufferInfo = std::get<BufferInfo>(resource.info);
     resource.set = bufferInfo.set;
@@ -864,9 +855,6 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
     } else {
       state.currentKey->emplace_back(resource.name);
     }
-
-    state.keyToSlot->emplace(*state.currentKey,
-                             DescriptorSlot(resource.set, resource.binding));
   }
 
   state.parentBinding = resource.binding;
@@ -886,7 +874,7 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
         newState.currentOffset += resource.offset;
         newState.idx = i;
         newState.arraySize = resource.GetArraySize();
-        CHECK_ERR(FlattenResource(field, newState));
+        CHECK_ERR(FlattenResource(field, newState, children, mapToGlobals));
       }
 
     } else if (resource.IsBuffer()) {
@@ -913,9 +901,14 @@ inline auto FlattenResource(ResourceInfo &resource, FlatteningState &state)
       info.stages = resource.stages;
       info.name = resource.name;
 
-      CHECK_ERR(FlattenResource(info, newState));
+      CHECK_ERR(FlattenResource(info, newState, children, mapToGlobals));
     } else {
-      state.flattened->keyToInfo.emplace(*state.currentKey, resource);
+      if (mapToGlobals) {
+        keyMapping.emplace(*state.currentKey, keyToInfo.size());
+        keyToInfo.emplace_back(resource);
+      }
+
+      children.emplace_back(resource);
     }
   }
 
@@ -939,49 +932,43 @@ auto ShaderReflection::FlattenReflection() -> Error {
         resource.IsBuffer() &&
         resource.GetInfo<BufferInfo>().bufferType == BufferType::PushConstant;
 
+    // ERR_ASSERT(!isPushConstant);
+
     ResourceKey currentKey;
     FlatteningState state{
-        .flattened = isPushConstant
-                         ? &pushBuffers.emplace_back()
-                         : &flattened.try_emplace(resource.set).first->second,
         .currentKey = &currentKey,
         .idx = 0,
         .arraySize = resource.GetArraySize(),
-        .keyToSlot = &keyToSlot,
     };
 
-    CHECK_ERR(FlattenResource(resource, state));
+    std::vector<ResourceInfo> children;
 
-    for (auto &entry : state.flattened->keyToInfo) {
-      state.flattened->size =
-          std::max(state.flattened->size,
-                   entry.second.GetOffset() + entry.second.GetSize());
+    CHECK_ERR(FlattenResource(resource, state, children, false));
+
+    for (auto &entry : children) {
+      state.size = std::max<VkDeviceSize>(state.size,
+                                          entry.GetOffset() + entry.GetSize());
     }
 
     if (resource.IsBuffer() && !isPushConstant) {
       bufferSlotsBySet[resource.set].emplace_back(
           DescriptorSlot(resource.set, resource.binding));
-      state.flattened->bindingToInfo.emplace(resource.binding, resource);
     } else if (resource.IsSampler()) {
       textureSlotsBySet[resource.set].emplace_back(
           DescriptorSlot(resource.set, resource.binding));
-      state.flattened->bindingToInfo.emplace(resource.binding, resource);
     } else if (resource.IsAccelerationStructure()) {
       accelerationStructureSlotsBySet[resource.set].emplace_back(
           DescriptorSlot(resource.set, resource.binding));
-      state.flattened->bindingToInfo.emplace(resource.binding, resource);
     }
   }
 
   ResourceKey currentKey;
   FlatteningState state{
-      .flattened = &flattened.try_emplace(globals.set).first->second,
       .currentKey = &currentKey,
       .idx = 0,
       .arraySize = 1,
       .parentSet = globals.set,
       .parentBinding = globals.binding,
-      .keyToSlot = &keyToSlot,
   };
 
   ResourceInfo info;
@@ -1001,12 +988,13 @@ auto ShaderReflection::FlattenReflection() -> Error {
   info.stages = VK_SHADER_STAGE_ALL;
   info.name = "Globals";
 
-  CHECK_ERR(FlattenResource(info, state));
+  std::vector<ResourceInfo> children;
 
-  for (auto &entry : state.flattened->keyToInfo) {
-    state.flattened->size =
-        std::max(state.flattened->size,
-                 entry.second.GetOffset() + entry.second.GetSize());
+  CHECK_ERR(FlattenResource(info, state, children, true));
+
+  for (auto &entry : children) {
+    state.size =
+        std::max<VkDeviceSize>(state.size, entry.GetOffset() + entry.GetSize());
   }
 
   return {};

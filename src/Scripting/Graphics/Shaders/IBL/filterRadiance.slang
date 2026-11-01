@@ -19,19 +19,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-SamplerCube InputTexture;
+uniform SamplerCube.Handle InputTexture;
 
-restrict WTexture2DArray<float4> OutputTexture0;
-restrict WTexture2DArray<float4> OutputTexture1;
-restrict WTexture2DArray<float4> OutputTexture2;
-restrict WTexture2DArray<float4> OutputTexture3;
-restrict WTexture2DArray<float4> OutputTexture4;
-restrict WTexture2DArray<float4> OutputTexture5;
-restrict WTexture2DArray<float4> OutputTexture6;
+uniform WTexture2DArray<float4>.Handle OutputTexture0;
+uniform WTexture2DArray<float4>.Handle OutputTexture1;
+uniform WTexture2DArray<float4>.Handle OutputTexture2;
+uniform WTexture2DArray<float4>.Handle OutputTexture3;
+uniform WTexture2DArray<float4>.Handle OutputTexture4;
+uniform WTexture2DArray<float4>.Handle OutputTexture5;
+uniform WTexture2DArray<float4>.Handle OutputTexture6;
 
 import utils;
 
-restrict StructuredBuffer<float4> Coefficients;
+uniform StructuredBuffer<float4>.Handle Coefficients;
 
 #define NUM_TAPS 32
 

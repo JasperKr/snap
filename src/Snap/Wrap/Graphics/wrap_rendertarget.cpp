@@ -439,12 +439,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
     rendertarget.location = 0;
     rendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
-    auto setResult =
-        Graphics::RenderState::SetRenderTargets(*ctx, {rendertarget});
-
-    if (Error::IsError(setResult)) {
-      return luaL_error(state, setResult.message.c_str());
-    }
+    LUA_CK_ERR(Graphics::RenderState::SetRenderTargets(*ctx, {rendertarget}));
 
     return 0;
   }
@@ -501,12 +496,8 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
 
       // if table, treat as render target options
       if (lua_istable(state, -1) != 0) {
-        auto renderTargetResult = RenderTargetsFromOptions(state, -1);
-        if (Error::IsError(renderTargetResult)) {
-          return luaL_error(state, "Error parsing render target options: %s",
-                            renderTargetResult.error().message.c_str());
-        }
-        renderTargets.emplace_back(renderTargetResult.value());
+        renderTargets.emplace_back(
+            LUA_CK_RES(RenderTargetsFromOptions(state, -1)));
         lua_pop(state, 1);
         continue;
       }
@@ -521,10 +512,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
                       "Invalid arguments to RenderTarget.setRenderTargets");
   }
 
-  auto setResult = Graphics::RenderState::SetRenderTargets(*ctx, renderTargets);
-  if (Error::IsError(setResult)) {
-    return luaL_error(state, setResult.message.c_str());
-  }
+  LUA_CK_ERR(Graphics::RenderState::SetRenderTargets(*ctx, renderTargets));
   return 0;
 }
 } // namespace Graphics::RenderState

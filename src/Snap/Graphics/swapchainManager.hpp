@@ -10,7 +10,7 @@
 #include "vulkan/vulkan_core.h"
 #include <cstdint>
 #include <vector>
-namespace Graphics::SwapchainManager {
+namespace Graphics {
 
 struct OldSwapchain {
   VkSwapchainKHR swapchain = VK_NULL_HANDLE;
@@ -54,4 +54,4 @@ private:
   bool isDirty = false;
 };
 
-} // namespace Graphics::SwapchainManager
+} // namespace Graphics

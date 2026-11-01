@@ -1,18 +1,18 @@
 #pragma once
 
+#include "Graphics/FrameGraph/virtualState.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Modules/Helpers/LRUCache.hpp"
 #include "Modules/Helpers/hasher.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
-#include "Modules/type.hpp"
 #include "graphicsContext.hpp"
+#include "renderTarget.hpp"
 #include "shader.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -41,61 +41,6 @@ extern thread_local Stats CurrentStats;
 
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-auto CompareVkPipelineColorBlendAttachmentState(
-    const VkPipelineColorBlendAttachmentState &first,
-    const VkPipelineColorBlendAttachmentState &second) -> bool;
-
-const static Type LuaRendertargetType = Type("RenderTarget");
-
-struct RenderTarget {
-  VkPipelineColorBlendAttachmentState blendMode = BlendmodeNone;
-  VkClearValue clearValue = {};
-  Ref<Texture> texture;
-  int location = -1; // Default to index in the render target array
-  mutable bool dirty = true;
-
-  VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-
-  mutable uint64_t hash;
-  auto GetHash() const -> uint64_t;
-
-  auto operator==(const RenderTarget &other) const -> bool {
-    if (texture->getID() != other.texture->getID()) {
-      return false;
-    }
-
-    if (loadOp != other.loadOp) {
-      return false;
-    }
-
-    if (!CompareVkPipelineColorBlendAttachmentState(blendMode,
-                                                    other.blendMode)) {
-      return false;
-    }
-
-    return location == other.location;
-  }
-};
-
-struct LuaRenderTarget : Object {
-  explicit LuaRenderTarget(RenderTarget renderTarget)
-      : renderTarget(std::move(renderTarget)) {}
-
-  RenderTarget renderTarget;
-
-  static auto GetType() -> Type const * { return &LuaRendertargetType; }
-
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return LuaRenderTarget::GetType();
-  }
-};
-
-struct SetBindingEntry {
-  uint32_t setIndex;
-  uint32_t binding;
-  std::string name;
-};
-
 struct State {
   VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT;
   VkFrontFace frontFace = VK_FRONT_FACE_CLOCKWISE;
@@ -120,6 +65,9 @@ struct State {
 
   VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
   Math::StackVector<RenderTarget, MAX_COLOR_ATTACHMENTS> colorAttachments;
+  // If this is false, all load-ops will be forced to LOAD
+  bool rendertargetsUpdated = true;
+
   RenderTarget depthStencilAttachment;
   bool hasDepthStencilAttachment = false;
 
@@ -132,8 +80,6 @@ struct State {
     generation++;
     dirty = true;
   }
-
-  auto GetHash() const -> uint64_t;
 
   auto operator==(const State &other) const -> bool {
     [[likely]]

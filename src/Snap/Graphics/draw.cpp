@@ -1,5 +1,4 @@
 #include "draw.hpp"
-#include "Graphics/Buffers/uniform.hpp"
 
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/FrameGraph/dynamicRendering.hpp"
@@ -7,18 +6,17 @@
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/mesh.hpp"
-#include "Graphics/reflect.hpp"
 #include "Graphics/renderState.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/snapshot.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <cassert>
 #include <cstdint>
 #include <public/tracy/Tracy.hpp>
 
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
@@ -164,6 +162,11 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
                                      binding.bindings, binding.offsets);
   }
 
+  const auto &vertexFormat = mesh.GetVertexFormat();
+  vertexFormat.BindDynamicInputState(commandBuffer);
+
+  RenderState::SetTopology(mesh.GetTopology());
+
   return Error::Success();
 }
 
@@ -174,15 +177,20 @@ inline auto IsHazard(const Ref<Graphics::Texture> &first,
   }
 
   // Check if the two textures overlap in mip levels or array layers
-  auto firstMipRange = std::make_pair(first->baseMipLevel,
-                                      first->baseMipLevel + first->levelCount);
-  auto secondMipRange = std::make_pair(
-      second->baseMipLevel, second->baseMipLevel + second->levelCount);
+  auto firstMipRange = std::make_pair(first->subresourceRange.baseMipLevel,
+                                      first->subresourceRange.baseMipLevel +
+                                          first->subresourceRange.levelCount);
+  auto secondMipRange = std::make_pair(second->subresourceRange.baseMipLevel,
+                                       second->subresourceRange.baseMipLevel +
+                                           second->subresourceRange.levelCount);
 
-  auto firstLayerRange = std::make_pair(
-      first->baseArrayLayer, first->baseArrayLayer + first->layerCount);
-  auto secondLayerRange = std::make_pair(
-      second->baseArrayLayer, second->baseArrayLayer + second->layerCount);
+  auto firstLayerRange = std::make_pair(first->subresourceRange.baseArrayLayer,
+                                        first->subresourceRange.baseArrayLayer +
+                                            first->subresourceRange.layerCount);
+  auto secondLayerRange =
+      std::make_pair(second->subresourceRange.baseArrayLayer,
+                     second->subresourceRange.baseArrayLayer +
+                         second->subresourceRange.layerCount);
 
   bool mipOverlap = firstMipRange.second > secondMipRange.first &&
                     secondMipRange.second > firstMipRange.first;
@@ -192,138 +200,6 @@ inline auto IsHazard(const Ref<Graphics::Texture> &first,
   return mipOverlap && layerOverlap;
 }
 
-inline auto InsertTextureBarriers(const GraphicsContext &context,
-                                  const Ref<Shader> &shader) -> Error {
-
-  for (auto &texturePair : shader->GetState().userBoundTextures) {
-    auto &texture = texturePair.second;
-    auto key = texturePair.first;
-
-    texture.first->MarkUse();
-
-    const auto *infoResult = shader->GetSlotDescription(key);
-    if (infoResult == nullptr) {
-      return Error::Create(
-          "Failed to get slot description for bound texture slot.");
-    }
-
-    if (!infoResult->Is<Reflect::SamplerInfo>()) {
-      return Error::Createf(
-          "Expected sampler info for bound texture slot. Got: {}",
-          infoResult->ToString());
-    }
-
-    const auto &info = infoResult->GetInfo<Reflect::SamplerInfo>();
-
-    if (info.accessFlags == 0) {
-      PrintWarning("Texture access type is Unknown for slang access: {}, "
-                   "skipping barrier.",
-                   static_cast<uint32_t>(info.access));
-      continue;
-    }
-
-#ifndef NDEBUG
-    if (RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS) {
-      const auto &targets = RenderState::GetRenderTargets();
-      for (const auto &target : targets) {
-        if (IsHazard(texture.first, target.texture)) {
-          auto debugname = texture.first->GetDebugName();
-          return Error::Createf(
-              "Texture {} is bound as a render target, but is also used as a "
-              "shader "
-              "resource. This is not supported and may indicate a bug in the "
-              "application.",
-              debugname);
-        }
-      }
-    }
-#endif
-  }
-
-  return {};
-}
-
-inline auto InsertBufferBarriers(const GraphicsContext &context,
-                                 const Ref<Shader> &shader) -> Error {
-
-  for (auto &bufferPair : shader->GetState().userBoundBuffers) {
-    auto &buffer = bufferPair.second;
-    auto key = bufferPair.first;
-
-    buffer.first->MarkUse();
-
-    const auto *slotInfo = shader->GetSlotDescription(key);
-    if (slotInfo == nullptr) {
-      return Error::Create(
-          "Failed to get slot description for bound buffer slot.");
-    }
-    if (!slotInfo->Is<Reflect::BufferInfo>()) {
-      return Error::Create("Expected buffer info for bound buffer slot.");
-    }
-
-    const auto &info = slotInfo->GetInfo<Reflect::BufferInfo>();
-
-    VkAccessFlags2 access = info.accessFlags;
-
-    if (access == 0 && info.access != SLANG_RESOURCE_ACCESS_NONE) {
-      PrintWarning("Buffer access type is Unknown for slang access: {}, "
-                   "skipping barrier.",
-                   static_cast<uint32_t>(info.access));
-      continue;
-    }
-
-    auto stages = shader->combinedPipelineStages;
-  }
-
-  const auto &globalUBO =
-      GetGlobalUniformBuffer(context.frameIndex).GetBuffer();
-  globalUBO->MarkUse();
-
-  return {};
-}
-
-inline auto InsertAccelerationStructureBarriers(const GraphicsContext &context,
-                                                const Ref<Shader> &shader)
-    -> Error {
-
-  for (auto &asPair : shader->GetState().userBoundAccelerationStructures) {
-    auto &structure = asPair.second;
-    auto key = asPair.first;
-
-    structure.first->MarkUse();
-
-    const auto *slotInfo = shader->GetSlotDescription(key);
-    if (slotInfo == nullptr) {
-      return Error::Create(
-          "Failed to get slot description for bound acceleration structure "
-          "slot.");
-    }
-    if (!slotInfo->Is<Reflect::AccelerationStructureInfo>()) {
-      return Error::Create(
-          "Expected acceleration structure info for bound acceleration "
-          "structure slot.");
-    }
-
-    const auto &info = slotInfo->GetInfo<Reflect::AccelerationStructureInfo>();
-
-    VkAccessFlags2 access = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-
-    auto stages = shader->combinedPipelineStages;
-  }
-
-  return {};
-}
-
-inline auto InsertResourceBarriers(const GraphicsContext &context) -> Error {
-  auto shader = RenderState::GetShader();
-
-  CHECK_ERR(InsertTextureBarriers(context, shader));
-  CHECK_ERR(InsertBufferBarriers(context, shader));
-  CHECK_ERR(InsertAccelerationStructureBarriers(context, shader));
-
-  return Error::Success();
-}
-
 auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
     -> Error {
   ZoneScoped;
@@ -331,15 +207,6 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   CHECK_ERR(BindMesh(context, mesh));
-
-  RenderState::SetTopology(mesh.GetTopology());
-
-  auto &vertexFormat = mesh.GetVertexFormat();
-  vertexFormat.BindDynamicInputState(commandBuffer);
-
-#ifndef NDEBUG
-  CHECK_ERR(InsertResourceBarriers(context));
-#endif
 
   {
     ZoneScopedN("Vk Draw");
@@ -389,7 +256,7 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
   return Error::Success();
 }
 
-auto Draw(const GraphicsContext &context, Texture &texture,
+auto Draw(const GraphicsContext &context, const Ref<Texture> &texture,
           uint32_t instanceCount) -> Error {
   ZoneScoped;
 
@@ -399,7 +266,7 @@ auto Draw(const GraphicsContext &context, Texture &texture,
 
   auto shader = RenderState::GetShader();
 
-  CHECK_ERR(shader->Send({"MainTexture"}, Ref<Texture>(&texture)));
+  CHECK_ERR(shader->Send(context, {"MainTexture"}, texture));
 
   return Draw(context, *QuadMesh, instanceCount);
 }
@@ -412,7 +279,6 @@ auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups)
   ERR_ASSERT(commandBuffer != nullptr);
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_COMPUTE);
-  CHECK_ERR(InsertResourceBarriers(context));
 
   {
     ZoneScopedN("Vk Dispatch");
@@ -468,8 +334,6 @@ auto DispatchIndirect(const GraphicsContext &context,
 
   // Also stops rendering if we are bound to a compute shader.
 
-  CHECK_ERR(InsertResourceBarriers(context));
-
   RenderState::CurrentStats.dispatchCalls++;
   CHECK_ERR(commandBuffer->DispatchIndirect(indirectBuffer->handle, offset));
 
@@ -493,11 +357,6 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
 
   CHECK_ERR(BindMesh(context, mesh));
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
-  auto &vertexFormat = mesh.GetVertexFormat();
-  vertexFormat.BindDynamicInputState(commandBuffer);
-  RenderState::SetTopology(mesh.GetTopology());
-
-  CHECK_ERR(InsertResourceBarriers(context));
 
   if (offset % 4 != 0) {
     return Error::Create(
@@ -550,8 +409,6 @@ auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology,
   commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
   RenderState::SetTopology(topology);
 
-  CHECK_ERR(InsertResourceBarriers(context));
-
   RenderState::CurrentStats.drawCalls++;
   RenderState::CurrentStats.triangleCount +=
       static_cast<uint64_t>(vertexCount * instanceCount);
@@ -580,8 +437,6 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer,
   commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
   commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
   RenderState::SetTopology(topology);
-
-  CHECK_ERR(InsertResourceBarriers(context));
 
   {
     std::lock_guard<std::mutex> lock(indexBuffer->mutex);

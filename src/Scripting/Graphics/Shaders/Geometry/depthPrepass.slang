@@ -1,12 +1,8 @@
 import camera;
 
 import transform;
-struct PushConstantBuffer {
-  uint ModelTransformIndex;
-};
 
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint ModelTransformIndex;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -22,11 +18,11 @@ struct VertexInput {
 
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
-  float4x4 transform = GetModelMatrix(PushConstants.ModelTransformIndex);
+  float4x4 transform = GetModelMatrix(ModelTransformIndex);
   float4 worldPos = mul(float4(input.Position, 1.0), transform);
 
   VertexStageOutput out;
-  out.sv_position = mul(camera.ViewProjectionMatrix, worldPos);
+  out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
   return out;
 }
 

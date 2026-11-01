@@ -18,20 +18,13 @@ import rectangleLight;
 #error "No light type defined for shadow sampling shader"
 #endif
 
-#define SHADER_TYPE_SHADOW_SAMPLING
+uniform Sampler2D.Handle DepthTexture;
+uniform Sampler2D.Handle NormalTexture;
+uniform RWTexture2D<uint>.Handle OutputTexture;
 
-Sampler2D DepthTexture;
-Sampler2D NormalTexture;
-RWTexture2D<uint> OutputTexture;
-
-struct PushConstantBuffer {
-  uint LightIndex;
-  uint LayerOffset;
-  uint FrameRandomState;
-};
-
-[[vk::push_constant]]
-PushConstantBuffer PushConstants;
+uniform uint LightIndex;
+uniform uint LayerOffset;
+uniform uint FrameRandomState;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
@@ -44,7 +37,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     return;
   }
 
-  id.z += PushConstants.LayerOffset;
+  id.z += LayerOffset;
 
   float2 uv = (float2(id.xy) + 0.5) / float2(width, height);
 
@@ -57,36 +50,37 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
     return;
   }
 
-  float3 worldPosition = camera.GetWorldPosition(uv, depth);
+  float3 worldPosition = CameraData[0].GetWorldPosition(uv, depth);
   uint2 screenCoords = uint2(id.xy);
-  uint randomState = PushConstants.FrameRandomState + screenCoords.x * 1702 +
-                     screenCoords.y * 40301;
+  uint randomState =
+      FrameRandomState + screenCoords.x * 1702 + screenCoords.y * 40301;
 
 #ifdef SHADER_LIGHT_TYPE_DIRECTIONAL
-  bool inShadow = DirectionalLight::TraceShadow(
-      worldPosition, PushConstants.LightIndex + id.z, normal, screenCoords,
-      randomState);
+  var light = DirectionalLights.Load(LightIndex + id.z);
+  bool inShadow =
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_POINT)
+  var light = PointLights.Load(LightIndex + id.z);
   bool inShadow =
-      PointLight::TraceShadow(worldPosition, PushConstants.LightIndex + id.z,
-                              normal, screenCoords, randomState);
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPOT)
+  var light = SpotLights.Load(LightIndex + id.z);
   bool inShadow =
-      SpotLight::TraceShadow(worldPosition, PushConstants.LightIndex + id.z,
-                             normal, screenCoords, randomState);
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPHERE)
+  var light = SphereLights.Load(LightIndex + id.z);
   bool inShadow =
-      SphereLight::TraceShadow(worldPosition, PushConstants.LightIndex + id.z,
-                               normal, screenCoords, randomState);
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_RECTANGLE)
-  bool inShadow = RectangleLight::TraceShadow(
-      worldPosition, PushConstants.LightIndex + id.z, normal, screenCoords,
-      randomState);
+  var light = RectangleLights.Load(LightIndex + id.z);
+  bool inShadow =
+      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #else
+#error "Invalid light type";
   bool inShadow = false;
 #endif
 
-  uint shadowBit = inShadow ? (1U << id.z) : 0;
+  uint shadowBit = inShadow ? 1 : 0;
 
-  InterlockedOr(OutputTexture[id.xy], shadowBit);
+  OutputTexture[id.xy] = shadowBit;
 }

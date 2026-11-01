@@ -1,6 +1,6 @@
-#include "renderState.hpp"
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/commands.hpp"
+#include "renderTarget.hpp"
 
 #include "Graphics/FrameGraph/pipelineCache.hpp"
 #include "Graphics/draw.hpp"
@@ -34,26 +34,11 @@ thread_local State *TopOfStack = nullptr;
 
 thread_local Stats CurrentStats;
 
-auto CompareVkPipelineColorBlendAttachmentState(
-    const VkPipelineColorBlendAttachmentState &first,
-    const VkPipelineColorBlendAttachmentState &second) -> bool {
-  return first.blendEnable == second.blendEnable &&
-         first.srcColorBlendFactor == second.srcColorBlendFactor &&
-         first.dstColorBlendFactor == second.dstColorBlendFactor &&
-         first.colorBlendOp == second.colorBlendOp &&
-         first.srcAlphaBlendFactor == second.srcAlphaBlendFactor &&
-         first.dstAlphaBlendFactor == second.dstAlphaBlendFactor &&
-         first.alphaBlendOp == second.alphaBlendOp &&
-         first.colorWriteMask == second.colorWriteMask;
-}
-
 inline auto SetupDefaultState(const GraphicsContext &context) -> Result<State> {
   auto defaultState = State();
 
   defaultState.viewport = {};
   defaultState.scissor = {};
-
-  defaultState.shader = DefaultShaderModule;
 
   auto const &texture =
       context.swapchainInfo.textures[context.swapchainImageIndex];
@@ -65,12 +50,6 @@ inline auto SetupDefaultState(const GraphicsContext &context) -> Result<State> {
   swapchainRendertarget.blendMode = DefaultBlendMode;
   swapchainRendertarget.clearValue = {0.0F, 0.0F, 0.0F, 1.0F};
   swapchainRendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-
-  PrintDebug("Setup default state with swapchain handle: {}",
-             (void *)texture->view);
-
-  defaultState.colorAttachments.emplace_back(swapchainRendertarget);
-  defaultState.hasDepthStencilAttachment = false;
 
   return defaultState;
 }
@@ -335,11 +314,13 @@ auto SetRenderTargets(const GraphicsContext &context,
 
   TopOfStack->colorAttachments.clear();
   TopOfStack->colorBlendEquations.clear();
+  TopOfStack->rendertargetsUpdated = true;
 
   for (const auto &target : renderTargets) {
     ERR_ASSERT(target.texture != nullptr);
     ERR_ASSERT(target.texture->GetWidth() == expectedExtent.width);
     ERR_ASSERT(target.texture->GetHeight() == expectedExtent.height);
+    ERR_ASSERT(target.texture->subresourceRange.levelCount == 1);
 
     // Depth/Stencil is separate
     if (target.texture->IsDepthOrStencilTexture()) {
@@ -431,7 +412,6 @@ auto GetUserShader() -> Ref<Shader> {
 auto GetShader() -> Ref<Shader> { return TopOfStack->shader; }
 
 auto GetScissor() -> VkRect2D {
-
   if (!TopOfStack->hasScissor) {
     VkRect2D scissor = {};
     auto viewport = GetMaximumAllowedViewport();
@@ -441,22 +421,18 @@ auto GetScissor() -> VkRect2D {
         .height = static_cast<uint32_t>(viewport.height),
     };
 
-    scissor.extent.width = (std::max)(scissor.extent.width, 1U);
-    scissor.extent.height = (std::max)(scissor.extent.height, 1U);
+    scissor.extent.width = std::max(scissor.extent.width, 1U);
+    scissor.extent.height = std::max(scissor.extent.height, 1U);
 
     return scissor;
   }
 
   return {
-      .offset =
-          {
-              .x = TopOfStack->scissor.offset.x,
-              .y = TopOfStack->scissor.offset.y,
-          },
+      .offset = TopOfStack->scissor.offset,
       .extent =
           {
-              .width = (std::max)(TopOfStack->scissor.extent.width, 1U),
-              .height = (std::max)(TopOfStack->scissor.extent.height, 1U),
+              .width = std::max(TopOfStack->scissor.extent.width, 1U),
+              .height = std::max(TopOfStack->scissor.extent.height, 1U),
           },
   };
 }
@@ -620,15 +596,6 @@ auto Clear(const GraphicsContext &context, const ClearInfo &clearInfo)
 auto RenderTarget::GetHash() const -> uint64_t {
   if (dirty) {
     hash = HashRenderTarget(*this);
-    dirty = false;
-  }
-
-  return hash;
-}
-
-auto State::GetHash() const -> uint64_t {
-  if (dirty) {
-    hash = StateKeyHash::Hash(StateKey(*this));
     dirty = false;
   }
 

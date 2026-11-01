@@ -7,6 +7,7 @@
 #include "Graphics/resource.hpp"
 #include "Graphics/semaphoreManager.hpp"
 #include "Graphics/swapchainManager.hpp"
+#include "Libraries/vma.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -31,7 +32,7 @@ namespace Graphics {
 StitchInfo GlobalStitchInfo{};
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-SwapchainManager::SwapchainManager swapchainManager;
+SwapchainManager swapchainManager;
 
 static void ResetCommandBuffers(Graphics::GraphicsContext &context) {
   auto &cmdBuffers = GlobalStitchInfo.commandBuffers.at(context.frameIndex);
@@ -146,13 +147,8 @@ auto InitializeRendering(Graphics::GraphicsContext &context,
                          Window::WindowContext &windowContext) -> Error {
   ZoneScoped;
 
-  auto swapchainManagerResult =
-      SwapchainManager::SwapchainManager::Initialize(context, windowContext);
-  if (Error::IsError(swapchainManagerResult)) {
-    return swapchainManagerResult.error();
-  }
-
-  swapchainManager = swapchainManagerResult.value();
+  swapchainManager =
+      CHECK_RES(SwapchainManager::Initialize(context, windowContext));
 
   CHECK_ERR(AcquireNextSwapchainImage(context));
 
@@ -301,18 +297,24 @@ auto Present(Graphics::GraphicsContext &context,
   bool transitioned = false;
 
   for (auto &cmdBuffer : combined) {
+    VkCommandBuffer vkCmdBuffer = availableCommandBuffers.at(index);
+
     cmdBuffersToSubmit.push_back({
-        .buffer = availableCommandBuffers.at(index),
+        .buffer = vkCmdBuffer,
         .queueFamily = static_cast<uint32_t>(cmdBuffer.first),
     });
 
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(vkCmdBuffer, &beginInfo);
+
+    CHECK_ERR(graph.Submit(context, cmdBuffer.second));
+    CHECK_ERR(graph.Write(context, vkCmdBuffer));
+
     if (cmdBuffer.first == context.graphicsQueueFamily) {
       ERR_ASSERT(!transitioned);
-
-      auto &threadData = GetThreadContext();
-      threadData.commandBuffer = cmdBuffer.second.back();
-
-      CHECK_ERR(swapchainManager.EndFrame(context));
+      GetThreadContext().workingCommandBuffer = vkCmdBuffer;
 
       VkMemoryBarrier2 barrier{
           .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
@@ -329,15 +331,16 @@ auto Present(Graphics::GraphicsContext &context,
                            .memoryBarrierCount = 1,
                            .pMemoryBarriers = &barrier};
 
-      CHECK_ERR(cmdBuffer.second.back()->PipelineBarrier2(&dep));
+      vkCmdPipelineBarrier2(vkCmdBuffer, &dep);
 
-      threadData.commandBuffer = nullptr;
+      CHECK_ERR(swapchainManager.EndFrame(context));
+
+      GetThreadContext().workingCommandBuffer = nullptr;
 
       transitioned = true;
     }
 
-    CHECK_ERR(graph.Submit(context, cmdBuffer.second));
-    CHECK_ERR(graph.Write(context, availableCommandBuffers.at(index)));
+    vkEndCommandBuffer(vkCmdBuffer);
     graph = {};
 
     index++;

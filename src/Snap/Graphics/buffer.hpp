@@ -2,6 +2,7 @@
 
 #include "Graphics/graphicsState.hpp"
 #include "Libraries/vma.hpp"
+#include "Modules/Helpers/hasher.hpp"
 #include "Modules/bytedata.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -11,6 +12,9 @@
 #include <mutex>
 #include <span>
 #include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "vulkan/vulkan_core.h"
 namespace Graphics {
@@ -29,6 +33,8 @@ struct BufferCreationInfo {
 
   // Debug name for the buffer
   std::string debugName;
+
+  VkDeviceSize minAlignment{};
 };
 
 const static Type LuaBufferReadbackType = Type("BufferReadback");
@@ -65,7 +71,6 @@ struct Buffer : Object, Identifiable {
   VkBuffer handle = VK_NULL_HANDLE;
   VmaAllocation memory = VK_NULL_HANDLE;
   VkDeviceSize size = 0;
-  uint64_t sizeInBytes = 0;
   mutable void *mappedData = nullptr;
 
   mutable uint64_t lastUsedTimestamp{};
@@ -86,6 +91,45 @@ struct Buffer : Object, Identifiable {
 
   // Set by cleanup function otherwise we'll try to snap_defer destruction again
   bool isDestroyed = false;
+
+  struct Address {
+    VkDescriptorType type;
+    uint32_t offset;
+    uint32_t size;
+    auto operator<(const Address &second) const -> bool {
+      return offset < second.offset;
+    }
+    static auto Less(const Address &first, const Address &second) -> bool {
+      return first.offset < second.offset;
+    }
+
+    auto operator==(const Address &other) const -> bool {
+      return type == other.type && offset == other.offset && size == other.size;
+    }
+
+    [[nodiscard]] auto GetHash() const -> uint64_t {
+      Hash::Hasher hasher{};
+
+      hasher.Add((uint64_t)type);
+      hasher.Add(offset);
+      hasher.Add(size);
+
+      return hasher.Get();
+    }
+  };
+
+  struct AddressHash {
+    static auto operator()(const Address &addr) -> uint64_t {
+      return addr.GetHash();
+    }
+  };
+
+  mutable std::unordered_map<Address, VkDeviceSize, AddressHash> addresses;
+  [[nodiscard]] auto GetAddress(const GraphicsContext &context,
+                                VkDescriptorType type, uint32_t offset,
+                                uint32_t size) const -> Result<VkDeviceSize>;
+
+  std::string debugName;
 
   auto GetTimestamp() const -> uint64_t { return lastUsedTimestamp; }
   auto MarkUse() const -> void;
@@ -151,9 +195,8 @@ struct Buffer : Object, Identifiable {
                 const Ref<Data::ByteData> &output = Ref<Data::ByteData>())
       -> Result<Ref<BufferReadback>>;
 
-  [[nodiscard]] auto GetDeviceAddress() const -> Result<VkDeviceAddress>;
-
-  std::string debugName;
+  [[nodiscard]] auto GetDeviceAddress(const GraphicsContext &context) const
+      -> Result<VkDeviceAddress>;
 };
 
 // NOLINTBEGIN

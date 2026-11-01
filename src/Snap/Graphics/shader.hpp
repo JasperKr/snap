@@ -1,11 +1,10 @@
 #pragma once
 
-#include "Graphics/Buffers/push.hpp"
-#include "Graphics/FrameGraph/descriptorKey.hpp"
 #include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/descriptorSlots.hpp"
+#include "Graphics/graphicsState.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/texture.hpp"
 #include "Libraries/vma.hpp"
@@ -18,7 +17,7 @@
 #include "reflect.hpp"
 #include "slang/slang.h"
 #include <cstdint>
-#include <memory>
+#include <mutex>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string>
@@ -67,21 +66,86 @@ ShaderStageFlagsToPipelineStageFlags(VkShaderStageFlags shaderStages)
   return pipelineStages;
 }
 
-using BoundBufferPair = std::pair<Ref<Buffer>, const Reflect::BufferInfo *>;
-using BoundTexturePair = std::pair<Ref<Texture>, const Reflect::SamplerInfo *>;
-using BoundASPair =
-    std::pair<Ref<TLAS>, const Reflect::AccelerationStructureInfo *>;
+// NOLINTBEGIN(hicpp-explicit-conversions)
+template <typename T> struct BoundShaderResource {
+  VkAccessFlags2 access = VK_ACCESS_2_NONE;
+  VkDescriptorType type = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+  Ref<T> resource;
+};
+
+// Any bound AS == TLAS == AS-Read-only thus no extra info is needed.
+using BoundASPair = Ref<TLAS>;
 
 struct BoundState {
-  std::unordered_map<DescriptorSlot, BoundBufferPair> userBoundBuffers;
-  std::unordered_map<DescriptorSlot, BoundTexturePair> userBoundTextures;
-  std::unordered_map<DescriptorSlot, BoundASPair>
+  std::unordered_map<uint32_t, BoundShaderResource<Buffer>> userBoundBuffers;
+  std::unordered_map<uint32_t, BoundShaderResource<Texture>> userBoundTextures;
+  std::unordered_map<uint32_t, BoundShaderResource<TLAS>>
       userBoundAccelerationStructures;
-  std::unordered_map<uint32_t, ResourceBinding> bindingInfos;
-
-  std::unordered_map<uint32_t, DescriptorKey> descriptorKeys;
-  std::unordered_map<uint32_t, bool> dirtyKeys;
+  std::vector<uint8_t> uniforms;
 };
+
+struct SampledTexture : BoundShaderResource<Texture> {
+  SampledTexture(const Ref<Texture> &texture) {
+    resource = texture;
+    access = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+    type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+  }
+};
+
+struct StorageTexture : BoundShaderResource<Texture> {
+  enum StorageRW : uint64_t {
+    read = VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+    write = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+  };
+
+  StorageTexture(const Ref<Texture> &texture, uint64_t access) {
+    resource = texture;
+    this->access = access;
+    type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  }
+};
+
+struct UniformBuffer : BoundShaderResource<Buffer> {
+  UniformBuffer(const Ref<Buffer> &buffer) {
+    resource = buffer;
+    access = VK_ACCESS_2_UNIFORM_READ_BIT;
+    type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  }
+
+  UniformBuffer(const Ref<StructuredBuffer> &buffer);
+};
+
+struct DynamicUniformBuffer : BoundShaderResource<Buffer> {
+  uint32_t offset = 0;
+  uint32_t size = 0;
+
+  DynamicUniformBuffer(const Ref<Buffer> &buffer, uint32_t offset,
+                       uint32_t size) {
+    resource = buffer;
+    access = VK_ACCESS_2_UNIFORM_READ_BIT;
+    type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  }
+
+  DynamicUniformBuffer(const Ref<StructuredBuffer> &buffer, uint32_t offset,
+                       uint32_t size);
+};
+
+struct StorageBuffer : BoundShaderResource<Buffer> {
+  enum StorageRW : uint64_t {
+    read = VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+    write = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+  };
+
+  StorageBuffer(const Ref<Buffer> &buffer, uint64_t access) {
+    resource = buffer;
+    this->access = access;
+    type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  }
+
+  StorageBuffer(const Ref<StructuredBuffer> &buffer, uint64_t access);
+};
+
+//NOLINTEND(hicpp-explicit-conversions)
 
 struct Shader : Object, Identifiable {
   Shader() = default;
@@ -106,22 +170,22 @@ struct Shader : Object, Identifiable {
 
   std::unordered_map<SlangStage, size_t> entryPointToStageIndex;
 
-  // Set -> (Texture, Sampler)
-  std::unordered_map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>>
-      bindingInfos;
-
   Reflect::ShaderReflection reflection;
-  std::unique_ptr<PushBuffer> pushBuffer;
 
   std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
 
   static ThreadLocalState<BoundState> BoundStateManager;
-  auto GetState() const -> BoundState & {
-    return BoundStateManager.GetState(*this);
+  [[nodiscard]] auto GetState() const -> BoundState & {
+    auto &state = BoundStateManager.GetState(*this);
+
+    if (state.uniforms.empty()) {
+      state.uniforms.resize(uniformsSize);
+    }
+
+    return state;
   }
 
-  std::vector<uint8_t> globalUniforms;
-
+  VkDeviceSize uniformsSize{};
   Math::Uvec3 threadgroupSize{1, 1, 1};
   uint32_t waveSize = 0;
 
@@ -133,6 +197,14 @@ struct Shader : Object, Identifiable {
     state.userBoundTextures.clear();
 
     BoundStateManager.EraseState(*this);
+
+    if (GetVirtualCommandBuffer() == nullptr) {
+      std::lock_guard<std::mutex> lock(GraphicsContext::mutexes.device);
+
+      vkDestroyShaderModule(ctx->device, module, GetAllocationCallbacks());
+
+      return;
+    }
 
     ScheduleDestruction<VkShaderModule>(
         [](const GraphicsContext &context, VkShaderModule &module) -> auto {
@@ -147,20 +219,32 @@ struct Shader : Object, Identifiable {
                      const std::vector<slang::PreprocessorMacroDesc>
                          *preprocessorMacros = nullptr) -> Result<Ref<Shader>>;
 
-  auto Send(const ResourceKey &key, const std::span<const uint8_t> &data)
+  auto Send(const ResourceKey &key, const std::span<const uint8_t> &data) const
       -> Error;
 
-  auto Send(const ResourceKey &key, const Ref<Buffer> &buffer) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key,
+            const UniformBuffer &buffer) -> Error;
 
-  auto Send(const ResourceKey &key, const Ref<Graphics::Texture> &texture)
-      -> Error;
-  auto Send(const ResourceKey &key,
-            const Ref<::Graphics::StructuredBuffer> &buffer) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key,
+            const DynamicUniformBuffer &buffer) -> Error;
 
-  auto Send(const ResourceKey &key, const Ref<TLAS> &accelStructure) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key,
+            const StorageBuffer &buffer) -> Error;
+
+  auto Send(const GraphicsContext &context, const ResourceKey &key,
+            const SampledTexture &texture) -> Error;
+
+  auto Send(const GraphicsContext &context, const ResourceKey &key,
+            const StorageTexture &texture) -> Error;
+
+  auto Send(const GraphicsContext &context, const ResourceKey &key,
+            const Ref<TLAS> &accelStructure) -> Error;
 
   auto GetUniform(const ResourceKey &key) const
       -> const Reflect::ResourceInfo *;
+  auto GetUniform(ResolvedKey key) const -> const Reflect::ResourceInfo &;
+
+  auto ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey>;
 
   auto GetSlotDescription(DescriptorSlot slot) -> Reflect::ResourceInfo *;
 
@@ -186,6 +270,15 @@ struct Shader : Object, Identifiable {
   [[nodiscard]] auto GetInstanceType() const -> Type const * override {
     return Shader::GetType();
   }
+
+private:
+  struct CombinedImageSampler {
+    uint32_t image;
+    uint32_t sampler;
+  };
+
+  auto Send(ResolvedKey key, uint64_t data) const -> Error;
+  auto Send(ResolvedKey key, CombinedImageSampler address) const -> Error;
 };
 
 extern Ref<Shader> DefaultShaderModule;             // NOLINT

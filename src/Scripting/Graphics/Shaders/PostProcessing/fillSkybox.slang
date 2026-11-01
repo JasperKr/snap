@@ -9,9 +9,9 @@ struct FragmentInput {
 #define ERP
 
 #if defined(CUBE_MAP)
-SamplerCube SkyboxTexture;
+uniform SamplerCube.Handle SkyboxTexture;
 #elif defined(ERP)
-Sampler2D SkyboxTexture;
+uniform Sampler2D.Handle SkyboxTexture;
 #endif
 
 #include "fullscreen.slang"
@@ -25,8 +25,8 @@ float2 GetERPUvs(float3 rayDirection) {
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {
-  float3 rayDirection =
-      GetRayDirection(input.tex_coord, camera.InverseRotationProjectionMatrix);
+  float3 rayDirection = GetRayDirection(
+      input.tex_coord, CameraData[0].InverseRotationProjectionMatrix);
 
 #if defined(CUBE_MAP)
   return SkyboxTexture.Sample(rayDirection);

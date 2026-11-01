@@ -1,4 +1,5 @@
 #include "directionalLight.hpp"
+#include "Modules/console.hpp"
 #include "Modules/object.hpp"
 #include "Scene/Lights/light.hpp"
 #include "Scene/frustum.hpp"

@@ -14,12 +14,7 @@ struct VertexOutput {
 import utils;
 import camera;
 
-struct PushConstantsBuffer {
-  uint2 viewportSize;
-};
-
-[[vk::push_constant]]
-PushConstantsBuffer PushConstants;
+uniform uint2 viewportSize;
 
 static const float2 corners[6] = { { 0, 1 }, { 1, 1 }, { 1, 0 },
                                    { 0, 1 }, { 1, 0 }, { 0, 0 } };
@@ -28,8 +23,10 @@ static const float2 corners[6] = { { 0, 1 }, { 1, 1 }, { 1, 0 },
 VertexOutput vertexMain(VertexInput input, uint vertexID: SV_VertexID) {
   VertexOutput output;
 
-  float4 clipStart = mul(camera.ViewProjectionMatrix, float4(input.start, 1.0));
-  float4 clipEnd = mul(camera.ViewProjectionMatrix, float4(input.end, 1.0));
+  float4 clipStart =
+      mul(CameraData[0].ViewProjectionMatrix, float4(input.start, 1.0));
+  float4 clipEnd =
+      mul(CameraData[0].ViewProjectionMatrix, float4(input.end, 1.0));
 
   // Only use NDC for screen-space calculations.
   float3 ndcStart = clipStart.xyz / clipStart.w;
@@ -40,8 +37,8 @@ VertexOutput vertexMain(VertexInput input, uint vertexID: SV_VertexID) {
   float2 texCoord = corners[vertexID % 6];
 
   // Offset in NDC.
-  float2 offset = float2(-dir.y, dir.x) * (input.thickness) /
-                  float2(PushConstants.viewportSize);
+  float2 offset =
+      float2(-dir.y, dir.x) * (input.thickness) / float2(viewportSize);
 
   // Interpolate in clip space.
   float4 clipPos = lerp(clipStart, clipEnd, texCoord.x);

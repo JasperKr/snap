@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <iterator>
 #include <sstream>
@@ -146,6 +147,14 @@ auto BufferFormat::operator==(const BufferFormat &other) const -> bool {
 
 auto GetAlignment(VkFormat format) -> Result<size_t> {
   switch (format) {
+  case VK_FORMAT_R64G64B64A64_SFLOAT:
+  case VK_FORMAT_R64G64B64A64_UINT:
+  case VK_FORMAT_R64G64B64A64_SINT:
+  case VK_FORMAT_R64G64B64_SFLOAT:
+  case VK_FORMAT_R64G64B64_UINT:
+  case VK_FORMAT_R64G64B64_SINT:
+    return 32;
+
   // 32-bit vec3/vec4: alignment = 4N = 16
   case VK_FORMAT_R32G32B32A32_SFLOAT:
   case VK_FORMAT_R32G32B32A32_UINT:
@@ -153,6 +162,10 @@ auto GetAlignment(VkFormat format) -> Result<size_t> {
   case VK_FORMAT_R32G32B32_SFLOAT:
   case VK_FORMAT_R32G32B32_UINT:
   case VK_FORMAT_R32G32B32_SINT:
+
+  case VK_FORMAT_R64G64_SFLOAT:
+  case VK_FORMAT_R64G64_UINT:
+  case VK_FORMAT_R64G64_SINT:
     return 16; // NOLINT
   // 32-bit vec2: alignment = 2N = 8
   // 16-bit vec3/vec4: alignment = 4N = 8
@@ -170,6 +183,10 @@ auto GetAlignment(VkFormat format) -> Result<size_t> {
   case VK_FORMAT_R16G16B16_SNORM:
   case VK_FORMAT_R16G16B16_UINT:
   case VK_FORMAT_R16G16B16_SINT:
+
+  case VK_FORMAT_R64_SFLOAT:
+  case VK_FORMAT_R64_UINT:
+  case VK_FORMAT_R64_SINT:
     return 8; // NOLINT
   // 32-bit scalar: alignment = N = 4
   case VK_FORMAT_R32_SFLOAT:
@@ -210,8 +227,8 @@ auto GetAlignment(VkFormat format) -> Result<size_t> {
   case VK_FORMAT_R8_SINT:
     return 1; // NOLINT
   default:
-    return Error::Unexpected("Unsupported format for alignment: " +
-                             std::to_string(format));
+    return Error::Unexpectedf("Unsupported format for alignment: {}",
+                              (uint64_t)format);
   }
 }
 
@@ -249,6 +266,7 @@ auto BufferFormat::CalculateStride(Standard std) const -> size_t {
           format.arraySize == 1
               ? vulkanFormat
               : Graphics::Format::GetVec4Variant(vulkanFormat);
+
       auto alignResult = GetAlignment(alignFormat);
       if (Error::IsError(alignResult)) {
         return 0;
