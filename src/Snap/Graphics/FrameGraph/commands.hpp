@@ -889,7 +889,12 @@ struct VirtualCommandBuffer { // NOLINT
   VCmdThreadInfo threadInfo;
   bool initialized = false;
 
-  ~VirtualCommandBuffer() { threadInfo.Shutdown(); }
+  auto Shutdown() -> void {
+    caches = {};
+    commandStorage = {};
+    commands = {};
+    threadInfo.Shutdown();
+  }
 
   auto GetNewCommand(CommandType type) -> CommandID;
 

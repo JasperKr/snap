@@ -65,7 +65,7 @@ auto LuaEnvironment::Create(lua_State *state) -> int {
   return 1;
 }
 
-auto GetEnvironmentLuaClass() -> const ::LuaWrap::LuaClass & {
+auto GetLuaEnvironmentClass() -> const ::LuaWrap::LuaClass & {
   static ::LuaWrap::LuaClass lclass = {.Name = "Environment",
                                        .Type = LuaEnvironment::GetType(),
                                        .Components = {

@@ -77,7 +77,7 @@ inline auto CreateDescriptorPool(ThreadContext &tcontext)
   return descriptorPool;
 }
 
-inline auto GetThreadLocalVCmdBuffer() -> Result<VirtualCommandBuffer *> {
+inline auto GetThreadLocalVCmdBuffer() -> VirtualCommandBuffer * {
   thread_local ::Graphics::VirtualCommandBuffer commandBuffer{};
   if (!commandBuffer.initialized) {
     commandBuffer.threadInfo.Initialize(&commandBuffer);
@@ -125,7 +125,7 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
 
   assert(tcontext.queueFamily == 0);
 
-  auto *commandBuffer = CHECK_RES(GetThreadLocalVCmdBuffer());
+  auto *commandBuffer = GetThreadLocalVCmdBuffer();
   commandBuffer->Reset();
 
   threadInfo->threadData.commandBuffer = commandBuffer;
@@ -215,6 +215,7 @@ auto Initialize(Graphics::GraphicsContext &context) -> Error {
 auto Deinitialize(Graphics::GraphicsContext &context) -> Error {
   DeInitializeUniformBufferModule(context);
   Graphics::UploadBuffers.clear();
+  GetThreadLocalVCmdBuffer()->Shutdown();
 
   RenderState::Shutdown(context);
 

@@ -746,13 +746,13 @@ auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices,
 auto Camera::DrawGUI(flecs::entity entity) -> void {
   const int MinFOV = 1;
   const int MaxFOV = 175;
-  const float MinNear = 0.01F;
-  const float MaxNear = 10000.0F;
+  const float MinPlane = 0.01F;
+  const float MaxPlane = 10000.0F;
 
   ImGui::SeparatorText("Camera Settings");
   ImGui::DragFloat("Vertical FOV", &verticalFOVDeg, 1.0F, MinFOV, MaxFOV);
-  ImGui::DragFloat("Near Plane", &NearPlane, 1.0F, MinNear, MaxNear);
-  ImGui::DragFloat("Far Plane", &FarPlane, 1.0F, MinNear, MaxNear);
+  ImGui::DragFloat("Near Plane", &NearPlane, 1.0F, MinPlane, MaxPlane);
+  ImGui::DragFloat("Far Plane", &FarPlane, 1.0F, MinPlane, MaxPlane);
   FarPlane = std::max(FarPlane, NearPlane + 1.0F);
 
   ImGui::SeparatorText("Post Processing Settings");

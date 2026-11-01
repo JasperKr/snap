@@ -1,4 +1,5 @@
 #pragma once
+#include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "lua.hpp"
 #include <flecs.h>
@@ -47,6 +48,17 @@ inline auto EntityFromLua(lua_State *state, int index) -> flecs::entity * {
   // NOLINTNEXTLINE
   auto *obj = static_cast<Engine::LuaWrap::LuaECSObject *>(proxy->object);
   return &obj->entity;
+}
+
+template <typename T>
+inline auto ComponentFromLua(lua_State *state, int index) -> Result<T *> {
+  auto *entity = EntityFromLua(state, index);
+  CHECK_NULL(entity);
+
+  auto *component = entity->try_get_mut<T>();
+  CHECK_NULL(component);
+
+  return component;
 }
 
 } // namespace LuaWrap

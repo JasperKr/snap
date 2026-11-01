@@ -716,11 +716,9 @@ auto Buffer::GetAddress(const GraphicsContext &context, VkDescriptorType type,
     -> Result<VkDeviceSize> {
   ZoneScoped;
 
-  // auto iter = std::ranges::find_if(
-  //     addresses, [type, offset, size](const Address &address) -> bool {
-  //       return address.offset == offset && address.type == type &&
-  //              address.size == size;
-  //     });
+  if (size == UINT32_MAX) {
+    size = this->size;
+  }
 
   auto iter = addresses.find(Address(type, offset, size));
 
@@ -733,9 +731,6 @@ auto Buffer::GetAddress(const GraphicsContext &context, VkDescriptorType type,
           context, this, type, offset, size));
 
   auto item = Address{.type = type, .offset = offset, .size = size};
-
-  // addresses.insert(std::ranges::upper_bound(addresses, item, Address::Less),
-  //                  item);
 
   addresses.emplace(item, address);
 

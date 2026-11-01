@@ -36,6 +36,7 @@
 #include "Scene/frustum.hpp"
 #include "Scene/node.hpp"
 #include "Scene/transform.hpp"
+#include "Scene/volume.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
 #include "material.hpp"
@@ -770,6 +771,7 @@ Scene::Scene(std::string name) : name(std::move(name)) {
   AddGuiMethod<LevelOfDetail>(&LevelOfDetail::DrawGUI);
   AddGuiMethod<Geometry>(&Geometry::DrawGUI);
   AddGuiMethod<Renderer::LightProbe>(&Renderer::LightProbe::DrawGUI, true);
+  AddGuiMethod<Engine::Volume>(&Engine::Volume::DrawGUI, true);
 
   auto transformSystem =
       world.system<Engine::Transform, Engine::Transform *>()
@@ -922,6 +924,35 @@ Scene::Scene(std::string name) : name(std::move(name)) {
         }
       }));
 
+  preRender.emplace_back(world.system<Volume>().kind(0).each(
+      [this](flecs::entity entity, Volume &volume) -> auto {
+        if (lastUpdateResult.IsError()) {
+          return;
+        }
+
+        auto &transform = entity.get_mut<Transform>();
+        const auto &worldMatrix = transform.GetWorldMatrix();
+        auto &ctx = *GetCurrentGraphicsContext();
+
+        auto &renderer = Renderer::RendererInstance;
+
+        static BoundingBox localBox = {
+            .Min = {-0.5, -0.5, -0.5},
+            .Max = {0.5, 0.5, 0.5},
+        };
+
+        BoundingBox worldBox{};
+
+        worldBox.Construct(transform, localBox);
+
+        lastUpdateResult = renderer.GetVolumeManager().UpdateInstance(
+            ctx, volume.tlasIndex, volume, worldBox.Min, worldBox.Max);
+
+        if (lastUpdateResult.IsError()) {
+          return;
+        }
+      }));
+
   finalizePreRenderUploads =
       world.system().kind(0).each([this, &buffers]() -> auto {
         if (lastUpdateResult.IsError()) {
@@ -1060,6 +1091,7 @@ const ::LuaWrap::LuaClass SceneLuaClass{
             {"setEnvironment", LuaScene::SetEnvironment},
             {"newEnvironment", LuaEnvironment::Create},
             {"newLightProbe", Renderer::LuaLightProbe::Create},
+            {"newVolume", Engine::LuaVolume::Create},
         },
     .Children = {},
 };

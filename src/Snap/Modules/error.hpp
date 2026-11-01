@@ -105,7 +105,7 @@ struct [[nodiscard]] Error {
 };
 
 // NOLINTBEGIN
-template <class T> struct Result : tl::expected<T, Error> {
+template <class T> struct [[nodiscard]] Result : tl::expected<T, Error> {
   using tl::expected<T, Error>::expected;
 
   Result(Error err) // NOLINT

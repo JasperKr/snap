@@ -29,6 +29,6 @@ struct LuaEnvironment : LuaWrap::LuaECSObject {
   static auto Create(lua_State *state) -> int;
 };
 
-auto GetEnvironmentLuaClass() -> const ::LuaWrap::LuaClass &;
+auto GetLuaEnvironmentClass() -> const ::LuaWrap::LuaClass &;
 
 } // namespace Engine

@@ -9,6 +9,7 @@
 #include "Modules/object.hpp"
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -86,6 +87,9 @@ struct BLAS : Object, Identifiable {
   static auto Create(const GraphicsContext &context, const struct Mesh &mesh)
       -> Result<Ref<BLAS>>;
 
+  static auto Create(const GraphicsContext &context, const Ref<Buffer> &aabbs,
+                     uint32_t count) -> Result<Ref<BLAS>>;
+
   static auto GetType() -> Type const * { return &LuaBLASType; }
   auto GetInstanceType() const -> Type const * override {
     return BLAS::GetType();
@@ -108,14 +112,29 @@ private:
   VkDeviceAddress accelerationStructureAddress = 0;
   VkAccelerationStructureKHR accelerationStructure = VK_NULL_HANDLE;
 
-  Ref<Buffer> vertexBuffer;
-  Ref<Buffer> indexBuffer;
-  uint32_t vertexCount = 0;
-  uint32_t indexCount = 0;
-  VkIndexType indexFormat = VK_INDEX_TYPE_NONE_KHR;
-  VkFormat vertexFormat = VK_FORMAT_UNDEFINED;
-  uint32_t vertexStride = 0;
-  uint32_t vertexOffset = 0;
+  struct MeshData {
+    Ref<Buffer> vertexBuffer;
+    Ref<Buffer> indexBuffer;
+    uint32_t vertexCount = 0;
+    uint32_t indexCount = 0;
+    VkIndexType indexFormat = VK_INDEX_TYPE_NONE_KHR;
+    VkFormat vertexFormat = VK_FORMAT_UNDEFINED;
+    uint32_t vertexStride = 0;
+    uint32_t vertexOffset = 0;
+  };
+
+  struct AABBData {
+    Ref<Buffer> aabbs;
+    uint32_t aabbCount;
+  };
+
+  VkGeometryTypeKHR geometryType = VK_GEOMETRY_TYPE_MAX_ENUM_KHR;
+  union {
+    MeshData meshInfo{};
+    AABBData aabbInfo;
+  };
+
+  VkGeometryFlagsKHR geometryFlags;
 
   std::mutex mutex;
 };

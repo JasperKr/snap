@@ -24,6 +24,7 @@ add_library(SnapEngine
   Scene/displayName.cpp
   Scene/cameraMatrices.cpp
   Scene/environment.cpp
+  Scene/volume.cpp
 
   Scene/Geometry/shape.cpp
   Scene/Geometry/levelOfDetail.cpp
@@ -44,6 +45,7 @@ add_library(SnapEngine
   Renderer/prefilterManager.cpp
   Renderer/bloomManager.cpp
   Renderer/shaderManager.cpp
+  Renderer/volumeManager.cpp
 
   # Wrappers
   Wrap/wrap_scene.cpp

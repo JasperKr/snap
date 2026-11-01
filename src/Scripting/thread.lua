@@ -261,6 +261,7 @@ while true do
   if frameIndex == 1 then
     -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
     snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    local volume = scene:newVolume("Test volume");
   end
 
   local commands, newSnapshot = snap.graphics.submitGraphics()

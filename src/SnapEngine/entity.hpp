@@ -12,5 +12,7 @@ struct Entity : flecs::entity, Object {
 
   static auto GetType() -> const Type * { return &entityType; }
   auto GetInstanceType() const -> const Type * override { return &entityType; }
+
+  bool enabled; // TODO: Implement
 };
 } // namespace Engine

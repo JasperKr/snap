@@ -304,6 +304,7 @@ void Renderer::Deinitialize() {
 
   BlueNoiseTexture = nullptr;
   PMJ02bnSamples = nullptr;
+  VolumeManager = {};
 }
 
 } // namespace Engine::Renderer

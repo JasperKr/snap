@@ -14,6 +14,7 @@
 #include "Scene/camera.hpp"
 #include "Scene/environment.hpp"
 #include "Scene/scene.hpp"
+#include "Scene/volume.hpp"
 #include "Wrap/wrap.hpp"
 #include "lua.hpp"
 
@@ -53,10 +54,11 @@ extern "C" inline auto luaopen_scene(lua_State *state) -> int {
   LuaWrap::RegisterLuaType(state, ::Engine::RectangleLightClass);
   LuaWrap::RegisterLuaType(state, ::Engine::SphereLightClass);
   LuaWrap::RegisterLuaType(state, ::Engine::SpotLightClass);
-  LuaWrap::RegisterLuaType(state, ::Engine::GetEnvironmentLuaClass());
+  LuaWrap::RegisterLuaType(state, ::Engine::GetLuaEnvironmentClass());
 
   LuaWrap::RegisterLuaType(state, ::Engine::GetLuaCameraClass());
   LuaWrap::RegisterLuaType(state, ::Engine::Renderer::GetLuaLightProbeClass());
+  LuaWrap::RegisterLuaType(state, ::Engine::GetLuaVolumeClass());
 
   return 1;
 }

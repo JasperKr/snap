@@ -15,6 +15,7 @@
 #include "Renderer/bloomManager.hpp"
 #include "Renderer/prefilterManager.hpp"
 #include "Renderer/shaderManager.hpp"
+#include "Renderer/volumeManager.hpp"
 #include "bufferUploadManager.hpp"
 #include "material.hpp"
 #include <cstddef>
@@ -163,6 +164,7 @@ struct Renderer {
     CHECK_ERR(PMJ02bnSamples->SetData(context, samples))
 
     CHECK_ERR(ShaderManager.Preload());
+    CHECK_ERR(VolumeManager.Initialize(context));
 
     initialized = true;
     return {};
@@ -238,6 +240,8 @@ struct Renderer {
     return MaterialUploadManager;
   }
 
+  auto GetVolumeManager() -> VolumeManager & { return VolumeManager; }
+
 private:
   Material NoMaterial;
   Material DefaultMaterial;
@@ -266,6 +270,8 @@ private:
   bool initialized = false;
   Ref<Graphics::Texture> BlueNoiseTexture;
   Ref<Graphics::Buffer> PMJ02bnSamples;
+
+  VolumeManager VolumeManager;
 
   auto InitializeMaterialBuffer(Graphics::GraphicsContext &context,
                                 size_t initialSize) -> Error;

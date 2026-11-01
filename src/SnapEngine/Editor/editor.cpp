@@ -202,6 +202,10 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene)
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
+  if (ImGui::GetTextLineHeightWithSpacing() == 0) {
+    return {};
+  }
+
   auto pickReadbackResult = CHECK_RES(Editor::PopEntityPickResult());
 
   if (pickReadbackResult != std::nullopt) {
@@ -259,6 +263,11 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   ImGui::EndChild();
 
   auto cursorPos = ImGui::GetCursorPos();
+
+  if (ImGui::GetContentRegionAvail().x == 0) {
+    ImGui::End();
+    return {};
+  }
 
   ImGui::InvisibleButton(" ", ImVec2(ImGui::GetContentRegionAvail().x,
                                      ImGui::GetTextLineHeightWithSpacing()));

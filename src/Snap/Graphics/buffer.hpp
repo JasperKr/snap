@@ -126,8 +126,9 @@ struct Buffer : Object, Identifiable {
 
   mutable std::unordered_map<Address, VkDeviceSize, AddressHash> addresses;
   [[nodiscard]] auto GetAddress(const GraphicsContext &context,
-                                VkDescriptorType type, uint32_t offset,
-                                uint32_t size) const -> Result<VkDeviceSize>;
+                                VkDescriptorType type, uint32_t offset = 0,
+                                uint32_t size = UINT32_MAX) const
+      -> Result<VkDeviceSize>;
 
   std::string debugName;
 
