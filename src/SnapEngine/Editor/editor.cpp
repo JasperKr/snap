@@ -262,7 +262,6 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   ImGui::Text("Entity Hierarchy:");
 
   static float hierarchyHeightRatio = 0.5F; // NOLINT
-  const float separatorHeight = 8.0F;
 
   auto availableHeight = ImGui::GetContentRegionAvail().y;
 
@@ -311,8 +310,20 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
         std::clamp(hierarchyHeightRatio, 0.1F, 0.9F); // NOLINT
   }
 
+  bool stylePushed = false;
+
+  if (ImGui::IsItemHovered()) {
+    ImGui::PushStyleColor(ImGuiCol_Separator,
+                          ImGui::GetStyle().Colors[ImGuiCol_SeparatorHovered]);
+    stylePushed = true;
+  }
   ImGui::SetCursorPos(cursorPos);
+
   ImGui::SeparatorText("");
+
+  if (stylePushed) {
+    ImGui::PopStyleColor();
+  }
 
   if (ImGui::BeginChild("Selected Entity", ImVec2(0, 0),
                         ImGuiChildFlags_Borders)) {

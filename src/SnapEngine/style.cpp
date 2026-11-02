@@ -119,9 +119,9 @@ auto ApplyDefaultStyle(UIStyles uiStyle) -> Error {
   colors[ImGuiCol_HeaderActive] = ToImVec4(Accent(secondary, 1.5F));
 
   // Separators
-  colors[ImGuiCol_Separator] = ToImVec4(Accent(primary));
-  colors[ImGuiCol_SeparatorHovered] = ToImVec4(Accent(primary, 1.0F));
-  colors[ImGuiCol_SeparatorActive] = ToImVec4(Accent(primary, 1.1F));
+  colors[ImGuiCol_Separator] = ToImVec4(Accent(primary, 1.1F));
+  colors[ImGuiCol_SeparatorHovered] = ToImVec4(Accent(primary, 1.3F));
+  colors[ImGuiCol_SeparatorActive] = ToImVec4(Accent(primary, 1.5F));
 
   // Resize grips
   colors[ImGuiCol_ResizeGrip] = ToImVec4(Accent(secondary));
