@@ -1,5 +1,10 @@
 import volume;
 import acceleration;
+import constants;
+import camera;
+import random;
+
+import directionalLight;
 
 struct VolumeRef {
   half tMin;
@@ -16,34 +21,27 @@ inline void Swap(inout VolumeRef first, inout VolumeRef second) {
   }
 }
 
-uint64_t GetIntersections(RayDesc ray) {
+uint64_t GetIntersections(RayDesc ray, out uint hitCount) {
   VolumeRef[StackSize] stack;
-  uint stackIdx = 0;
+  hitCount = 0;
 
   for (int i = 0; i < StackSize; i++) {
     stack[i].tMin = half.maxValue;
+    stack[i].index = 0;
   }
 
   // Trace all hits up to 8 intersections
-  RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-           RAY_FLAG_CULL_BACK_FACING_TRIANGLES> q;
+  RayQuery<0> q;
 
-  q.TraceRayInline(GetVolumeBVH(),
-                   RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-                       RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
-                   0xff, ray);
+  q.TraceRayInline(GetVolumeBVH(), 0, 0xff, ray);
   bool trace = true;
 
-  while (trace && stackIdx < StackSize) {
-    while (q.Proceed()) {
-    }
+  while (q.Proceed()) {
+    stack[hitCount] = VolumeRef((half)q.CandidateTriangleRayT(), (uint16_t)q.CandidateInstanceIndex() + uint16_t(1));
+    hitCount++;
 
-    trace = q.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
-
-    if (trace) {
-      stack[stackIdx++] = VolumeRef((half)q.CommittedRayT(),
-                                    (uint16_t)q.CommittedInstanceIndex() + 1);
-    }
+    if (hitCount == StackSize)
+      break;
   }
 
   // Bitonic sort of 8 lanes.
@@ -75,16 +73,17 @@ uint64_t GetIntersections(RayDesc ray) {
   // clang-format on
 
   uint64_t volumes = uint64_t(0ULL);
-  for (int i = 0; i < StackSize; i++) {
-    volumes |= stack[i].index << i * 8UL;
+  for (uint16_t i = 0; i < hitCount; i++) {
+    volumes |= uint64_t(stack[i].index) << uint64_t(i * 8UL);
   }
 
   return volumes;
 }
 
 const static uint SampleCount = 16;
+const static uint TransmittanceOnlySampleCount = 8;
 
-float DetermineStepSize(RayDesc ray, uint64_t volumes) {
+float DetermineStepSize(RayDesc ray, uint64_t volumes, uint sampleCount) {
   float startT = 0.0F;
   float currentEndT = 0.0F;
   float distance = 0.0F;
@@ -116,7 +115,7 @@ float DetermineStepSize(RayDesc ray, uint64_t volumes) {
   // distance += N5 - N2;
 
   for (int i = 0; i < StackSize; i++) {
-    uint idx = uint(volumes >> i * 8UL) & 0xFF;
+    uint idx = uint(volumes >> (i * 8UL)) & 0xFF;
 
     if (idx == 0) {
       break;
@@ -133,29 +132,33 @@ float DetermineStepSize(RayDesc ray, uint64_t volumes) {
     if (t0 < currentEndT) {
       currentEndT = t1;
     } else {
-      distance += currentEndT - startT;
+      distance += max(0.0, currentEndT - startT);
       startT = t0;
       currentEndT = t1;
     }
+
+    if (currentEndT >= ray.TMax) {
+      break;
+    }
   }
 
-  distance += currentEndT - startT;
+  distance += min(currentEndT, ray.TMax) - startT;
 
-  return distance / SampleCount;
+  return distance / sampleCount;
 }
 
-float4 TraceRay(RayDesc ray) {
-  uint64_t hits = GetIntersections(ray);
+float TraceTransmittanceRay(RayDesc ray) {
+  uint hitCount = 0;
+  uint64_t hits = GetIntersections(ray, hitCount);
 
-  float t = 0.0F;
-  float stepSize = DetermineStepSize(ray, hits);
+  float t = ray.TMin;
+  float stepSize = DetermineStepSize(ray, hits, TransmittanceOnlySampleCount);
 
-  uint8_t currentVolumes;
-  uint8_t idx;
+  uint8_t currentVolumes = 0;
+  uint8_t idx = 0;
   uint8_t availableVolumes = 0xFF;
 
-  // Incoming Light + Transmittance as w
-  float4 incomingLightTransmittance;
+  float density = 0.0F;
 
   for (int i = 0; i < SampleCount; i++) {
     // TODO: Get all volumes at t0, add to stack
@@ -167,7 +170,7 @@ float4 TraceRay(RayDesc ray) {
     if (currentVolumes == 0UL) {
       availableVolumes &= ~(uint8_t(1U) << idx);
       currentVolumes |= uint8_t(1U) << idx;
-      uint8_t volume = uint8_t(hits >> idx++ * 8UL) & 0xFF;
+      uint8_t volume = uint8_t(hits >> (idx++ * uint8_t(8UL))) & uint8_t(0xFF);
 
       // oob or no volumes left in hit stack
       if (idx == StackSize || volume == 0) {
@@ -176,7 +179,7 @@ float4 TraceRay(RayDesc ray) {
 
       float t1;
       // Update t
-      Volumes[volume].TraceRay(ray, t, t1);
+      Volumes[volume - uint8_t(1)].TraceRay(ray, t, t1);
     }
 
     // Add all volumes we can start sampling now
@@ -187,21 +190,138 @@ float4 TraceRay(RayDesc ray) {
       added = false;
 
       // Find the bit idx of the lowest volume not yet added
-      int bitIdx = firstbitlow(availableVolumes);
+      uint8_t bitIdx = uint8_t(firstbitlow(availableVolumes));
 
       // Get it's index
-      uint8_t volume = uint8_t(hits >> bitIdx * 8UL) & 0xFF;
+      uint8_t volume = uint8_t(hits >> uint64_t(bitIdx * uint8_t(8UL))) & uint8_t(0xFF);
       if (volume != 0) {
         float t0;
         float t1;
 
         // Get t0, t1
-        Volumes[volume].TraceRay(ray, t0, t1);
+        Volumes[volume - uint8_t(1)].TraceRay(ray, t0, t1);
 
         // If the current raymarch time is within that time, we need to sample it.
         if (t >= t0 && t <= t1) {
           currentVolumes |= uint8_t(1U) << bitIdx;
           availableVolumes &= ~(uint8_t(1U) << bitIdx);
+
+          added = true;
+        }
+      }
+    }
+
+    float3 samplePosition = ray.Origin + ray.Direction * t;
+
+    uint8_t iterVolumes = currentVolumes;
+    while (iterVolumes != 0) {
+      uint8_t bitIdx = uint8_t(firstbitlow(iterVolumes));
+      iterVolumes &= ~(uint8_t(1UL) << bitIdx);
+
+      // Load index from Idx in stack
+      uint idx = uint8_t(hits >> uint64_t(bitIdx * uint8_t(8UL))) & uint8_t(0xFF);
+      var volume = Volumes[idx - 1];
+
+      if (!volume.ContainsPoint(samplePosition)) {
+
+        // Stop iterating this volume when we exit it's range.
+        iterVolumes &= ~(uint8_t(1UL) << bitIdx);
+        continue;
+      }
+
+      density += volume.SampleDensity(samplePosition);
+    }
+  }
+
+  return exp(-density);
+}
+
+float3 SampleIncomingLight(float3 position, float3 viewDirection, float anisotropy) {
+  float3 incomingLight = float3(0.0);
+
+  for (int i = 0; i < DirectionalLightCount; i++) {
+    var light = DirectionalLights[i];
+
+    float3 lightDirection = light.GetForward();
+    RayDesc ray = RayDesc(position, 0.0, -lightDirection, 100.0);
+
+    float transmittance = TraceTransmittanceRay(ray);
+
+    float cosTheta = dot(viewDirection, -lightDirection);
+    float phase = Volume.PhaseFunction(cosTheta, anisotropy);
+
+    incomingLight += transmittance * light.Color * light.Intensity * phase;
+  }
+
+  return incomingLight * (1.0 / (PI * 4.0));
+}
+
+uniform uint FrameRandomState;
+
+float4 TraceRay(RayDesc ray, uint rndState) {
+  uint hitCount = 0;
+  uint64_t hits = GetIntersections(ray, hitCount);
+
+  float t = ray.TMin;
+  float stepSize = DetermineStepSize(ray, hits, SampleCount);
+
+  uint8_t currentVolumes = 0;
+  uint8_t idx = 0;
+  uint8_t availableVolumes = 0x0;
+
+  for (int i = 0; i < hitCount; i++) {
+    availableVolumes |= uint8_t(1) << uint8_t(i);
+  }
+
+  // Incoming Light + Transmittance as w
+  float4 incomingLightTransmittance = float4(0.0, 0.0, 0.0, 1.0);
+
+  for (int i = 0; i < SampleCount; i++) {
+    if (availableVolumes == 0)
+      break;
+
+    // If we're out of volumes to sample, add a new one from the stack.
+    if (currentVolumes == 0UL) {
+      availableVolumes &= availableVolumes - uint8_t(1);
+      currentVolumes |= uint8_t(1U) << idx;
+      uint8_t volume = uint8_t(hits >> (idx * uint8_t(8UL)));
+      idx++;
+
+      // oob or no volumes left in hit stack
+      if (idx == StackSize || volume == 0) {
+        break;
+      }
+
+      float t1;
+      // Update t
+      Volumes[volume - uint8_t(1)].TraceRay(ray, t, t1);
+      t += 0.001;
+      t += RandomValue(rndState);
+    }
+
+    // Add all volumes we can start sampling now
+    bool added = true;
+
+    // We might add multiple at a time
+    while (added) {
+      added = false;
+
+      // Find the bit idx of the lowest volume not yet added
+      uint8_t bitIdx = uint8_t(firstbitlow(availableVolumes));
+
+      // Get it's index
+      uint8_t volume = uint8_t(hits >> uint64_t(bitIdx * uint8_t(8UL)));
+      if (volume != 0) {
+        float t0;
+        float t1;
+
+        // Get t0, t1
+        Volumes[volume - uint8_t(1)].TraceRay(ray, t0, t1);
+
+        // If the current raymarch time is within that time, we need to sample it.
+        if (t >= t0 && t <= t1) {
+          currentVolumes |= uint8_t(1U) << bitIdx;
+          availableVolumes &= availableVolumes - uint8_t(1U);
 
           added = true;
         }
@@ -214,17 +334,17 @@ float4 TraceRay(RayDesc ray) {
 
     uint8_t iterVolumes = currentVolumes;
     while (iterVolumes != 0) {
-      int bitIdx = firstbitlow(iterVolumes);
-      iterVolumes &= ~(uint8_t(1UL) << bitIdx);
+      uint8_t bitIdx = uint8_t(firstbitlow(iterVolumes));
+      iterVolumes &= iterVolumes - uint8_t(1);
 
       // Load index from Idx in stack
-      uint idx = uint8_t(hits >> bitIdx * 8UL) & 0xFF;
-      var volume = Volumes[idx];
+      uint idx = uint8_t(hits >> uint64_t(bitIdx * uint8_t(8UL))) & uint8_t(0xFF);
+      var volume = Volumes[idx - 1];
 
       if (!volume.ContainsPoint(samplePosition)) {
-
         // Stop iterating this volume when we exit it's range.
-        currentVolumes &= ~(uint8_t(1UL) << bitIdx);
+        currentVolumes &= iterVolumes - uint8_t(1UL);
+
         continue;
       }
 
@@ -232,7 +352,46 @@ float4 TraceRay(RayDesc ray) {
       anisotropy += volume.anisotropy;
     }
 
-    // TODO: In scattering with incomingLightTransmittance
-    // Loop over lights and accumulate stuff ig, implement clustered lighting?
+    // float3 newIncomingLight =
+    //     SampleIncomingLight(samplePosition, ray.Direction, anisotropy);
+    float3 newIncomingLight = float3(0.5);
+    float transmittance = exp(-density * stepSize);
+
+    newIncomingLight -= newIncomingLight * transmittance;
+    incomingLightTransmittance.xyz += newIncomingLight * incomingLightTransmittance.w;
+    incomingLightTransmittance.w *= transmittance;
+
+    t += stepSize;
   }
+
+  return incomingLightTransmittance;
+}
+
+uniform WTexture2D<float4>.Handle OutputTexture;
+uniform Sampler2D<float>.Handle DepthTexture;
+
+[shader("compute")]
+[numthreads(8, 8, 1)]
+void computeMain(uint2 invocationID: SV_DispatchThreadID) {
+  uint2 outputTextureSize;
+  OutputTexture.GetDimensions(outputTextureSize.x, outputTextureSize.y);
+
+  if (any(invocationID > outputTextureSize)) {
+    return;
+  }
+
+  float2 uv = (float2(invocationID) + 0.5) / float2(outputTextureSize);
+
+  RayDesc ray = RayDesc(CameraData[0].Position, CameraData[0].Near, CameraData[0].GetRayDirection(uv), CameraData[0].Far);
+
+  float depth = DepthTexture.SampleLevelZero(uv);
+  ray.TMax = min(ray.TMax, CameraData[0].GetDistance(uv, depth));
+  ray.TMax = max(ray.TMax, ray.TMin);
+
+  uint state = FrameRandomState;
+  state += outputTextureSize.y * 15421 * invocationID.x + invocationID.y * 9310 * outputTextureSize.x;
+
+  float4 incomingLightTransmittance = TraceRay(ray, state);
+
+  OutputTexture.Store(invocationID, incomingLightTransmittance);
 }

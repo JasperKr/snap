@@ -19,15 +19,13 @@ public struct DirectionalLight : ILight {
   public float4 GetRotation() { return Rotation; }
   public float3 GetColor() { return Color; }
   public float GetIntensity() { return Intensity; }
+  public float3 GetForward() {
+    return Rotate(float3(0.0f, 0.0f, 1.0f), Rotation);
+  }
 
-  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel,
-                               const float3 ViewDirection) {
-    float3 Color = Color * Intensity;
-
-    const float3 LocalForward = float3(0.0f, 0.0f, 1.0f);
-    const float3 LocalUp = float3(0.0f, 1.0f, 0.0f);
-    const float3 WorldForward = Rotate(LocalForward, Rotation);
-    const float3 WorldUp = Rotate(LocalUp, Rotation);
+  public float3 GetIntensityAt(float3 WorldPosition, Pixel pixel,
+                               float3 ViewDirection) {
+    const float3 WorldForward = GetForward();
 
     float NdotL = saturate(dot(pixel.Normal, WorldForward));
     float3 Diffuse = ComputeDiffuseColor(pixel.Albedo, pixel.Metallic);
@@ -36,7 +34,7 @@ public struct DirectionalLight : ILight {
                              pixel.Normal, pixel.Roughness, pixel.Fresnel0,
                              Diffuse, NdotL, pixel.LambdaV);
 
-    return Color * brdf;
+    return (Color * Intensity) * brdf;
   }
 
   public float SampleShadow(int2 screenCoords) {
@@ -48,9 +46,9 @@ public struct DirectionalLight : ILight {
         int4(screenCoords, 0, ShadowBufferIndex));
   }
 
-  public bool TraceShadow(const float3 WorldPosition, const float3 Normal,
-                          uint2 screenCoords, const uint frameRandomState) {
-    const float3 WorldForward = Rotate(float3(0.0f, 0.0f, 1.0f), Rotation);
+  public bool TraceShadow(float3 WorldPosition, float3 Normal,
+                          uint2 screenCoords, uint frameRandomState) {
+    const float3 WorldForward = GetForward();
     const float3 WorldUp = Rotate(float3(0.0f, 1.0f, 0.0f), Rotation);
 
     float NoL = dot(Normal, WorldForward);

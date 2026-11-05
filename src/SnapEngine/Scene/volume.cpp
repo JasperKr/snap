@@ -1,6 +1,7 @@
 #include "volume.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/texture.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Scene/Geometry/boundingBox.hpp"
@@ -25,11 +26,9 @@ auto Volume::SetTexture(Ref<Graphics::Texture> &texture) -> Error {
     return {};
   }
 
-  ERR_ASSERT_MSG(texture->viewType == VK_IMAGE_VIEW_TYPE_3D,
-                 "Texture must be a volume texture");
+  ERR_ASSERT_MSG(texture->viewType == VK_IMAGE_VIEW_TYPE_3D, "Texture must be a volume texture");
   ERR_ASSERT_MSG(texture->SupportsSampling(), "Texture must be a sampler");
-  ERR_ASSERT_MSG(!texture->IsDepthOrStencilTexture(),
-                 "Texture must be of color aspect");
+  ERR_ASSERT_MSG(!texture->IsDepthOrStencilTexture(), "Texture must be of color aspect");
 
   volumeTexture = texture;
 
@@ -38,7 +37,7 @@ auto Volume::SetTexture(Ref<Graphics::Texture> &texture) -> Error {
 
 auto Volume::DrawGUI(flecs::entity entity) -> void {
   ImGui::SeparatorText("Volume Settings");
-  ImGui::DragFloat("Density", &density, 0.01F, 0.0F, 1.0F);
+  ImGui::DragFloat("Density", &density, 0.01F, 0.0F, 10.0F);
   ImGui::DragFloat("Anisotropy", &anisotropy, 0.01F, 0.0F, 1.0F);
 }
 
@@ -54,24 +53,23 @@ auto LuaVolume::Create(lua_State *state) -> int {
 
   auto texture = ::LuaWrap::ObjectFromLua<Graphics::Texture>(state, 3);
 
-  Volume newVolume{};
-  newVolume.volumeTexture = texture;
-
   auto volumeEntity = scene->world.entity();
-  volumeEntity.set<Volume>(newVolume);
+
+  volumeEntity.add<Volume>();
   volumeEntity.add<Userdata>();
   volumeEntity.add<Transform>();
   volumeEntity.add<WorldBounds>();
   volumeEntity.set<DisplayName>({name});
 
+  auto &newVolume = volumeEntity.get_mut<Volume>();
+  newVolume.volumeTexture = texture;
+
   auto environment = Ref<LuaVolume>::Make(volumeEntity);
 
   ::LuaWrap::PushObject(state, LuaVolume::GetType(), environment.get());
 
-  newVolume.tlasIndex =
-      LUA_CK_RES(Renderer::RendererInstance.GetVolumeManager().AddInstance(
-          *Graphics::GetCurrentGraphicsContext(), newVolume, {-0.5, -0.5, -0.5},
-          {0.5, 0.5, 0.5}));
+  newVolume.tlasIndex = LUA_CK_RES(
+      Renderer::RendererInstance.GetVolumeManager().AddInstance(*Graphics::GetCurrentGraphicsContext(), newVolume, {-3.5, -0.5, -0.5}, {3.5, 0.5, 0.5}));
   newVolume.hasTlasIndex = true;
 
   return 1;
@@ -119,30 +117,28 @@ auto LuaVolume::GetDensity(lua_State *state) -> int {
 auto LuaVolume::GetTexture(lua_State *state) -> int {
   auto *volume = LUA_CK_RES(ComponentFromLua<Volume>(state, 1));
 
-  ::LuaWrap::PushObject(state, Graphics::Texture::GetType(),
-                        volume->volumeTexture.get());
+  ::LuaWrap::PushObject(state, Graphics::Texture::GetType(), volume->volumeTexture.get());
 
   return 1;
 }
 
 auto GetLuaVolumeClass() -> const ::LuaWrap::LuaClass & {
-  static ::LuaWrap::LuaClass lclass = {
-      .Name = "Volume",
-      .Type = LuaVolume::GetType(),
-      .Methods =
-          {
-              {"setDensity", LuaVolume::SetDensity},
-              {"getDensity", LuaVolume::GetDensity},
-              {"setAnisotropy", LuaVolume::SetAnisotropy},
-              {"getAnisotropy", LuaVolume::GetAnisotropy},
-              {"setTexture", LuaVolume::SetTexture},
-              {"getTexture", LuaVolume::GetTexture},
-          },
-      .Components = {
-          TransformComponent,
-          DisplayNameComponent,
-          UserdataComponent,
-      }};
+  static ::LuaWrap::LuaClass lclass = {.Name = "Volume",
+                                       .Type = LuaVolume::GetType(),
+                                       .Methods =
+                                           {
+                                               {"setDensity", LuaVolume::SetDensity},
+                                               {"getDensity", LuaVolume::GetDensity},
+                                               {"setAnisotropy", LuaVolume::SetAnisotropy},
+                                               {"getAnisotropy", LuaVolume::GetAnisotropy},
+                                               {"setTexture", LuaVolume::SetTexture},
+                                               {"getTexture", LuaVolume::GetTexture},
+                                           },
+                                       .Components = {
+                                           TransformComponent,
+                                           DisplayNameComponent,
+                                           UserdataComponent,
+                                       }};
 
   return lclass;
 }

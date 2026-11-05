@@ -27,10 +27,8 @@ struct Matrix4x4 {
   explicit Matrix4x4(struct Matrix3x3 init);
 
   auto AsSpan() -> std::span<const float> { return {elements}; }
-  auto AsByteSpan()
-      -> std::span<const uint8_t> { // NOLINTNEXTLINE reinterpret cast
-    return {reinterpret_cast<const uint8_t *>(elements.data()),
-            sizeof(float) * Size};
+  auto AsByteSpan() -> std::span<const uint8_t> { // NOLINTNEXTLINE reinterpret cast
+    return {reinterpret_cast<const uint8_t *>(elements.data()), sizeof(float) * Size};
   }
 
   static auto FromRows(std::initializer_list<float> init) -> Matrix4x4;
@@ -72,61 +70,26 @@ struct Matrix4x4 {
 
   static auto FromLua(lua_State *state, int index) -> Matrix4x4;
 
-  static auto Perspective(float left, float right, float bottom, float top,
-                          float nearPlane, float farPlane) -> Matrix4x4;
-  static auto Perspective(float fovRadians, float aspectRatio, float nearPlane,
-                          float farPlane) -> Matrix4x4;
-  static auto Orthographic(float left, float right, float bottom, float top,
-                           float nearPlane, float farPlane) -> Matrix4x4;
-  static auto Orthographic(float width, float height, float nearPlane,
-                           float farPlane) -> Matrix4x4;
+  static auto Perspective(float left, float right, float bottom, float top, float nearPlane, float farPlane) -> Matrix4x4;
+  static auto Perspective(float fovRadians, float aspectRatio, float nearPlane, float farPlane) -> Matrix4x4;
+  static auto Orthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane) -> Matrix4x4;
+  static auto Orthographic(float width, float height, float nearPlane, float farPlane) -> Matrix4x4;
   static auto TranslationMatrix(Vec3 translation) -> Matrix4x4;
-  static auto TranslationMatrix(float x_pos, float y_pos, float z_pos)
-      -> Matrix4x4;
+  static auto TranslationMatrix(float x_pos, float y_pos, float z_pos) -> Matrix4x4;
   static auto ScaleMatrix(Vec3 scale) -> Matrix4x4;
-  static auto ScaleMatrix(float x_scale, float y_scale, float z_scale)
-      -> Matrix4x4;
+  static auto ScaleMatrix(float x_scale, float y_scale, float z_scale) -> Matrix4x4;
   static auto RotationMatrix(Quaternion rotation) -> Matrix4x4;
-  static auto RotationMatrix(float x_rot, float y_rot, float z_rot, float w_rot)
-      -> Matrix4x4;
-  static auto TransformationMatrix(Vec3 translation, Vec3 scale,
-                                   Quaternion rotation) -> Matrix4x4;
-  static auto TransformationMatrix(float x_pos, float y_pos, float z_pos,
-                                   float x_scale, float y_scale, float z_scale,
-                                   float x_rot, float y_rot, float z_rot,
+  static auto RotationMatrix(float x_rot, float y_rot, float z_rot, float w_rot) -> Matrix4x4;
+  static auto TransformationMatrix(Vec3 translation, Vec3 scale, Quaternion rotation) -> Matrix4x4;
+  static auto TransformationMatrix(float x_pos, float y_pos, float z_pos, float x_scale, float y_scale, float z_scale, float x_rot, float y_rot, float z_rot,
                                    float w_rot) -> Matrix4x4;
 
   [[nodiscard]] auto ToString() const -> std::string;
 
   [[nodiscard]] auto data() const -> const float * { return elements.data(); }
   static auto size() -> size_t { return Size; }
-  [[nodiscard]] auto byteSpan() const
-      -> std::span<const uint8_t> { // NOLINTNEXTLINE reinterpret cast
-    return {reinterpret_cast<const uint8_t *>(elements.data()),
-            sizeof(float) * Size};
-  }
-  [[nodiscard]] auto floatSpan() const
-      -> std::span<const float> { // NOLINT reinterpret cast
-    thread_local std::array<float, Size> floatElements{};
-
-#pragma unroll
-    for (size_t i = 0; i < Size; ++i) {
-      floatElements.at(i) = static_cast<float>(elements.at(i));
-    }
-
-    return {floatElements.data(), Size};
-  }
-
-  [[nodiscard]] auto floatData() const -> const
-      float * { // NOLINT reinterpret cast
-    thread_local std::array<float, Size> floatElements{};
-
-#pragma unroll
-    for (size_t i = 0; i < Size; ++i) {
-      floatElements.at(i) = static_cast<float>(elements.at(i));
-    }
-
-    return floatElements.data();
+  [[nodiscard]] auto byteSpan() const -> std::span<const uint8_t> { // NOLINTNEXTLINE reinterpret cast
+    return {reinterpret_cast<const uint8_t *>(elements.data()), sizeof(float) * Size};
   }
 };
 
@@ -179,14 +142,11 @@ struct Matrix3x3 {
   [[nodiscard]] auto data() const -> const float * { return elements.data(); }
   static auto size() -> size_t { return Size; }
 
-  [[nodiscard]] auto byteSpan() const
-      -> std::span<const uint8_t> { // NOLINTNEXTLINE reinterpret cast
-    return {reinterpret_cast<const uint8_t *>(elements.data()),
-            sizeof(float) * Size};
+  [[nodiscard]] auto byteSpan() const -> std::span<const uint8_t> { // NOLINTNEXTLINE reinterpret cast
+    return {reinterpret_cast<const uint8_t *>(elements.data()), sizeof(float) * Size};
   }
 
-  [[nodiscard]] auto FloatSpan() const
-      -> std::span<const float> { // NOLINT reinterpret cast
+  [[nodiscard]] auto FloatSpan() const -> std::span<const float> { // NOLINT reinterpret cast
     thread_local std::array<float, Size> floatElements{};
 
 #pragma unroll

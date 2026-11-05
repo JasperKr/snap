@@ -56,8 +56,7 @@ struct State {
   bool hasScissor = false;
   mutable bool dirty = true;
 
-  Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS>
-      colorBlendEquations;
+  Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS> colorBlendEquations;
 
   Ref<Shader> shader;
 
@@ -95,9 +94,7 @@ struct State {
       return false;
     }
 
-    if (stencilTestEnable != other.stencilTestEnable ||
-        polygonMode != other.polygonMode ||
-        primitiveTopology != other.primitiveTopology ||
+    if (stencilTestEnable != other.stencilTestEnable || polygonMode != other.polygonMode || primitiveTopology != other.primitiveTopology ||
         bindPoint != other.bindPoint) {
       return false;
     }
@@ -157,8 +154,7 @@ auto SetViewport(const VkViewport *viewport) -> void;
 auto SetScissor(const VkRect2D *scissor) -> void;
 auto ClipScissor(const VkRect2D &scissor) -> void;
 auto SetShader(const Ref<Shader> &shader) -> void;
-auto SetRenderTargets(const GraphicsContext &context,
-                      const std::vector<RenderTarget> &renderTargets) -> Error;
+auto SetRenderTargets(const GraphicsContext &context, const std::vector<RenderTarget> &renderTargets) -> Error;
 auto SetWindingOrder(VkFrontFace frontFace) -> void;
 auto SetTopology(VkPrimitiveTopology topology) -> void;
 
@@ -177,14 +173,7 @@ auto GetTopology() -> VkPrimitiveTopology;
 auto SetBindPoint(VkPipelineBindPoint bindPoint) -> void;
 auto GetBindPoint() -> VkPipelineBindPoint;
 
-struct ClearInfo {
-  std::vector<Color> colors;
-  float depthClearValue = 1.0F;
-  int stencilClearValue = 0;
-  bool clearDepth = false;
-  bool clearStencil = false;
-};
-
-auto Clear(const GraphicsContext &context, const ClearInfo &clearInfo) -> Error;
+auto Clear(const GraphicsContext &context, VkClearColorValue const *pColors, uint32_t colorCount, VkClearDepthStencilValue clearDepthStencilValue,
+           bool clearDepth, bool clearStencil) -> Error;
 
 } // namespace Graphics::RenderState

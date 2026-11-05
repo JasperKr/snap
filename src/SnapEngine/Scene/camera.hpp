@@ -2,8 +2,8 @@
 
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/bufferformat.hpp"
+#include "Graphics/graphicsContext.hpp"
 #include "Modules/Math/math.hpp"
-#include "Modules/Math/mathTypes.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -68,9 +68,7 @@ struct Camera {
 
   [[nodiscard]] auto GetFarPlane() const -> float { return FarPlane; }
 
-  [[nodiscard]] auto GetBuffer() const -> Ref<Graphics::StructuredBuffer> {
-    return CameraBuffer;
-  }
+  [[nodiscard]] auto GetBuffer() const -> Ref<Graphics::StructuredBuffer> { return CameraBuffer; }
 
   [[nodiscard]] auto GetDimensions() const -> Math::Uvec2 { return Dimensions; }
 
@@ -82,29 +80,23 @@ struct Camera {
     Dimensions = newDimensions;
     projectionDirty = true;
     ConfigureRendertargets();
-    AspectRatio =
-        static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
+    AspectRatio = static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
   }
 
   static void RegisterCameraSystems(Scene &scene);
 
-  static auto Create(const Graphics::GraphicsContext &context,
-                     float verticalFOVDeg, Math::Uvec2 Dimensions, float near,
-                     float far) -> Result<Camera>;
+  static auto Create(const Graphics::GraphicsContext &context, float verticalFOVDeg, Math::Uvec2 Dimensions, float near, float far) -> Result<Camera>;
 
-  auto WriteToBuffer(const CameraMatrices &cameraMatrices,
-                     const Transform &transform) const -> Error;
+  auto WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform &transform) const -> Error;
 
   auto Resize(Math::Uvec2 newDimensions) -> void {
     Dimensions = newDimensions;
     projectionDirty = true;
   }
 
-  auto Render(const Graphics::GraphicsContext &context,
-              const DrawData &drawData, Scene *scene) -> Error;
+  auto Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
 
-  auto RenderSkyboxOnly(const Graphics::GraphicsContext &context,
-                        const Environment &environment) -> Error;
+  auto RenderSkyboxOnly(const Graphics::GraphicsContext &context, const Environment &environment) -> Error;
 
   // Descriptors for the textures we'd like to own.
   struct CameraRendertargets {
@@ -154,6 +146,8 @@ struct Camera {
     Renderer::RendertargetDescriptor AmbientOcclusionSamples;
 
     Renderer::RendertargetDescriptor TemporalAntiAliasing;
+
+    Renderer::RendertargetDescriptor VolumetricLighting;
   };
 
   // References to the textures we currently own. Dynamic
@@ -179,6 +173,7 @@ struct Camera {
     Ref<Graphics::Texture> AmbientOcclusion;
     Ref<Graphics::Texture> PreviousAmbientOcclusion;
     Ref<Graphics::Texture> AmbientOcclusionSamples;
+    Ref<Graphics::Texture> VolumetricLighting;
 
     void Reset() {
       Depth = nullptr;
@@ -202,6 +197,7 @@ struct Camera {
       AmbientOcclusion = nullptr;
       PreviousAmbientOcclusion = nullptr;
       AmbientOcclusionSamples = nullptr;
+      VolumetricLighting = nullptr;
     }
   };
 
@@ -226,6 +222,7 @@ struct Camera {
     bool AmbientOcclusion = false;
     bool PreviousAmbientOcclusion = false;
     bool AmbientOcclusionSamples = false;
+    bool VolumetricLighting = false;
   };
 
   // NOLINTBEGIN
@@ -241,41 +238,25 @@ struct Camera {
   };
   // NOLINTEND
 
-  auto SetPostProcessingConfig(const PostProcessingConfig &config) -> void {
-    postProcessingConfig = config;
-  }
+  auto SetPostProcessingConfig(const PostProcessingConfig &config) -> void { postProcessingConfig = config; }
 
-  void
-  SetPersistentTextureSettings(const PersistentTextureSettings &newSettings) {
-    persistentTextureSettings = newSettings;
-  }
+  void SetPersistentTextureSettings(const PersistentTextureSettings &newSettings) { persistentTextureSettings = newSettings; }
 
-  [[nodiscard]] auto GetPostProcessingConfig() const -> PostProcessingConfig {
-    return postProcessingConfig;
-  }
+  [[nodiscard]] auto GetPostProcessingConfig() const -> PostProcessingConfig { return postProcessingConfig; }
 
-  [[nodiscard]] auto GetPostProcessingConfig() -> PostProcessingConfig & {
-    return postProcessingConfig;
-  }
+  [[nodiscard]] auto GetPostProcessingConfig() -> PostProcessingConfig & { return postProcessingConfig; }
 
-  [[nodiscard]] auto GetOwnedTextures() const -> const AllocatedTextures & {
-    return OwnedTextures;
-  }
+  [[nodiscard]] auto GetOwnedTextures() const -> const AllocatedTextures & { return OwnedTextures; }
 
-  [[nodiscard]] auto GetOwnedTextures() -> AllocatedTextures & {
-    return OwnedTextures;
-  }
+  [[nodiscard]] auto GetOwnedTextures() -> AllocatedTextures & { return OwnedTextures; }
 
-  [[nodiscard]] auto GetRendertargets() const -> const CameraRendertargets & {
-    return Rendertargets;
-  }
+  [[nodiscard]] auto GetRendertargets() const -> const CameraRendertargets & { return Rendertargets; }
 
   [[nodiscard]] auto GetSettings() const -> Settings { return settings; }
 
-  [[nodiscard]] auto GetPersistentTextureSettings() const
-      -> PersistentTextureSettings {
-    return persistentTextureSettings;
-  }
+  [[nodiscard]] auto GetPersistentTextureSettings() const -> PersistentTextureSettings { return persistentTextureSettings; }
+
+  [[nodiscard]] auto GetDimensions() -> Math::Uvec2 { return Dimensions; }
 
   auto DrawGUI(flecs::entity entity) -> void;
 
@@ -305,17 +286,18 @@ private:
 
   auto ApplyPostProcessing(const Graphics::GraphicsContext &context) -> Error;
 
-  auto RenderSkybox(const Graphics::GraphicsContext &context,
-                    const Environment &environment) -> Error;
+  auto RenderSkybox(const Graphics::GraphicsContext &context, const Environment &environment) -> Error;
 
-  auto FillSkybox(const Graphics::GraphicsContext &context,
-                  const Environment &environment) -> Error;
+  auto FillSkybox(const Graphics::GraphicsContext &context, const Environment &environment) -> Error;
 
-  auto ApplyLightProbes(const Graphics::GraphicsContext &context,
-                        const DrawData &drawData, Scene *scene) -> Error;
+  auto ApplyLightProbes(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
 
-  auto UpdateClosestLightProbes(int max, std::vector<uint8_t> &data,
-                                const DrawData &drawData, Scene *scene) -> void;
+  auto ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> Error;
+  auto CalculateShadows(const Graphics::GraphicsContext &context) -> Error;
+  auto ApplyLighting(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
+  auto ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -> Error;
+
+  auto UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const DrawData &drawData, Scene *scene) -> void;
 };
 
 extern const Graphics::BufferFormat CameraBufferFormat;
@@ -328,9 +310,7 @@ struct LuaCamera : LuaWrap::LuaECSObject {
   static auto Create(lua_State *state) -> int;
 
   static auto GetType() -> const Type * { return &CameraType; }
-  [[nodiscard]] auto GetInstanceType() const -> const Type * override {
-    return LuaCamera::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> const Type * override { return LuaCamera::GetType(); }
 
   static auto Render(lua_State *state) -> int;
 

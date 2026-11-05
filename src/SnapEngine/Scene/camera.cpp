@@ -11,7 +11,6 @@
 #include "Graphics/uniformWriter.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/window.hpp"
@@ -36,6 +35,8 @@
 #include <vulkan/vulkan_core.h>
 
 namespace Engine {
+
+using namespace Graphics;
 
 const auto CameraBufferFormat = Graphics::BufferFormat({
     {"ViewMatrix", "floatmat4"},
@@ -86,81 +87,60 @@ static constexpr std::array<Math::Vec2, 4> JitterPattern = {
 
 void Camera::RegisterCameraSystems(Scene &scene) {
   auto cameraProjection =
-      scene.world.system<Camera, CameraMatrices>()
-          .kind(flecs::PostUpdate)
-          .each([](flecs::entity entity, Camera &camera,
-                   CameraMatrices &matrices) -> void {
-            camera.Jitter = JitterPattern.at(
-                Graphics::GetCurrentGraphicsContext()->currentFrame %
-                JitterPattern.size());
-            camera.Jitter /= 4.0F; // NOLINT
-            camera.Jitter -= 0.5F; // NOLINT
+      scene.world.system<Camera, CameraMatrices>().kind(flecs::PostUpdate).each([](flecs::entity entity, Camera &camera, CameraMatrices &matrices) -> void {
+        camera.Jitter = JitterPattern.at(Graphics::GetCurrentGraphicsContext()->currentFrame % JitterPattern.size());
+        camera.Jitter /= 4.0F; // NOLINT
+        camera.Jitter -= 0.5F; // NOLINT
 
-            camera.Jitter /= Math::Vec2(camera.Dimensions);
-            matrices.Jitter = camera.Jitter;
+        camera.Jitter /= Math::Vec2(camera.Dimensions);
+        matrices.Jitter = camera.Jitter;
 
-            if (camera.projectionDirty) {
-              matrices.ProjectionMatrix = Math::Matrix4x4::Perspective(
-                  camera.VerticalFOVRad, camera.AspectRatio, camera.NearPlane,
-                  camera.FarPlane);
-              matrices.InverseProjectionMatrix =
-                  matrices.ProjectionMatrix.InverseTranspose();
+        if (camera.projectionDirty) {
+          matrices.ProjectionMatrix = Math::Matrix4x4::Perspective(camera.VerticalFOVRad, camera.AspectRatio, camera.NearPlane, camera.FarPlane);
+          matrices.InverseProjectionMatrix = matrices.ProjectionMatrix.InverseTranspose();
 
-              camera.projectionDirty = false;
-            }
-          });
+          camera.projectionDirty = false;
+        }
+      });
 
-  auto cameraTransform =
-      scene.world.system<CameraMatrices, Transform>()
-          .kind(flecs::PostUpdate)
-          .each([](flecs::entity entity, CameraMatrices &matrices,
-                   Transform &transform) -> void {
-            const auto &worldMatrix = transform.GetWorldMatrix();
+  auto cameraTransform = scene.world.system<CameraMatrices, Transform>()
+                             .kind(flecs::PostUpdate)
+                             .each([](flecs::entity entity, CameraMatrices &matrices, Transform &transform) -> void {
+                               const auto &worldMatrix = transform.GetWorldMatrix();
 
-            matrices.ViewMatrix = worldMatrix.InverseTranspose();
-            matrices.InverseViewMatrix = worldMatrix;
-            matrices.RotationMatrix = matrices.ViewMatrix.AsMatrix3x3();
-            matrices.InverseRotationMatrix =
-                matrices.RotationMatrix.Transpose();
-            matrices.Update();
-          });
+                               matrices.ViewMatrix = worldMatrix.InverseTranspose();
+                               matrices.InverseViewMatrix = worldMatrix;
+                               matrices.RotationMatrix = matrices.ViewMatrix.AsMatrix3x3();
+                               matrices.InverseRotationMatrix = matrices.RotationMatrix.Transpose();
+                               matrices.Update();
+                             });
 
   auto cameraFrustum =
-      scene.world.system<CameraMatrices, Frustum>()
-          .kind(flecs::PostUpdate)
-          .each([](flecs::entity entity, CameraMatrices &matrices,
-                   Frustum &frustum) -> void {
-            frustum =
-                Frustum::FromMatrices(matrices.ViewProjectionMatrix,
-                                      matrices.InverseViewProjectionMatrix);
-          });
+      scene.world.system<CameraMatrices, Frustum>().kind(flecs::PostUpdate).each([](flecs::entity entity, CameraMatrices &matrices, Frustum &frustum) -> void {
+        frustum = Frustum::FromMatrices(matrices.ViewProjectionMatrix, matrices.InverseViewProjectionMatrix);
+      });
 
   cameraFrustum.depends_on(cameraTransform);
   cameraTransform.depends_on(cameraProjection);
 }
 
-auto Camera::Create(const Graphics::GraphicsContext &context,
-                    float verticalFOVDeg, Math::Uvec2 Dimensions, float near,
-                    float far) -> Result<Camera> {
+auto Camera::Create(const Graphics::GraphicsContext &context, float verticalFOVDeg, Math::Uvec2 Dimensions, float near, float far) -> Result<Camera> {
   Camera camera;
   camera.verticalFOVDeg = verticalFOVDeg;
   camera.VerticalFOVRad = Math::DegToRad(verticalFOVDeg);
   camera.Dimensions = Dimensions;
-  camera.AspectRatio =
-      static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
+  camera.AspectRatio = static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
   camera.NearPlane = near;
   camera.FarPlane = far;
 
   Graphics::StructuredBufferCreationInfo info{
       .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) |
-                    static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
+      .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) | static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
                     static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
       .debugName = "Camera Buffer",
   };
 
-  auto bufferResult =
-      Graphics::StructuredBuffer::Create(context, CameraBufferFormat, 2, info);
+  auto bufferResult = Graphics::StructuredBuffer::Create(context, CameraBufferFormat, 2, info);
 
   if (Error::IsError(bufferResult)) {
     return bufferResult.error();
@@ -172,29 +152,22 @@ auto Camera::Create(const Graphics::GraphicsContext &context,
   return camera;
 }
 
-auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
-    -> Error {
-  auto shader =
-      CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
-          Renderer::ShaderKey::PostProcessing));
+auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context) -> Error {
+  auto shader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::PostProcessing));
   Graphics::RenderState::SetShader(shader);
 
-  OwnedTextures.PostProcessed =
-      CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
-          context, Rendertargets.PostProcessed));
+  OwnedTextures.PostProcessed = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.PostProcessed));
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {Graphics::RenderState::RenderTarget{
-                   .texture = OwnedTextures.PostProcessed,
-                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-               }}));
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {Graphics::RenderState::RenderTarget{
+                                                                 .texture = OwnedTextures.PostProcessed,
+                                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                             }}));
 
   static auto incomingLightKey = Graphics::ResourceKey{"IncomingLight"};
 
   [[likely]]
   if (OwnedTextures.BloomFinal.isValid()) {
-    CHECK_ERR(
-        shader->Send(context, incomingLightKey, OwnedTextures.BloomFinal));
+    CHECK_ERR(shader->Send(context, incomingLightKey, OwnedTextures.BloomFinal));
   } else {
     // Bloom might be skipped in the case of a really tiny viewport
     CHECK_ERR(shader->Send(context, incomingLightKey, OwnedTextures.TAA));
@@ -209,51 +182,38 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context)
   auto exposureKey = Graphics::ResourceKey{"Exposure"};
 
   auto postProcessingConfig = GetPostProcessingConfig();
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, temperatureKey,
-                                          postProcessingConfig.Temperature));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, tintKey,
-                                          postProcessingConfig.Tint));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, applyAGXKey,
-                                          postProcessingConfig.ApplyAGX));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, contrastKey,
-                                          postProcessingConfig.Contrast));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, saturationKey,
-                                          postProcessingConfig.Saturation));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, vignetteKey,
-                                          postProcessingConfig.Vignette));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, exposureKey,
-                                          postProcessingConfig.Exposure));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, temperatureKey, postProcessingConfig.Temperature));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, tintKey, postProcessingConfig.Tint));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, applyAGXKey, postProcessingConfig.ApplyAGX));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, contrastKey, postProcessingConfig.Contrast));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, saturationKey, postProcessingConfig.Saturation));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, vignetteKey, postProcessingConfig.Vignette));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, exposureKey, postProcessingConfig.Exposure));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(
-      OwnedTextures.BloomFinal));
+  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(OwnedTextures.BloomFinal));
 
   return {};
 }
 
-auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
-                          const Environment &environment) -> Error {
+auto Camera::RenderSkybox(const Graphics::GraphicsContext &context, const Environment &environment) -> Error {
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {{
-                    .texture = OwnedTextures.DirectLighting,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                },
-                {
-                    .blendMode = Graphics::BlendmodeNone,
-                    .texture = OwnedTextures.Motion,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                }}));
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {{
+                                                                  .texture = OwnedTextures.DirectLighting,
+                                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                              },
+                                                              {
+                                                                  .blendMode = Graphics::BlendmodeNone,
+                                                                  .texture = OwnedTextures.Motion,
+                                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                              }}));
 
-  auto shader =
-      CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
-          Renderer::ShaderKey::Skybox));
+  auto shader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::Skybox));
 
   CHECK_ERR(shader->Send(context, "DepthTexture", OwnedTextures.Depth));
-  CHECK_ERR(shader->Send(context, "CameraData",
-                         {CameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(shader->Send(context, "CameraData", {CameraBuffer, Graphics::StorageBuffer::read}));
   CHECK_ERR(shader->Send(context, "SkyboxTexture", environment.SkyboxTexture));
 
   Graphics::RenderState::SetShader(shader);
@@ -262,22 +222,17 @@ auto Camera::RenderSkybox(const Graphics::GraphicsContext &context,
   return {};
 }
 
-auto Camera::FillSkybox(const Graphics::GraphicsContext &context,
-                        const Environment &environment) -> Error {
+auto Camera::FillSkybox(const Graphics::GraphicsContext &context, const Environment &environment) -> Error {
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {{
-                   .texture = OwnedTextures.DirectLighting,
-                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-               }}));
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {{
+                                                                 .texture = OwnedTextures.DirectLighting,
+                                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                             }}));
 
-  auto shader =
-      CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
-          Renderer::ShaderKey::FillSkybox));
+  auto shader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::FillSkybox));
 
-  CHECK_ERR(shader->Send(context, "CameraData",
-                         {CameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(shader->Send(context, "CameraData", {CameraBuffer, Graphics::StorageBuffer::read}));
   CHECK_ERR(shader->Send(context, "SkyboxTexture", environment.SkyboxTexture));
 
   Graphics::RenderState::SetShader(shader);
@@ -286,9 +241,7 @@ auto Camera::FillSkybox(const Graphics::GraphicsContext &context,
   return {};
 }
 
-auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data,
-                                      const DrawData &drawData, Scene *scene)
-    -> void {
+auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const DrawData &drawData, Scene *scene) -> void {
 
   if (max <= 0) {
     return;
@@ -303,92 +256,68 @@ auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data,
 
   std::vector<std::pair<float, ProbeData>> probes;
 
-  scene->world.each([&](flecs::entity entity, const Transform &transform,
-                        const Renderer::LightProbe &lightProbe) -> void {
-    auto distanceSqr = (transform.GetPosition() -
-                        drawData.Transform.GetWorldMatrix().GetTranslation())
-                           .LengthSqr();
-    probes.emplace_back(distanceSqr,
-                        ProbeData{.probe = lightProbe, .transform = transform});
+  scene->world.each([&](flecs::entity entity, const Transform &transform, const Renderer::LightProbe &lightProbe) -> void {
+    auto distanceSqr = (transform.GetPosition() - drawData.Transform.GetWorldMatrix().GetTranslation()).LengthSqr();
+    probes.emplace_back(distanceSqr, ProbeData{.probe = lightProbe, .transform = transform});
   });
 
-  std::ranges::sort(probes, [](const auto &first, const auto &second) -> bool {
-    return first.first < second.first;
-  });
+  std::ranges::sort(probes, [](const auto &first, const auto &second) -> bool { return first.first < second.first; });
 
   for (int i = 0; i < std::min(max, static_cast<int>(probes.size())); ++i) {
     const auto &probeData = probes[i].second;
-    probeData.probe.WriteToBuffer(
-        data, i * Renderer::LightProbeBufferFormat.GetStride(),
-        probeData.transform);
+    probeData.probe.WriteToBuffer(data, i * Renderer::LightProbeBufferFormat.GetStride(), probeData.transform);
   }
 
   VisibleProbeCount = std::min(max, static_cast<int>(probes.size()));
 }
 
-auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context,
-                              const DrawData &drawData, Scene *scene) -> Error {
+auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
 
   Graphics::PushDebugMarker("Apply Light Probes");
 
   constexpr int MaxLightProbes = 64;
 
-  auto probeData = std::vector<uint8_t>(
-      MaxLightProbes * Renderer::LightProbeBufferFormat.GetStride());
+  auto probeData = std::vector<uint8_t>(MaxLightProbes * Renderer::LightProbeBufferFormat.GetStride());
 
   UpdateClosestLightProbes(MaxLightProbes, probeData, drawData, scene);
 
-  CHECK_ERR(
-      Renderer::RendererInstance.GetLightProbeBuffer()->GetBuffer()->SetData(
-          context, probeData));
+  CHECK_ERR(Renderer::RendererInstance.GetLightProbeBuffer()->GetBuffer()->SetData(context, probeData));
 
   auto &textures = GetOwnedTextures();
   const auto &rendertargets = GetRendertargets();
 
-  textures.Irradiance =
-      CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
-          context, rendertargets.Irradiance));
+  textures.Irradiance = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Irradiance));
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {{
-                    .blendMode = Graphics::BlendmodeAdditive,
-                    .texture = textures.DirectLighting,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                },
-                {
-                    .blendMode = Graphics::BlendmodeNone,
-                    .texture = textures.Irradiance,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                }}));
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {{
+                                                                  .blendMode = Graphics::BlendmodeAdditive,
+                                                                  .texture = textures.DirectLighting,
+                                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                              },
+                                                              {
+                                                                  .blendMode = Graphics::BlendmodeNone,
+                                                                  .texture = textures.Irradiance,
+                                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                              }}));
 
-  auto shader =
-      CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
-          Renderer::ShaderKey::ApplyEnvironmentMap));
+  auto shader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::ApplyEnvironmentMap));
   Graphics::RenderState::SetShader(shader);
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
 
   auto &prefilterManager = Renderer::RendererInstance.GetPrefilterManager();
-  CHECK_ERR(shader->Send(context, "CameraData",
-                         {CameraBuffer, Graphics::StorageBuffer::read}));
-  CHECK_ERR(shader->Send(context, "IrradianceTextures",
-                         prefilterManager.GetIrradianceMaps()));
-  CHECK_ERR(shader->Send(context, "SpecularTextures",
-                         prefilterManager.GetRadianceMaps()));
+  CHECK_ERR(shader->Send(context, "CameraData", {CameraBuffer, Graphics::StorageBuffer::read}));
+  CHECK_ERR(shader->Send(context, "IrradianceTextures", prefilterManager.GetIrradianceMaps()));
+  CHECK_ERR(shader->Send(context, "SpecularTextures", prefilterManager.GetRadianceMaps()));
 
-  CHECK_ERR(shader->Send(context, "Probes",
-                         {Renderer::RendererInstance.GetLightProbeBuffer(),
-                          Graphics::StorageTexture::read}));
+  CHECK_ERR(shader->Send(context, "Probes", {Renderer::RendererInstance.GetLightProbeBuffer(), Graphics::StorageTexture::read}));
 
-  CHECK_ERR(Graphics::UniformWriter::Send(
-      shader, "LightProbeCount", static_cast<uint32_t>(VisibleProbeCount)));
+  CHECK_ERR(Graphics::UniformWriter::Send(shader, "LightProbeCount", static_cast<uint32_t>(VisibleProbeCount)));
 
   CHECK_ERR(shader->Send(context, "AlbedoTexture", textures.Albedo));
   CHECK_ERR(shader->Send(context, "NormalTexture", textures.Normal));
   CHECK_ERR(shader->Send(context, "MaterialTexture", textures.Material));
   CHECK_ERR(shader->Send(context, "DepthTexture", textures.Depth));
-  CHECK_ERR(shader->Send(context, "AmbientOcclusionTexture",
-                         textures.AmbientOcclusion));
+  CHECK_ERR(shader->Send(context, "AmbientOcclusionTexture", textures.AmbientOcclusion));
   CHECK_ERR(Graphics::UniformWriter::Send(shader, "SpecularEnabled", 1));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
@@ -398,9 +327,266 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context,
   return {};
 }
 
+auto Camera::ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> Error {
+  Graphics::PushDebugMarker("Ambient Occlusion");
+
+  auto [width, height] = GetDimensions();
+
+  auto &textures = GetOwnedTextures();
+  const auto &rendertargets = GetRendertargets();
+  auto &renderer = Renderer::RendererInstance;
+  auto &shaderManager = renderer.GetShaderManager();
+
+  textures.AmbientOcclusionSamples = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusionSamples));
+  if (!textures.PreviousAmbientOcclusion.isValid()) {
+    textures.PreviousAmbientOcclusion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusion));
+  }
+
+  auto frameRandomState = Math::Random(0, 255);
+
+  auto ambientOcclusionShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::RTAO));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "NormalTexture", textures.Normal));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "BlueNoiseTexture", renderer.GetBlueNoiseTexture()));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "SceneBVH", renderer.GetSceneTLAS()));
+  CHECK_ERR(ambientOcclusionShader->Send(context, "OutputTexture", {textures.AmbientOcclusionSamples, Graphics::StorageTexture::write}));
+  CHECK_ERR(Graphics::UniformWriter::Send(ambientOcclusionShader, "FrameRandomState", frameRandomState));
+
+  Graphics::RenderState::SetShader(ambientOcclusionShader);
+
+  CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
+
+  textures.AmbientOcclusion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusion));
+
+  auto aoDenoiseShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::AO_Denoise));
+  CHECK_ERR(aoDenoiseShader->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(aoDenoiseShader->Send(context, "PreviousDepthTexture", textures.PreviousDepth));
+  CHECK_ERR(aoDenoiseShader->Send(context, "MotionTexture", textures.Motion));
+  CHECK_ERR(aoDenoiseShader->Send(context, "RayHitTexture", textures.AmbientOcclusionSamples));
+  CHECK_ERR(aoDenoiseShader->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
+  CHECK_ERR(aoDenoiseShader->Send(context, "PreviousOutputTexture", textures.PreviousAmbientOcclusion));
+  CHECK_ERR(aoDenoiseShader->Send(context, "OutputTexture", {textures.AmbientOcclusion, Graphics::StorageTexture::write}));
+
+  Graphics::RenderState::SetShader(aoDenoiseShader);
+
+  CHECK_ERR(Graphics::DispatchWithin(context, Math::Uvec3(width, height, 1)));
+
+  Graphics::PopDebugMarker();
+
+  return {};
+}
+
+auto Camera::CalculateShadows(const Graphics::GraphicsContext &context) -> Error {
+  auto [width, height] = GetDimensions();
+
+  auto &textures = GetOwnedTextures();
+  const auto &rendertargets = GetRendertargets();
+  auto &renderer = Renderer::RendererInstance;
+  auto &shaderManager = renderer.GetShaderManager();
+
+  using K = Renderer::ShaderKey;
+
+  textures.ShadowHitFlags = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowHitFlags));
+
+  auto shadowPoint = CHECK_RES(shaderManager.GetShader(K::Shadows_Point));
+  auto shadowSpot = CHECK_RES(shaderManager.GetShader(K::Shadows_Spot));
+  auto shadowSphere = CHECK_RES(shaderManager.GetShader(K::Shadows_Sphere));
+  auto shadowRectangle = CHECK_RES(shaderManager.GetShader(K::Shadows_Rectangle));
+  auto shadowDenoise = CHECK_RES(shaderManager.GetShader(K::Shadows_Denoise));
+  auto shadowsReset = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::Shadows_ClearHitFlags));
+  CHECK_ERR(shadowsReset->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
+
+  auto shadowDirectional = CHECK_RES(shaderManager.GetShader(K::Shadows_Directional));
+  CHECK_ERR(shadowDirectional->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(shadowDirectional->Send(context, "NormalTexture", textures.Normal));
+
+  auto frameRandomState = Math::Random(0, 255);
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, "FrameRandomState", frameRandomState));
+  auto &blueNoiseTex = renderer.GetBlueNoiseTexture();
+
+  // CHECK_ERR(shadowPoint->Send(context, "BlueNoiseTexture", blueNoiseTex));
+  // CHECK_ERR(shadowSpot->Send(context, "BlueNoiseTexture", blueNoiseTex));
+  // CHECK_ERR(shadowSphere->Send(context, "BlueNoiseTexture", blueNoiseTex));
+  // CHECK_ERR(shadowRectangle->Send(context, "BlueNoiseTexture", blueNoiseTex));
+
+  CHECK_ERR(shadowDirectional->Send(context, "SceneBVH", renderer.GetSceneTLAS()));
+  CHECK_ERR(shadowDirectional->Send(context, "BlueNoiseTexture", blueNoiseTex));
+
+  CHECK_ERR(renderer.BindLightBuffers(context, shadowDirectional));
+
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, "LayerOffset", 0U));
+  CHECK_ERR(UniformWriter::Send(shadowDirectional, "LightIndex", 0U));
+  CHECK_ERR(shadowDirectional->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
+  CHECK_ERR(shadowDirectional->Send(context, "OutputTexture", {textures.ShadowHitFlags, StorageBuffer::write}));
+
+  Graphics::RenderState::SetShader(shadowsReset);
+
+  CHECK_ERR(DispatchWithin(context, Math::Uvec3(width / 4, height / 4, 1)));
+
+  RenderState::SetShader(shadowDirectional);
+
+  CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
+
+  textures.ShadowVisibility = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowVisibility));
+
+  if (!textures.PreviousShadowVisibility.isValid()) {
+    textures.PreviousShadowVisibility = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowVisibility));
+  }
+
+  CHECK_ERR(UniformWriter::Send(shadowDenoise, {"LayerOffset"}, 0U));
+  CHECK_ERR(shadowDenoise->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
+  CHECK_ERR(shadowDenoise->Send(context, "OutputTexture", {textures.ShadowVisibility, StorageBuffer::write}));
+  CHECK_ERR(shadowDenoise->Send(context, "MotionTexture", textures.Motion));
+  CHECK_ERR(shadowDenoise->Send(context, "PreviousOutputTexture", textures.PreviousShadowVisibility));
+  CHECK_ERR(shadowDenoise->Send(context, "RayHitTexture", textures.ShadowHitFlags));
+  CHECK_ERR(shadowDenoise->Send(context, "DepthTexture", textures.Depth));
+  CHECK_ERR(shadowDenoise->Send(context, "PreviousDepthTexture", textures.PreviousDepth));
+
+  RenderState::SetShader(shadowDenoise);
+
+  CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
+
+  return {};
+}
+
+auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -> Error {
+  auto [width, height] = GetDimensions();
+
+  auto &textures = GetOwnedTextures();
+  const auto &rendertargets = GetRendertargets();
+  auto &renderer = Renderer::RendererInstance;
+  auto &shaderManager = renderer.GetShaderManager();
+  auto &volumeManager = Renderer::RendererInstance.GetVolumeManager();
+
+  textures.VolumetricLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VolumetricLighting));
+
+  auto volumetricLightingShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::VolumetricLighting));
+  CHECK_ERR(volumetricLightingShader->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
+  CHECK_ERR(UniformWriter::Send(volumetricLightingShader, "DirectionalLightCount", renderer.GetSceneLightBuffers().DirectionalLightCount));
+
+  CHECK_ERR(volumetricLightingShader->Send(context, "OutputTexture", {textures.VolumetricLighting, StorageTexture::write}));
+  CHECK_ERR(volumetricLightingShader->Send(context, "VolumeBVH", volumeManager.GetTLAS()));
+  CHECK_ERR(volumetricLightingShader->Send(context, "Volumes", {volumeManager.GetVolumeInstanceData(), StorageBuffer::read}));
+  CHECK_ERR(volumetricLightingShader->Send(context, "DepthTexture", textures.Depth));
+
+  auto frameRandomState = Math::Random(0, 255);
+  CHECK_ERR(Graphics::UniformWriter::Send(volumetricLightingShader, "FrameRandomState", frameRandomState));
+  CHECK_ERR(renderer.BindLightBuffers(context, volumetricLightingShader));
+
+  PushDebugMarker("Volumetrics");
+
+  RenderState::SetShader(volumetricLightingShader);
+
+  CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
+
+  auto volumetricsWriteShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::WriteVolumetrics));
+
+  CHECK_ERR(volumetricsWriteShader->Send(context, "Volumetrics", textures.VolumetricLighting));
+
+  RenderState::SetShader(volumetricsWriteShader);
+  CHECK_ERR(RenderState::SetRenderTargets(context, {{
+                                                       .blendMode = BlendmodeAlphaPremultiplied,
+                                                       .texture = textures.IncomingLight,
+                                                       .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                   }}));
+
+  CHECK_ERR(Renderer::DrawFullScreen(context));
+  PopDebugMarker();
+
+  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(textures.VolumetricLighting));
+
+  return {};
+}
+
+auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
+  auto [width, height] = GetDimensions();
+
+  auto &textures = GetOwnedTextures();
+  const auto &rendertargets = GetRendertargets();
+  auto &renderer = Renderer::RendererInstance;
+  auto &shaderManager = renderer.GetShaderManager();
+
+  PushDebugMarker("Lighting");
+
+  auto lightingShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::SimpleLighting));
+  CHECK_ERR(lightingShader->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
+  CHECK_ERR(lightingShader->Send(context, "AlbedoTexture", textures.Albedo));
+  CHECK_ERR(lightingShader->Send(context, "MaterialTexture", textures.Material));
+  CHECK_ERR(lightingShader->Send(context, "EmissiveTexture", textures.Emissive));
+
+  auto sendInfo = [&](const Ref<Shader> &shader) -> Error {
+    CHECK_ERR(shader->Send(context, "NormalTexture", textures.Normal));
+    CHECK_ERR(shader->Send(context, "DepthTexture", textures.Depth));
+
+    return {};
+  };
+
+  CHECK_ERR(sendInfo(lightingShader));
+
+  CHECK_ERR(UniformWriter::Send(lightingShader, "DirectionalLightCount", renderer.GetSceneLightBuffers().DirectionalLightCount));
+
+  CHECK_ERR(renderer.BindLightBuffers(context, lightingShader));
+
+  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets(
+      {textures.PreviousShadowVisibility, textures.ShadowHitFlags, textures.AmbientOcclusionSamples, textures.PreviousAmbientOcclusion}));
+  textures.PreviousShadowVisibility = textures.ShadowVisibility;
+  textures.PreviousAmbientOcclusion = textures.AmbientOcclusion;
+
+  RenderState::SetShader(lightingShader);
+  CHECK_ERR(lightingShader->Send(context, "ShadowVisibilityTexture", textures.ShadowVisibility));
+
+  textures.DirectLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.DirectLighting));
+
+  CHECK_ERR(RenderState::SetRenderTargets(context, {{
+                                                       .texture = textures.DirectLighting,
+                                                       .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                   }}));
+
+  RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
+
+  CHECK_ERR(Renderer::DrawFullScreen(context));
+
+  // TODO: Remove Normals, Motion and Material here once we need them for post-processing effects
+  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
+      textures.Albedo,
+      textures.Normal,
+      textures.Material,
+      textures.Emissive,
+      textures.Motion,
+  }));
+
+  OwnedTextures.IncomingLight = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.IncomingLight));
+
+  CHECK_ERR(ApplyLightProbes(context, drawData, scene));
+
+  Graphics::RenderState::SetShader({});
+  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
+
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {Graphics::RenderState::RenderTarget{
+                                                                 .blendMode = Graphics::BlendmodeNone,
+                                                                 .texture = OwnedTextures.IncomingLight,
+                                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                             }}));
+
+  CHECK_ERR(Graphics::Draw(context, OwnedTextures.DirectLighting));
+
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {Graphics::RenderState::RenderTarget{
+                                                                 .blendMode = Graphics::BlendmodeAdditive,
+                                                                 .texture = OwnedTextures.IncomingLight,
+                                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                             }}));
+
+  CHECK_ERR(Graphics::Draw(context, OwnedTextures.Irradiance));
+
+  PopDebugMarker();
+
+  return {};
+}
+
 // NOLINTNEXTLINE
-auto Camera::Render(const Graphics::GraphicsContext &context,
-                    const DrawData &drawData, Scene *scene) -> Error {
+auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
 
   CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
       OwnedTextures.DirectLighting,
@@ -416,22 +602,23 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
   OwnedTextures.PreviousDepth = OwnedTextures.Depth;
 
   if (!OwnedTextures.PreviousDepth.isValid()) {
-    OwnedTextures.PreviousDepth =
-        CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
-            context, Rendertargets.Depth));
+    OwnedTextures.PreviousDepth = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.Depth));
   }
 
   auto frustum = drawData.Matrices.GetFrustum();
 
+  CHECK_ERR(scene->PrepareDrawLists(context, frustum));
+
   Graphics::PushDebugMarker("Draw Models");
 
-  CHECK_ERR(scene->DrawModels(*this, frustum, context));
+  CHECK_ERR(scene->DrawOpaqueModels(context, *this));
 
   Graphics::PopDebugMarker();
+  Graphics::PushDebugMarker("Apply lighting");
 
-  OwnedTextures.IncomingLight =
-      CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
-          context, Rendertargets.IncomingLight));
+  CHECK_ERR(ApplyAmbientOcclusion(context));
+  CHECK_ERR(CalculateShadows(context));
+  CHECK_ERR(ApplyLighting(context, drawData, scene));
 
   const auto &entity = scene->currentEnvironment;
   if (entity.is_valid()) {
@@ -446,83 +633,49 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
     }
   }
 
-  CHECK_ERR(ApplyLightProbes(context, drawData, scene));
-  Graphics::PushDebugMarker("Write Lighting to Incoming Light");
+  CHECK_ERR(scene->DrawTransparentModels(context, *this));
+  CHECK_ERR(ApplyVolumetricLighting(context));
 
-  Graphics::RenderState::SetShader({});
-  Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
-  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
-
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {Graphics::RenderState::RenderTarget{
-                   .blendMode = Graphics::BlendmodeNone,
-                   .texture = OwnedTextures.IncomingLight,
-                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-               }}));
-
-  CHECK_ERR(Graphics::Draw(context, OwnedTextures.DirectLighting));
-
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {Graphics::RenderState::RenderTarget{
-                   .blendMode = Graphics::BlendmodeAdditive,
-                   .texture = OwnedTextures.IncomingLight,
-                   .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-               }}));
-
-  CHECK_ERR(Graphics::Draw(context, OwnedTextures.Irradiance));
-
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {Graphics::RenderState::RenderTarget{
-                    .blendMode = Graphics::DefaultBlendMode,
-                    .texture = OwnedTextures.IncomingLight,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                },
-                Graphics::RenderState::RenderTarget{
-                    .blendMode = Graphics::DefaultBlendMode,
-                    .texture = OwnedTextures.Depth,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                }}));
   Graphics::PopDebugMarker();
+
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {Graphics::RenderState::RenderTarget{
+                                                                  .blendMode = Graphics::DefaultBlendMode,
+                                                                  .texture = OwnedTextures.IncomingLight,
+                                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                              },
+                                                              Graphics::RenderState::RenderTarget{
+                                                                  .texture = OwnedTextures.Depth,
+                                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                              }}));
 
   Graphics::PushDebugMarker("Draw Lines");
   CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
-  CHECK_ERR(
-      Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
+  CHECK_ERR(Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
   Graphics::PopDebugMarker();
   Graphics::PushDebugMarker("Temporal Anti-Aliasing");
 
-  auto taaShader =
-      CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
-          Renderer::ShaderKey::TAA));
+  auto taaShader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::TAA));
 
-  OwnedTextures.TAA =
-      CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
-          context, Rendertargets.TemporalAntiAliasing));
+  OwnedTextures.TAA = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.TemporalAntiAliasing));
 
-  CHECK_ERR(Graphics::RenderState::SetRenderTargets(
-      context, {{
-                   .blendMode = Graphics::BlendmodeNone,
-                   .texture = OwnedTextures.TAA,
-                   .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-               }}));
+  CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {{
+                                                                 .blendMode = Graphics::BlendmodeNone,
+                                                                 .texture = OwnedTextures.TAA,
+                                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                                             }}));
 
   if (!OwnedTextures.PreviousTAA.isValid()) {
-    OwnedTextures.PreviousTAA =
-        CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
-            context, Rendertargets.TemporalAntiAliasing));
+    OwnedTextures.PreviousTAA = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.TemporalAntiAliasing));
   }
 
   Graphics::RenderState::SetShader(taaShader);
-  CHECK_ERR(
-      taaShader->Send(context, {"IncomingLight"}, OwnedTextures.IncomingLight));
-  CHECK_ERR(taaShader->Send(context, {"PreviousIncomingLight"},
-                            OwnedTextures.PreviousTAA));
+  CHECK_ERR(taaShader->Send(context, {"IncomingLight"}, OwnedTextures.IncomingLight));
+  CHECK_ERR(taaShader->Send(context, {"PreviousIncomingLight"}, OwnedTextures.PreviousTAA));
   CHECK_ERR(taaShader->Send(context, {"MotionTexture"}, OwnedTextures.Motion));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(
-      OwnedTextures.PreviousTAA));
+  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(OwnedTextures.PreviousTAA));
 
   OwnedTextures.PreviousTAA = OwnedTextures.TAA;
 
@@ -530,8 +683,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
 
   if (settings.DoPostProcessing) {
     Graphics::PushDebugMarker("Apply Bloom");
-    CHECK_ERR(Renderer::RendererInstance.GetBloomManager().ApplyBloom(context,
-                                                                      *this));
+    CHECK_ERR(Renderer::RendererInstance.GetBloomManager().ApplyBloom(context, *this));
     Graphics::PopDebugMarker();
 
     Graphics::PushDebugMarker("Apply Post Processing");
@@ -542,11 +694,8 @@ auto Camera::Render(const Graphics::GraphicsContext &context,
   return {};
 }
 
-auto Camera::RenderSkyboxOnly(const Graphics::GraphicsContext &context,
-                              const Environment &environment) -> Error {
-  OwnedTextures.DirectLighting =
-      CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(
-          context, Rendertargets.DirectLighting));
+auto Camera::RenderSkyboxOnly(const Graphics::GraphicsContext &context, const Environment &environment) -> Error {
+  OwnedTextures.DirectLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.DirectLighting));
 
   CHECK_ERR(FillSkybox(context, environment));
 
@@ -563,8 +712,7 @@ auto Camera::ConfigureRendertargets() -> void {
       .minFilter = VK_FILTER_NEAREST,
       .magFilter = VK_FILTER_NEAREST,
       .mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST,
-      .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-               VK_IMAGE_USAGE_SAMPLED_BIT,
+      .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
   };
 
   Rendertargets.Normal = Renderer::RendertargetDescriptor{
@@ -703,17 +851,23 @@ auto Camera::ConfigureRendertargets() -> void {
       .mipFilter = VK_SAMPLER_MIPMAP_MODE_LINEAR,
       .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
   };
+
+  Rendertargets.VolumetricLighting = Renderer::RendertargetDescriptor{
+      .size = Dimensions,
+      .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+      .minFilter = VK_FILTER_NEAREST,
+      .magFilter = VK_FILTER_NEAREST,
+      .mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+      .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+  };
 }
 
-auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices,
-                           const Transform &transform) const -> Error {
+auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform &transform) const -> Error {
   auto context = *Graphics::GetCurrentGraphicsContext();
 
   assert(sizeof(CameraBufferStruct) == CameraBuffer->GetStride());
 
-  CHECK_ERR(CameraBuffer->GetBuffer()->CopyTo(
-      context, *CameraBuffer->GetBuffer(), 0, sizeof(CameraBufferStruct),
-      sizeof(CameraBufferStruct)));
+  CHECK_ERR(CameraBuffer->GetBuffer()->CopyTo(context, *CameraBuffer->GetBuffer(), 0, sizeof(CameraBufferStruct), sizeof(CameraBufferStruct)));
 
   auto data = CameraBufferStruct{
       .ViewMatrix = cameraMatrices.ViewMatrix,
@@ -723,8 +877,7 @@ auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices,
       .ViewProjectionMatrix = cameraMatrices.ViewProjectionMatrix,
       .InverseViewProjectionMatrix = cameraMatrices.InverseViewProjectionMatrix,
       .RotationProjectionMatrix = cameraMatrices.RotationProjectionMatrix,
-      .InverseRotationProjectionMatrix =
-          cameraMatrices.InverseRotationProjectionMatrix,
+      .InverseRotationProjectionMatrix = cameraMatrices.InverseRotationProjectionMatrix,
       .Position = transform.GetPosition(),
       .Near = NearPlane,
       .Far = FarPlane,
@@ -778,15 +931,11 @@ auto LuaCamera::Create(lua_State *state) -> int {
   const auto *name = luaL_optstring(state, 2, "Camera");
   const auto fov = luaL_optscalar(state, 3, 60.0);
   const auto width = luaL_optint(state, 4, Window::GetWidth(context.sdlWindow));
-  const auto height =
-      luaL_optint(state, 5, Window::GetHeight(context.sdlWindow));
+  const auto height = luaL_optint(state, 5, Window::GetHeight(context.sdlWindow));
   const auto near = luaL_optscalar(state, 6, 0.1F);
   const auto far = luaL_optscalar(state, 7, 1000.0F);
 
-  auto cameraResult = LUA_CK_RES(Camera::Create(
-      context, fov,
-      {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}, near,
-      far));
+  auto cameraResult = LUA_CK_RES(Camera::Create(context, fov, {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}, near, far));
 
   auto entity = scene->world.entity();
   entity.set<Camera>(cameraResult);
@@ -874,8 +1023,7 @@ auto LuaCamera::GetBuffer(lua_State *state) -> int {
   auto obj = LUA_CK_NULL(::LuaWrap::ObjectFromLua<LuaCamera>(state, 1));
   const auto *camera = LUA_CK_NULL(obj->entity.try_get<Camera>());
 
-  ::LuaWrap::PushObject(state, Graphics::StructuredBuffer::GetType(),
-                        camera->GetBuffer().get());
+  ::LuaWrap::PushObject(state, Graphics::StructuredBuffer::GetType(), camera->GetBuffer().get());
   return 1;
 }
 
@@ -906,22 +1054,20 @@ auto LuaCamera::GetRendertarget(lua_State *state) -> int {
 
   const auto *name = luaL_checkstring(state, 2);
 
-  const std::unordered_map<std::string_view,
-                           Ref<Graphics::Texture> Camera::AllocatedTextures::*>
-      allocatedTextureMap = {
-          {"Depth", &Camera::AllocatedTextures::Depth},
-          {"Normal", &Camera::AllocatedTextures::Normal},
-          {"Albedo", &Camera::AllocatedTextures::Albedo},
-          {"Material", &Camera::AllocatedTextures::Material},
-          {"Emissive", &Camera::AllocatedTextures::Emissive},
-          {"Motion", &Camera::AllocatedTextures::Motion},
-          {"IncomingLight", &Camera::AllocatedTextures::IncomingLight},
-          {"TAA", &Camera::AllocatedTextures::TAA},
-          {"PreviousTAA", &Camera::AllocatedTextures::PreviousTAA},
-          {"DirectLighting", &Camera::AllocatedTextures::DirectLighting},
-          {"Irradiance", &Camera::AllocatedTextures::Irradiance},
-          {"PostProcessed", &Camera::AllocatedTextures::PostProcessed},
-      };
+  const std::unordered_map<std::string_view, Ref<Graphics::Texture> Camera::AllocatedTextures::*> allocatedTextureMap = {
+      {"Depth", &Camera::AllocatedTextures::Depth},
+      {"Normal", &Camera::AllocatedTextures::Normal},
+      {"Albedo", &Camera::AllocatedTextures::Albedo},
+      {"Material", &Camera::AllocatedTextures::Material},
+      {"Emissive", &Camera::AllocatedTextures::Emissive},
+      {"Motion", &Camera::AllocatedTextures::Motion},
+      {"IncomingLight", &Camera::AllocatedTextures::IncomingLight},
+      {"TAA", &Camera::AllocatedTextures::TAA},
+      {"PreviousTAA", &Camera::AllocatedTextures::PreviousTAA},
+      {"DirectLighting", &Camera::AllocatedTextures::DirectLighting},
+      {"Irradiance", &Camera::AllocatedTextures::Irradiance},
+      {"PostProcessed", &Camera::AllocatedTextures::PostProcessed},
+  };
 
   auto iter = allocatedTextureMap.find(name);
   if (iter == allocatedTextureMap.end()) {
@@ -952,8 +1098,7 @@ auto LuaCamera::SetDimensions(lua_State *state) -> int {
   const auto width = luaL_checkinteger(state, 2);
   const auto height = luaL_checkinteger(state, 3);
 
-  camera->SetDimensions(
-      {static_cast<uint32_t>(width), static_cast<uint32_t>(height)});
+  camera->SetDimensions({static_cast<uint32_t>(width), static_cast<uint32_t>(height)});
 
   return 0;
 }
@@ -1002,21 +1147,19 @@ auto LuaCamera::SetHeight(lua_State *state) -> int {
   return 0;
 }
 
-const std::unordered_map<std::string_view,
-                         bool Camera::PersistentTextureSettings::*>
-    persistentTextureMap = {
-        {"Depth", &Camera::PersistentTextureSettings::Depth},
-        {"Normal", &Camera::PersistentTextureSettings::Normal},
-        {"Albedo", &Camera::PersistentTextureSettings::Albedo},
-        {"Material", &Camera::PersistentTextureSettings::Material},
-        {"Emissive", &Camera::PersistentTextureSettings::Emissive},
-        {"Motion", &Camera::PersistentTextureSettings::Motion},
-        {"IncomingLight", &Camera::PersistentTextureSettings::IncomingLight},
-        {"TAA", &Camera::PersistentTextureSettings::TAA},
-        {"PreviousTAA", &Camera::PersistentTextureSettings::PreviousTAA},
-        {"DirectLighting", &Camera::PersistentTextureSettings::DirectLighting},
-        {"Irradiance", &Camera::PersistentTextureSettings::Irradiance},
-        {"PostProcessed", &Camera::PersistentTextureSettings::PostProcessed},
+const std::unordered_map<std::string_view, bool Camera::PersistentTextureSettings::*> persistentTextureMap = {
+    {"Depth", &Camera::PersistentTextureSettings::Depth},
+    {"Normal", &Camera::PersistentTextureSettings::Normal},
+    {"Albedo", &Camera::PersistentTextureSettings::Albedo},
+    {"Material", &Camera::PersistentTextureSettings::Material},
+    {"Emissive", &Camera::PersistentTextureSettings::Emissive},
+    {"Motion", &Camera::PersistentTextureSettings::Motion},
+    {"IncomingLight", &Camera::PersistentTextureSettings::IncomingLight},
+    {"TAA", &Camera::PersistentTextureSettings::TAA},
+    {"PreviousTAA", &Camera::PersistentTextureSettings::PreviousTAA},
+    {"DirectLighting", &Camera::PersistentTextureSettings::DirectLighting},
+    {"Irradiance", &Camera::PersistentTextureSettings::Irradiance},
+    {"PostProcessed", &Camera::PersistentTextureSettings::PostProcessed},
 };
 
 auto LuaCamera::GetPersistentTextureSettings(lua_State *state) -> int {
@@ -1059,40 +1202,37 @@ auto LuaCamera::SetPersistentTextureSettings(lua_State *state) -> int {
 }
 
 auto GetLuaCameraClass() -> ::LuaWrap::LuaClass {
-  const ::LuaWrap::LuaClass LuaCameraClass = {
-      .Name = "Camera",
-      .Type = LuaCamera::GetType(),
-      .Methods =
-          {
-              {"getAspectRatio", LuaCamera::GetAspectRatio},
-              {"setAspectRatio", LuaCamera::SetAspectRatio},
-              {"getVerticalFOV", LuaCamera::GetVerticalFOV},
-              {"setVerticalFOV", LuaCamera::SetVerticalFOV},
-              {"getNearPlane", LuaCamera::GetNearPlane},
-              {"setNearPlane", LuaCamera::SetNearPlane},
-              {"getFarPlane", LuaCamera::GetFarPlane},
-              {"setFarPlane", LuaCamera::SetFarPlane},
-              {"getBuffer", LuaCamera::GetBuffer},
-              {"render", LuaCamera::Render},
-              {"getRendertarget", LuaCamera::GetRendertarget},
-              {"getDimensions", LuaCamera::GetDimensions},
-              {"setDimensions", LuaCamera::SetDimensions},
-              {"getWidth", LuaCamera::GetWidth},
-              {"setWidth", LuaCamera::SetWidth},
-              {"getHeight", LuaCamera::GetHeight},
-              {"setHeight", LuaCamera::SetHeight},
-              {"getPersistentTextureSettings",
-               LuaCamera::GetPersistentTextureSettings},
-              {"setPersistentTextureSettings",
-               LuaCamera::SetPersistentTextureSettings},
-          },
-      .Components = {
-          TransformComponent,
-          CameraMatricesComponent,
-          FrustumComponent,
-          DisplayNameComponent,
-          UserdataComponent,
-      }};
+  const ::LuaWrap::LuaClass LuaCameraClass = {.Name = "Camera",
+                                              .Type = LuaCamera::GetType(),
+                                              .Methods =
+                                                  {
+                                                      {"getAspectRatio", LuaCamera::GetAspectRatio},
+                                                      {"setAspectRatio", LuaCamera::SetAspectRatio},
+                                                      {"getVerticalFOV", LuaCamera::GetVerticalFOV},
+                                                      {"setVerticalFOV", LuaCamera::SetVerticalFOV},
+                                                      {"getNearPlane", LuaCamera::GetNearPlane},
+                                                      {"setNearPlane", LuaCamera::SetNearPlane},
+                                                      {"getFarPlane", LuaCamera::GetFarPlane},
+                                                      {"setFarPlane", LuaCamera::SetFarPlane},
+                                                      {"getBuffer", LuaCamera::GetBuffer},
+                                                      {"render", LuaCamera::Render},
+                                                      {"getRendertarget", LuaCamera::GetRendertarget},
+                                                      {"getDimensions", LuaCamera::GetDimensions},
+                                                      {"setDimensions", LuaCamera::SetDimensions},
+                                                      {"getWidth", LuaCamera::GetWidth},
+                                                      {"setWidth", LuaCamera::SetWidth},
+                                                      {"getHeight", LuaCamera::GetHeight},
+                                                      {"setHeight", LuaCamera::SetHeight},
+                                                      {"getPersistentTextureSettings", LuaCamera::GetPersistentTextureSettings},
+                                                      {"setPersistentTextureSettings", LuaCamera::SetPersistentTextureSettings},
+                                                  },
+                                              .Components = {
+                                                  TransformComponent,
+                                                  CameraMatricesComponent,
+                                                  FrustumComponent,
+                                                  DisplayNameComponent,
+                                                  UserdataComponent,
+                                              }};
 
   return LuaCameraClass;
 }

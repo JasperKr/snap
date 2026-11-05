@@ -28,16 +28,13 @@ public:
   static std::mutex CompactionMutex;
   static std::mutex ScratchBufferMutex;
 
-  auto GetBVHScratchBuffer(const GraphicsContext &context,
-                           VkDeviceSize minimumSize) -> Result<Ref<Buffer>>;
+  auto GetBVHScratchBuffer(const GraphicsContext &context, VkDeviceSize minimumSize) -> Result<Ref<Buffer>>;
 
   auto Initialize(const GraphicsContext &context) -> Error;
   auto DeInitialize() -> void;
   auto Update(const GraphicsContext &context) -> Error;
 
-  [[nodiscard]] auto GetCompactionEvents() -> std::vector<CompactionEvent> & {
-    return CompactionEvents;
-  }
+  [[nodiscard]] auto GetCompactionEvents() -> std::vector<CompactionEvent> & { return CompactionEvents; }
 
   auto AddCompactionEvent(const CompactionEvent &event) -> void {
     std::lock_guard<std::mutex> lock(CompactionMutex);
@@ -58,8 +55,7 @@ auto DeInitializeBVHModule() -> void;
 
 static const Type LuaBLASType = Type("BottomLevelAccelerationStructure");
 static const Type LuaTLASType = Type("TopLevelAccelerationStructure");
-static constexpr size_t InitialTLASInstanceBufferCapacity =
-    1024UL; // 1k instances
+static constexpr size_t InitialTLASInstanceBufferCapacity = 1024UL; // 1k instances
 
 // Bottom-Level Acceleration Structure.
 struct BLAS : Object, Identifiable {
@@ -76,24 +72,18 @@ struct BLAS : Object, Identifiable {
     }
 
     ScheduleDestruction<VkAccelerationStructureKHR>(
-        [](const GraphicsContext &context,
-           VkAccelerationStructureKHR accelerationStructure) -> auto {
-          vkDestroyAccelerationStructureKHR(
-              context.device, accelerationStructure, GetAllocationCallbacks());
+        [](const GraphicsContext &context, VkAccelerationStructureKHR accelerationStructure) -> auto {
+          vkDestroyAccelerationStructureKHR(context.device, accelerationStructure, GetAllocationCallbacks());
         },
         SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
   }
 
-  static auto Create(const GraphicsContext &context, const struct Mesh &mesh)
-      -> Result<Ref<BLAS>>;
+  static auto Create(const GraphicsContext &context, const struct Mesh &mesh) -> Result<Ref<BLAS>>;
 
-  static auto Create(const GraphicsContext &context, const Ref<Buffer> &aabbs,
-                     uint32_t count) -> Result<Ref<BLAS>>;
+  static auto Create(const GraphicsContext &context, const Ref<Buffer> &aabbs, uint32_t count) -> Result<Ref<BLAS>>;
 
   static auto GetType() -> Type const * { return &LuaBLASType; }
-  auto GetInstanceType() const -> Type const * override {
-    return BLAS::GetType();
-  }
+  auto GetInstanceType() const -> Type const * override { return BLAS::GetType(); }
 
   [[nodiscard]] auto GetDeviceAddress() const -> VkDeviceAddress;
 
@@ -102,8 +92,7 @@ struct BLAS : Object, Identifiable {
   auto Compact(const GraphicsContext &context) -> Error;
 
   // DO NOT USE. INTERNAL
-  auto FinalizeCompaction(const GraphicsContext &context,
-                          VkDeviceSize compactedSize) -> Error;
+  auto FinalizeCompaction(const GraphicsContext &context, VkDeviceSize compactedSize) -> Error;
 
   static std::atomic<size_t> TotalAllocatedMemory;
 
@@ -154,43 +143,29 @@ struct TLAS : Object, Identifiable {
     }
 
     ScheduleDestruction<VkAccelerationStructureKHR>(
-        [](const GraphicsContext &context,
-           VkAccelerationStructureKHR accelerationStructure) -> auto {
-          vkDestroyAccelerationStructureKHR(
-              context.device, accelerationStructure, GetAllocationCallbacks());
+        [](const GraphicsContext &context, VkAccelerationStructureKHR accelerationStructure) -> auto {
+          vkDestroyAccelerationStructureKHR(context.device, accelerationStructure, GetAllocationCallbacks());
         },
         SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
   }
 
-  static auto Create(const GraphicsContext &context,
-                     const std::string_view &debugname = "Unnamed TLAS")
-      -> Result<Ref<TLAS>>;
+  static auto Create(const GraphicsContext &context, const std::string_view &debugname = "Unnamed TLAS") -> Result<Ref<TLAS>>;
 
   static auto GetType() -> Type const * { return &LuaTLASType; }
-  auto GetInstanceType() const -> Type const * override {
-    return TLAS::GetType();
-  }
+  auto GetInstanceType() const -> Type const * override { return TLAS::GetType(); }
 
   [[nodiscard]] auto GetDeviceAddress() const -> VkDeviceAddress;
 
-  auto AddInstance(const Ref<BLAS> &blas, const Math::Matrix4x4 &transform)
-      -> Result<uint32_t>;
+  auto AddInstance(const Ref<BLAS> &blas, const Math::Matrix4x4 &transform, VkGeometryInstanceFlagsKHR flags) -> Result<uint32_t>;
   auto RemoveInstance(uint32_t index) -> void;
   auto UpdateInstance(uint32_t index, const Math::Matrix4x4 &transform) -> void;
 
-  auto GetInstances() const
-      -> const std::vector<VkAccelerationStructureInstanceKHR> & {
-    return instances;
-  }
+  auto GetInstances() const -> const std::vector<VkAccelerationStructureInstanceKHR> & { return instances; }
 
   auto GetInstanceBuffer() const -> Ref<Buffer> { return instanceBuffer; }
-  auto GetTLASBuffer() const -> Ref<Buffer> {
-    return accelerationStructureBuffer;
-  }
+  auto GetTLASBuffer() const -> Ref<Buffer> { return accelerationStructureBuffer; }
 
-  auto GetAccelerationStructure() const -> VkAccelerationStructureKHR {
-    return accelerationStructure;
-  }
+  auto GetAccelerationStructure() const -> VkAccelerationStructureKHR { return accelerationStructure; }
 
   auto Refit(const GraphicsContext &context) -> Error;
   auto Rebuild(const GraphicsContext &context) -> Error;

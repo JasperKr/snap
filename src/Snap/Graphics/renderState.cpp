@@ -40,8 +40,7 @@ inline auto SetupDefaultState(const GraphicsContext &context) -> Result<State> {
   defaultState.viewport = {};
   defaultState.scissor = {};
 
-  auto const &texture =
-      context.swapchainInfo.textures[context.swapchainImageIndex];
+  auto const &texture = context.swapchainInfo.textures[context.swapchainImageIndex];
 
   RenderTarget swapchainRendertarget{};
 
@@ -55,8 +54,7 @@ inline auto SetupDefaultState(const GraphicsContext &context) -> Result<State> {
 }
 
 auto Load(const GraphicsContext &context) -> Error {
-  assert(StateStack.size() == 0 &&
-         "RenderTarget state stack is not empty on Load.");
+  assert(StateStack.size() == 0 && "RenderTarget state stack is not empty on Load.");
 
   auto state = CHECK_RES(SetupDefaultState(context));
 
@@ -111,8 +109,7 @@ void Shutdown(const GraphicsContext &context) {
   QuadMesh.reset();
 }
 
-auto IsSwapchainTexture(const GraphicsContext &context,
-                        const Graphics::Texture &texture) -> bool {
+auto IsSwapchainTexture(const GraphicsContext &context, const Graphics::Texture &texture) -> bool {
   for (const auto &swapchainTexture : context.swapchainInfo.textures) {
     if (swapchainTexture.get() == &texture) {
       return true;
@@ -135,8 +132,7 @@ auto FinalizeFrame(const GraphicsContext &context) -> Error {
   for (auto &rendertarget : TopOfStack->colorAttachments) {
     [[unlikely]]
     if (!IsSwapchainTexture(context, *rendertarget.texture)) {
-      return Error::Create(
-          "Non-swapchain render targets remain bound at end of frame.");
+      return Error::Create("Non-swapchain render targets remain bound at end of frame.");
     }
   }
 
@@ -161,10 +157,8 @@ auto BeginFrame(const GraphicsContext &context) -> Error {
 
 // Setters //
 
-auto SetDepthMode(bool enable, bool writeEnable, VkCompareOp compareOp)
-    -> void {
-  if (TopOfStack->depthTestEnable == static_cast<VkBool32>(enable) &&
-      TopOfStack->depthWriteEnable == static_cast<VkBool32>(writeEnable) &&
+auto SetDepthMode(bool enable, bool writeEnable, VkCompareOp compareOp) -> void {
+  if (TopOfStack->depthTestEnable == static_cast<VkBool32>(enable) && TopOfStack->depthWriteEnable == static_cast<VkBool32>(writeEnable) &&
       TopOfStack->depthCompareOp == compareOp) {
     return;
   }
@@ -206,10 +200,8 @@ auto SetViewport(const VkViewport *viewport) -> void {
     return;
   }
 
-  if (TopOfStack->hasViewport && TopOfStack->viewport.x == viewport->x &&
-      TopOfStack->viewport.y == viewport->y &&
-      TopOfStack->viewport.width == viewport->width &&
-      TopOfStack->viewport.height == viewport->height) {
+  if (TopOfStack->hasViewport && TopOfStack->viewport.x == viewport->x && TopOfStack->viewport.y == viewport->y &&
+      TopOfStack->viewport.width == viewport->width && TopOfStack->viewport.height == viewport->height) {
     return;
   }
 
@@ -231,11 +223,8 @@ auto SetScissor(const VkRect2D *scissor) -> void {
     return;
   }
 
-  if (TopOfStack->hasScissor &&
-      TopOfStack->scissor.offset.x == scissor->offset.x &&
-      TopOfStack->scissor.offset.y == scissor->offset.y &&
-      TopOfStack->scissor.extent.width == scissor->extent.width &&
-      TopOfStack->scissor.extent.height == scissor->extent.height) {
+  if (TopOfStack->hasScissor && TopOfStack->scissor.offset.x == scissor->offset.x && TopOfStack->scissor.offset.y == scissor->offset.y &&
+      TopOfStack->scissor.extent.width == scissor->extent.width && TopOfStack->scissor.extent.height == scissor->extent.height) {
     return;
   }
 
@@ -246,20 +235,15 @@ auto SetScissor(const VkRect2D *scissor) -> void {
 }
 
 auto ClipScissor(const VkRect2D &scissor) -> void {
-  TopOfStack
-      ->MarkUpdated(); // We just assume the scissor is changing, so mark the state as dirty
+  TopOfStack->MarkUpdated(); // We just assume the scissor is changing, so mark the state as dirty
   auto &currentScissor = TopOfStack->scissor;
 
   int32_t rectMinX = std::max(currentScissor.offset.x, scissor.offset.x);
   int32_t rectMinY = std::max(currentScissor.offset.y, scissor.offset.y);
   int32_t rectMaxX =
-      std::min(currentScissor.offset.x +
-                   static_cast<int32_t>(currentScissor.extent.width),
-               scissor.offset.x + static_cast<int32_t>(scissor.extent.width));
+      std::min(currentScissor.offset.x + static_cast<int32_t>(currentScissor.extent.width), scissor.offset.x + static_cast<int32_t>(scissor.extent.width));
   int32_t rectMaxY =
-      std::min(currentScissor.offset.y +
-                   static_cast<int32_t>(currentScissor.extent.height),
-               scissor.offset.y + static_cast<int32_t>(scissor.extent.height));
+      std::min(currentScissor.offset.y + static_cast<int32_t>(currentScissor.extent.height), scissor.offset.y + static_cast<int32_t>(scissor.extent.height));
 
   if (rectMaxX < rectMinX || rectMaxY < rectMinY) {
     // No intersection, set to zero area
@@ -290,8 +274,7 @@ auto SetShader(const Ref<Shader> &shader) -> void {
     TopOfStack->shader = shader;
   }
 
-  if ((TopOfStack->shader->combinedShaderStages &
-       VK_SHADER_STAGE_COMPUTE_BIT) != 0) {
+  if ((TopOfStack->shader->combinedShaderStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0) {
     RenderState::SetBindPoint(VK_PIPELINE_BIND_POINT_COMPUTE);
   } else {
     RenderState::SetBindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -299,8 +282,7 @@ auto SetShader(const Ref<Shader> &shader) -> void {
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto SetRenderTargets(const GraphicsContext &context,
-                      const std::vector<RenderTarget> &renderTargets) -> Error {
+auto SetRenderTargets(const GraphicsContext &context, const std::vector<RenderTarget> &renderTargets) -> Error {
   TopOfStack->MarkUpdated();
 
   ERR_ASSERT(!renderTargets.empty());
@@ -309,8 +291,7 @@ auto SetRenderTargets(const GraphicsContext &context,
   bool topHadDepthStencil = TopOfStack->hasDepthStencilAttachment;
   TopOfStack->hasDepthStencilAttachment = false;
 
-  VkExtent2D expectedExtent = {renderTargets.front().texture->GetWidth(),
-                               renderTargets.front().texture->GetHeight()};
+  VkExtent2D expectedExtent = {renderTargets.front().texture->GetWidth(), renderTargets.front().texture->GetHeight()};
 
   TopOfStack->colorAttachments.clear();
   TopOfStack->colorBlendEquations.clear();
@@ -349,25 +330,22 @@ auto SetRenderTargets(const GraphicsContext &context,
   }
 
   if (GetIsCurrentlyRendering()) {
-    ClearInfo clearInfo{};
+    std::vector<VkClearColorValue> clearColors;
+    VkClearDepthStencilValue clearDepthStencilValue;
+    bool clearDepthStencil = false;
+
     for (const auto &target : TopOfStack->colorAttachments) {
       if (target.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR) {
-        clearInfo.colors.emplace_back(target.clearValue.color.float32[0],
-                                      target.clearValue.color.float32[1],
-                                      target.clearValue.color.float32[2],
-                                      target.clearValue.color.float32[3]);
+        clearColors.emplace_back(target.clearValue.color);
       }
     }
 
-    if (TopOfStack->hasDepthStencilAttachment &&
-        TopOfStack->depthStencilAttachment.loadOp ==
-            VK_ATTACHMENT_LOAD_OP_CLEAR) {
-      clearInfo.clearDepth = true;
-      clearInfo.depthClearValue =
-          TopOfStack->depthStencilAttachment.clearValue.depthStencil.depth;
+    if (TopOfStack->hasDepthStencilAttachment && TopOfStack->depthStencilAttachment.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR) {
+      clearDepthStencil = true;
+      clearDepthStencilValue = TopOfStack->depthStencilAttachment.clearValue.depthStencil;
     }
 
-    CHECK_ERR(Clear(context, clearInfo));
+    CHECK_ERR(Clear(context, clearColors.data(), clearColors.size(), clearDepthStencilValue, clearDepthStencil, clearDepthStencil));
   }
 
   return Error::Success();
@@ -393,10 +371,7 @@ auto SetTopology(VkPrimitiveTopology topology) -> void {
 
 // Getters //
 
-auto GetDepthMode() -> std::tuple<bool, bool, VkCompareOp> {
-  return {TopOfStack->depthTestEnable, TopOfStack->depthWriteEnable,
-          TopOfStack->depthCompareOp};
-}
+auto GetDepthMode() -> std::tuple<bool, bool, VkCompareOp> { return {TopOfStack->depthTestEnable, TopOfStack->depthWriteEnable, TopOfStack->depthCompareOp}; }
 
 auto GetCullMode() -> VkCullModeFlags { return TopOfStack->cullMode; }
 
@@ -518,17 +493,13 @@ auto GetRenderTargets() -> std::vector<RenderTarget> {
 
 auto GetWindingOrder() -> VkFrontFace { return TopOfStack->frontFace; }
 
-auto GetTopology() -> VkPrimitiveTopology {
-  return TopOfStack->primitiveTopology;
-}
+auto GetTopology() -> VkPrimitiveTopology { return TopOfStack->primitiveTopology; }
 
-auto SetBindPoint(VkPipelineBindPoint bindPoint) -> void {
-  TopOfStack->bindPoint = bindPoint;
-}
+auto SetBindPoint(VkPipelineBindPoint bindPoint) -> void { TopOfStack->bindPoint = bindPoint; }
 auto GetBindPoint() -> VkPipelineBindPoint { return TopOfStack->bindPoint; }
 
-auto Clear(const GraphicsContext &context, const ClearInfo &clearInfo)
-    -> Error {
+auto Clear(const GraphicsContext &context, VkClearColorValue const *pColors, uint32_t colorCount, VkClearDepthStencilValue clearDepthStencilValue,
+           bool clearDepth, bool clearStencil) -> Error {
   ZoneScoped;
 
   auto *commandBuffer = Graphics::GetVirtualCommandBuffer();
@@ -537,13 +508,11 @@ auto Clear(const GraphicsContext &context, const ClearInfo &clearInfo)
     return Error::Create("Command buffer is null in Clear.");
   }
 
-  if (!clearInfo.clearDepth && !clearInfo.clearStencil &&
-      clearInfo.colors.empty()) {
+  if (!clearDepth && !clearStencil && colorCount == 0) {
     return {};
   }
 
-  Math::StackVector<VkClearAttachment, MAX_COLOR_ATTACHMENTS + 1>
-      clearAttachments{};
+  Math::StackVector<VkClearAttachment, MAX_COLOR_ATTACHMENTS + 1> clearAttachments{};
   Math::StackVector<VkClearRect, MAX_COLOR_ATTACHMENTS> clearRects{};
 
   VkClearRect clearRect = {};
@@ -560,35 +529,32 @@ auto Clear(const GraphicsContext &context, const ClearInfo &clearInfo)
   clearRect.baseArrayLayer = 0;
   clearRect.layerCount = 1;
 
-  for (uint32_t i = 0; i < TopOfStack->colorAttachments.size(); i++) {
+  assert(colorCount <= TopOfStack->colorAttachments.size());
+
+  for (uint32_t i = 0; i < colorCount; i++) {
     VkClearAttachment clearAttachment = {};
     const auto &rendertarget = TopOfStack->colorAttachments.at(i);
 
     clearAttachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     clearAttachment.colorAttachment = i;
-    auto color = clearInfo.colors.size() > i ? clearInfo.colors[i]
-                                             : Color{0.0F, 0.0F, 0.0F, 1.0F};
-    clearAttachment.clearValue.color.float32[0] = color.r;
-    clearAttachment.clearValue.color.float32[1] = color.g;
-    clearAttachment.clearValue.color.float32[2] = color.b;
-    clearAttachment.clearValue.color.float32[3] = color.a;
+    clearAttachment.clearValue.color = pColors[i]; // NOLINT
 
     clearAttachments.emplace_back(clearAttachment);
     clearRects.emplace_back(clearRect);
   }
 
-  if (clearInfo.clearDepth) {
+  if (clearDepth || clearStencil) {
     VkClearAttachment clearAttachment = {};
-    clearAttachment.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    clearAttachment.clearValue.depthStencil.depth = clearInfo.depthClearValue;
+    clearAttachment.aspectMask =
+        (clearDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_NONE) | (clearStencil ? VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_NONE);
+    clearAttachment.clearValue.depthStencil = clearDepthStencilValue;
 
     clearAttachments.emplace_back(clearAttachment);
     clearRects.emplace_back(clearRect);
   }
 
-  CHECK_ERR(commandBuffer->ClearAttachments(
-      static_cast<uint32_t>(clearAttachments.size()), clearAttachments.data(),
-      static_cast<uint32_t>(clearRects.size()), clearRects.data()));
+  CHECK_ERR(commandBuffer->ClearAttachments(static_cast<uint32_t>(clearAttachments.size()), clearAttachments.data(), static_cast<uint32_t>(clearRects.size()),
+                                            clearRects.data()));
 
   return Error::Success();
 }

@@ -55,15 +55,11 @@ std::vector<std::vector<std::uint8_t>> Buffers;
 std::unordered_map<std::string, std::vector<std::uint8_t>> URICache;
 std::mutex URICacheMutex{};
 std::unordered_map<std::string, uint16_t> NameDuplicateCount;
-std::vector<
-    std::variant<Ref<Image::ImageData>, Ref<Image::CompressedImageData>>>
-    ImageCache;
+std::vector<std::variant<Ref<Image::ImageData>, Ref<Image::CompressedImageData>>> ImageCache;
 std::vector<Ref<Graphics::Texture>> TextureCache;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-constexpr fastgltf::Extensions Extensions =
-    fastgltf::Extensions::KHR_lights_punctual |
-    fastgltf::Extensions::MSFT_texture_dds;
+constexpr fastgltf::Extensions Extensions = fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::MSFT_texture_dds;
 
 inline auto GetUniqueName(const std::string &baseName) -> std::string {
   auto countIter = NameDuplicateCount.find(baseName);
@@ -82,23 +78,17 @@ inline auto GetUniqueName(const std::string &baseName) -> std::string {
   return baseName + "_" + std::to_string(count);
 }
 
-inline auto GetUniqueName(const char *baseName) -> std::string {
-  return GetUniqueName(std::string(baseName));
-}
+inline auto GetUniqueName(const char *baseName) -> std::string { return GetUniqueName(std::string(baseName)); }
 
 using DataIndex = size_t;
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static fastgltf::Parser Parser = fastgltf::Parser(Extensions);
 
-inline auto LoadDataSource(const fastgltf::Asset &asset,
-                           const std::string_view &basePath,
-                           const fastgltf::DataSource &dataSource)
+inline auto LoadDataSource(const fastgltf::Asset &asset, const std::string_view &basePath, const fastgltf::DataSource &dataSource)
     -> Result<std::span<uint8_t>>;
 
-inline auto LoadBufferView(const fastgltf::Asset &asset,
-                           const fastgltf::BufferView &bufferView)
-    -> Result<std::span<uint8_t>> {
+inline auto LoadBufferView(const fastgltf::Asset &asset, const fastgltf::BufferView &bufferView) -> Result<std::span<uint8_t>> {
   const auto &buffer = asset.buffers[bufferView.bufferIndex];
 
   const auto byteOffset = static_cast<long>(bufferView.byteOffset);
@@ -108,8 +98,7 @@ inline auto LoadBufferView(const fastgltf::Asset &asset,
     return Error::Unexpected("BufferView has negative byte offset or length.");
   }
 
-  if (bufferView.bufferIndex < 0 ||
-      static_cast<size_t>(bufferView.bufferIndex) >= asset.buffers.size()) {
+  if (bufferView.bufferIndex < 0 || static_cast<size_t>(bufferView.bufferIndex) >= asset.buffers.size()) {
     return Error::Unexpected("BufferView has invalid buffer index.");
   }
 
@@ -117,8 +106,7 @@ inline auto LoadBufferView(const fastgltf::Asset &asset,
     return Error::Unexpected("BufferView buffer index out of bounds.");
   }
 
-  if (static_cast<size_t>(byteOffset) + static_cast<size_t>(byteLength) >
-      Buffers[bufferView.bufferIndex].size()) {
+  if (static_cast<size_t>(byteOffset) + static_cast<size_t>(byteLength) > Buffers[bufferView.bufferIndex].size()) {
     return Error::Unexpected("BufferView byte range exceeds buffer size.");
   }
 
@@ -128,9 +116,7 @@ inline auto LoadBufferView(const fastgltf::Asset &asset,
                             byteLength);
 }
 
-inline auto LoadURI(const std::string_view &basePath,
-                    const fastgltf::sources::URI &uriSource)
-    -> Result<std::span<uint8_t>> {
+inline auto LoadURI(const std::string_view &basePath, const fastgltf::sources::URI &uriSource) -> Result<std::span<uint8_t>> {
 
   const auto &uri = uriSource.uri;
   const auto &path = Path::Join(basePath, uri.path());
@@ -152,9 +138,7 @@ inline auto LoadURI(const std::string_view &basePath,
   }
 }
 
-inline auto LoadDataSource(const fastgltf::Asset &asset,
-                           const std::string_view &basePath,
-                           const fastgltf::DataSource &dataSource)
+inline auto LoadDataSource(const fastgltf::Asset &asset, const std::string_view &basePath, const fastgltf::DataSource &dataSource)
     -> Result<std::span<uint8_t>> {
   ZoneScoped;
 
@@ -178,10 +162,7 @@ inline auto LoadDataSource(const fastgltf::Asset &asset,
 
     // NOLINTBEGIN
 
-    auto dataSpan =
-        std::span<uint8_t>(reinterpret_cast<uint8_t *>(const_cast<std::byte *>(
-                               arraySource.bytes.data())),
-                           arraySource.bytes.size());
+    auto dataSpan = std::span<uint8_t>(reinterpret_cast<uint8_t *>(const_cast<std::byte *>(arraySource.bytes.data())), arraySource.bytes.size());
 
     // NOLINTEND
 
@@ -191,30 +172,22 @@ inline auto LoadDataSource(const fastgltf::Asset &asset,
     const auto &vectorSource = std::get<fastgltf::sources::Vector>(dataSource);
 
     // NOLINTBEGIN
-    auto dataSpan =
-        std::span<uint8_t>(reinterpret_cast<uint8_t *>(const_cast<std::byte *>(
-                               vectorSource.bytes.data())),
-                           vectorSource.bytes.size());
+    auto dataSpan = std::span<uint8_t>(reinterpret_cast<uint8_t *>(const_cast<std::byte *>(vectorSource.bytes.data())), vectorSource.bytes.size());
     // NOLINTEND
 
     return dataSpan;
   }
   if (std::holds_alternative<fastgltf::sources::CustomBuffer>(dataSource)) {
-    const auto &customBufferSource =
-        std::get<fastgltf::sources::CustomBuffer>(dataSource);
+    const auto &customBufferSource = std::get<fastgltf::sources::CustomBuffer>(dataSource);
 
     return Error::Unexpected("Custom buffers not supported.");
   }
   if (std::holds_alternative<fastgltf::sources::ByteView>(dataSource)) {
-    const auto &byteViewSource =
-        std::get<fastgltf::sources::ByteView>(dataSource);
+    const auto &byteViewSource = std::get<fastgltf::sources::ByteView>(dataSource);
 
     // NOLINTBEGIN
 
-    auto dataSpan =
-        std::span<uint8_t>(reinterpret_cast<uint8_t *>(const_cast<std::byte *>(
-                               byteViewSource.bytes.data())),
-                           byteViewSource.bytes.size());
+    auto dataSpan = std::span<uint8_t>(reinterpret_cast<uint8_t *>(const_cast<std::byte *>(byteViewSource.bytes.data())), byteViewSource.bytes.size());
     // NOLINTEND
 
     return dataSpan;
@@ -223,22 +196,16 @@ inline auto LoadDataSource(const fastgltf::Asset &asset,
   return Error::Unexpected("Unsupported data source.");
 }
 
-inline auto LoadTexture(const Graphics::GraphicsContext &context,
-                        const fastgltf::Asset &asset,
-                        const std::string_view &basePath,
-                        const fastgltf::TextureInfo &gltfTexture)
-    -> Result<Ref<Graphics::Texture>> {
+inline auto LoadTexture(const Graphics::GraphicsContext &context, const fastgltf::Asset &asset, const std::string_view &basePath,
+                        const fastgltf::TextureInfo &gltfTexture) -> Result<Ref<Graphics::Texture>> {
   ZoneScoped;
 
-  if (gltfTexture.textureIndex < TextureCache.size() &&
-      TextureCache[gltfTexture.textureIndex].isValid()) {
+  if (gltfTexture.textureIndex < TextureCache.size() && TextureCache[gltfTexture.textureIndex].isValid()) {
     return TextureCache[gltfTexture.textureIndex];
   }
 
   const auto &texture = asset.textures[gltfTexture.textureIndex];
-  const auto &sampler = texture.samplerIndex.has_value()
-                            ? asset.samplers[texture.samplerIndex.value()]
-                            : fastgltf::Sampler{};
+  const auto &sampler = texture.samplerIndex.has_value() ? asset.samplers[texture.samplerIndex.value()] : fastgltf::Sampler{};
 
   if (!texture.imageIndex.has_value()) {
     return Error::Unexpected("Texture has no image index.");
@@ -252,22 +219,17 @@ inline auto LoadTexture(const Graphics::GraphicsContext &context,
   const auto &image = ImageCache[texture.imageIndex.value()];
 
   if (std::holds_alternative<Ref<Image::ImageData>>(image)) {
-    textureRef = CHECK_RES(Graphics::Texture::FromMemory(
-        context, *std::get<Ref<Image::ImageData>>(image).get(),
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        Graphics::TextureMipmapOption::Init));
+    textureRef = CHECK_RES(Graphics::Texture::FromMemory(context, *std::get<Ref<Image::ImageData>>(image).get(),
+                                                         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, Graphics::TextureMipmapOption::Init));
   } else if (std::holds_alternative<Ref<Image::CompressedImageData>>(image)) {
-    textureRef = CHECK_RES(Graphics::Texture::FromMemory(
-        context, *std::get<Ref<Image::CompressedImageData>>(image).get(),
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        Graphics::TextureMipmapOption::Manual));
+    textureRef = CHECK_RES(Graphics::Texture::FromMemory(context, *std::get<Ref<Image::CompressedImageData>>(image).get(),
+                                                         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, Graphics::TextureMipmapOption::Manual));
   } else {
     return Error::Unexpected("Invalid image type in cache.");
   }
 
   textureRef->SetLodRange(0.0F, (float)textureRef->GetMipmapCount() - 1);
-  textureRef->SetFilter(VK_FILTER_LINEAR, VK_FILTER_LINEAR,
-                        VK_SAMPLER_MIPMAP_MODE_LINEAR);
+  textureRef->SetFilter(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR);
 
   if (TextureCache.size() <= gltfTexture.textureIndex) {
     TextureCache.resize(gltfTexture.textureIndex + 100UL); // NOLINT
@@ -278,34 +240,25 @@ inline auto LoadTexture(const Graphics::GraphicsContext &context,
   return textureRef;
 }
 
-inline auto LoadMaterial(const Graphics::GraphicsContext &context,
-                         const fastgltf::Asset &asset,
-                         const std::string_view &basePath,
-                         const fastgltf::Material &gltfMaterial,
-                         Ref<Engine::Renderer::LuaMaterial> &luaMaterial)
-    -> Error {
+inline auto LoadMaterial(const Graphics::GraphicsContext &context, const fastgltf::Asset &asset, const std::string_view &basePath,
+                         const fastgltf::Material &gltfMaterial, Ref<Engine::Renderer::LuaMaterial> &luaMaterial) -> Error {
   ZoneScoped;
 
   // auto &material = luaMaterial->material;
-  auto *material =
-      luaMaterial->entity.try_get_mut<Engine::Renderer::Material>();
+  auto *material = luaMaterial->entity.try_get_mut<Engine::Renderer::Material>();
 
   if (material == nullptr) {
-    return Error::Createf(
-        "Failed to get mutable reference to Material component.");
+    return Error::Createf("Failed to get mutable reference to Material component.");
   }
 
   material->name = gltfMaterial.name;
 
-  material->cullMode =
-      gltfMaterial.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
+  material->cullMode = gltfMaterial.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
 
   material->alphaCutoff = gltfMaterial.alphaCutoff;
   material->roughnessFactor = gltfMaterial.pbrData.roughnessFactor;
   material->metallicFactor = gltfMaterial.pbrData.metallicFactor;
-  material->albedoFactor = Math::Vec4(gltfMaterial.pbrData.baseColorFactor[0],
-                                      gltfMaterial.pbrData.baseColorFactor[1],
-                                      gltfMaterial.pbrData.baseColorFactor[2],
+  material->albedoFactor = Math::Vec4(gltfMaterial.pbrData.baseColorFactor[0], gltfMaterial.pbrData.baseColorFactor[1], gltfMaterial.pbrData.baseColorFactor[2],
                                       gltfMaterial.pbrData.baseColorFactor[3]);
 
   // The alpha mode is exactly the same enum as our AlphaMode.
@@ -323,35 +276,26 @@ inline auto LoadMaterial(const Graphics::GraphicsContext &context,
     break;
   }
 
-  material->emissiveFactor =
-      Math::Vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1],
-                 gltfMaterial.emissiveFactor[2]);
+  material->emissiveFactor = Math::Vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1], gltfMaterial.emissiveFactor[2]);
 
   if (gltfMaterial.pbrData.baseColorTexture.has_value()) {
-    material->albedoTexture =
-        CHECK_RES(LoadTexture(context, asset, basePath,
-                              gltfMaterial.pbrData.baseColorTexture.value()));
+    material->albedoTexture = CHECK_RES(LoadTexture(context, asset, basePath, gltfMaterial.pbrData.baseColorTexture.value()));
   }
 
   if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value()) {
-    material->metallicRoughnessTexture = CHECK_RES(
-        LoadTexture(context, asset, basePath,
-                    gltfMaterial.pbrData.metallicRoughnessTexture.value()));
+    material->metallicRoughnessTexture = CHECK_RES(LoadTexture(context, asset, basePath, gltfMaterial.pbrData.metallicRoughnessTexture.value()));
   }
 
   if (gltfMaterial.occlusionTexture.has_value()) {
-    material->ambientOcclusionTexture = CHECK_RES(LoadTexture(
-        context, asset, basePath, gltfMaterial.occlusionTexture.value()));
+    material->ambientOcclusionTexture = CHECK_RES(LoadTexture(context, asset, basePath, gltfMaterial.occlusionTexture.value()));
   }
 
   if (gltfMaterial.normalTexture.has_value()) {
-    material->normalTexture = CHECK_RES(LoadTexture(
-        context, asset, basePath, gltfMaterial.normalTexture.value()));
+    material->normalTexture = CHECK_RES(LoadTexture(context, asset, basePath, gltfMaterial.normalTexture.value()));
   }
 
   if (gltfMaterial.emissiveTexture.has_value()) {
-    material->emissiveTexture = CHECK_RES(LoadTexture(
-        context, asset, basePath, gltfMaterial.emissiveTexture.value()));
+    material->emissiveTexture = CHECK_RES(LoadTexture(context, asset, basePath, gltfMaterial.emissiveTexture.value()));
   }
 
   return Error::Success();
@@ -380,8 +324,7 @@ auto ComponentTypeToString(fastgltf::ComponentType type) -> std::string_view {
   }
 }
 
-auto GetVkFormat(fastgltf::ComponentType type, int componentCount)
-    -> Result<VkFormat> {
+auto GetVkFormat(fastgltf::ComponentType type, int componentCount) -> Result<VkFormat> {
 
   switch (type) {
   case fastgltf::ComponentType::Byte:
@@ -434,8 +377,7 @@ auto GetVkFormat(fastgltf::ComponentType type, int componentCount)
     case 4:
       return VK_FORMAT_R16G16B16A16_UINT;
     default:
-      return Error::Unexpected(
-          "Unsupported component count for UnsignedShort.");
+      return Error::Unexpected("Unsupported component count for UnsignedShort.");
     }
   case fastgltf::ComponentType::Int:
     switch (componentCount) {
@@ -495,9 +437,7 @@ auto GetVkFormat(fastgltf::ComponentType type, int componentCount)
   }
 }
 
-auto ExtractVertexFormat(const fastgltf::Asset &asset,
-                         const fastgltf::Primitive &primitive)
-    -> Result<Graphics::VertexFormat> {
+auto ExtractVertexFormat(const fastgltf::Asset &asset, const fastgltf::Primitive &primitive) -> Result<Graphics::VertexFormat> {
   if (primitive.attributes.empty()) {
     return Error::Unexpected("Primitive is missing attributes.");
   }
@@ -528,10 +468,7 @@ auto ExtractVertexFormat(const fastgltf::Asset &asset,
 
 /// Normalize an integer attribute value to float [0,1] or [-1,1].
 /// Writes `compCount` floats (each 4 bytes) into `dst`.
-inline void NormalizeAttribute(const uint8_t *__restrict src,
-                               uint8_t *__restrict dst,
-                               fastgltf::ComponentType compType,
-                               size_t compCount) {
+inline void NormalizeAttribute(const uint8_t *__restrict src, uint8_t *__restrict dst, fastgltf::ComponentType compType, size_t compCount) {
 
   const float IntToFloat = 1.0F / 127.0F;
   const float UIntToFloat = 1.0F / 255.0F;
@@ -571,13 +508,12 @@ inline void NormalizeAttribute(const uint8_t *__restrict src,
 
 static inline auto PackToSigned10Bit(float value) -> uint32_t {
   value = std::max(std::min(value, 1.0F), -1.0F);
-  value = (value * 0.5F) + 0.5F; // Map from [-1,1] to [0,1] NOLINT
+  value = (value * 0.5F) + 0.5F;                                     // Map from [-1,1] to [0,1] NOLINT
   auto intValue = static_cast<int32_t>(std::round(value * 1023.0F)); // NOLINT
   return static_cast<uint32_t>(intValue) & 0x3FF;                    // NOLINT
 }
 
-static void ConvertNormalToPacked10Bit(const uint8_t *__restrict src,
-                                       uint8_t *__restrict dst) {
+static void ConvertNormalToPacked10Bit(const uint8_t *__restrict src, uint8_t *__restrict dst) {
   float normalX = 0.0F;
   float normalY = 0.0F;
   float normalZ = 0.0F;
@@ -591,14 +527,12 @@ static void ConvertNormalToPacked10Bit(const uint8_t *__restrict src,
   uint32_t packedY = PackToSigned10Bit(normalY);
   uint32_t packedZ = PackToSigned10Bit(normalZ);
 
-  uint32_t packedNormal =
-      (packedX) | (packedY << 10) | (packedZ << 20); // NOLINT
+  uint32_t packedNormal = (packedX) | (packedY << 10) | (packedZ << 20); // NOLINT
 
   memcpy(dst, &packedNormal, sizeof(uint32_t)); // NOLINT
 }
 
-static void ConvertTangentToPacked10Bit(const uint8_t *__restrict src,
-                                        uint8_t *__restrict dst) {
+static void ConvertTangentToPacked10Bit(const uint8_t *__restrict src, uint8_t *__restrict dst) {
   float tangentX = 0.0F;
   float tangentY = 0.0F;
   float tangentZ = 0.0F;
@@ -615,14 +549,12 @@ static void ConvertTangentToPacked10Bit(const uint8_t *__restrict src,
   uint32_t packedZ = PackToSigned10Bit(tangentZ);
   uint32_t packedW = tangentW > 0.0F ? 1 : 0; // Store sign in W
 
-  uint32_t packedTangent =
-      (packedX) | (packedY << 10) | (packedZ << 20) | (packedW << 30); // NOLINT
+  uint32_t packedTangent = (packedX) | (packedY << 10) | (packedZ << 20) | (packedW << 30); // NOLINT
 
   memcpy(dst, &packedTangent, sizeof(uint32_t)); // NOLINT
 }
 
-static void ConvertPositionFlipZ(const uint8_t *__restrict src,
-                                 uint8_t *__restrict dst) {
+static void ConvertPositionFlipZ(const uint8_t *__restrict src, uint8_t *__restrict dst) {
   float posX = 0.0F;
   float posY = 0.0F;
   float posZ = 0.0F;
@@ -642,8 +574,7 @@ static auto PackToUnsigned8Bit(float value) -> uint {
   return static_cast<uint32_t>(std::round(value * 255.0F)); // NOLINT
 }
 
-static auto ConvertColorToPacked8Bit(const uint8_t *__restrict src,
-                                     uint8_t *__restrict dst) -> void {
+static auto ConvertColorToPacked8Bit(const uint8_t *__restrict src, uint8_t *__restrict dst) -> void {
   float colorR = 0.0F;
   float colorG = 0.0F;
   float colorB = 0.0F;
@@ -658,27 +589,22 @@ static auto ConvertColorToPacked8Bit(const uint8_t *__restrict src,
   uint32_t packedB = PackToUnsigned8Bit(colorB);
   uint32_t packedA = PackToUnsigned8Bit(colorA);
 
-  uint32_t packedColor =
-      (packedR) | (packedG << 8) | (packedB << 16) | (packedA << 24); // NOLINT
+  uint32_t packedColor = (packedR) | (packedG << 8) | (packedB << 16) | (packedA << 24); // NOLINT
 
   memcpy(dst, &packedColor, sizeof(uint32_t));
 }
 
 // Converter functions; for example, float32vec3 to packed uint 10-bit per component.
 // The key is the semantic, and the value is a function that takes the source data and writes the converted data to the destination buffer.
-const std::unordered_map<std::string,
-                         std::function<void(const uint8_t *src, uint8_t *dst)>>
-    Converters = {{"NORMAL", ConvertNormalToPacked10Bit},
-                  {"TANGENT", ConvertTangentToPacked10Bit},
-                  {"POSITION", ConvertPositionFlipZ},
-                  {"COLOR_0", ConvertColorToPacked8Bit},
-                  {"TEXCOORD_0", nullptr}
+const std::unordered_map<std::string, std::function<void(const uint8_t *src, uint8_t *dst)>> Converters = {{"NORMAL", ConvertNormalToPacked10Bit},
+                                                                                                           {"TANGENT", ConvertTangentToPacked10Bit},
+                                                                                                           {"POSITION", ConvertPositionFlipZ},
+                                                                                                           {"COLOR_0", ConvertColorToPacked8Bit},
+                                                                                                           {"TEXCOORD_0", nullptr}
 
 };
 
-inline auto TriangleTangent(Math::Vec3 vert0, Math::Vec3 vert1,
-                            Math::Vec3 vert2, Math::Vec2 uv0, Math::Vec2 uv1,
-                            Math::Vec2 uv2) -> Math::Vec4 {
+inline auto TriangleTangent(Math::Vec3 vert0, Math::Vec3 vert1, Math::Vec3 vert2, Math::Vec2 uv0, Math::Vec2 uv1, Math::Vec2 uv2) -> Math::Vec4 {
   Math::Vec3 edge1 = vert1 - vert0;
   Math::Vec3 edge2 = vert2 - vert0;
   Math::Vec2 deltaUV1 = uv1 - uv0;
@@ -695,9 +621,7 @@ inline auto TriangleTangent(Math::Vec3 vert0, Math::Vec3 vert1,
   return tangent.Normalize();
 }
 
-static auto DecodeVertexIndex(const std::vector<uint8_t> &indices,
-                              VkIndexType indexType, size_t linearIndex)
-    -> size_t {
+static auto DecodeVertexIndex(const std::vector<uint8_t> &indices, VkIndexType indexType, size_t linearIndex) -> size_t {
   const auto *indexBytes = indices.data();
   switch (indexType) {
   case VK_INDEX_TYPE_UINT8_EXT:
@@ -734,10 +658,8 @@ struct MikkUserData {
   VkIndexType indexType;
 };
 
-static auto ResolveVertexIndex(const MikkUserData &data, int faceIndex,
-                               int vertIndex) -> size_t {
-  const size_t linearIndex =
-      (static_cast<size_t>(faceIndex) * 3) + static_cast<size_t>(vertIndex);
+static auto ResolveVertexIndex(const MikkUserData &data, int faceIndex, int vertIndex) -> size_t {
+  const size_t linearIndex = (static_cast<size_t>(faceIndex) * 3) + static_cast<size_t>(vertIndex);
   if (data.indexData == nullptr || data.indexCount == 0) {
     return linearIndex;
   }
@@ -764,9 +686,7 @@ static auto ResolveVertexIndex(const MikkUserData &data, int faceIndex,
   }
 }
 
-inline auto GenerateVertexTangents(const Graphics::VertexFormat &format,
-                                   std::vector<uint8_t> &existingData,
-                                   const std::vector<uint8_t> &indices,
+inline auto GenerateVertexTangents(const Graphics::VertexFormat &format, std::vector<uint8_t> &existingData, const std::vector<uint8_t> &indices,
                                    VkIndexType indexType) -> void {
   ZoneScoped;
 
@@ -775,8 +695,7 @@ inline auto GenerateVertexTangents(const Graphics::VertexFormat &format,
   const auto *texcoordAttribute = format.GetAttribute("TEXCOORD_0");
   const auto *tangentAttribute = format.GetAttribute("TANGENT");
 
-  if (positionAttribute == nullptr || normalAttribute == nullptr ||
-      texcoordAttribute == nullptr || tangentAttribute == nullptr) {
+  if (positionAttribute == nullptr || normalAttribute == nullptr || texcoordAttribute == nullptr || tangentAttribute == nullptr) {
     return;
   }
 
@@ -832,64 +751,50 @@ inline auto GenerateVertexTangents(const Graphics::VertexFormat &format,
     return static_cast<int>(data->vertexCount / 3);
   };
 
-  mikkInterface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext *pContext,
-                                            const int faceIndex) -> int {
+  mikkInterface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext *pContext, const int faceIndex) -> int {
     return 3; // Triangles only
   };
 
-  mikkInterface.m_getPosition = [](const SMikkTSpaceContext *pContext,
-                                   float outPos[], const int faceIndex,
-                                   const int vertIndex) -> void {
+  mikkInterface.m_getPosition = [](const SMikkTSpaceContext *pContext, float outPos[], const int faceIndex, const int vertIndex) -> void {
     auto *data = static_cast<MikkUserData *>(pContext->m_pUserData);
     const size_t vertexIndex = ResolveVertexIndex(*data, faceIndex, vertIndex);
 
-    const uint8_t *vertexPtr =
-        data->vertexData + (vertexIndex * data->vertexStride);     // NOLINT
-    const uint8_t *positionPtr = vertexPtr + data->positionOffset; // NOLINT
+    const uint8_t *vertexPtr = data->vertexData + (vertexIndex * data->vertexStride); // NOLINT
+    const uint8_t *positionPtr = vertexPtr + data->positionOffset;                    // NOLINT
 
     memcpy(outPos, positionPtr, sizeof(float) * 3);
   };
 
-  mikkInterface.m_getNormal = [](const SMikkTSpaceContext *pContext,
-                                 float outNormal[], const int faceIndex,
-                                 const int vertIndex) -> void {
+  mikkInterface.m_getNormal = [](const SMikkTSpaceContext *pContext, float outNormal[], const int faceIndex, const int vertIndex) -> void {
     auto *data = static_cast<MikkUserData *>(pContext->m_pUserData);
     const size_t vertexIndex = ResolveVertexIndex(*data, faceIndex, vertIndex);
 
-    const uint8_t *vertexPtr =
-        data->vertexData + (vertexIndex * data->vertexStride); // NOLINT
-    const uint8_t *normalPtr = vertexPtr + data->normalOffset; // NOLINT
+    const uint8_t *vertexPtr = data->vertexData + (vertexIndex * data->vertexStride); // NOLINT
+    const uint8_t *normalPtr = vertexPtr + data->normalOffset;                        // NOLINT
 
     memcpy(outNormal, normalPtr, sizeof(float) * 3);
   };
 
-  mikkInterface.m_getTexCoord = [](const SMikkTSpaceContext *pContext,
-                                   float outUV[], const int faceIndex,
-                                   const int vertIndex) -> void {
+  mikkInterface.m_getTexCoord = [](const SMikkTSpaceContext *pContext, float outUV[], const int faceIndex, const int vertIndex) -> void {
     auto *data = static_cast<MikkUserData *>(pContext->m_pUserData);
     const size_t vertexIndex = ResolveVertexIndex(*data, faceIndex, vertIndex);
 
-    const uint8_t *vertexPtr =
-        data->vertexData + (vertexIndex * data->vertexStride); // NOLINT
-    const uint8_t *uvPtr = vertexPtr + data->texcoordOffset;   // NOLINT
+    const uint8_t *vertexPtr = data->vertexData + (vertexIndex * data->vertexStride); // NOLINT
+    const uint8_t *uvPtr = vertexPtr + data->texcoordOffset;                          // NOLINT
 
     memcpy(outUV, uvPtr, sizeof(float) * 2);
   };
 
-  mikkInterface.m_setTSpaceBasic =
-      [](const SMikkTSpaceContext *pContext, const float tangent[],
-         const float sign, const int faceIndex, const int vertIndex) -> void {
+  mikkInterface.m_setTSpaceBasic = [](const SMikkTSpaceContext *pContext, const float tangent[], const float sign, const int faceIndex,
+                                      const int vertIndex) -> void {
     auto *data = static_cast<MikkUserData *>(pContext->m_pUserData);
     const size_t vertexIndex = ResolveVertexIndex(*data, faceIndex, vertIndex);
 
-    uint8_t *vertexPtr =
-        data->vertexData + (vertexIndex * data->vertexStride); // NOLINT
-    uint8_t *tangentPtr = vertexPtr + data->tangentOffset;     // NOLINT
+    uint8_t *vertexPtr = data->vertexData + (vertexIndex * data->vertexStride); // NOLINT
+    uint8_t *tangentPtr = vertexPtr + data->tangentOffset;                      // NOLINT
 
-    const std::array<float, 4> generated = {tangent[0], tangent[1], -tangent[2],
-                                            sign};
-    ConvertTangentToPacked10Bit(
-        reinterpret_cast<const uint8_t *>(generated.data()), tangentPtr);
+    const std::array<float, 4> generated = {tangent[0], tangent[1], -tangent[2], sign};
+    ConvertTangentToPacked10Bit(reinterpret_cast<const uint8_t *>(generated.data()), tangentPtr);
   };
 
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic, cppcoreguidelines-avoid-c-arrays, cppcoreguidelines-avoid-magic-numbers, cppcoreguidelines-pro-type-reinterpret-cast, hicpp-avoid-c-arrays, modernize-avoid-c-arrays)
@@ -901,12 +806,8 @@ inline auto GenerateVertexTangents(const Graphics::VertexFormat &format,
 }
 
 // NOLINTNEXTLINE
-inline auto FillVertexDataDefaults(const Graphics::VertexFormat &format,
-                                   const fastgltf::Asset &asset,
-                                   const fastgltf::Primitive &primitive,
-                                   std::vector<uint8_t> &existingData,
-                                   const std::vector<uint8_t> &indices,
-                                   VkIndexType indexType) -> void {
+inline auto FillVertexDataDefaults(const Graphics::VertexFormat &format, const fastgltf::Asset &asset, const fastgltf::Primitive &primitive,
+                                   std::vector<uint8_t> &existingData, const std::vector<uint8_t> &indices, VkIndexType indexType) -> void {
 
   auto stride = format.GetStride(0);
 
@@ -943,11 +844,8 @@ inline auto FillVertexDataDefaults(const Graphics::VertexFormat &format,
 }
 
 inline auto // NOLINTNEXTLINE
-LoadVertexData(const Graphics::VertexFormat &format,
-               const fastgltf::Asset &asset,
-               const fastgltf::Primitive &primitive,
-               const std::vector<uint8_t> &indices, VkIndexType indexType)
-    -> Result<std::vector<uint8_t>> {
+LoadVertexData(const Graphics::VertexFormat &format, const fastgltf::Asset &asset, const fastgltf::Primitive &primitive, const std::vector<uint8_t> &indices,
+               VkIndexType indexType) -> Result<std::vector<uint8_t>> {
   ZoneScoped;
 
   if (primitive.attributes.empty()) {
@@ -955,8 +853,7 @@ LoadVertexData(const Graphics::VertexFormat &format,
   }
 
   // Determine vertex count from first accessor.
-  const size_t vertexCount =
-      asset.accessors.at(primitive.attributes.begin()->accessorIndex).count;
+  const size_t vertexCount = asset.accessors.at(primitive.attributes.begin()->accessorIndex).count;
 
   // Compute output stride from the vertex format.
   const size_t outputStride = format.GetStride(0);
@@ -982,9 +879,7 @@ LoadVertexData(const Graphics::VertexFormat &format,
     }
 
     if (accessor.count != vertexCount) {
-      return Error::Unexpectedf(
-          "Accessor count mismatch for {}: expected {}, got {}", semantic,
-          vertexCount, accessor.count);
+      return Error::Unexpectedf("Accessor count mismatch for {}: expected {}, got {}", semantic, vertexCount, accessor.count);
     }
 
     if (!accessor.bufferViewIndex.has_value()) {
@@ -992,19 +887,15 @@ LoadVertexData(const Graphics::VertexFormat &format,
     }
 
     if (accessor.sparse.has_value()) {
-      return Error::Unexpectedf("Sparse accessors not supported for {}.",
-                                semantic);
+      return Error::Unexpectedf("Sparse accessors not supported for {}.", semantic);
     }
 
-    const auto &bufferView =
-        asset.bufferViews.at(accessor.bufferViewIndex.value());
+    const auto &bufferView = asset.bufferViews.at(accessor.bufferViewIndex.value());
 
     auto span = CHECK_RES(LoadBufferView(asset, bufferView));
 
-    const auto srcComponentSize =
-        fastgltf::getComponentByteSize(accessor.componentType);
-    const auto componentCount =
-        static_cast<size_t>(fastgltf::getNumComponents(accessor.type));
+    const auto srcComponentSize = fastgltf::getComponentByteSize(accessor.componentType);
+    const auto componentCount = static_cast<size_t>(fastgltf::getNumComponents(accessor.type));
     const size_t srcElementSize = srcComponentSize * componentCount;
     auto vkFormatSize = Graphics::Format::GetSize(attribute->format);
 
@@ -1012,24 +903,17 @@ LoadVertexData(const Graphics::VertexFormat &format,
     const size_t srcStride = bufferView.byteStride.value_or(srcElementSize);
 
     if (srcStride < srcElementSize) {
-      return Error::Unexpectedf(
-          "Buffer view stride too small for {}: need at least {}, got {}",
-          semanticView, srcElementSize, srcStride);
+      return Error::Unexpectedf("Buffer view stride too small for {}: need at least {}, got {}", semanticView, srcElementSize, srcStride);
     }
 
     // Bounds check: ensure all vertex data fits within the buffer.
-    const size_t requiredSize =
-        (vertexCount > 0 ? ((vertexCount - 1) * srcStride) + srcElementSize +
-                               accessor.byteOffset
-                         : 0);
+    const size_t requiredSize = (vertexCount > 0 ? ((vertexCount - 1) * srcStride) + srcElementSize + accessor.byteOffset : 0);
 
     auto spansize = span.size();
 
     // Check if the accessor's data fits within the buffer view span.
     if (requiredSize > spansize) {
-      return Error::Unexpectedf(
-          "Buffer too small for attribute {}: need {}, have {}", semanticView,
-          requiredSize, spansize);
+      return Error::Unexpectedf("Buffer too small for attribute {}: need {}, have {}", semanticView, requiredSize, spansize);
     }
 
     const size_t dstElementSize = Graphics::Format::GetSize(attribute->format);
@@ -1037,26 +921,19 @@ LoadVertexData(const Graphics::VertexFormat &format,
 
     // Check if we need normalization (accessor.normalized + integer type).
     const bool needsNormalize =
-        accessor.normalized &&
-        (accessor.componentType == fastgltf::ComponentType::Byte ||
-         accessor.componentType == fastgltf::ComponentType::UnsignedByte ||
-         accessor.componentType == fastgltf::ComponentType::Short ||
-         accessor.componentType == fastgltf::ComponentType::UnsignedShort);
+        accessor.normalized && (accessor.componentType == fastgltf::ComponentType::Byte || accessor.componentType == fastgltf::ComponentType::UnsignedByte ||
+                                accessor.componentType == fastgltf::ComponentType::Short || accessor.componentType == fastgltf::ComponentType::UnsignedShort);
 
     if (needsNormalize && srcElementSize != dstElementSize) {
-      return Error::Unexpectedf(
-          "Normalization requires matching src and dst element sizes for {}: "
-          "got src {}, dst {}",
-          semanticView, srcElementSize, dstElementSize);
+      return Error::Unexpectedf("Normalization requires matching src and dst element sizes for {}: "
+                                "got src {}, dst {}",
+                                semanticView, srcElementSize, dstElementSize);
     }
 
     auto resultSize = result.size();
-    auto finalWriteSize =
-        ((vertexCount - 1) * outputStride) + dstOffset + dstElementSize;
+    auto finalWriteSize = ((vertexCount - 1) * outputStride) + dstOffset + dstElementSize;
     if (finalWriteSize > resultSize) {
-      return Error::Unexpectedf(
-          "Output buffer too small for attribute {}: need {}, have {}",
-          semanticView, finalWriteSize, resultSize);
+      return Error::Unexpectedf("Output buffer too small for attribute {}: need {}, have {}", semanticView, finalWriteSize, resultSize);
     }
 
     auto converterIter = Converters.find(std::string(semantic));
@@ -1069,13 +946,11 @@ LoadVertexData(const Graphics::VertexFormat &format,
     auto *__restrict spanData = span.data();
 
     for (size_t value = 0; value < vertexCount; ++value) {
-      const uint8_t *srcPtr =
-          spanData + value * srcStride + accessor.byteOffset;          // NOLINT
-      uint8_t *dstPtr = resultData + value * outputStride + dstOffset; // NOLINT
+      const uint8_t *srcPtr = spanData + value * srcStride + accessor.byteOffset; // NOLINT
+      uint8_t *dstPtr = resultData + value * outputStride + dstOffset;            // NOLINT
 
       if (needsNormalize) {
-        NormalizeAttribute(srcPtr, dstPtr, accessor.componentType,
-                           componentCount);
+        NormalizeAttribute(srcPtr, dstPtr, accessor.componentType, componentCount);
       } else {
         if (converter != nullptr) {
           converter(srcPtr, dstPtr);
@@ -1091,9 +966,7 @@ LoadVertexData(const Graphics::VertexFormat &format,
   return result;
 }
 
-inline auto LoadIndexData(const fastgltf::Asset &asset,
-                          const fastgltf::Primitive &primitive)
-    -> Result<std::vector<uint8_t>> {
+inline auto LoadIndexData(const fastgltf::Asset &asset, const fastgltf::Primitive &primitive) -> Result<std::vector<uint8_t>> {
   if (!primitive.indicesAccessor.has_value()) {
     return std::vector<uint8_t>{};
   }
@@ -1101,8 +974,7 @@ inline auto LoadIndexData(const fastgltf::Asset &asset,
   const auto &accessor = asset.accessors.at(primitive.indicesAccessor.value());
 
   assert(accessor.bufferViewIndex.has_value());
-  const auto &bufferView =
-      asset.bufferViews.at(accessor.bufferViewIndex.value());
+  const auto &bufferView = asset.bufferViews.at(accessor.bufferViewIndex.value());
 
   auto span = CHECK_RES(LoadBufferView(asset, bufferView));
 
@@ -1116,9 +988,7 @@ inline auto LoadIndexData(const fastgltf::Asset &asset,
                                   finalLength);
 }
 
-template <typename IndexT>
-void OptimizeMesh(std::span<IndexT> indices, std::vector<uint8_t> &vertices,
-                  size_t vertexCount, size_t vertexStride) {
+template <typename IndexT> void OptimizeMesh(std::span<IndexT> indices, std::vector<uint8_t> &vertices, size_t vertexCount, size_t vertexStride) {
   ZoneScoped;
 
   size_t indexCount = indices.size();
@@ -1126,21 +996,15 @@ void OptimizeMesh(std::span<IndexT> indices, std::vector<uint8_t> &vertices,
   thread_local std::vector<unsigned int> remap;
   remap.resize(vertexCount * vertexStride);
 
-  size_t newVertexCount =
-      meshopt_generateVertexRemap(remap.data(), indices.data(), indexCount,
-                                  vertices.data(), vertexCount, vertexStride);
+  size_t newVertexCount = meshopt_generateVertexRemap(remap.data(), indices.data(), indexCount, vertices.data(), vertexCount, vertexStride);
 
-  meshopt_remapIndexBuffer(indices.data(), indices.data(), indexCount,
-                           remap.data());
+  meshopt_remapIndexBuffer(indices.data(), indices.data(), indexCount, remap.data());
 
-  meshopt_remapVertexBuffer(vertices.data(), vertices.data(), vertexCount,
-                            vertexStride, remap.data());
+  meshopt_remapVertexBuffer(vertices.data(), vertices.data(), vertexCount, vertexStride, remap.data());
 
-  meshopt_optimizeVertexCache(indices.data(), indices.data(), indexCount,
-                              newVertexCount);
+  meshopt_optimizeVertexCache(indices.data(), indices.data(), indexCount, newVertexCount);
 
-  meshopt_optimizeVertexFetch(vertices.data(), indices.data(), indexCount,
-                              vertices.data(), newVertexCount, vertexStride);
+  meshopt_optimizeVertexFetch(vertices.data(), indices.data(), indexCount, vertices.data(), newVertexCount, vertexStride);
 
   vertices.resize(newVertexCount * vertexStride);
 }
@@ -1153,8 +1017,7 @@ auto GetInterleavedStride(const Graphics::VertexFormat &format) -> size_t {
   return stride;
 }
 
-auto DeinterleaveVertexData(const std::vector<uint8_t> &interleavedData)
-    -> std::vector<std::vector<uint8_t>> {
+auto DeinterleaveVertexData(const std::vector<uint8_t> &interleavedData) -> std::vector<std::vector<uint8_t>> {
   ZoneScoped;
 
   struct VertexData {
@@ -1177,8 +1040,7 @@ auto DeinterleaveVertexData(const std::vector<uint8_t> &interleavedData)
 
   auto positionData = std::vector<uint8_t>(vertexCount * positionStride);
   auto texcoordData = std::vector<uint8_t>(vertexCount * texcoordStride);
-  auto normalTangentData =
-      std::vector<uint8_t>(vertexCount * normalTangentStride);
+  auto normalTangentData = std::vector<uint8_t>(vertexCount * normalTangentStride);
   auto colorData = std::vector<uint8_t>(vertexCount * colorStride);
 
   auto *__restrict positionPtr = positionData.data();
@@ -1190,14 +1052,11 @@ auto DeinterleaveVertexData(const std::vector<uint8_t> &interleavedData)
     const auto &srcVertex = vertexArray[vertex]; // NOLINT
 
     // NOLINTNEXTLINE
-    memcpy(positionPtr + (vertex * positionStride), &srcVertex.position,
-           positionStride);
+    memcpy(positionPtr + (vertex * positionStride), &srcVertex.position, positionStride);
     // NOLINTNEXTLINE
-    memcpy(texcoordPtr + (vertex * texcoordStride), &srcVertex.texcoord,
-           texcoordStride);
+    memcpy(texcoordPtr + (vertex * texcoordStride), &srcVertex.texcoord, texcoordStride);
     // NOLINTNEXTLINE
-    memcpy(normalTangentPtr + (vertex * normalTangentStride), &srcVertex.normal,
-           normalTangentStride);
+    memcpy(normalTangentPtr + (vertex * normalTangentStride), &srcVertex.normal, normalTangentStride);
     // NOLINTNEXTLINE
     memcpy(colorPtr + (vertex * colorStride), &srcVertex.color, colorStride);
   }
@@ -1207,27 +1066,11 @@ auto DeinterleaveVertexData(const std::vector<uint8_t> &interleavedData)
 
 using Comp = Graphics::VertexComponent;
 
-static const std::vector<Comp> InitialVertexComponents = {
-    Comp{.name = "POSITION",
-         .location = 0,
-         .binding = 0,
-         .format = VK_FORMAT_R32G32B32_SFLOAT},
-    Comp{.name = "TEXCOORD_0",
-         .location = 1,
-         .binding = 0,
-         .format = VK_FORMAT_R32G32_SFLOAT},
-    Comp{.name = "NORMAL",
-         .location = 2,
-         .binding = 0,
-         .format = VK_FORMAT_R32_UINT},
-    Comp{.name = "TANGENT",
-         .location = 3,
-         .binding = 0,
-         .format = VK_FORMAT_R32_UINT},
-    Comp{.name = "COLOR_0",
-         .location = 4,
-         .binding = 0,
-         .format = VK_FORMAT_R8G8B8A8_UNORM}};
+static const std::vector<Comp> InitialVertexComponents = {Comp{.name = "POSITION", .location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT},
+                                                          Comp{.name = "TEXCOORD_0", .location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT},
+                                                          Comp{.name = "NORMAL", .location = 2, .binding = 0, .format = VK_FORMAT_R32_UINT},
+                                                          Comp{.name = "TANGENT", .location = 3, .binding = 0, .format = VK_FORMAT_R32_UINT},
+                                                          Comp{.name = "COLOR_0", .location = 4, .binding = 0, .format = VK_FORMAT_R8G8B8A8_UNORM}};
 
 struct VertexData {
   float position[3]; // NOLINT
@@ -1252,9 +1095,7 @@ static const Graphics::VertexFormat SeparateVertexFormat = [] -> auto {
   return Graphics::VertexFormat(comps);
 }();
 
-static const Graphics::VertexFormat InitialVertexFormat = [] -> auto {
-  return Graphics::VertexFormat(InitialVertexComponents);
-}();
+static const Graphics::VertexFormat InitialVertexFormat = [] -> auto { return Graphics::VertexFormat(InitialVertexComponents); }();
 
 struct MeshLoadInfo {
   std::vector<uint8_t> Vertices;
@@ -1278,21 +1119,15 @@ inline auto OptimiseMesh(MeshLoadInfo &info) {
   switch (info.IndexType) {
   case VK_INDEX_TYPE_UINT8:
     OptimizeMesh( // NOLINTNEXTLINE
-        std::span(reinterpret_cast<uint8_t *>(info.Indices.data()),
-                  info.Indices.size() / sizeof(uint8_t)),
-        info.Vertices, vertexCount, stride);
+        std::span(reinterpret_cast<uint8_t *>(info.Indices.data()), info.Indices.size() / sizeof(uint8_t)), info.Vertices, vertexCount, stride);
     break;
   case VK_INDEX_TYPE_UINT16:
     OptimizeMesh( // NOLINTNEXTLINE
-        std::span(reinterpret_cast<uint16_t *>(info.Indices.data()),
-                  info.Indices.size() / sizeof(uint16_t)),
-        info.Vertices, vertexCount, stride);
+        std::span(reinterpret_cast<uint16_t *>(info.Indices.data()), info.Indices.size() / sizeof(uint16_t)), info.Vertices, vertexCount, stride);
     break;
   case VK_INDEX_TYPE_UINT32:
     OptimizeMesh( // NOLINTNEXTLINE
-        std::span(reinterpret_cast<uint32_t *>(info.Indices.data()),
-                  info.Indices.size() / sizeof(uint32_t)),
-        info.Vertices, vertexCount, stride);
+        std::span(reinterpret_cast<uint32_t *>(info.Indices.data()), info.Indices.size() / sizeof(uint32_t)), info.Vertices, vertexCount, stride);
     break;
   case VK_INDEX_TYPE_NONE_KHR:
   case VK_INDEX_TYPE_MAX_ENUM:
@@ -1302,9 +1137,7 @@ inline auto OptimiseMesh(MeshLoadInfo &info) {
   info.DeinterleavedData = DeinterleaveVertexData(info.Vertices);
 }
 
-inline auto LoadMesh(const Graphics::GraphicsContext &context,
-                     flecs::world *world, MeshLoadInfo &info,
-                     const fastgltf::Asset &asset,
+inline auto LoadMesh(const Graphics::GraphicsContext &context, flecs::world *world, MeshLoadInfo &info, const fastgltf::Asset &asset,
                      const std::string_view &basePath) -> Error {
   ZoneScoped;
 
@@ -1334,9 +1167,8 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context,
 
   Engine::LocalBounds localBounds{};
 
-  std::span<const VertexData> vertexDataSpan(
-      reinterpret_cast<const VertexData *>(info.Vertices.data()), // NOLINT
-      info.Vertices.size() / sizeof(VertexData));
+  std::span<const VertexData> vertexDataSpan(reinterpret_cast<const VertexData *>(info.Vertices.data()), // NOLINT
+                                             info.Vertices.size() / sizeof(VertexData));
 
   for (const auto &vertex : vertexDataSpan) {
     Math::Vec3 pos(vertex.position[0], vertex.position[1], vertex.position[2]);
@@ -1353,8 +1185,7 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context,
     geometry.add<Engine::Renderer::Material>();
     auto rendererMaterial = Ref<Engine::Renderer::LuaMaterial>::Make(geometry);
 
-    CHECK_ERR(
-        LoadMaterial(context, asset, basePath, material, rendererMaterial));
+    CHECK_ERR(LoadMaterial(context, asset, basePath, material, rendererMaterial));
   }
 
   return {};
@@ -1365,13 +1196,11 @@ struct MeshVertexDataLoadInfo {
   fastgltf::Primitive const *Primitive;
 };
 
-inline auto LoadMeshVertexData(MeshVertexDataLoadInfo &info,
-                               MeshLoadInfo &output) -> Error {
+inline auto LoadMeshVertexData(MeshVertexDataLoadInfo &info, MeshLoadInfo &output) -> Error {
   output.Indices = CHECK_RES(LoadIndexData(*info.Asset, *info.Primitive));
   output.IndexType = VK_INDEX_TYPE_MAX_ENUM;
   if (!output.Indices.empty()) {
-    const auto &accessor =
-        info.Asset->accessors.at(info.Primitive->indicesAccessor.value());
+    const auto &accessor = info.Asset->accessors.at(info.Primitive->indicesAccessor.value());
     switch (accessor.componentType) {
     case fastgltf::ComponentType::UnsignedByte:
       output.IndexType = VK_INDEX_TYPE_UINT8_EXT;
@@ -1387,19 +1216,14 @@ inline auto LoadMeshVertexData(MeshVertexDataLoadInfo &info,
     }
   }
 
-  output.Vertices = CHECK_RES(LoadVertexData(InitialVertexFormat, *info.Asset,
-                                             *info.Primitive, output.Indices,
-                                             output.IndexType));
+  output.Vertices = CHECK_RES(LoadVertexData(InitialVertexFormat, *info.Asset, *info.Primitive, output.Indices, output.IndexType));
 
   return {};
 }
 
 inline auto // NOLINTNEXTLINE
-LoadNode(
-    flecs::world *world, Graphics::GraphicsContext &context,
-    const fastgltf::Asset &asset, const std::string_view &basePath,
-    const fastgltf::Node &gltfNode, std::unordered_set<size_t> &parentIndices,
-    std::vector<std::pair<MeshVertexDataLoadInfo, MeshLoadInfo>> &loadInfos)
+LoadNode(flecs::world *world, Graphics::GraphicsContext &context, const fastgltf::Asset &asset, const std::string_view &basePath,
+         const fastgltf::Node &gltfNode, std::unordered_set<size_t> &parentIndices, std::vector<std::pair<MeshVertexDataLoadInfo, MeshLoadInfo>> &loadInfos)
     -> Result<std::vector<flecs::entity>> {
   bool isMesh = gltfNode.meshIndex.has_value();
   bool isSkin = gltfNode.skinIndex.has_value();
@@ -1416,11 +1240,9 @@ LoadNode(
   if (std::holds_alternative<fastgltf::TRS>(gltfNode.transform)) {
     const auto &trs = std::get<fastgltf::TRS>(gltfNode.transform);
 
-    transform.SetPosition(trs.translation[0], trs.translation[1],
-                          -trs.translation[2]);
+    transform.SetPosition(trs.translation[0], trs.translation[1], -trs.translation[2]);
     // Basis conversion with Z-axis reflection: q' = (-x, -y, z, w)
-    transform.SetRotation(-trs.rotation[0], -trs.rotation[1], trs.rotation[2],
-                          trs.rotation[3]);
+    transform.SetRotation(-trs.rotation[0], -trs.rotation[1], trs.rotation[2], trs.rotation[3]);
     transform.SetScale(trs.scale[0], trs.scale[1], trs.scale[2]);
   } else {
     // Shouldn't be hit. Since we specified DecomposeNodeMatrices, all matrices should
@@ -1438,18 +1260,14 @@ LoadNode(
 
     for (const auto &childIndex : gltfNode.children) {
       if (parentIndices.contains(childIndex)) {
-        return Error::Unexpectedf(
-            "Detected cyclic reference in node hierarchy at index {}.",
-            childIndex);
+        return Error::Unexpectedf("Detected cyclic reference in node hierarchy at index {}.", childIndex);
       }
 
       const auto &childGltfNode = asset.nodes[childIndex];
 
       parentIndices.emplace(childIndex);
 
-      auto childNode =
-          CHECK_RES(LoadNode(world, context, asset, basePath, childGltfNode,
-                             parentIndices, loadInfos));
+      auto childNode = CHECK_RES(LoadNode(world, context, asset, basePath, childGltfNode, parentIndices, loadInfos));
 
       for (auto &childObject : childNode) {
         childObject.child_of(node);
@@ -1467,8 +1285,7 @@ LoadNode(
 
     for (const auto &primitive : gltfMesh.primitives) {
       // Each primitive corresponds to a separate mesh in our engine.
-      auto shapeEntity =
-          world->entity(GetUniqueName(gltfMesh.name.c_str()).c_str());
+      auto shapeEntity = world->entity(GetUniqueName(gltfMesh.name.c_str()).c_str());
       shapeEntity.add<Engine::Shape>();
       shapeEntity.add<Engine::WorldBounds>();
       // shapeEntity.add<Engine::LocalBounds>(); No local bounds, only based on child geometry bounds.
@@ -1517,8 +1334,7 @@ LoadNode(
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto LoadGltfModel(Graphics::GraphicsContext &context, const std::string &path,
-                   flecs::world *world) -> Error {
+auto LoadGltfModel(Graphics::GraphicsContext &context, const std::string &path, flecs::world *world) -> Error {
   ZoneScoped;
   /// Load the file into a data buffer.
 
@@ -1533,10 +1349,7 @@ auto LoadGltfModel(Graphics::GraphicsContext &context, const std::string &path,
     return Error::Create("Failed to load glTF data buffer.");
   }
 
-  auto asset =
-      Parser.loadGltf(data.get(), Path::Directory(path),
-                      fastgltf::Options::DecomposeNodeMatrices |
-                          fastgltf::Options::DontRequireValidAssetMember);
+  auto asset = Parser.loadGltf(data.get(), Path::Directory(path), fastgltf::Options::DecomposeNodeMatrices | fastgltf::Options::DontRequireValidAssetMember);
   if (auto error = asset.error(); error != fastgltf::Error::None) {
     // Some error occurred while reading the buffer, parsing the JSON, or validating the data.
     return Error::Create(fastgltf::getErrorName(error));
@@ -1546,8 +1359,7 @@ auto LoadGltfModel(Graphics::GraphicsContext &context, const std::string &path,
   auto validationError = fastgltf::validate(asset.get());
 
   if (validationError != fastgltf::Error::None) {
-    return Error::Create("glTF asset validation failed: " +
-                         std::string(fastgltf::getErrorName(validationError)));
+    return Error::Create("glTF asset validation failed: " + std::string(fastgltf::getErrorName(validationError)));
   }
 
   Buffers.reserve(asset->buffers.size());
@@ -1565,36 +1377,33 @@ auto LoadGltfModel(Graphics::GraphicsContext &context, const std::string &path,
   ImageCache.resize(asset->images.size());
   Error imageLoadError = Error::Success();
 
-  std::for_each(std::execution::par, indices.begin(), indices.end(),
-                [&](const auto &index) -> auto {
-                  const fastgltf::Image &image = asset->images[index];
-                  auto loadResult =
-                      LoadDataSource(asset.get(), basePath, image.data);
-                  if (Error::IsError(loadResult)) {
-                    imageLoadError = loadResult.error();
-                    return;
-                  }
+  std::for_each(std::execution::par, indices.begin(), indices.end(), [&](const auto &index) -> auto {
+    const fastgltf::Image &image = asset->images[index];
+    auto loadResult = LoadDataSource(asset.get(), basePath, image.data);
+    if (Error::IsError(loadResult)) {
+      imageLoadError = loadResult.error();
+      return;
+    }
 
-                  auto span = loadResult.value();
+    auto span = loadResult.value();
 
-                  if (Image::IsDDS(span)) {
-                    auto imageDataResult =
-                        Image::CompressedImageData::Create(span);
-                    if (Error::IsError(imageDataResult)) {
-                      imageLoadError = imageDataResult.error();
-                      return;
-                    }
-                    ImageCache.at(index) = imageDataResult.value();
-                  } else {
-                    auto imageDataResult = Image::ImageData::Create(span);
-                    if (Error::IsError(imageDataResult)) {
-                      imageLoadError = imageDataResult.error();
-                      return;
-                    }
+    if (Image::IsDDS(span)) {
+      auto imageDataResult = Image::CompressedImageData::Create(span);
+      if (Error::IsError(imageDataResult)) {
+        imageLoadError = imageDataResult.error();
+        return;
+      }
+      ImageCache.at(index) = imageDataResult.value();
+    } else {
+      auto imageDataResult = Image::ImageData::Create(span);
+      if (Error::IsError(imageDataResult)) {
+        imageLoadError = imageDataResult.error();
+        return;
+      }
 
-                    ImageCache.at(index) = imageDataResult.value();
-                  }
-                });
+      ImageCache.at(index) = imageDataResult.value();
+    }
+  });
 
   if (Error::IsError(imageLoadError)) {
     return imageLoadError;
@@ -1610,8 +1419,7 @@ auto LoadGltfModel(Graphics::GraphicsContext &context, const std::string &path,
 
       parentIndices.emplace(nodeIndex);
 
-      CHECK_RES(LoadNode(world, context, asset.get(), view, gltfNode,
-                         parentIndices, loadInfos));
+      CHECK_RES(LoadNode(world, context, asset.get(), view, gltfNode, parentIndices, loadInfos));
     }
   }
 
@@ -1619,19 +1427,16 @@ auto LoadGltfModel(Graphics::GraphicsContext &context, const std::string &path,
   std::ranges::iota(indices2, 0);
   auto loadError = Error::Success();
 
-  std::for_each(std::execution::par, indices2.begin(), indices2.end(),
-                [&](const auto &index) -> auto {
-                  std::pair<MeshVertexDataLoadInfo, MeshLoadInfo> &infoPair =
-                      loadInfos.at(index);
+  std::for_each(std::execution::par, indices2.begin(), indices2.end(), [&](const auto &index) -> auto {
+    std::pair<MeshVertexDataLoadInfo, MeshLoadInfo> &infoPair = loadInfos.at(index);
 
-                  auto error =
-                      LoadMeshVertexData(infoPair.first, infoPair.second);
-                  if (error.IsError()) {
-                    loadError = error;
-                  }
+    auto error = LoadMeshVertexData(infoPair.first, infoPair.second);
+    if (error.IsError()) {
+      loadError = error;
+    }
 
-                  OptimiseMesh(infoPair.second);
-                });
+    OptimiseMesh(infoPair.second);
+  });
 
   CHECK_ERR(loadError);
 

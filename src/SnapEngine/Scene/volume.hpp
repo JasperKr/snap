@@ -11,6 +11,13 @@
 namespace Engine {
 
 struct Volume { // NOLINT
+
+  Volume(const Volume &) = delete;
+  Volume(Volume &&) = delete;
+  auto operator=(const Volume &) -> Volume & = delete;
+  auto operator=(Volume &&) -> Volume & = delete;
+  Volume() = default;
+
   // Allowed to be null
   Ref<Graphics::Texture> volumeTexture;
 

@@ -18,6 +18,7 @@ struct VolumeManager {
   auto QueueRebuild() -> void;
 
   auto GetTLAS() -> Ref<Graphics::TLAS>;
+  auto GetVolumeInstanceData() -> Ref<Graphics::Buffer>;
 
   auto AddInstance(const Graphics::GraphicsContext &context,
                    const Volume &volume, Math::Vec3 min, Math::Vec3 max)

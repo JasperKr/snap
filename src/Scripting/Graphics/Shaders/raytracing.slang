@@ -10,18 +10,17 @@ public RaytracingAccelerationStructure GetSceneBVH() {
 }
 
 public bool TraceAnyHitRay(RayDesc ray) {
-  RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-           RAY_FLAG_CULL_BACK_FACING_TRIANGLES |
+  RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
            RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
 
   q.TraceRayInline(GetSceneBVH(),
-                   RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-                       RAY_FLAG_CULL_BACK_FACING_TRIANGLES |
+                   RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
                        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
                    0xff, ray);
 
-  while (q.Proceed()) {
-  }
+  // while (q.Proceed()) {
+  // }
+  q.Proceed();
 
   return q.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
 }

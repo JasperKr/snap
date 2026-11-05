@@ -54,8 +54,7 @@ auto GetDeferredDestructionAllowed() -> bool & {
 
 static auto FindPhysicalDevice(GraphicsContext &context) -> Error {
   uint32_t gpuCount = 0;
-  Error error = Error::Create(
-      vkEnumeratePhysicalDevices(context.instance, &gpuCount, nullptr));
+  Error error = Error::Create(vkEnumeratePhysicalDevices(context.instance, &gpuCount, nullptr));
 
   if (gpuCount == 0) {
     return Error::Create("No Vulkan-compatible GPUs found.");
@@ -66,8 +65,7 @@ static auto FindPhysicalDevice(GraphicsContext &context) -> Error {
   }
 
   std::vector<VkPhysicalDevice> gpus(gpuCount);
-  error = Error::Create(
-      vkEnumeratePhysicalDevices(context.instance, &gpuCount, gpus.data()));
+  error = Error::Create(vkEnumeratePhysicalDevices(context.instance, &gpuCount, gpus.data()));
 
   if (Error::IsError(error)) {
     return error;
@@ -89,14 +87,12 @@ static auto FindPhysicalDevice(GraphicsContext &context) -> Error {
     int score = 0;
 
     // Prefer discrete GPUs
-    if (deviceProperties.properties.deviceType ==
-        VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+    if (deviceProperties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
       score += DiscreteGPUScore;
     }
 
     // Higher max image dimension gets a higher score
-    score += static_cast<int>(
-        deviceProperties.properties.limits.maxImageDimension2D);
+    score += static_cast<int>(deviceProperties.properties.limits.maxImageDimension2D);
 
     if (score > bestGpuScore) {
       bestGpuScore = score;
@@ -112,8 +108,7 @@ static auto FindPhysicalDevice(GraphicsContext &context) -> Error {
   context.physicalDevice = gpus.at(bestGpuIndex);
 
   VkPhysicalDeviceAccelerationStructurePropertiesKHR accelStructProperties{
-      .sType =
-          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
   };
 
   VkPhysicalDeviceProperties2 deviceProperties2{
@@ -130,19 +125,16 @@ static auto FindPhysicalDevice(GraphicsContext &context) -> Error {
 
 static auto FindQueueFamilies(GraphicsContext &context) -> Error {
   uint32_t queueFamilyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(context.physicalDevice,
-                                           &queueFamilyCount, nullptr);
+  vkGetPhysicalDeviceQueueFamilyProperties(context.physicalDevice, &queueFamilyCount, nullptr);
 
   ERR_ASSERT(queueFamilyCount != 0);
 
   std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(
-      context.physicalDevice, &queueFamilyCount, queueFamilies.data());
+  vkGetPhysicalDeviceQueueFamilyProperties(context.physicalDevice, &queueFamilyCount, queueFamilies.data());
 
   for (uint32_t i = 0; i < queueFamilyCount; i++) {
     VkBool32 presentSupport = VK_FALSE;
-    vkGetPhysicalDeviceSurfaceSupportKHR(context.physicalDevice, i,
-                                         context.surface, &presentSupport);
+    vkGetPhysicalDeviceSurfaceSupportKHR(context.physicalDevice, i, context.surface, &presentSupport);
 
     auto flags = queueFamilies.at(i).queueFlags;
 
@@ -162,24 +154,18 @@ static auto FindQueueFamilies(GraphicsContext &context) -> Error {
   return Error::Success();
 }
 
-auto GetAvailableDeviceExtensions(const GraphicsContext &context)
-    -> Result<std::vector<VkExtensionProperties>> {
+auto GetAvailableDeviceExtensions(const GraphicsContext &context) -> Result<std::vector<VkExtensionProperties>> {
   uint32_t extensionCount = 0;
-  CHECK_NEW_ERR(vkEnumerateDeviceExtensionProperties(
-      context.physicalDevice, nullptr, &extensionCount, nullptr));
+  CHECK_NEW_ERR(vkEnumerateDeviceExtensionProperties(context.physicalDevice, nullptr, &extensionCount, nullptr));
 
   std::vector<VkExtensionProperties> extensions(extensionCount);
-  CHECK_NEW_ERR(vkEnumerateDeviceExtensionProperties(
-      context.physicalDevice, nullptr, &extensionCount, extensions.data()));
+  CHECK_NEW_ERR(vkEnumerateDeviceExtensionProperties(context.physicalDevice, nullptr, &extensionCount, extensions.data()));
 
   return extensions;
 }
 
-auto ExtensionListSupported(
-    const std::vector<std::pair<const char *, ExtensionRequirement>>
-        &extensions,
-    const std::vector<VkExtensionProperties> &availableExtensions)
-    -> std::vector<bool> {
+auto ExtensionListSupported(const std::vector<std::pair<const char *, ExtensionRequirement>> &extensions,
+                            const std::vector<VkExtensionProperties> &availableExtensions) -> std::vector<bool> {
   std::vector<bool> supported(extensions.size(), false);
 
   for (size_t i = 0; i < extensions.size(); i++) {
@@ -196,8 +182,7 @@ auto ExtensionListSupported(
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static auto CreateDevice(GraphicsContext &context,
-                         const DeviceSettings &settings) -> Error {
+static auto CreateDevice(GraphicsContext &context, const DeviceSettings &settings) -> Error {
   float queuePriority = 1.0F;
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
 
@@ -235,45 +220,34 @@ static auto CreateDevice(GraphicsContext &context,
   createInfo.pEnabledFeatures = nullptr;
 
   VkPhysicalDeviceIndexTypeUint8FeaturesEXT indexTypeUint8Features{};
-  indexTypeUint8Features.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT;
+  indexTypeUint8Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT;
   indexTypeUint8Features.indexTypeUint8 = VK_TRUE;
 
   VkPhysicalDeviceAccelerationStructureFeaturesKHR accelStructFeatures{};
-  accelStructFeatures.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+  accelStructFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
 
-  accelStructFeatures.accelerationStructure =
-      settings.hardwareRaytracing == ExtensionRequirement::Required ? VK_TRUE
-                                                                    : VK_FALSE;
+  accelStructFeatures.accelerationStructure = settings.hardwareRaytracing == ExtensionRequirement::Required ? VK_TRUE : VK_FALSE;
   indexTypeUint8Features.pNext = &accelStructFeatures;
 
   VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures{};
-  rayQueryFeatures.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-  rayQueryFeatures.rayQuery =
-      settings.inlineRaytracing == ExtensionRequirement::Required ? VK_TRUE
-                                                                  : VK_FALSE;
+  rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+  rayQueryFeatures.rayQuery = settings.inlineRaytracing == ExtensionRequirement::Required ? VK_TRUE : VK_FALSE;
   accelStructFeatures.pNext = &rayQueryFeatures;
 
-  VkPhysicalDeviceVertexAttributeDivisorFeaturesKHR
-      vertexAttributeDivisorProperties{};
-  vertexAttributeDivisorProperties.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_KHR;
+  VkPhysicalDeviceVertexAttributeDivisorFeaturesKHR vertexAttributeDivisorProperties{};
+  vertexAttributeDivisorProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_KHR;
   vertexAttributeDivisorProperties.vertexAttributeInstanceRateDivisor = VK_TRUE;
   vertexAttributeDivisorProperties.pNext = &indexTypeUint8Features;
 
   VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dyn3{};
-  dyn3.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT;
+  dyn3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT;
   dyn3.extendedDynamicState3ColorBlendEquation = VK_TRUE;
   dyn3.extendedDynamicState3ColorWriteMask = VK_TRUE;
   dyn3.extendedDynamicState3ColorBlendEnable = VK_TRUE;
   dyn3.pNext = &vertexAttributeDivisorProperties;
 
   VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT feature{};
-  feature.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_INPUT_DYNAMIC_STATE_FEATURES_EXT;
+  feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_INPUT_DYNAMIC_STATE_FEATURES_EXT;
   feature.vertexInputDynamicState = VK_TRUE;
   feature.pNext = &dyn3;
 
@@ -333,6 +307,7 @@ static auto CreateDevice(GraphicsContext &context,
   features10.samplerAnisotropy = VK_TRUE;
   features10.textureCompressionBC = VK_TRUE;
   features10.shaderInt64 = VK_TRUE;
+  features10.shaderInt16 = VK_TRUE;
 
   // --- Features2 root ---
   VkPhysicalDeviceFeatures2 features2{

@@ -13,13 +13,9 @@ public struct Volume {
 
   public bool HasTexture() { return uint2(texture).x != 0; }
 
-  public bool ContainsPoint(float3 position) {
-    return all(position >= boundsMin) && all(position <= boundsMax);
-  }
+  public bool ContainsPoint(float3 position) { return all(position >= boundsMin) && all(position <= boundsMax); }
 
-  public float3 ToUVW(float3 position) {
-    return (position - boundsMin) / (boundsMax - boundsMin);
-  }
+  public float3 ToUVW(float3 position) { return (position - boundsMin) / (boundsMax - boundsMin); }
 
   public float SampleDensity(float3 samplePosition) {
     if (!ContainsPoint(samplePosition)) {
@@ -31,18 +27,14 @@ public struct Volume {
     }
 
     float3 position = ToUVW(samplePosition);
-    return texture.Sample(position) * density;
+    return texture.SampleLevelZero(position) * density;
   }
 
   // Need to be normalised
-  public float GetAnisotropy(float3 viewDirection, float3 lightDirection) {
-    return GetAnisotropy(dot(viewDirection, lightDirection));
-  }
+  public float GetAnisotropy(float3 viewDirection, float3 lightDirection) { return GetAnisotropy(dot(viewDirection, lightDirection)); }
 
   // View dot Light
-  public float GetAnisotropy(float VoL) {
-    return PhaseFunction(VoL, anisotropy);
-  }
+  public float GetAnisotropy(float VoL) { return PhaseFunction(VoL, anisotropy); }
 
   // Henyey-Greenstein phase function approximated with spherical harmonics
   public static float PhaseFunction(float cosTheta, float g) {
@@ -55,8 +47,8 @@ public struct Volume {
   }
 
   public bool TraceRay(RayDesc ray, out float t0, out float t1) {
-    float3 _t0 = (boundsMin - ray.Origin) * ray.Direction;
-    float3 _t1 = (boundsMax - ray.Origin) * ray.Direction;
+    float3 _t0 = (boundsMin - ray.Origin) / ray.Direction;
+    float3 _t1 = (boundsMax - ray.Origin) / ray.Direction;
 
     float3 tmin = min(_t0, _t1);
     float3 tmax = max(_t0, _t1);

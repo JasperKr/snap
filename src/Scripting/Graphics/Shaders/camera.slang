@@ -20,10 +20,10 @@ public struct _CameraData {
   public uint ShadowCascadeCount;
 
   public float3 GetForward() { return -normalize(ViewMatrix[2].xyz); }
-
   public float3 GetRight() { return normalize(ViewMatrix[0].xyz); }
-
   public float3 GetUp() { return normalize(ViewMatrix[1].xyz); }
+
+  public float GetDistance(float2 uvs, float depth) { return distance(GetWorldPosition(uvs, depth), Position); }
 
   public float3 GetWorldPosition(float2 uv, float depth) {
     float4 clipPos = float4(uv * 2.0 - 1.0, depth, 1.0);
@@ -38,8 +38,7 @@ public struct _CameraData {
   }
 
   public float3 GetPreviousNDC(float3 worldPos) {
-    float4 clipPos =
-        mul(CameraData[1].ViewProjectionMatrix, float4(worldPos, 1.0));
+    float4 clipPos = mul(CameraData[1].ViewProjectionMatrix, float4(worldPos, 1.0));
     return clipPos.xyz / clipPos.w;
   }
 
@@ -49,8 +48,7 @@ public struct _CameraData {
   }
 
   public float3 GetPreviousUVs(float3 worldPos) {
-    float4 clipPos =
-        mul(CameraData[1].ViewProjectionMatrix, float4(worldPos, 1.0));
+    float4 clipPos = mul(CameraData[1].ViewProjectionMatrix, float4(worldPos, 1.0));
     clipPos.xyz /= clipPos.w;
     return clipPos.xyz * 0.5f + 0.5f;
   }

@@ -3,6 +3,7 @@
 #include "Graphics/draw.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
+#include "Graphics/graphicsState.hpp"
 #include "Graphics/mesh.hpp"
 #include "Graphics/render.hpp"
 #include "Graphics/renderState.hpp"
@@ -12,9 +13,11 @@
 #include "Graphics/texture.hpp"
 #include "Modules/console.hpp"
 #include "Modules/object.hpp"
+#include "Modules/stackVector.hpp"
 #include "Wrap/Graphics/wrap_color.hpp"
 #include "Wrap/Helpers/lua_enum.hpp"
 #include "Wrap/wrap.hpp"
+#include <array>
 #include <cassert>
 
 #include "vulkan/vulkan_core.h"
@@ -38,9 +41,7 @@ auto wrap_Present(lua_State *state) -> int {
 
     for (int index = 1; index <= lua_objlen(state, 1); index++) {
       lua_rawgeti(state, 1, index);
-      auto renderInfo = LUA_CK_NULL(
-          LuaWrap::ObjectFromLua<::Graphics::Threading::RenderThreadInfo>(state,
-                                                                          -1));
+      auto renderInfo = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Threading::RenderThreadInfo>(state, -1));
 
       commands.emplace_back(renderInfo);
       lua_pop(state, 1);
@@ -97,12 +98,10 @@ auto wrap_SetDepthMode(lua_State *state) -> int {
   } else if (strcmp(compareOpStr, "always") == 0) {
     compareOp = VK_COMPARE_OP_ALWAYS;
   } else {
-    return luaL_error(state, "Invalid depth compare operation: %s",
-                      compareOpStr);
+    return luaL_error(state, "Invalid depth compare operation: %s", compareOpStr);
   }
 
-  auto enableRead =
-      compareOp != VK_COMPARE_OP_ALWAYS && compareOp != VK_COMPARE_OP_NEVER;
+  auto enableRead = compareOp != VK_COMPARE_OP_ALWAYS && compareOp != VK_COMPARE_OP_NEVER;
 
   ::Graphics::RenderState::SetDepthMode(enableRead, writeEnable, compareOp);
   return 0;
@@ -163,10 +162,8 @@ auto wrap_SetViewport(lua_State *state) -> int {
   viewport.y = static_cast<float>(luaL_checknumber(state, 2));
   viewport.width = static_cast<float>(luaL_checknumber(state, 3));
   viewport.height = static_cast<float>(luaL_checknumber(state, 4));
-  viewport.minDepth =
-      static_cast<float>(luaL_optnumber(state, 5, 0.0)); // NOLINT
-  viewport.maxDepth =
-      static_cast<float>(luaL_optnumber(state, 6, 1.0)); // NOLINT
+  viewport.minDepth = static_cast<float>(luaL_optnumber(state, 5, 0.0)); // NOLINT
+  viewport.maxDepth = static_cast<float>(luaL_optnumber(state, 6, 1.0)); // NOLINT
   ::Graphics::RenderState::SetViewport(&viewport);
   return 0;
 }
@@ -232,8 +229,7 @@ auto wrap_GetDepthMode(lua_State *state) -> int {
   bool enableRead = false;
   bool writeEnable = false;
   VkCompareOp compareOp = VK_COMPARE_OP_MAX_ENUM;
-  std::tie(enableRead, writeEnable, compareOp) =
-      ::Graphics::RenderState::GetDepthMode();
+  std::tie(enableRead, writeEnable, compareOp) = ::Graphics::RenderState::GetDepthMode();
 
   const char *compareOpStr = "unknown";
   switch (compareOp) {
@@ -367,8 +363,7 @@ auto wrap_GetRenderTargets(lua_State *state) -> int {
   for (size_t i = 0; i < renderTargets.size(); ++i) {
     auto &renderTarget = renderTargets[i];
     const auto *type = ::Graphics::RenderState::LuaRenderTarget::GetType();
-    auto luaRendertarget =
-        Ref<::Graphics::RenderState::LuaRenderTarget>::Make(renderTarget);
+    auto luaRendertarget = Ref<::Graphics::RenderState::LuaRenderTarget>::Make(renderTarget);
 
     LuaWrap::PushObject(state, type, luaRendertarget.get());
     lua_rawseti(state, -2, static_cast<int>(i + 1));
@@ -399,8 +394,7 @@ auto wrap_Draw(lua_State *state) -> int {
   Ref<::Graphics::Mesh> mesh;
 
   if (LuaWrap::IsType<::Graphics::Texture>(state, 1)) {
-    auto texture =
-        LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
+    auto texture = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
 
     LUA_CK_ERR(::Graphics::Draw(*ctx, texture, 1));
 
@@ -442,8 +436,7 @@ auto wrap_DispatchIndirect(lua_State *state) -> int {
   ZoneScoped;
   auto *ctx = ::Graphics::GetCurrentGraphicsContext();
 
-  auto indirectBuffer =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Buffer>(state, 1));
+  auto indirectBuffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Buffer>(state, 1));
 
   auto offset = static_cast<VkDeviceSize>(luaL_optinteger(state, 2, 0));
   LUA_CK_ERR(DispatchIndirect(*ctx, indirectBuffer, offset));
@@ -456,8 +449,7 @@ auto wrap_DrawIndirect(lua_State *state) -> int {
   auto *ctx = ::Graphics::GetCurrentGraphicsContext();
 
   auto mesh = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Mesh>(state, 1));
-  auto indirectBuffer =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Buffer>(state, 2));
+  auto indirectBuffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Buffer>(state, 2));
 
   auto offset = static_cast<VkDeviceSize>(luaL_optinteger(state, 3, 0));
   auto count = static_cast<uint32_t>(luaL_optinteger(state, 4, 1));
@@ -476,32 +468,32 @@ auto wrap_Clear(lua_State *state) -> int {
   ZoneScoped;
   auto *ctx = ::Graphics::GetCurrentGraphicsContext();
 
-  ::Graphics::RenderState::ClearInfo clearInfo{};
+  Math::StackVector<VkClearColorValue, ::Graphics::MAX_COLOR_ATTACHMENTS> clearColors;
+  float depthClearValue{};
+  uint32_t stencilClearValue{};
+  bool clearDepth = false;
+  bool clearStencil = false;
 
   if (lua_isboolean(state, 1) != 0) {
     // bool version
     bool clear = lua_toboolean(state, 1) != 0;
     if (clear) {
-      clearInfo.colors.emplace_back(0.0F, 0.0F, 0.0F, 1.0F);
+      clearColors.emplace_back(VkClearColorValue{0.0F, 0.0F, 0.0F, 1.0F});
     }
 
-    clearInfo.clearDepth =
-        lua_isboolean(state, 2) != 0 ? (lua_toboolean(state, 2) != 0) : false;
-    clearInfo.clearStencil =
-        lua_isboolean(state, 3) != 0 ? (lua_toboolean(state, 3) != 0) : false;
+    clearDepth = lua_isboolean(state, 2) != 0 ? (lua_toboolean(state, 2) != 0) : false;
+    clearStencil = lua_isboolean(state, 3) != 0 ? (lua_toboolean(state, 3) != 0) : false;
   } else if (lua_isnumber(state, 1) != 0) {
     // Color, depth, stencil version
     auto color = ColorFromLuaState(state, ColorFormat::VarArg, 1);
-    clearInfo.colors.emplace_back(color);
+    clearColors.emplace_back(VkClearColorValue{color.r, color.g, color.b, color.a});
 
-    if (lua_isnumber(state, 5) != 0) { // NOLINT
-      clearInfo.depthClearValue =
-          static_cast<float>(lua_tonumber(state, 5)); // NOLINT
+    if (lua_isnumber(state, 5) != 0) {                              // NOLINT
+      depthClearValue = static_cast<float>(lua_tonumber(state, 5)); // NOLINT
     }
 
-    if (lua_isnumber(state, 6) != 0) { // NOLINT
-      clearInfo.stencilClearValue =
-          static_cast<int>(lua_tointeger(state, 6)); // NOLINT
+    if (lua_isnumber(state, 6) != 0) {                               // NOLINT
+      stencilClearValue = static_cast<int>(lua_tointeger(state, 6)); // NOLINT
     }
   } else if (lua_istable(state, 1) != 0) {
     // Table version
@@ -511,31 +503,30 @@ auto wrap_Clear(lua_State *state) -> int {
       if (lua_type(state, -2) == LUA_TNUMBER) {
         // Color entry
         auto color = ColorFromLuaState(state, ColorFormat::List, -1);
-        clearInfo.colors.emplace_back(color);
+        clearColors.emplace_back(VkClearColorValue{color.r, color.g, color.b, color.a});
       } else if (lua_type(state, -2) == LUA_TSTRING) {
         const char *key = lua_tostring(state, -2);
         if (strcmp(key, "depth") == 0) {
-          clearInfo.depthClearValue =
-              static_cast<float>(lua_tonumber(state, -1)); // NOLINT
+          depthClearValue = static_cast<float>(lua_tonumber(state, -1)); // NOLINT
         } else if (strcmp(key, "stencil") == 0) {
-          clearInfo.stencilClearValue =
-              static_cast<int>(lua_tointeger(state, -1)); // NOLINT
+          stencilClearValue = static_cast<int>(lua_tointeger(state, -1)); // NOLINT
         }
       }
       lua_pop(state, 1); // pop value, keep key for next iteration
     }
   } else {
     // Only color clear to 0,0,0,1
-    clearInfo.clearDepth = false;
-    clearInfo.clearStencil = false;
+    clearDepth = false;
+    clearStencil = false;
     auto rtCount = ::Graphics::RenderState::GetRenderTargets().size();
 
     for (size_t i = 0; i < rtCount; i++) {
-      clearInfo.colors.emplace_back(0.0F, 0.0F, 0.0F, 1.0F);
+      clearColors.emplace_back(VkClearColorValue{0.0F, 0.0F, 0.0F, 1.0F});
     }
   }
 
-  LUA_CK_ERR(::Graphics::RenderState::Clear(*ctx, clearInfo));
+  LUA_CK_ERR(::Graphics::RenderState::Clear(*ctx, clearColors.data(), clearColors.size(),
+                                            VkClearDepthStencilValue{.depth = depthClearValue, .stencil = stencilClearValue}, clearDepth, clearStencil));
 
   return 0;
 }
@@ -569,13 +560,12 @@ auto wrap_GetDimensions(lua_State *state) -> int {
   return 2;
 }
 
-inline const LuaWrap::LuaEnum<VkQueueFlagBits> queueFlags{
-    "DeviceQueue",
-    {
-        {"Graphics", VK_QUEUE_GRAPHICS_BIT},
-        {"Compute", VK_QUEUE_COMPUTE_BIT},
-        {"Transfer", VK_QUEUE_TRANSFER_BIT},
-    }};
+inline const LuaWrap::LuaEnum<VkQueueFlagBits> queueFlags{"DeviceQueue",
+                                                          {
+                                                              {"Graphics", VK_QUEUE_GRAPHICS_BIT},
+                                                              {"Compute", VK_QUEUE_COMPUTE_BIT},
+                                                              {"Transfer", VK_QUEUE_TRANSFER_BIT},
+                                                          }};
 
 auto wrap_AcquireCommandBuffer(lua_State *state) -> int {
   auto *ctx = LUA_CK_NULL(::Graphics::GetCurrentGraphicsContext());
@@ -598,8 +588,7 @@ auto wrap_AcquireCommandBuffer(lua_State *state) -> int {
     break;
   }
 
-  LUA_ASSERT(info.queueFamily !=
-             UINT32_MAX); // Hit if using queue family that isn't present
+  LUA_ASSERT(info.queueFamily != UINT32_MAX); // Hit if using queue family that isn't present
   LUA_CK_RES(::Graphics::Threading::AcquireCommandBuffer(*ctx, info));
 
   // Optional boolean arg at idx 4 can be used to indicate that we want to create a performance snapshot for this command buffer
@@ -619,8 +608,7 @@ auto wrap_SubmitCommandBuffer(lua_State *state) -> int {
 
   auto submitResult = LUA_CK_RES(::Graphics::Threading::SubmitCommands(*ctx));
 
-  LuaWrap::PushObject(state, ::Graphics::Threading::RenderThreadInfo::GetType(),
-                      submitResult.get());
+  LuaWrap::PushObject(state, ::Graphics::Threading::RenderThreadInfo::GetType(), submitResult.get());
 
   auto *snapshot = ::Graphics::Snapshot::GetCurrentSnapshot();
   ::Graphics::Snapshot::EndSnapshot();
@@ -632,8 +620,7 @@ auto wrap_SubmitCommandBuffer(lua_State *state) -> int {
     snapshotCopyResult->events = std::move(snapshot->events);
     snapshotCopyResult->renderStates = std::move(snapshot->renderStates);
 
-    LuaWrap::PushObject(state, ::Graphics::Snapshot::ThreadSnapshot::GetType(),
-                        snapshotCopyResult.get());
+    LuaWrap::PushObject(state, ::Graphics::Snapshot::ThreadSnapshot::GetType(), snapshotCopyResult.get());
 
     return 2;
   }
@@ -655,17 +642,14 @@ auto wrap_CopyBuffer(lua_State *state) -> int {
     return luaL_error(state, "No current GraphicsContext set for this thread.");
   }
 
-  auto srcBuffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
-  auto dstBuffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 2));
+  auto srcBuffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto dstBuffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 2));
 
   auto srcIndex = static_cast<size_t>(luaL_checkinteger(state, 3));
   auto dstIndex = static_cast<size_t>(luaL_checkinteger(state, 4));
   auto size = static_cast<size_t>(luaL_checkinteger(state, 5)); // NOLINT
 
-  LUA_CK_ERR(srcBuffer->GetBuffer()->CopyTo(*ctx, *dstBuffer->GetBuffer(),
-                                            srcIndex, dstIndex, size));
+  LUA_CK_ERR(srcBuffer->GetBuffer()->CopyTo(*ctx, *dstBuffer->GetBuffer(), srcIndex, dstIndex, size));
 
   return 0;
 }
@@ -678,10 +662,8 @@ auto wrap_CopyTexture(lua_State *state) -> int {
     return luaL_error(state, "No current GraphicsContext set for this thread.");
   }
 
-  auto srcTexture =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
-  auto dstTexture =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 2));
+  auto srcTexture = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
+  auto dstTexture = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 2));
 
   ::Graphics::CopyRegion region{};
 
@@ -695,23 +677,16 @@ auto wrap_CopyTexture(lua_State *state) -> int {
   region.dstOffset.y = static_cast<int32_t>(luaL_optinteger(state, i++, 0));
   region.dstOffset.z = static_cast<int32_t>(luaL_optinteger(state, i++, 0));
 
-  region.extent.width = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, srcTexture->GetWidth()));
-  region.extent.height = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, srcTexture->GetHeight()));
-  region.extent.depth = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, srcTexture->GetDepth()));
+  region.extent.width = static_cast<uint32_t>(luaL_optinteger(state, i++, srcTexture->GetWidth()));
+  region.extent.height = static_cast<uint32_t>(luaL_optinteger(state, i++, srcTexture->GetHeight()));
+  region.extent.depth = static_cast<uint32_t>(luaL_optinteger(state, i++, srcTexture->GetDepth()));
 
-  region.srcBaseArrayLayer =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
-  region.dstBaseArrayLayer =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.srcBaseArrayLayer = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.dstBaseArrayLayer = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
   region.layerCount = static_cast<uint32_t>(luaL_optinteger(state, i++, 1));
 
-  region.srcBaseMipLevel =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
-  region.dstBaseMipLevel =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.srcBaseMipLevel = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.dstBaseMipLevel = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
   region.mipLevelCount = static_cast<uint32_t>(luaL_optinteger(state, i++, 1));
 
   LUA_CK_ERR(srcTexture->CopyTo(*ctx, *dstTexture, region));
@@ -727,39 +702,28 @@ auto wrap_CopyBufferToTexture(lua_State *state) -> int {
     return luaL_error(state, "No current GraphicsContext set for this thread.");
   }
 
-  auto srcBuffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
-  auto dstTexture =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 2));
+  auto srcBuffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto dstTexture = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 2));
 
   VkBufferImageCopy region{};
 
   int i = 3; // NOLINT
 
-  region.bufferOffset =
-      static_cast<VkDeviceSize>(luaL_optinteger(state, i++, 0));
-  region.bufferRowLength =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
-  region.bufferImageHeight =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.bufferOffset = static_cast<VkDeviceSize>(luaL_optinteger(state, i++, 0));
+  region.bufferRowLength = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.bufferImageHeight = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
 
   region.imageOffset.x = static_cast<int32_t>(luaL_optinteger(state, i++, 0));
   region.imageOffset.y = static_cast<int32_t>(luaL_optinteger(state, i++, 0));
   region.imageOffset.z = static_cast<int32_t>(luaL_optinteger(state, i++, 0));
-  region.imageExtent.width = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, dstTexture->GetWidth()));
-  region.imageExtent.height = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, dstTexture->GetHeight()));
-  region.imageExtent.depth = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, dstTexture->GetDepth()));
+  region.imageExtent.width = static_cast<uint32_t>(luaL_optinteger(state, i++, dstTexture->GetWidth()));
+  region.imageExtent.height = static_cast<uint32_t>(luaL_optinteger(state, i++, dstTexture->GetHeight()));
+  region.imageExtent.depth = static_cast<uint32_t>(luaL_optinteger(state, i++, dstTexture->GetDepth()));
 
   region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  region.imageSubresource.mipLevel =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
-  region.imageSubresource.baseArrayLayer =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
-  region.imageSubresource.layerCount =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 1));
+  region.imageSubresource.mipLevel = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.imageSubresource.baseArrayLayer = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.imageSubresource.layerCount = static_cast<uint32_t>(luaL_optinteger(state, i++, 1));
 
   LUA_CK_ERR(srcBuffer->GetBuffer()->CopyTo(*ctx, *dstTexture, region));
 
@@ -774,10 +738,8 @@ auto wrap_CopyTextureToBuffer(lua_State *state) -> int {
     return luaL_error(state, "No current GraphicsContext set for this thread.");
   }
 
-  auto srcTexture =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
-  auto dstBuffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 2));
+  auto srcTexture = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, 1));
+  auto dstBuffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 2));
 
   ::Graphics::ToBufferCopyRegion region{};
 
@@ -787,19 +749,14 @@ auto wrap_CopyTextureToBuffer(lua_State *state) -> int {
   region.srcOffset.y = static_cast<int32_t>(luaL_optinteger(state, i++, 0));
   region.srcOffset.z = static_cast<int32_t>(luaL_optinteger(state, i++, 0));
 
-  region.extent.width = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, srcTexture->GetWidth()));
-  region.extent.height = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, srcTexture->GetHeight()));
-  region.extent.depth = static_cast<uint32_t>(
-      luaL_optinteger(state, i++, srcTexture->GetDepth()));
+  region.extent.width = static_cast<uint32_t>(luaL_optinteger(state, i++, srcTexture->GetWidth()));
+  region.extent.height = static_cast<uint32_t>(luaL_optinteger(state, i++, srcTexture->GetHeight()));
+  region.extent.depth = static_cast<uint32_t>(luaL_optinteger(state, i++, srcTexture->GetDepth()));
 
-  region.srcBaseArrayLayer =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.srcBaseArrayLayer = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
   region.layerCount = static_cast<uint32_t>(luaL_optinteger(state, i++, 1));
 
-  region.srcBaseMipLevel =
-      static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
+  region.srcBaseMipLevel = static_cast<uint32_t>(luaL_optinteger(state, i++, 0));
 
   region.dstOffset = static_cast<VkDeviceSize>(luaL_optinteger(state, i++, 0));
 
@@ -834,10 +791,8 @@ auto wrap_SetDefaultFilter(lua_State *state) -> int {
   auto &config = ::Graphics::Threading::GetGraphicsConfiguration();
   config.defaultSamplerDescription.minFilter = minFilter;
   config.defaultSamplerDescription.magFilter = magFilter;
-  config.defaultSamplerDescription.maxAnisotropy = static_cast<float>(
-      luaL_optnumber(state, 3, config.defaultSamplerDescription.maxAnisotropy));
-  config.defaultSamplerDescription.anisotropyEnable =
-      config.defaultSamplerDescription.maxAnisotropy > 1.0F;
+  config.defaultSamplerDescription.maxAnisotropy = static_cast<float>(luaL_optnumber(state, 3, config.defaultSamplerDescription.maxAnisotropy));
+  config.defaultSamplerDescription.anisotropyEnable = config.defaultSamplerDescription.maxAnisotropy > 1.0F;
 
   return 0;
 }
@@ -864,13 +819,11 @@ auto wrap_GetDefaultFilter(lua_State *state) -> int {
     break;
   }
 
-  lua_pushnumber(state, static_cast<lua_Number>(
-                            config.defaultSamplerDescription.maxAnisotropy));
+  lua_pushnumber(state, static_cast<lua_Number>(config.defaultSamplerDescription.maxAnisotropy));
   return 3;
 }
 
-auto inline StringToAddressMode(const char *addressModeStr)
-    -> VkSamplerAddressMode {
+auto inline StringToAddressMode(const char *addressModeStr) -> VkSamplerAddressMode {
   if (strcmp(addressModeStr, "repeat") == 0) {
     return VK_SAMPLER_ADDRESS_MODE_REPEAT;
   }
@@ -886,18 +839,14 @@ auto inline StringToAddressMode(const char *addressModeStr)
 auto wrap_SetDefaultWrapMode(lua_State *state) -> int {
   auto &config = ::Graphics::Threading::GetGraphicsConfiguration();
 
-  config.defaultSamplerDescription.addressModeU =
-      StringToAddressMode(luaL_checkstring(state, 1));
-  config.defaultSamplerDescription.addressModeV =
-      StringToAddressMode(luaL_checkstring(state, 2));
-  config.defaultSamplerDescription.addressModeW =
-      StringToAddressMode(luaL_checkstring(state, 3));
+  config.defaultSamplerDescription.addressModeU = StringToAddressMode(luaL_checkstring(state, 1));
+  config.defaultSamplerDescription.addressModeV = StringToAddressMode(luaL_checkstring(state, 2));
+  config.defaultSamplerDescription.addressModeW = StringToAddressMode(luaL_checkstring(state, 3));
 
   return 0;
 }
 
-auto inline AddressModeToString(VkSamplerAddressMode addressMode) -> const
-    char * {
+auto inline AddressModeToString(VkSamplerAddressMode addressMode) -> const char * {
   switch (addressMode) {
   case VK_SAMPLER_ADDRESS_MODE_REPEAT:
     return "repeat";
@@ -913,12 +862,9 @@ auto inline AddressModeToString(VkSamplerAddressMode addressMode) -> const
 auto wrap_GetDefaultWrapMode(lua_State *state) -> int {
   auto &config = ::Graphics::Threading::GetGraphicsConfiguration();
 
-  lua_pushstring(state, AddressModeToString(
-                            config.defaultSamplerDescription.addressModeU));
-  lua_pushstring(state, AddressModeToString(
-                            config.defaultSamplerDescription.addressModeV));
-  lua_pushstring(state, AddressModeToString(
-                            config.defaultSamplerDescription.addressModeW));
+  lua_pushstring(state, AddressModeToString(config.defaultSamplerDescription.addressModeU));
+  lua_pushstring(state, AddressModeToString(config.defaultSamplerDescription.addressModeV));
+  lua_pushstring(state, AddressModeToString(config.defaultSamplerDescription.addressModeW));
 
   return 3;
 }
@@ -945,20 +891,16 @@ auto wrap_GetStats(lua_State *state) -> int {
   lua_pushinteger(state, static_cast<lua_Integer>(stats.contextSwitches));
   lua_setfield(state, -2, "contextswitches");
 
-  lua_pushinteger(state, static_cast<lua_Integer>(
-                             ::Graphics::Texture::TotalAllocatedMemory));
+  lua_pushinteger(state, static_cast<lua_Integer>(::Graphics::Texture::TotalAllocatedMemory));
   lua_setfield(state, -2, "texturememory");
 
-  lua_pushinteger(state, static_cast<lua_Integer>(
-                             ::Graphics::Buffer::TotalAllocatedMemory));
+  lua_pushinteger(state, static_cast<lua_Integer>(::Graphics::Buffer::TotalAllocatedMemory));
   lua_setfield(state, -2, "buffermemory");
 
-  lua_pushinteger(
-      state, static_cast<lua_Integer>(::Graphics::BLAS::TotalAllocatedMemory));
+  lua_pushinteger(state, static_cast<lua_Integer>(::Graphics::BLAS::TotalAllocatedMemory));
   lua_setfield(state, -2, "blasmemory");
 
-  lua_pushinteger(
-      state, static_cast<lua_Integer>(::Graphics::TLAS::TotalAllocatedMemory));
+  lua_pushinteger(state, static_cast<lua_Integer>(::Graphics::TLAS::TotalAllocatedMemory));
   lua_setfield(state, -2, "tlasmemory");
 
   return 1;
