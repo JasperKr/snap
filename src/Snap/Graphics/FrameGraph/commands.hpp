@@ -696,7 +696,6 @@ struct VCmdThreadInfo {
   void Shutdown() {
     shutdown.store(true);
     mainToWorker.Notify();
-    PrintAlways("Notifying worker to shut down");
   }
   void Initialize(VirtualCommandBuffer *vcmd);
 
