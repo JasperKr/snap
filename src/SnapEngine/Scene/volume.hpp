@@ -1,6 +1,8 @@
 #pragma once
 
+#include "Editor/lineDrawer.hpp"
 #include "Graphics/texture.hpp"
+#include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Wrap/wrap.hpp"
@@ -23,6 +25,9 @@ struct Volume { // NOLINT
 
   float density = 0.1;
   float anisotropy = 0.4;
+
+  Math::Vec4 color = Math::Vec4{1.0F};
+
   uint32_t tlasIndex{}; // Index into scene volume TLAS
   bool hasTlasIndex = false;
 
@@ -36,9 +41,7 @@ const static Type VolumeType = Type("Volume");
 
 struct LuaVolume : LuaWrap::LuaECSObject {
   static auto GetType() -> const Type * { return &VolumeType; }
-  [[nodiscard]] auto GetInstanceType() const -> const Type * override {
-    return LuaVolume::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> const Type * override { return LuaVolume::GetType(); }
 
   explicit LuaVolume(flecs::entity &volume) : LuaWrap::LuaECSObject(volume) {}
 

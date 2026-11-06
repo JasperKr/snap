@@ -22,8 +22,7 @@ public half4 UnpackTangent(uint packedTangent) {
   tangent.x = half((float(x) * (1.0f / 1023.0f)) * 2.0 - 1.0);
   tangent.y = half((float(y) * (1.0f / 1023.0f)) * 2.0 - 1.0);
   tangent.z = half((float(z) * (1.0f / 1023.0f)) * 2.0 - 1.0);
-  tangent.w =
-      half(packedTangent >> 30 & 1) * 2.0H - 1.0H; // Convert back to -1 or 1
+  tangent.w = half(packedTangent >> 30 & 1) * 2.0H - 1.0H; // Convert back to -1 or 1
 
   return tangent;
 }
@@ -40,9 +39,7 @@ public float2 PackMotionVector(float2 motionVector) {
   return unsignedMotion * sign(motionVector);
 }
 
-public float3 Rotate(float3 v, float4 q) {
-  return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
-}
+public float3 Rotate(float3 v, float4 q) { return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }
 
 public float3 GetRayDirection(float2 uv, float4x4 inverseRotationProjection) {
   float4 clipSpacePos = float4(uv * 2.0 - 1.0, 1.0, 1.0);
@@ -50,9 +47,7 @@ public float3 GetRayDirection(float2 uv, float4x4 inverseRotationProjection) {
   return normalize(worldSpacePos.xyz);
 }
 
-public float Luminance(float3 color) {
-  return dot(color, float3(0.2126, 0.7152, 0.0722));
-}
+public float Luminance(float3 color) { return dot(color, float3(0.2126, 0.7152, 0.0722)); }
 
 // we should default to float.maxValue, however that causes issues when storing in non-float32
 // textures which will always be the case since that would be dumb, so we clamp to 1000.0f
@@ -77,3 +72,5 @@ public float4 Sanitise(float4 color) {
 
   return color;
 }
+
+public float4 BlendColors(float4 first, float4 second) { return sqrt(first * first + second * second); }

@@ -6,17 +6,15 @@
 #include "Graphics/graphics.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
-#include "Modules/object.hpp"
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
 #include <cstdint>
 #include <cstring>
 #include <mutex>
-#include <optional>
 #include <public/tracy/Tracy.hpp>
-#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -111,10 +109,7 @@ struct Callable {
 struct BoundResources {
   std::vector<VulkanResource> reads;
   std::vector<VulkanResource> writes;
-  std::unordered_map<VulkanResource,
-                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
-                     VulkanResourceHash<true>>
-      accesses;
+  std::unordered_map<VulkanResource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>, VulkanResourceHash<true>> accesses;
 };
 
 struct DrawState {
@@ -142,13 +137,9 @@ struct DrawState {
 
   uint32_t uboAddress;
 
-  auto GetAccesses(
-      std::unordered_map<VulkanResource,
-                         std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
-                         VulkanResourceHash<true>> &accesses) const -> void;
+  auto GetAccesses(std::unordered_map<VulkanResource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>, VulkanResourceHash<true>> &accesses) const -> void;
 
-  auto Apply(const GraphicsContext &context, const struct RenderPass &parent,
-             VkCommandBuffer cmdBuffer) const -> Error;
+  auto Apply(const GraphicsContext &context, const struct RenderPass &parent, VkCommandBuffer cmdBuffer) const -> Error;
 
   auto Initialize(CommandType type) -> Error;
 };
@@ -166,8 +157,7 @@ struct VkCmdDraw : Callable, DrawState, BoundResources {
   uint32_t firstInstance{};
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdDraw(cmdBuffer, vertexCount, instanceCount, firstVertex,
-              firstInstance);
+    vkCmdDraw(cmdBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     return {};
   }
 };
@@ -184,8 +174,7 @@ struct VkCmdDrawIndexed : Callable, DrawState, BoundResources {
   uint32_t firstInstance{};
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdDrawIndexed(cmdBuffer, indexCount, instanceCount, firstIndex,
-                     vertexOffset, firstInstance);
+    vkCmdDrawIndexed(cmdBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     return {};
   }
 };
@@ -266,8 +255,7 @@ struct VkCmdBlitImage : Callable, BoundResources {
   std::vector<VulkanResource> dstResources;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdBlitImage(cmdBuffer, srcImage, srcImageLayout, dstImage,
-                   dstImageLayout, regions.size(), regions.data(), filter);
+    vkCmdBlitImage(cmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regions.size(), regions.data(), filter);
     return {};
   }
 };
@@ -290,8 +278,7 @@ struct VkCmdCopyBuffer : Callable, BoundResources {
   std::vector<VkBufferCopy> regions;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, regions.size(),
-                    regions.data());
+    vkCmdCopyBuffer(cmdBuffer, srcBuffer, dstBuffer, regions.size(), regions.data());
     return {};
   }
 };
@@ -311,8 +298,7 @@ struct VkCmdCopyImage : Callable, BoundResources {
   std::vector<VulkanResource> dstResources;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdCopyImage(cmdBuffer, srcImage, srcImageLayout, dstImage,
-                   dstImageLayout, regions.size(), regions.data());
+    vkCmdCopyImage(cmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regions.size(), regions.data());
     return {};
   }
 };
@@ -329,8 +315,7 @@ struct VkCmdCopyBufferToImage : Callable, BoundResources {
   std::vector<VulkanResource> dstResources;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdCopyBufferToImage(cmdBuffer, srcBuffer, dstImage, dstImageLayout,
-                           regions.size(), regions.data());
+    vkCmdCopyBufferToImage(cmdBuffer, srcBuffer, dstImage, dstImageLayout, regions.size(), regions.data());
     return {};
   }
 };
@@ -347,8 +332,7 @@ struct VkCmdCopyImageToBuffer : Callable, BoundResources {
   std::vector<VulkanResource> srcResources;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdCopyImageToBuffer(cmdBuffer, srcImage, srcImageLayout, dstBuffer,
-                           regions.size(), regions.data());
+    vkCmdCopyImageToBuffer(cmdBuffer, srcImage, srcImageLayout, dstBuffer, regions.size(), regions.data());
     return {};
   }
 };
@@ -360,9 +344,7 @@ struct MipmapTexture : Callable, BoundResources {
 
   Texture *texture{};
 
-  auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    return texture->GenerateMipmaps(*GetCurrentGraphicsContext(), cmdBuffer);
-  }
+  auto Call(VkCommandBuffer cmdBuffer) const -> Error override { return texture->GenerateMipmaps(*GetCurrentGraphicsContext(), cmdBuffer); }
 };
 
 struct VkCmdFillBuffer : Callable, BoundResources {
@@ -384,8 +366,7 @@ struct VkCmdFillBuffer : Callable, BoundResources {
 struct VkCmdBuildAccelerationStructuresKHR : Callable, BoundResources {
   VkCmdBuildAccelerationStructuresKHR() = default;
 
-  static const CommandType type =
-      CommandType::vkCmdBuildAccelerationStructuresKHR;
+  static const CommandType type = CommandType::vkCmdBuildAccelerationStructuresKHR;
 
   uint32_t infoCount{};
 
@@ -397,8 +378,7 @@ struct VkCmdBuildAccelerationStructuresKHR : Callable, BoundResources {
   std::vector<VkBuffer> bufferWrites;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    std::vector<const VkAccelerationStructureBuildRangeInfoKHR *>
-        ppBuildRangeInfos;
+    std::vector<const VkAccelerationStructureBuildRangeInfoKHR *> ppBuildRangeInfos;
     std::vector<VkAccelerationStructureBuildGeometryInfoKHR> infos2 = infos;
     ppBuildRangeInfos.reserve(buildRangeInfos.size());
 
@@ -412,8 +392,7 @@ struct VkCmdBuildAccelerationStructuresKHR : Callable, BoundResources {
       offset += infos2.at(i).geometryCount;
     }
 
-    vkCmdBuildAccelerationStructuresKHR(cmdBuffer, infoCount, infos2.data(),
-                                        ppBuildRangeInfos.data());
+    vkCmdBuildAccelerationStructuresKHR(cmdBuffer, infoCount, infos2.data(), ppBuildRangeInfos.data());
     return {};
   }
 };
@@ -421,8 +400,7 @@ struct VkCmdBuildAccelerationStructuresKHR : Callable, BoundResources {
 struct VkCmdCopyAccelerationStructureKHR : Callable {
   VkCmdCopyAccelerationStructureKHR() = default;
 
-  static const CommandType type =
-      CommandType::vkCmdCopyAccelerationStructureKHR;
+  static const CommandType type = CommandType::vkCmdCopyAccelerationStructureKHR;
 
   VkCopyAccelerationStructureInfoKHR structureInfo{};
 
@@ -441,9 +419,7 @@ struct VkCmdResetQueryPool : Callable {
   uint32_t firstQuery{};
   uint32_t queryCount{};
 
-  VkCmdResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery,
-                      uint32_t queryCount)
-      : queryPool(queryPool), firstQuery(firstQuery), queryCount(queryCount) {}
+  VkCmdResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) : queryPool(queryPool), firstQuery(firstQuery), queryCount(queryCount) {}
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
     vkCmdResetQueryPool(cmdBuffer, queryPool, firstQuery, queryCount);
@@ -454,27 +430,20 @@ struct VkCmdResetQueryPool : Callable {
 struct VkCmdWriteAccelerationStructuresPropertiesKHR : Callable {
   VkCmdWriteAccelerationStructuresPropertiesKHR() = default;
 
-  static const CommandType type =
-      CommandType::vkCmdWriteAccelerationStructuresPropertiesKHR;
+  static const CommandType type = CommandType::vkCmdWriteAccelerationStructuresPropertiesKHR;
 
   std::vector<VkAccelerationStructureKHR> accelerationStructures;
   VkQueryType queryType = VK_QUERY_TYPE_MAX_ENUM;
   VkQueryPool queryPool{};
   uint32_t firstQuery{};
 
-  VkCmdWriteAccelerationStructuresPropertiesKHR(
-      uint32_t accelerationStructureCount,
-      const VkAccelerationStructureKHR *pAccelerationStructures,
-      VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery)
-      : accelerationStructures(pAccelerationStructures,
-                               pAccelerationStructures +
-                                   accelerationStructureCount),
-        queryType(queryType), queryPool(queryPool), firstQuery(firstQuery) {}
+  VkCmdWriteAccelerationStructuresPropertiesKHR(uint32_t accelerationStructureCount, const VkAccelerationStructureKHR *pAccelerationStructures,
+                                                VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery)
+      : accelerationStructures(pAccelerationStructures, pAccelerationStructures + accelerationStructureCount), queryType(queryType), queryPool(queryPool),
+        firstQuery(firstQuery) {}
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdWriteAccelerationStructuresPropertiesKHR(
-        cmdBuffer, accelerationStructures.size(), accelerationStructures.data(),
-        queryType, queryPool, firstQuery);
+    vkCmdWriteAccelerationStructuresPropertiesKHR(cmdBuffer, accelerationStructures.size(), accelerationStructures.data(), queryType, queryPool, firstQuery);
     return {};
   }
 };
@@ -484,48 +453,40 @@ struct VkCmdBindIndexBuffer {
   VkDeviceSize offset;
   VkIndexType indexType;
 
-  VkCmdBindIndexBuffer(VkBuffer buffer, VkDeviceSize offset,
-                       VkIndexType indexType)
-      : buffer(buffer), offset(offset), indexType(indexType) {}
+  VkCmdBindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) : buffer(buffer), offset(offset), indexType(indexType) {}
 };
 
 struct VkCmdBindPipeline {
   VkPipelineBindPoint pipelineBindPoint;
   VkPipeline pipeline;
 
-  VkCmdBindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
-      : pipelineBindPoint(pipelineBindPoint), pipeline(pipeline) {}
+  VkCmdBindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline) : pipelineBindPoint(pipelineBindPoint), pipeline(pipeline) {}
 };
 
 struct VkCmdSetScissor {
   uint32_t firstScissor;
   std::vector<VkRect2D> scissors;
 
-  VkCmdSetScissor(uint32_t firstScissor, uint32_t scissorCount,
-                  const VkRect2D *pScissors)
-      : firstScissor(firstScissor),
-        scissors(pScissors, pScissors + scissorCount) {}
+  VkCmdSetScissor(uint32_t firstScissor, uint32_t scissorCount, const VkRect2D *pScissors)
+      : firstScissor(firstScissor), scissors(pScissors, pScissors + scissorCount) {}
 };
 
 struct VkCmdSetDepthTestEnable {
   VkBool32 depthTestEnable;
 
-  VkCmdSetDepthTestEnable(VkBool32 depthTestEnable)
-      : depthTestEnable(depthTestEnable) {}
+  VkCmdSetDepthTestEnable(VkBool32 depthTestEnable) : depthTestEnable(depthTestEnable) {}
 };
 
 struct VkCmdSetDepthWriteEnable {
   VkBool32 depthWriteEnable;
 
-  VkCmdSetDepthWriteEnable(VkBool32 depthWriteEnable)
-      : depthWriteEnable(depthWriteEnable) {}
+  VkCmdSetDepthWriteEnable(VkBool32 depthWriteEnable) : depthWriteEnable(depthWriteEnable) {}
 };
 
 struct VkCmdSetDepthCompareOp {
   VkCompareOp depthCompareOp;
 
-  VkCmdSetDepthCompareOp(VkCompareOp depthCompareOp)
-      : depthCompareOp(depthCompareOp) {}
+  VkCmdSetDepthCompareOp(VkCompareOp depthCompareOp) : depthCompareOp(depthCompareOp) {}
 };
 
 struct VkCmdSetCullMode {
@@ -549,8 +510,7 @@ struct VkCmdClearAttachments : Callable, BoundResources, DrawState {
   std::vector<VkClearRect> rects;
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
-    vkCmdClearAttachments(cmdBuffer, attachments.size(), attachments.data(),
-                          rects.size(), rects.data());
+    vkCmdClearAttachments(cmdBuffer, attachments.size(), attachments.data(), rects.size(), rects.data());
     return {};
   }
 };
@@ -558,8 +518,7 @@ struct VkCmdClearAttachments : Callable, BoundResources, DrawState {
 struct VkCmdBeginDebugUtilsLabelEXT {
   VkDebugUtilsLabelEXT labelInfo;
 
-  VkCmdBeginDebugUtilsLabelEXT(const VkDebugUtilsLabelEXT *pLabelInfo)
-      : labelInfo(*pLabelInfo) {}
+  VkCmdBeginDebugUtilsLabelEXT(const VkDebugUtilsLabelEXT *pLabelInfo) : labelInfo(*pLabelInfo) {}
 };
 
 struct VkCmdEndDebugUtilsLabelEXT {};
@@ -567,8 +526,7 @@ struct VkCmdEndDebugUtilsLabelEXT {};
 struct VkCmdInsertDebugUtilsLabelEXT {
   VkDebugUtilsLabelEXT labelInfo;
 
-  VkCmdInsertDebugUtilsLabelEXT(const VkDebugUtilsLabelEXT *pLabelInfo)
-      : labelInfo(*pLabelInfo) {}
+  VkCmdInsertDebugUtilsLabelEXT(const VkDebugUtilsLabelEXT *pLabelInfo) : labelInfo(*pLabelInfo) {}
 };
 
 struct VkCmdPipelineBarrier2 : Callable, BoundResources {
@@ -604,9 +562,7 @@ struct VkCmdPipelineBarrier2 : Callable, BoundResources {
 
 auto GetRequiresRendering(CommandType type) -> bool;
 
-using RenderPassCommands =
-    std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed,
-                 Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect>;
+using RenderPassCommands = std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect>;
 
 struct RenderPass : BoundResources {
   static const CommandType type = CommandType::renderPass;
@@ -618,8 +574,7 @@ struct RenderPass : BoundResources {
   std::unordered_set<VulkanResource, VulkanResourceHash<true>> knownReads;
 };
 
-template <typename T, typename... Ts>
-auto get_if_derived(std::variant<Ts...> &variant) -> T * {
+template <typename T, typename... Ts> auto get_if_derived(std::variant<Ts...> &variant) -> T * {
   T *result = nullptr;
 
   assert(!variant.valueless_by_exception());
@@ -637,8 +592,7 @@ auto get_if_derived(std::variant<Ts...> &variant) -> T * {
   return result;
 }
 
-template <typename T, typename... Ts>
-auto get_if_derived(const std::variant<Ts...> &variant) -> T const * {
+template <typename T, typename... Ts> auto get_if_derived(const std::variant<Ts...> &variant) -> T const * {
   T const *result = nullptr;
 
   std::visit(
@@ -654,16 +608,11 @@ auto get_if_derived(const std::variant<Ts...> &variant) -> T const * {
   return result;
 }
 
-using ArgVariants = std::variant<
-    Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect,
-    Args::VkCmdDrawIndexedIndirect, Args::VkCmdDispatch,
-    Args::VkCmdDispatchIndirect, Args::VkCmdBlitImage, Args::VkCmdCopyBuffer,
-    Args::VkCmdCopyImage, Args::VkCmdCopyBufferToImage,
-    Args::VkCmdCopyImageToBuffer, Args::MipmapTexture, Args::VkCmdFillBuffer,
-    Args::VkCmdBuildAccelerationStructuresKHR,
-    Args::VkCmdCopyAccelerationStructureKHR, Args::VkCmdResetQueryPool,
-    Args::VkCmdWriteAccelerationStructuresPropertiesKHR,
-    Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2, RenderPass>;
+using ArgVariants = std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect, Args::VkCmdDispatch,
+                                 Args::VkCmdDispatchIndirect, Args::VkCmdBlitImage, Args::VkCmdCopyBuffer, Args::VkCmdCopyImage, Args::VkCmdCopyBufferToImage,
+                                 Args::VkCmdCopyImageToBuffer, Args::MipmapTexture, Args::VkCmdFillBuffer, Args::VkCmdBuildAccelerationStructuresKHR,
+                                 Args::VkCmdCopyAccelerationStructureKHR, Args::VkCmdResetQueryPool, Args::VkCmdWriteAccelerationStructuresPropertiesKHR,
+                                 Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2, RenderPass>;
 
 struct Command {
   CommandIndex id = UINT16_MAX;
@@ -677,24 +626,18 @@ struct Command {
   CommandType type;
 
   explicit Command(ArgVariants params) : data(std::move(params)) {
-    type = std::visit(
-        [](const auto &current) -> CommandType { return current.type; }, data);
+    type = std::visit([](const auto &current) -> CommandType { return current.type; }, data);
   }
 
   void UpdateType() {
-    type = std::visit(
-        [](const auto &current) -> CommandType { return current.type; }, data);
+    type = std::visit([](const auto &current) -> CommandType { return current.type; }, data);
   }
 
   [[nodiscard]] auto GetType() const -> CommandType { return type; }
 
-  [[nodiscard]] auto GetDrawState() -> DrawState * {
-    return get_if_derived<DrawState>(data);
-  }
+  [[nodiscard]] auto GetDrawState() -> DrawState * { return get_if_derived<DrawState>(data); }
 
-  [[nodiscard]] auto GetDrawState() const -> DrawState const * {
-    return get_if_derived<DrawState>(data);
-  }
+  [[nodiscard]] auto GetDrawState() const -> DrawState const * { return get_if_derived<DrawState>(data); }
 };
 
 struct BufferStateUpdate {
@@ -711,11 +654,8 @@ struct ImageStateUpdate {
 
 auto GetReads(const Command &command) -> const std::vector<VulkanResource> &;
 auto GetWrites(const Command &command) -> const std::vector<VulkanResource> &;
-auto GetResourceAccesses(
-    const Command &command,
-    std::unordered_map<VulkanResource,
-                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
-                       VulkanResourceHash<true>> &accesses) -> void;
+auto GetResourceAccesses(const Command &command,
+                         std::unordered_map<VulkanResource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>, VulkanResourceHash<true>> &accesses) -> void;
 
 struct ReadyInfo {
   std::condition_variable condition_variable;
@@ -739,8 +679,6 @@ struct ReadyInfo {
 };
 
 struct VCmdThreadInfo {
-  std::thread thread;
-
   // Thread swaps between reading and editing A / B based on "currentWorkingIsA"
   std::vector<uint16_t> commandsQueue;
   std::vector<uint16_t> queuedCommands; // Local to worker thread
@@ -758,6 +696,7 @@ struct VCmdThreadInfo {
   void Shutdown() {
     shutdown.store(true);
     mainToWorker.Notify();
+    PrintAlways("Notifying worker to shut down");
   }
   void Initialize(VirtualCommandBuffer *vcmd);
 
@@ -797,75 +736,38 @@ struct VirtualCommandBuffer { // NOLINT
     return {};
   }
 
-  auto Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
-            uint32_t firstInstance) -> Error;
-  auto DrawIndexed(uint32_t indexCount, uint32_t instanceCount,
-                   uint32_t firstIndex, int32_t vertexOffset,
-                   uint32_t firstInstance) -> Error;
-  auto DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount,
-                    uint32_t stride) -> Error;
-  auto DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset,
-                           uint32_t drawCount, uint32_t stride) -> Error;
-  auto Dispatch(uint32_t groupCountX, uint32_t groupCountY,
-                uint32_t groupCountZ) -> Error;
+  auto Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) -> Error;
+  auto DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) -> Error;
+  auto DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error;
+  auto DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error;
+  auto Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) -> Error;
   auto DispatchIndirect(VkBuffer buffer, VkDeviceSize offsets) -> Error;
-  auto BlitImage(VkImage srcImage, VkImageLayout srcImageLayout,
-                 VkImage dstImage, VkImageLayout dstImageLayout,
-                 uint32_t regionCount, const VkImageBlit *pRegions,
-                 VkFilter filter) -> Error;
-  auto CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount,
-                  const VkBufferCopy *pRegions) -> Error;
-  auto CopyImage(VkImage srcImage, VkImageLayout srcImageLayout,
-                 VkImage dstImage, VkImageLayout dstImageLayout,
-                 uint32_t regionCount, const VkImageCopy *pRegions) -> Error;
-  auto CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage,
-                         VkImageLayout dstImageLayout, uint32_t regionCount,
-                         const VkBufferImageCopy *pRegions) -> Error;
-  auto CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout,
-                         VkBuffer dstBuffer, uint32_t regionCount,
-                         const VkBufferImageCopy *pRegions) -> Error;
+  auto BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount,
+                 const VkImageBlit *pRegions, VkFilter filter) -> Error;
+  auto CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferCopy *pRegions) -> Error;
+  auto CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount,
+                 const VkImageCopy *pRegions) -> Error;
+  auto CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkBufferImageCopy *pRegions) -> Error;
+  auto CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy *pRegions) -> Error;
 
   // Custom command, workaround for the barrier system working on an image-based granularity, not range based
   auto MipmapTexture(Texture *texture) -> Error;
-  auto FillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size,
-                  uint32_t data) -> Error;
-  auto BuildAccelerationStructuresKHR(
-      uint32_t infoCount,
-      const VkAccelerationStructureBuildGeometryInfoKHR *pInfos,
-      const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos,
-      uint32_t readCount, const VkBuffer *bufferReads, uint32_t writeCount,
-      const VkBuffer *bufferWrites) -> Error;
-  auto
-  CopyAccelerationStructureKHR(const VkCopyAccelerationStructureInfoKHR *pInfo)
-      -> Error;
-  auto ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery,
-                      uint32_t queryCount) -> Error;
-  auto WriteAccelerationStructuresPropertiesKHR(
-      uint32_t accelerationStructureCount,
-      const VkAccelerationStructureKHR *pAccelerationStructures,
-      VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery)
-      -> Error;
+  auto FillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data) -> Error;
+  auto BuildAccelerationStructuresKHR(uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos,
+                                      const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos, uint32_t readCount, const VkBuffer *bufferReads,
+                                      uint32_t writeCount, const VkBuffer *bufferWrites) -> Error;
+  auto CopyAccelerationStructureKHR(const VkCopyAccelerationStructureInfoKHR *pInfo) -> Error;
+  auto ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) -> Error;
+  auto WriteAccelerationStructuresPropertiesKHR(uint32_t accelerationStructureCount, const VkAccelerationStructureKHR *pAccelerationStructures,
+                                                VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery) -> Error;
   auto BindIndexBuffer(const Args::VkCmdBindIndexBuffer &arguments) -> void;
-  auto BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount,
-                         const VkBuffer *pBuffers, const VkDeviceSize *pOffsets)
-      -> void;
-  auto SetVertexInputEXT(
-      uint32_t vertexBindingDescriptionCount,
-      const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions,
-      uint32_t vertexAttributeDescriptionCount,
-      const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
-      -> void;
-  auto ClearAttachments(uint32_t attachmentCount,
-                        const VkClearAttachment *pAttachments,
-                        uint32_t rectCount, const VkClearRect *pRects) -> Error;
-  auto
-  BeginDebugUtilsLabelEXT(const Args::VkCmdBeginDebugUtilsLabelEXT &arguments)
-      -> void;
-  auto EndDebugUtilsLabelEXT(const Args::VkCmdEndDebugUtilsLabelEXT &arguments)
-      -> void;
-  auto
-  InsertDebugUtilsLabelEXT(const Args::VkCmdInsertDebugUtilsLabelEXT &arguments)
-      -> void;
+  auto BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets) -> void;
+  auto SetVertexInputEXT(uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions,
+                         uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions) -> void;
+  auto ClearAttachments(uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects) -> Error;
+  auto BeginDebugUtilsLabelEXT(const Args::VkCmdBeginDebugUtilsLabelEXT &arguments) -> void;
+  auto EndDebugUtilsLabelEXT(const Args::VkCmdEndDebugUtilsLabelEXT &arguments) -> void;
+  auto InsertDebugUtilsLabelEXT(const Args::VkCmdInsertDebugUtilsLabelEXT &arguments) -> void;
   auto PipelineBarrier2(const VkDependencyInfo *pDependencyInfo) -> Error;
 
   [[nodiscard]] auto GetQueueFamily() const -> uint32_t { return queueFamily; }
@@ -877,9 +779,7 @@ struct VirtualCommandBuffer { // NOLINT
   std::vector<Command> commandStorage;
   std::vector<uint16_t> commands;
 
-  [[nodiscard]] auto GetCommand(uint32_t identifier) -> Command & {
-    return commandStorage.at(identifier);
-  }
+  [[nodiscard]] auto GetCommand(uint32_t identifier) -> Command & { return commandStorage.at(identifier); }
 
   CommandID currentRenderPass = InvalidCommandID;
 

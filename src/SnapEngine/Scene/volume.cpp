@@ -39,10 +39,11 @@ auto Volume::DrawGUI(flecs::entity entity) -> void {
   ImGui::SeparatorText("Volume Settings");
   ImGui::DragFloat("Density", &density, 0.01F, 0.0F, 10.0F);
   ImGui::DragFloat("Anisotropy", &anisotropy, 0.01F, 0.0F, 1.0F);
+  ImGui::ColorEdit3("Color", color.Ptr());
 }
 
 Volume::~Volume() {
-  if (hasTlasIndex) {
+  if (hasTlasIndex && Renderer::RendererInstance.GetIsInitialized()) {
     Renderer::RendererInstance.GetVolumeManager().RemoveInstance(tlasIndex);
   }
 }

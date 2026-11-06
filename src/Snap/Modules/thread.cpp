@@ -37,8 +37,7 @@ auto Thread::Create(const std::string &script) -> Ref<Thread> {
 }
 
 auto Thread::Close(ThreadStatus status, const std::string &message) -> Error {
-  CHECK_ERR(Graphics::Threading::Deinitialize(
-      *Graphics::GetCurrentGraphicsContext()));
+  CHECK_ERR(Graphics::Threading::Deinitialize(*Graphics::GetCurrentGraphicsContext()));
 
   if (state != nullptr) {
     lua_close(state);
@@ -68,9 +67,7 @@ auto Thread::Close(ThreadStatus status, const std::string &message) -> Error {
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 thread_local ThreadID CurrentThreadID = 0;
 
-auto Thread::Run(Thread *thread,
-                 const std::vector<LuaWrap::Data::LuaType> &launchArguments,
-                 int count, ThreadID identifier) -> void { // NOLINT
+auto Thread::Run(Thread *thread, const std::vector<LuaWrap::Data::LuaType> &launchArguments, int count, ThreadID identifier) -> void { // NOLINT
   CurrentThreadID = identifier;
   tracy::SetThreadName(thread->debugname.c_str());
 
@@ -84,9 +81,7 @@ auto Thread::Run(Thread *thread,
   lua_getfield(state, -1, "path");
   std::string currentPath = lua_tostring(state, -1);
   lua_pop(state, 1); // remove original path
-  std::string newPath =
-      Path::Join(Filesystem::GetSourceDirectory(), std::string("?.lua;")) +
-      currentPath;
+  std::string newPath = Path::Join(Filesystem::GetSourceDirectory(), std::string("?.lua;")) + currentPath;
   lua_pushstring(state, newPath.c_str());
   lua_setfield(state, -2, "path");
   lua_pop(state, 1); // remove package table
@@ -94,11 +89,9 @@ auto Thread::Run(Thread *thread,
   RegisterAllLuaModules(state);
 
   Graphics::ContextDebugname = thread->debugname;
-  PrintInfo("Initializing graphics with debug name: {}",
-            Graphics::ContextDebugname);
+  PrintInfo("Initializing graphics with debug name: {}", Graphics::ContextDebugname);
 
-  auto err =
-      Graphics::Threading::Initialize(*Graphics::GetCurrentGraphicsContext());
+  auto err = Graphics::Threading::Initialize(*Graphics::GetCurrentGraphicsContext());
 
   if (Error::IsError(err)) {
     err = thread->Close(ThreadStatus::Error, err.message);
@@ -106,8 +99,7 @@ auto Thread::Run(Thread *thread,
   }
 
   bool isPath = (thread->script.size() > 4 &&
-                 (thread->script.substr(thread->script.size() - 4) == ".lua" ||
-                  thread->script.substr(thread->script.size() - 3) == ".luac"));
+                 (thread->script.substr(thread->script.size() - 4) == ".lua" || thread->script.substr(thread->script.size() - 3) == ".luac"));
 
   int result = 0;
 
@@ -137,23 +129,18 @@ auto Thread::Run(Thread *thread,
     const auto *luaErrorMessage = lua_tostring(state, -1);
     lua_pop(state, 1);
 
-    err =
-        thread->Close(ThreadStatus::Error, luaErrorMessage != nullptr
-                                               ? std::string(luaErrorMessage)
-                                               : "Unknown Lua error occurred.");
+    err = thread->Close(ThreadStatus::Error, luaErrorMessage != nullptr ? std::string(luaErrorMessage) : "Unknown Lua error occurred.");
     return;
   }
 
   err = thread->Close(ThreadStatus::Stopped, "");
 }
 
-auto Thread::Start(const std::vector<LuaWrap::Data::LuaType> &launchArguments,
-                   int count) -> void {
+auto Thread::Start(const std::vector<LuaWrap::Data::LuaType> &launchArguments, int count) -> void {
 
   this->retain(); // Owns itself
 
-  handle = std::thread(Threading::Thread::Run, this, launchArguments, count,
-                       ThreadIDCounter.fetch_add(1) + 1);
+  auto handle = std::thread(Threading::Thread::Run, this, launchArguments, count, ThreadIDCounter.fetch_add(1) + 1);
 
   handle.detach();
 }
@@ -166,8 +153,7 @@ auto Thread::GetStatus() const -> ThreadStatus {
 auto Thread::Wait() -> void {
   // Wait until status is not Running
   std::unique_lock<std::mutex> lock(statusMutex);
-  statusCV.wait(
-      lock, [this]() -> bool { return this->status != ThreadStatus::Running; });
+  statusCV.wait(lock, [this]() -> bool { return this->status != ThreadStatus::Running; });
 }
 
 auto Thread::GetErrorMessage() const -> std::string {

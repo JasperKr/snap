@@ -53,8 +53,7 @@ public:
 
   static auto Create(const std::string &script) -> Ref<Thread>;
 
-  auto Start(const std::vector<LuaWrap::Data::LuaType> &launchArguments,
-             int count) -> void;
+  auto Start(const std::vector<LuaWrap::Data::LuaType> &launchArguments, int count) -> void;
   [[nodiscard]] auto GetStatus() const -> ThreadStatus;
   [[nodiscard]] auto GetErrorMessage() const -> std::string;
   auto Wait() -> void;
@@ -65,14 +64,11 @@ public:
   auto SetDebugName(const std::string &name) -> void { debugname = name; }
 
 private:
-  static auto Run(Thread *thread,
-                  const std::vector<LuaWrap::Data::LuaType> &launchArguments,
-                  int count, ThreadID identifier) -> void;
+  static auto Run(Thread *thread, const std::vector<LuaWrap::Data::LuaType> &launchArguments, int count, ThreadID identifier) -> void;
   auto Close(ThreadStatus status, const std::string &message) -> Error;
 
   std::string script;
   lua_State *luaState = nullptr;
-  std::thread handle;
 
   mutable std::mutex statusMutex;
   mutable std::condition_variable statusCV;

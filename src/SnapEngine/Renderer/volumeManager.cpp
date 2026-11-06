@@ -79,12 +79,11 @@ auto VolumeManager::AddInstance(const Graphics::GraphicsContext &context, const 
   VolumeData instanceData = {
       .density = volume.density,
       .anisotropy = volume.anisotropy,
-      .volumeTexture = textureAddress,
-      .volumeSampler = samplerAddress,
-      .min = min,
-      .padding_0 = {},
-      .max = max,
-      .padding_1 = {},
+      .volumeDensityTexture = textureAddress,
+      .volumeDensitySampler = samplerAddress,
+      .min = Math::Vec4(min, 0.0F),
+      .max = Math::Vec4(max, 0.0F),
+      .color = volume.color,
   };
 
   auto span = std::span<VolumeData>(&instanceData, 1);
@@ -114,12 +113,11 @@ auto VolumeManager::UpdateInstance(const Graphics::GraphicsContext &context, uin
   VolumeData instanceData = {
       .density = volume.density,
       .anisotropy = volume.anisotropy,
-      .volumeTexture = textureAddress,
-      .volumeSampler = samplerAddress,
-      .min = min,
-      .padding_0 = {},
-      .max = max,
-      .padding_1 = {},
+      .volumeDensityTexture = textureAddress,
+      .volumeDensitySampler = samplerAddress,
+      .min = Math::Vec4(min, 0.0F),
+      .max = Math::Vec4(max, 0.0F),
+      .color = volume.color,
   };
 
   auto span = std::span<VolumeData>(&instanceData, 1);

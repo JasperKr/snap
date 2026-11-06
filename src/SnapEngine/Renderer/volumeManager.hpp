@@ -20,13 +20,9 @@ struct VolumeManager {
   auto GetTLAS() -> Ref<Graphics::TLAS>;
   auto GetVolumeInstanceData() -> Ref<Graphics::Buffer>;
 
-  auto AddInstance(const Graphics::GraphicsContext &context,
-                   const Volume &volume, Math::Vec3 min, Math::Vec3 max)
-      -> Result<uint32_t>;
+  auto AddInstance(const Graphics::GraphicsContext &context, const Volume &volume, Math::Vec3 min, Math::Vec3 max) -> Result<uint32_t>;
 
-  auto UpdateInstance(const Graphics::GraphicsContext &context, uint32_t index,
-                      const Volume &volume, Math::Vec3 min, Math::Vec3 max)
-      -> Error;
+  auto UpdateInstance(const Graphics::GraphicsContext &context, uint32_t index, const Volume &volume, Math::Vec3 min, Math::Vec3 max) -> Error;
 
   auto RemoveInstance(uint32_t index) -> void;
 
@@ -41,14 +37,20 @@ private:
   struct VolumeData {
     float density{};
     float anisotropy{};
-    uint32_t volumeTexture{};
-    uint32_t volumeSampler{};
 
-    Math::Vec3 min;
-    uint32_t padding_0{};
+    uint32_t volumeDensityTexture{};
+    uint32_t volumeDensitySampler{};
 
-    Math::Vec3 max;
-    uint32_t padding_1{};
+    uint32_t volumeColorTexture{};
+    uint32_t volumeColorSampler{};
+
+    uint32_t pad_0{};
+    uint32_t pad_1{};
+
+    Math::Vec4 min;
+    Math::Vec4 max;
+
+    Math::Vec4 color;
   };
 
   bool rebuildQueued;

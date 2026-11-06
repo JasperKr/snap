@@ -277,11 +277,11 @@ float4 TraceRay(RayDesc ray, uint rndState) {
   float4 incomingLightTransmittance = float4(0.0, 0.0, 0.0, 1.0);
 
   for (int i = 0; i < SampleCount; i++) {
-    if (availableVolumes == 0)
-      break;
-
     // If we're out of volumes to sample, add a new one from the stack.
     if (currentVolumes == 0UL) {
+      if (availableVolumes == 0)
+        break;
+
       availableVolumes &= availableVolumes - uint8_t(1);
       currentVolumes |= uint8_t(1U) << idx;
       uint8_t volume = uint8_t(hits >> (idx * uint8_t(8UL)));
@@ -296,7 +296,7 @@ float4 TraceRay(RayDesc ray, uint rndState) {
       // Update t
       Volumes[volume - uint8_t(1)].TraceRay(ray, t, t1);
       t += 0.001;
-      t += RandomValue(rndState);
+      t += RandomValue(rndState) * stepSize;
     }
 
     // Add all volumes we can start sampling now
@@ -316,10 +316,10 @@ float4 TraceRay(RayDesc ray, uint rndState) {
         float t1;
 
         // Get t0, t1
-        Volumes[volume - uint8_t(1)].TraceRay(ray, t0, t1);
+        bool hit = Volumes[volume - uint8_t(1)].TraceRay(ray, t0, t1);
 
         // If the current raymarch time is within that time, we need to sample it.
-        if (t >= t0 && t <= t1) {
+        if (hit && t >= t0 && t <= t1) {
           currentVolumes |= uint8_t(1U) << bitIdx;
           availableVolumes &= availableVolumes - uint8_t(1U);
 
@@ -333,23 +333,31 @@ float4 TraceRay(RayDesc ray, uint rndState) {
     float3 samplePosition = ray.Origin + ray.Direction * t;
 
     uint8_t iterVolumes = currentVolumes;
+    float3 fogColorSqr = float3(0.0);
+    float fogBlendCnt = 0.0F;
+
     while (iterVolumes != 0) {
       uint8_t bitIdx = uint8_t(firstbitlow(iterVolumes));
-      iterVolumes &= iterVolumes - uint8_t(1);
+      uint8_t removeMask = iterVolumes - uint8_t(1);
+      iterVolumes &= removeMask;
 
       // Load index from Idx in stack
-      uint idx = uint8_t(hits >> uint64_t(bitIdx * uint8_t(8UL))) & uint8_t(0xFF);
+      uint idx = uint8_t(hits >> uint64_t(bitIdx * uint8_t(8UL)));
       var volume = Volumes[idx - 1];
 
       if (!volume.ContainsPoint(samplePosition)) {
         // Stop iterating this volume when we exit it's range.
-        currentVolumes &= iterVolumes - uint8_t(1UL);
+        currentVolumes &= removeMask;
 
         continue;
       }
 
       density += volume.SampleDensity(samplePosition);
       anisotropy += volume.anisotropy;
+
+      float3 color = volume.GetColor(samplePosition);
+      fogColorSqr += color * color;
+      fogBlendCnt++;
     }
 
     // float3 newIncomingLight =
@@ -357,6 +365,7 @@ float4 TraceRay(RayDesc ray, uint rndState) {
     float3 newIncomingLight = float3(0.5);
     float transmittance = exp(-density * stepSize);
 
+    newIncomingLight *= sqrt(fogColorSqr / max(fogBlendCnt, 1.0));
     newIncomingLight -= newIncomingLight * transmittance;
     incomingLightTransmittance.xyz += newIncomingLight * incomingLightTransmittance.w;
     incomingLightTransmittance.w *= transmittance;

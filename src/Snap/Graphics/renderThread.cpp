@@ -30,32 +30,22 @@ inline std::atomic<uint64_t> threadDataIDCounter = 0;
 
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
-inline auto CreateDescriptorPool(ThreadContext &tcontext)
-    -> Result<VkDescriptorPool> {
+inline auto CreateDescriptorPool(ThreadContext &tcontext) -> Result<VkDescriptorPool> {
   constexpr uint32_t poolSize = 512;
   constexpr uint32_t sampledPoolSize = 8192;
 
-  static const std::vector<VkDescriptorPoolSize> poolSizes = {
-      {.type = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = sampledPoolSize},
-      {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-       .descriptorCount = sampledPoolSize},
-      {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-       .descriptorCount = sampledPoolSize},
-      {.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-       .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-       .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-       .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-       .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-       .descriptorCount = poolSize},
-      {.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-       .descriptorCount = poolSize}};
+  static const std::vector<VkDescriptorPoolSize> poolSizes = {{.type = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = sampledPoolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = sampledPoolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = sampledPoolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, .descriptorCount = poolSize},
+                                                              {.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, .descriptorCount = poolSize}};
 
   VkDescriptorPoolCreateInfo poolInfo = {};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -69,15 +59,13 @@ inline auto CreateDescriptorPool(ThreadContext &tcontext)
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
 
-    CHECK_NEW_ERR(vkCreateDescriptorPool(tcontext.graphicsContext->device,
-                                         &poolInfo, GetAllocationCallbacks(),
-                                         &descriptorPool));
+    CHECK_NEW_ERR(vkCreateDescriptorPool(tcontext.graphicsContext->device, &poolInfo, GetAllocationCallbacks(), &descriptorPool));
   }
 
   return descriptorPool;
 }
 
-inline auto GetThreadLocalVCmdBuffer() -> VirtualCommandBuffer * {
+auto GetThreadLocalVCmdBuffer() -> VirtualCommandBuffer * {
   thread_local ::Graphics::VirtualCommandBuffer commandBuffer{};
   if (!commandBuffer.initialized) {
     commandBuffer.threadInfo.Initialize(&commandBuffer);
@@ -87,13 +75,10 @@ inline auto GetThreadLocalVCmdBuffer() -> VirtualCommandBuffer * {
   return &commandBuffer;
 }
 
-auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
-                          const AcquireInfo &info)
-    -> Result<Ref<RenderThreadInfo>> {
+auto AcquireCommandBuffer(Graphics::GraphicsContext &context, const AcquireInfo &info) -> Result<Ref<RenderThreadInfo>> {
 
   if (CurrentRenderThreadInfo.get() != nullptr) {
-    return Error::Unexpected(
-        "Current thread already has an acquired command buffer");
+    return Error::Unexpected("Current thread already has an acquired command buffer");
   }
 
   auto threadInfo = Ref<RenderThreadInfo>::Make();
@@ -106,8 +91,7 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   auto &tcontext = GetThreadContext();
 
   if (tcontext.commandPool == VK_NULL_HANDLE) {
-    return Error::Unexpected(
-        "Invalid command pool when aquiring command buffer");
+    return Error::Unexpected("Invalid command pool when aquiring command buffer");
   }
 
   if (context.device == VK_NULL_HANDLE) {
@@ -146,12 +130,10 @@ auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
   return threadInfo;
 }
 
-auto SubmitCommands(Graphics::GraphicsContext &context)
-    -> Result<Ref<RenderThreadInfo>> {
+auto SubmitCommands(Graphics::GraphicsContext &context) -> Result<Ref<RenderThreadInfo>> {
   CHECK_ERR(RenderState::FinalizeFrame(context));
   CHECK_ERR(FlushBufferUploads(context));
-  if (!CurrentRenderThreadInfo.isValid() ||
-      CurrentRenderThreadInfo->threadData.commandBuffer == nullptr) {
+  if (!CurrentRenderThreadInfo.isValid() || CurrentRenderThreadInfo->threadData.commandBuffer == nullptr) {
     return Error::Unexpected("No command buffer to submit.");
   }
   auto &threadContext = GetThreadContext();
@@ -171,15 +153,11 @@ inline auto CreateCommandPool(ThreadContext &tcontext) -> Error {
   VkCommandPoolCreateInfo poolInfo = {};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.queueFamilyIndex = tcontext.queueFamily;
-  poolInfo.flags =
-      static_cast<uint32_t>(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT) |
-      static_cast<uint32_t>(VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  poolInfo.flags = static_cast<uint32_t>(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT) | static_cast<uint32_t>(VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    Error error = Error::Create(
-        vkCreateCommandPool(tcontext.graphicsContext->device, &poolInfo,
-                            GetAllocationCallbacks(), &tcontext.commandPool));
+    Error error = Error::Create(vkCreateCommandPool(tcontext.graphicsContext->device, &poolInfo, GetAllocationCallbacks(), &tcontext.commandPool));
 
     if (Error::IsError(error)) {
       return error;

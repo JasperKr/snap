@@ -13,6 +13,7 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 namespace Graphics {
@@ -118,12 +119,10 @@ private:
   };
 
   VkGeometryTypeKHR geometryType = VK_GEOMETRY_TYPE_MAX_ENUM_KHR;
-  union {
-    MeshData meshInfo{};
-    AABBData aabbInfo;
-  };
 
-  VkGeometryFlagsKHR geometryFlags;
+  std::variant<MeshData, AABBData> geometryInfo = MeshData();
+
+  VkGeometryFlagsKHR geometryFlags = VK_GEOMETRY_FLAG_BITS_MAX_ENUM_KHR;
 
   std::mutex mutex;
 };

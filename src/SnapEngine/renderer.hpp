@@ -120,40 +120,32 @@ struct Renderer {
     CHECK_ERR(InitializeDefaultMaterial(context));
 
     CHECK_ERR(InitializeMaterialBuffer(context, InitialMaterialBufferSize));
-    CHECK_ERR(InitializeModelTransformsBuffer(context,
-                                              InitialModelTransformBufferSize));
+    CHECK_ERR(InitializeModelTransformsBuffer(context, InitialModelTransformBufferSize));
 
     CHECK_ERR(InitializeLightBuffers(context));
     CHECK_ERR(PrefilterManager.Initialize(context));
 
-    LightProbeBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(
-        context, LightProbeBufferFormat, 64UL,
-        Graphics::StructuredBufferCreationInfo{
-            .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            .usageFlags =
-                static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) |
-                static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-                static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-            .debugName = "Light Probe Buffer",
-        }));
+    LightProbeBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(context, LightProbeBufferFormat, 64UL,
+                                                                    Graphics::StructuredBufferCreationInfo{
+                                                                        .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                                                        .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) |
+                                                                                      static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
+                                                                                      static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+                                                                        .debugName = "Light Probe Buffer",
+                                                                    }));
 
     CHECK_ERR(LineDrawer.Initialize(context));
     CHECK_ERR(PrimitiveDrawer.Initialize(context));
     CHECK_ERR(BloomManager.Initialize(context));
     SceneTLAS = CHECK_RES(Graphics::TLAS::Create(context));
-    BlueNoiseTexture = CHECK_RES(Graphics::Texture::FromFile(
-        context, "src/Scripting/Graphics/Assets/blue_noise_128.bmp",
-        VK_IMAGE_USAGE_SAMPLED_BIT, Graphics::TextureMipmapOption::None));
-    BlueNoiseTexture->SetWrapmode(VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                  VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                  VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    BlueNoiseTexture = CHECK_RES(Graphics::Texture::FromFile(context, "src/Scripting/Graphics/Assets/blue_noise_128.bmp", VK_IMAGE_USAGE_SAMPLED_BIT,
+                                                             Graphics::TextureMipmapOption::None));
+    BlueNoiseTexture->SetWrapmode(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT);
 
-    auto samples = CHECK_RES(
-        Filesystem::ReadFile("src/Snap/Graphics/Assets/pmj_samples.bin"));
+    auto samples = CHECK_RES(Filesystem::ReadFile("src/Snap/Graphics/Assets/pmj_samples.bin"));
     Graphics::BufferCreationInfo info = {
         .size = samples.size(),
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         .stagingBuffer = false,
         .persistentMapping = false,
@@ -174,75 +166,50 @@ struct Renderer {
 
   auto GetNewMaterialIndex() -> Result<size_t>;
 
-  auto BindLightBuffers(const Graphics::GraphicsContext &context,
-                        const Ref<Graphics::Shader> &shader) const -> Error;
+  auto BindLightBuffers(const Graphics::GraphicsContext &context, const Ref<Graphics::Shader> &shader) const -> Error;
 
-  auto GetDefaultMaterial() const -> const Material & {
-    return DefaultMaterial;
-  }
+  auto GetDefaultMaterial() const -> const Material & { return DefaultMaterial; }
   auto GetNoMaterial() const -> const Material & { return NoMaterial; }
-  auto GetMaterialsBuffer() const -> Ref<Graphics::StructuredBuffer> {
-    return MaterialsBuffer;
-  }
-  auto GetModelTransformsBuffer() const -> Ref<Graphics::StructuredBuffer> {
-    return ModelTransformsBuffer;
-  }
+  auto GetMaterialsBuffer() const -> Ref<Graphics::StructuredBuffer> { return MaterialsBuffer; }
+  auto GetModelTransformsBuffer() const -> Ref<Graphics::StructuredBuffer> { return ModelTransformsBuffer; }
   auto AssureModelTransformBufferSize(size_t minimumSize) -> Error;
 
   auto GetSceneLightBuffers() -> Lights & { return SceneLightBuffers; }
-  auto GetSceneLightBuffers() const -> const Lights & {
-    return SceneLightBuffers;
-  }
+  auto GetSceneLightBuffers() const -> const Lights & { return SceneLightBuffers; }
 
-  auto GetPrefilterManager() -> LightprobePrefilterManager & {
-    return PrefilterManager;
-  }
-  auto GetPrefilterManager() const -> const LightprobePrefilterManager & {
-    return PrefilterManager;
-  }
+  auto GetPrefilterManager() -> LightprobePrefilterManager & { return PrefilterManager; }
+  auto GetPrefilterManager() const -> const LightprobePrefilterManager & { return PrefilterManager; }
 
   auto NewFrame() -> void { ModelTransformBufferElementCount = 0; }
 
-  auto GetLightProbeBuffer() -> Ref<Graphics::StructuredBuffer> {
-    return LightProbeBuffer;
-  }
+  auto GetLightProbeBuffer() -> Ref<Graphics::StructuredBuffer> { return LightProbeBuffer; }
 
   auto GetLineDrawer() -> LineDrawer & { return LineDrawer; }
   auto GetLineDrawer() const -> const LineDrawer & { return LineDrawer; }
   auto GetPrimitiveDrawer() -> PrimitiveDrawer & { return PrimitiveDrawer; }
-  auto GetPrimitiveDrawer() const -> const PrimitiveDrawer & {
-    return PrimitiveDrawer;
-  }
+  auto GetPrimitiveDrawer() const -> const PrimitiveDrawer & { return PrimitiveDrawer; }
   auto GetBloomManager() -> BloomManager & { return BloomManager; }
   auto GetBloomManager() const -> const BloomManager & { return BloomManager; }
   auto GetShaderManager() -> ShaderManager & { return ShaderManager; }
-  auto GetShaderManager() const -> const ShaderManager & {
-    return ShaderManager;
-  }
+  auto GetShaderManager() const -> const ShaderManager & { return ShaderManager; }
   auto GetSceneTLAS() -> Ref<Graphics::TLAS> & { return SceneTLAS; }
   auto GetSceneTLAS() const -> const Ref<Graphics::TLAS> & { return SceneTLAS; }
   auto SceneNeedsTLASRebuild() const -> bool { return SceneTLASNeedsRebuild; }
-  auto SetSceneNeedsTLASRebuild(bool needsRebuild) -> void {
-    SceneTLASNeedsRebuild = needsRebuild;
-  }
-  auto GetBlueNoiseTexture() -> Ref<Graphics::Texture> & {
-    return BlueNoiseTexture;
-  }
-  auto GetBlueNoiseTexture() const -> const Ref<Graphics::Texture> & {
-    return BlueNoiseTexture;
-  }
+  auto SetSceneNeedsTLASRebuild(bool needsRebuild) -> void { SceneTLASNeedsRebuild = needsRebuild; }
+  auto GetBlueNoiseTexture() -> Ref<Graphics::Texture> & { return BlueNoiseTexture; }
+  auto GetBlueNoiseTexture() const -> const Ref<Graphics::Texture> & { return BlueNoiseTexture; }
   auto GetSamplesBuffer() -> Ref<Graphics::Buffer> & { return PMJ02bnSamples; }
-  auto GetSamplesBuffer() const -> const Ref<Graphics::Buffer> & {
-    return PMJ02bnSamples;
-  }
+  auto GetSamplesBuffer() const -> const Ref<Graphics::Buffer> & { return PMJ02bnSamples; }
 
-  auto GetMaterialUploadManager() -> BufferUploadManager & {
-    return MaterialUploadManager;
-  }
+  auto GetMaterialUploadManager() -> BufferUploadManager & { return MaterialUploadManager; }
 
   auto GetVolumeManager() -> VolumeManager & { return VolumeManager; }
 
+  auto GetIsInitialized() const -> bool { return initialized; }
+
 private:
+  bool initialized = false;
+
   Material NoMaterial;
   Material DefaultMaterial;
 
@@ -267,17 +234,14 @@ private:
   Ref<Graphics::TLAS> SceneTLAS;
   bool SceneTLASNeedsRebuild = true;
 
-  bool initialized = false;
   Ref<Graphics::Texture> BlueNoiseTexture;
   Ref<Graphics::Buffer> PMJ02bnSamples;
 
   VolumeManager VolumeManager;
 
-  auto InitializeMaterialBuffer(Graphics::GraphicsContext &context,
-                                size_t initialSize) -> Error;
+  auto InitializeMaterialBuffer(Graphics::GraphicsContext &context, size_t initialSize) -> Error;
   auto InitializeLightBuffers(Graphics::GraphicsContext &context) -> Error;
-  auto InitializeModelTransformsBuffer(Graphics::GraphicsContext &context,
-                                       size_t initialSize) -> Error;
+  auto InitializeModelTransformsBuffer(Graphics::GraphicsContext &context, size_t initialSize) -> Error;
 
   auto InitializeDefaultMaterial(Graphics::GraphicsContext &context) -> Error;
 };

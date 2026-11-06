@@ -1,6 +1,7 @@
 #include "loop.hpp"
 #include "Editor/gui.hpp"
 #include "Graphics/Buffers/uniform.hpp"
+#include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/deviceInfo.hpp"
 #include "Graphics/graphics.hpp"
@@ -16,7 +17,6 @@
 #include "Modules/thread.hpp"
 #include "Modules/window.hpp"
 #include "Wrap/wrap_engine.hpp"
-#include <cstddef>
 #include <filesystem>
 #include <lua.hpp>
 #include <public/tracy/Tracy.hpp>
@@ -91,8 +91,7 @@ end
 // NOLINTNEXTLINE
 static LuaWrap::LuaRef runCallback;
 
-auto LoadLua(lua_State *state, const std::vector<std::string> &launchArgs)
-    -> Error {
+auto LoadLua(lua_State *state, const std::vector<std::string> &launchArgs) -> Error {
   // Load src/Engine/main.lua
   PrintDebug("Loading main Lua script...");
   if (launchArgs.empty()) {
@@ -111,17 +110,12 @@ auto LoadLua(lua_State *state, const std::vector<std::string> &launchArgs)
   lua_getfield(state, -1, "path");
   std::string currentPath = lua_tostring(state, -1);
   lua_pop(state, 1); // remove original path
-  std::string newPath =
-      Path::Join(Filesystem::GetSourceDirectory(), std::string("?.lua;")) +
-      currentPath;
+  std::string newPath = Path::Join(Filesystem::GetSourceDirectory(), std::string("?.lua;")) + currentPath;
   lua_pushstring(state, newPath.c_str());
   lua_setfield(state, -2, "path");
   lua_pop(state, 1); // remove package table
 
-  auto luaLoadErr =
-      luaL_loadfile(state, Path::Join(Filesystem::GetSourceDirectory(),
-                                      std::string("main.lua"))
-                               .c_str());
+  auto luaLoadErr = luaL_loadfile(state, Path::Join(Filesystem::GetSourceDirectory(), std::string("main.lua")).c_str());
 
   if (luaLoadErr != LUA_OK) {
     if (lua_type(state, -1) == LUA_TSTRING) {
@@ -171,8 +165,7 @@ auto LoadLua(lua_State *state, const std::vector<std::string> &launchArgs)
     if (luaL_dostring(state, defaultRunFunction) != LUA_OK) {
       std::string luaErrorMessage = lua_tostring(state, -1);
       lua_pop(state, 1); // Remove error message from stack
-      return Error::Create("Failed to load default run function: " +
-                           luaErrorMessage);
+      return Error::Create("Failed to load default run function: " + luaErrorMessage);
     }
     lua_getglobal(state, "snap");
     lua_getfield(state, -1, "run");
@@ -210,8 +203,7 @@ auto RegisterAllLuaModules(lua_State *state) -> void {
 #ifdef DEBUG_OBJECT_LIFETIMES
 inline auto AtExit() -> void {
   if (!RefCounts.empty()) {
-    PrintWarning("There are still {} live objects at shutdown!",
-                 RefCounts.size());
+    PrintWarning("There are still {} live objects at shutdown!", RefCounts.size());
 
     for (const auto &[ptr, info] : RefCounts) {
       PrintWarning(" - {} ({} references)", info.second, info.first.load());
@@ -240,8 +232,7 @@ auto MainLoop(const std::vector<std::string> &arguments) -> Error {
 
   const auto &currentPath = std::filesystem::current_path();
 
-  auto sourceDirectory =
-      Path::Sanitize(currentPath.string() + "/" + arguments[0]);
+  auto sourceDirectory = Path::Sanitize(currentPath.string() + "/" + arguments[0]);
   sourceDirectory = Path::Directory(sourceDirectory);
 
   CHECK_ERR(Filesystem::Init("snap"));
@@ -337,6 +328,7 @@ auto MainLoop(const std::vector<std::string> &arguments) -> Error {
   Graphics::UnloadModule();
 
   Graphics::DeInitializeUniformBufferModule(context);
+  Graphics::Threading::GetThreadLocalVCmdBuffer()->Shutdown();
 
   PrintInfo("Closing Lua state...");
   lua_close(state);
@@ -349,10 +341,8 @@ auto MainLoop(const std::vector<std::string> &arguments) -> Error {
 
   PrintInfo("Destroying graphics context...");
 
-  PrintInfo("Texture memory: {} bytes",
-            Graphics::Texture::TotalAllocatedMemory.load());
-  PrintInfo("Buffer memory: {} bytes",
-            Graphics::Buffer::TotalAllocatedMemory.load());
+  PrintInfo("Texture memory: {} bytes", Graphics::Texture::TotalAllocatedMemory.load());
+  PrintInfo("Buffer memory: {} bytes", Graphics::Buffer::TotalAllocatedMemory.load());
 
   Graphics::Deinitialize(context);
 

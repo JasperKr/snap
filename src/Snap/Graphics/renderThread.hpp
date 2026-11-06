@@ -45,9 +45,7 @@ struct RenderThreadInfo : Object {
   RenderThreadData threadData;
 
   static auto GetType() -> Type const * { return &renderInfoType; }
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return &renderInfoType;
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return &renderInfoType; }
 };
 
 extern thread_local Ref<RenderThreadInfo> CurrentRenderThreadInfo;
@@ -62,13 +60,10 @@ struct AcquireInfo {
 };
 
 // Acquire a command buffer for the current thread, must have rendering permission
-auto AcquireCommandBuffer(Graphics::GraphicsContext &context,
-                          const AcquireInfo &info)
-    -> Result<Ref<RenderThreadInfo>>;
+auto AcquireCommandBuffer(Graphics::GraphicsContext &context, const AcquireInfo &info) -> Result<Ref<RenderThreadInfo>>;
 
 // Submit the commands recorded on the current thread
-auto SubmitCommands(Graphics::GraphicsContext &context)
-    -> Result<Ref<RenderThreadInfo>>;
+auto SubmitCommands(Graphics::GraphicsContext &context) -> Result<Ref<RenderThreadInfo>>;
 
 // Initialize the render threading module
 auto Initialize(Graphics::GraphicsContext &context) -> Error;
@@ -81,5 +76,6 @@ struct GraphicsConfiguration {
 };
 
 auto GetGraphicsConfiguration() -> GraphicsConfiguration &;
+auto GetThreadLocalVCmdBuffer() -> VirtualCommandBuffer *;
 
 } // namespace Graphics::Threading

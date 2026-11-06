@@ -25,19 +25,13 @@
 namespace Graphics {
 
 ImageSubresource::ImageSubresource(const Ref<Texture> &texture)
-    : layerStart(
-          static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)),
-      layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
-      mipStart(static_cast<uint16_t>(texture->subresourceRange.baseMipLevel)),
-      mipCount(static_cast<uint16_t>(texture->subresourceRange.levelCount)),
+    : layerStart(static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)), layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
+      mipStart(static_cast<uint16_t>(texture->subresourceRange.baseMipLevel)), mipCount(static_cast<uint16_t>(texture->subresourceRange.levelCount)),
       image(texture->imageMemory->image) {}
 
 ImageSubresource::ImageSubresource(const Texture *texture)
-    : layerStart(
-          static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)),
-      layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
-      mipStart(static_cast<uint16_t>(texture->subresourceRange.baseMipLevel)),
-      mipCount(static_cast<uint16_t>(texture->subresourceRange.levelCount)),
+    : layerStart(static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)), layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
+      mipStart(static_cast<uint16_t>(texture->subresourceRange.baseMipLevel)), mipCount(static_cast<uint16_t>(texture->subresourceRange.levelCount)),
       image(texture->imageMemory->image) {}
 
 struct SyncFlags {
@@ -50,9 +44,7 @@ struct SyncFlags {
     return *this;
   }
 
-  [[nodiscard]] auto Get() -> std::pair<VkAccessFlags2, VkPipelineStageFlags2> {
-    return {access, pipelines};
-  }
+  [[nodiscard]] auto Get() -> std::pair<VkAccessFlags2, VkPipelineStageFlags2> { return {access, pipelines}; }
 };
 
 void VCmdThreadInfo::ThreadMain(VirtualCommandBuffer *vcmd) {
@@ -65,7 +57,7 @@ void VCmdThreadInfo::ThreadMain(VirtualCommandBuffer *vcmd) {
       std::lock_guard<std::mutex> lock(info.commandsQueueMutex);
 
       if (info.shutdown.load()) {
-        return;
+        break;
       }
 
       assert(info.queuedCommands.empty());
@@ -81,8 +73,7 @@ void VCmdThreadInfo::ThreadMain(VirtualCommandBuffer *vcmd) {
 
         BoundResources *boundState = nullptr;
         if (command.parentID != UINT16_MAX) {
-          boundState = get_if_derived<BoundResources>(
-              vcmd->commandStorage.at(command.parentID).data);
+          boundState = get_if_derived<BoundResources>(vcmd->commandStorage.at(command.parentID).data);
         } else {
           boundState = get_if_derived<BoundResources>(command.data);
         }
@@ -99,8 +90,7 @@ void VCmdThreadInfo::ThreadMain(VirtualCommandBuffer *vcmd) {
 
 void VCmdThreadInfo::Initialize(VirtualCommandBuffer *vcmd) {
   parent = vcmd;
-  thread = std::thread(ThreadMain, vcmd);
-  thread.detach();
+  std::thread(ThreadMain, vcmd).detach();
 }
 
 void VCmdThreadInfo::AddCommand(uint16_t commandID) {
@@ -110,44 +100,32 @@ void VCmdThreadInfo::AddCommand(uint16_t commandID) {
   commandsQueueBacklog.emplace_back(commandID);
 }
 
-auto DrawState::GetAccesses(
-    std::unordered_map<VulkanResource,
-                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
-                       VulkanResourceHash<true>> &accesses) const -> void {
+auto DrawState::GetAccesses(std::unordered_map<VulkanResource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>, VulkanResourceHash<true>> &accesses) const
+    -> void {
 
   // TODO: This will break if we bind the same buffer twice
   for (const auto &bound : boundImages) {
-    accesses.emplace(bound.resource,
-                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
-                         bound.access, bound.pipelines});
+    accesses.emplace(bound.resource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>{bound.access, bound.pipelines});
   }
 
   for (const auto &bound : boundBuffers) {
-    accesses.emplace(bound.resource,
-                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
-                         bound.access, bound.pipelines});
+    accesses.emplace(bound.resource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>{bound.access, bound.pipelines});
   }
 
   for (const auto &bound : boundASs) {
-    accesses.emplace(bound.resource,
-                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
-                         bound.access, bound.pipelines});
+    accesses.emplace(bound.resource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>{bound.access, bound.pipelines});
   }
 
   for (const VkBuffer buffer : vertexBuffers) {
     if (buffer != nullptr) {
       accesses.emplace(VulkanResource(buffer),
-                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
-                           VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT,
-                           VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT});
+                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>{VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT});
     }
   }
 
   if (indexBuffer != nullptr) {
-    accesses.emplace(
-        VulkanResource(indexBuffer),
-        std::pair<VkAccessFlags2, VkPipelineStageFlags2>{
-            VK_ACCESS_2_INDEX_READ_BIT, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT});
+    accesses.emplace(VulkanResource(indexBuffer),
+                     std::pair<VkAccessFlags2, VkPipelineStageFlags2>{VK_ACCESS_2_INDEX_READ_BIT, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT});
   }
 }
 
@@ -200,11 +178,9 @@ auto DrawState::Initialize(CommandType type) -> Error {
     });
   }
 
-  for (const auto &accelerationStructure :
-       shaderState.userBoundAccelerationStructures) {
+  for (const auto &accelerationStructure : shaderState.userBoundAccelerationStructures) {
     boundASs.emplace_back(BoundResource{
-        .resource =
-            accelerationStructure.second.resource->GetAccelerationStructure(),
+        .resource = accelerationStructure.second.resource->GetAccelerationStructure(),
         .access = accelerationStructure.second.access,
         .pipelines = pipelines,
     });
@@ -218,8 +194,7 @@ auto DrawState::Initialize(CommandType type) -> Error {
            currentState.vertexBuffers.size() * sizeof(VkBuffer));
 
     vertexBufferOffsets.resize(currentState.vertexBufferOffsets.size());
-    memcpy(vertexBufferOffsets.data(), currentState.vertexBufferOffsets.data(),
-           currentState.vertexBufferOffsets.size() * sizeof(VkDeviceSize));
+    memcpy(vertexBufferOffsets.data(), currentState.vertexBufferOffsets.data(), currentState.vertexBufferOffsets.size() * sizeof(VkDeviceSize));
 
     indexBuffer = currentState.indexBuffer;
     indexBufferOffset = currentState.indexBufferOffset;
@@ -237,9 +212,7 @@ auto DrawState::Initialize(CommandType type) -> Error {
   assert(shader->GetState().uniforms.size() == shader->uniformsSize);
   CHECK_ERR(buffer.Write(context, shader->GetState().uniforms));
 
-  uboAddress = CHECK_RES(
-      buffer.GetBuffer()->GetAddress(context, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                     offset, shader->uniformsSize));
+  uboAddress = CHECK_RES(buffer.GetBuffer()->GetAddress(context, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, offset, shader->uniformsSize));
 
   return {};
 }
@@ -312,12 +285,9 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
   virtualState.polygonMode = RenderState::GetPolygonMode();
   virtualState.primitiveTopology = RenderState::GetTopology();
 
-  virtualState.colorBlendEquations.resize(
-      RenderState::TopOfStack->colorBlendEquations.size());
-  memcpy(virtualState.colorBlendEquations.data(),
-         RenderState::TopOfStack->colorBlendEquations.data(),
-         RenderState::TopOfStack->colorBlendEquations.size() *
-             sizeof(VkColorBlendEquationEXT));
+  virtualState.colorBlendEquations.resize(RenderState::TopOfStack->colorBlendEquations.size());
+  memcpy(virtualState.colorBlendEquations.data(), RenderState::TopOfStack->colorBlendEquations.data(),
+         RenderState::TopOfStack->colorBlendEquations.size() * sizeof(VkColorBlendEquationEXT));
 
   VkAccessFlags2 depthAccess = VK_ACCESS_2_NONE;
   VkPipelineStageFlags2 depthPipelines = VK_PIPELINE_STAGE_2_NONE;
@@ -335,8 +305,7 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
   for (const auto &target : RenderState::TopOfStack->colorAttachments) {
     auto attachment = BoundResource{
         .resource = ImageSubresource{target.texture},
-        .access = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
-                  VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT,
+        .access = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT,
         .pipelines = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
     };
 
@@ -349,29 +318,22 @@ auto VirtualCommandBuffer::NewRenderpass() -> void {
     newPassData.reads.emplace_back(attachment.resource);
     newPassData.writes.emplace_back(attachment.resource);
 
-    newPassData.accesses.emplace(
-        attachment.resource,
-        std::make_pair(attachment.access, attachment.pipelines));
+    newPassData.accesses.emplace(attachment.resource, std::make_pair(attachment.access, attachment.pipelines));
   }
 
-  virtualState.hasDepthStencilAttachment =
-      RenderState::TopOfStack->hasDepthStencilAttachment;
+  virtualState.hasDepthStencilAttachment = RenderState::TopOfStack->hasDepthStencilAttachment;
   if (RenderState::TopOfStack->hasDepthStencilAttachment) {
-    virtualState.depthStencilAttachment =
-        RenderState::TopOfStack->depthStencilAttachment;
+    virtualState.depthStencilAttachment = RenderState::TopOfStack->depthStencilAttachment;
 
     if (!RenderState::TopOfStack->rendertargetsUpdated) {
       virtualState.depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     }
 
-    newPassData.reads.emplace_back(
-        RenderState::TopOfStack->depthStencilAttachment.texture);
+    newPassData.reads.emplace_back(RenderState::TopOfStack->depthStencilAttachment.texture);
 
-    newPassData.writes.emplace_back(
-        RenderState::TopOfStack->depthStencilAttachment.texture);
+    newPassData.writes.emplace_back(RenderState::TopOfStack->depthStencilAttachment.texture);
 
-    newPassData.accesses.emplace(virtualState.depthStencilAttachment.texture,
-                                 std::make_pair(depthAccess, depthPipelines));
+    newPassData.accesses.emplace(virtualState.depthStencilAttachment.texture, std::make_pair(depthAccess, depthPipelines));
   }
 
   RenderState::TopOfStack->rendertargetsUpdated = false;
@@ -411,17 +373,14 @@ auto VirtualCommandBuffer::GetNewCommand(CommandType type) -> CommandID {
 
     if (currentRenderPass == InvalidCommandID) {
       NewRenderpass();
-      renderPass =
-          &std::get<RenderPass>(commandStorage.at(currentRenderPass).data);
+      renderPass = &std::get<RenderPass>(commandStorage.at(currentRenderPass).data);
     } else {
-      renderPass =
-          &std::get<RenderPass>(commandStorage.at(currentRenderPass).data);
+      renderPass = &std::get<RenderPass>(commandStorage.at(currentRenderPass).data);
 
       if (renderPass->state != *RenderState::TopOfStack) {
         NewRenderpass();
 
-        renderPass =
-            &std::get<RenderPass>(commandStorage.at(currentRenderPass).data);
+        renderPass = &std::get<RenderPass>(commandStorage.at(currentRenderPass).data);
       }
     }
 
@@ -454,8 +413,7 @@ auto VirtualCommandBuffer::AddCommand(CommandID command) -> Error {
     boundState = get_if_derived<BoundResources>(cmd->data);
   } else {
     boundState = get_if_derived<BoundResources>(GetCommand(cmd->parentID).data);
-    knownReads =
-        &std::get<RenderPass>(GetCommand(cmd->parentID).data).knownReads;
+    knownReads = &std::get<RenderPass>(GetCommand(cmd->parentID).data).knownReads;
   }
 
   if (boundState != nullptr) {
@@ -471,9 +429,7 @@ auto VirtualCommandBuffer::AddCommand(CommandID command) -> Error {
   return {};
 }
 
-auto VirtualCommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount,
-                                uint32_t firstVertex, uint32_t firstInstance)
-    -> Error {
+auto VirtualCommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdDraw);
   auto &commandInfo = std::get<Args::VkCmdDraw>(GetCommand(command).data);
 
@@ -485,14 +441,10 @@ auto VirtualCommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::DrawIndexed(uint32_t indexCount,
-                                       uint32_t instanceCount,
-                                       uint32_t firstIndex,
-                                       int32_t vertexOffset,
-                                       uint32_t firstInstance) -> Error {
+auto VirtualCommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+    -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdDrawIndexed);
-  auto &commandInfo =
-      std::get<Args::VkCmdDrawIndexed>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndexed>(GetCommand(command).data);
 
   commandInfo.indexCount = indexCount;
   commandInfo.instanceCount = instanceCount;
@@ -503,12 +455,9 @@ auto VirtualCommandBuffer::DrawIndexed(uint32_t indexCount,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::DrawIndirect(VkBuffer buffer, VkDeviceSize offset,
-                                        uint32_t drawCount, uint32_t stride)
-    -> Error {
+auto VirtualCommandBuffer::DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdDrawIndirect);
-  auto &commandInfo =
-      std::get<Args::VkCmdDrawIndirect>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndirect>(GetCommand(command).data);
 
   commandInfo.buffer = buffer;
   commandInfo.offset = offset;
@@ -518,13 +467,9 @@ auto VirtualCommandBuffer::DrawIndirect(VkBuffer buffer, VkDeviceSize offset,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::DrawIndexedIndirect(VkBuffer buffer,
-                                               VkDeviceSize offset,
-                                               uint32_t drawCount,
-                                               uint32_t stride) -> Error {
+auto VirtualCommandBuffer::DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdDrawIndexedIndirect);
-  auto &commandInfo =
-      std::get<Args::VkCmdDrawIndexedIndirect>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndexedIndirect>(GetCommand(command).data);
 
   commandInfo.buffer = buffer;
   commandInfo.offset = offset;
@@ -534,8 +479,7 @@ auto VirtualCommandBuffer::DrawIndexedIndirect(VkBuffer buffer,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY,
-                                    uint32_t groupCountZ) -> Error {
+auto VirtualCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdDispatch);
   auto &commandInfo = std::get<Args::VkCmdDispatch>(GetCommand(command).data);
 
@@ -546,11 +490,9 @@ auto VirtualCommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::DispatchIndirect(VkBuffer buffer,
-                                            VkDeviceSize offsets) -> Error {
+auto VirtualCommandBuffer::DispatchIndirect(VkBuffer buffer, VkDeviceSize offsets) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdDispatchIndirect);
-  auto &commandInfo =
-      std::get<Args::VkCmdDispatchIndirect>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdDispatchIndirect>(GetCommand(command).data);
 
   commandInfo.buffer = buffer;
   commandInfo.offset = offsets;
@@ -558,10 +500,8 @@ auto VirtualCommandBuffer::DispatchIndirect(VkBuffer buffer,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::BlitImage(
-    VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage,
-    VkImageLayout dstImageLayout, uint32_t regionCount,
-    const VkImageBlit *pRegions, VkFilter filter) -> Error {
+auto VirtualCommandBuffer::BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount,
+                                     const VkImageBlit *pRegions, VkFilter filter) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdBlitImage);
   auto &commandInfo = std::get<Args::VkCmdBlitImage>(GetCommand(command).data);
 
@@ -570,33 +510,25 @@ auto VirtualCommandBuffer::BlitImage(
   commandInfo.dstImage = dstImage;
   commandInfo.dstImageLayout = dstImageLayout;
   commandInfo.regions.resize(regionCount);
-  memcpy(commandInfo.regions.data(), pRegions,
-         sizeof(VkImageBlit) * regionCount);
+  memcpy(commandInfo.regions.data(), pRegions, sizeof(VkImageBlit) * regionCount);
   commandInfo.filter = filter;
 
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
-                                      uint32_t regionCount,
-                                      const VkBufferCopy *pRegions) -> Error {
+auto VirtualCommandBuffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferCopy *pRegions) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdCopyBuffer);
   auto &commandInfo = std::get<Args::VkCmdCopyBuffer>(GetCommand(command).data);
 
   commandInfo.srcBuffer = srcBuffer;
   commandInfo.dstBuffer = dstBuffer;
   commandInfo.regions.resize(regionCount);
-  memcpy(commandInfo.regions.data(), pRegions,
-         sizeof(VkBufferCopy) * regionCount);
+  memcpy(commandInfo.regions.data(), pRegions, sizeof(VkBufferCopy) * regionCount);
 
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::CopyImage(VkImage srcImage,
-                                     VkImageLayout srcImageLayout,
-                                     VkImage dstImage,
-                                     VkImageLayout dstImageLayout,
-                                     uint32_t regionCount,
+auto VirtualCommandBuffer::CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount,
                                      const VkImageCopy *pRegions) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdCopyImage);
   auto &commandInfo = std::get<Args::VkCmdCopyImage>(GetCommand(command).data);
@@ -607,8 +539,7 @@ auto VirtualCommandBuffer::CopyImage(VkImage srcImage,
   commandInfo.dstImageLayout = dstImageLayout;
 
   commandInfo.regions.resize(regionCount);
-  memcpy(commandInfo.regions.data(), pRegions,
-         sizeof(VkImageCopy) * regionCount);
+  memcpy(commandInfo.regions.data(), pRegions, sizeof(VkImageCopy) * regionCount);
 
   commandInfo.srcResources.reserve(regionCount);
   commandInfo.srcResources.clear();
@@ -617,77 +548,63 @@ auto VirtualCommandBuffer::CopyImage(VkImage srcImage,
   commandInfo.dstResources.clear();
 
   for (auto &region : commandInfo.regions) {
-    commandInfo.srcResources.emplace_back(ImageSubresource(
-        srcImage, region.srcSubresource.baseArrayLayer,
-        region.srcSubresource.layerCount, region.srcSubresource.mipLevel, 1));
+    commandInfo.srcResources.emplace_back(
+        ImageSubresource(srcImage, region.srcSubresource.baseArrayLayer, region.srcSubresource.layerCount, region.srcSubresource.mipLevel, 1));
 
-    commandInfo.dstResources.emplace_back(ImageSubresource(
-        dstImage, region.dstSubresource.baseArrayLayer,
-        region.dstSubresource.layerCount, region.dstSubresource.mipLevel, 1));
+    commandInfo.dstResources.emplace_back(
+        ImageSubresource(dstImage, region.dstSubresource.baseArrayLayer, region.dstSubresource.layerCount, region.dstSubresource.mipLevel, 1));
   }
 
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::CopyBufferToImage(
-    VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout,
-    uint32_t regionCount, const VkBufferImageCopy *pRegions) -> Error {
+auto VirtualCommandBuffer::CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount,
+                                             const VkBufferImageCopy *pRegions) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdCopyBufferToImage);
-  auto &commandInfo =
-      std::get<Args::VkCmdCopyBufferToImage>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdCopyBufferToImage>(GetCommand(command).data);
 
   commandInfo.srcBuffer = srcBuffer;
   commandInfo.dstImage = dstImage;
   commandInfo.dstImageLayout = dstImageLayout;
 
   commandInfo.regions.resize(regionCount);
-  memcpy(commandInfo.regions.data(), pRegions,
-         sizeof(VkBufferImageCopy) * regionCount);
+  memcpy(commandInfo.regions.data(), pRegions, sizeof(VkBufferImageCopy) * regionCount);
 
   commandInfo.dstResources.reserve(regionCount);
   commandInfo.dstResources.clear();
 
   for (auto &region : commandInfo.regions) {
     commandInfo.dstResources.emplace_back(
-        ImageSubresource(dstImage, region.imageSubresource.baseArrayLayer,
-                         region.imageSubresource.layerCount,
-                         region.imageSubresource.mipLevel, 1));
+        ImageSubresource(dstImage, region.imageSubresource.baseArrayLayer, region.imageSubresource.layerCount, region.imageSubresource.mipLevel, 1));
   }
 
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::CopyImageToBuffer(
-    VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer,
-    uint32_t regionCount, const VkBufferImageCopy *pRegions) -> Error {
+auto VirtualCommandBuffer::CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount,
+                                             const VkBufferImageCopy *pRegions) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdCopyImageToBuffer);
-  auto &commandInfo =
-      std::get<Args::VkCmdCopyImageToBuffer>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdCopyImageToBuffer>(GetCommand(command).data);
 
   commandInfo.srcImage = srcImage;
   commandInfo.srcImageLayout = srcImageLayout;
   commandInfo.dstBuffer = dstBuffer;
 
   commandInfo.regions.resize(regionCount);
-  memcpy(commandInfo.regions.data(), pRegions,
-         sizeof(VkBufferImageCopy) * regionCount);
+  memcpy(commandInfo.regions.data(), pRegions, sizeof(VkBufferImageCopy) * regionCount);
 
   commandInfo.srcResources.reserve(regionCount);
   commandInfo.srcResources.clear();
 
   for (auto &region : commandInfo.regions) {
     commandInfo.srcResources.emplace_back(
-        ImageSubresource(srcImage, region.imageSubresource.baseArrayLayer,
-                         region.imageSubresource.layerCount,
-                         region.imageSubresource.mipLevel, 1));
+        ImageSubresource(srcImage, region.imageSubresource.baseArrayLayer, region.imageSubresource.layerCount, region.imageSubresource.mipLevel, 1));
   }
 
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::FillBuffer(VkBuffer dstBuffer,
-                                      VkDeviceSize dstOffset, VkDeviceSize size,
-                                      uint32_t data) -> Error {
+auto VirtualCommandBuffer::FillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdFillBuffer);
   auto &commandInfo = std::get<Args::VkCmdFillBuffer>(GetCommand(command).data);
 
@@ -699,16 +616,11 @@ auto VirtualCommandBuffer::FillBuffer(VkBuffer dstBuffer,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::BuildAccelerationStructuresKHR(
-    uint32_t infoCount,
-    const VkAccelerationStructureBuildGeometryInfoKHR *pInfos,
-    const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos,
-    uint32_t readCount, VkBuffer const *bufferReads, uint32_t writeCount,
-    VkBuffer const *bufferWrites) -> Error {
-  CommandID command =
-      GetNewCommand(CommandType::vkCmdBuildAccelerationStructuresKHR);
-  auto &commandInfo = std::get<Args::VkCmdBuildAccelerationStructuresKHR>(
-      GetCommand(command).data);
+auto VirtualCommandBuffer::BuildAccelerationStructuresKHR(uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos,
+                                                          const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos, uint32_t readCount,
+                                                          VkBuffer const *bufferReads, uint32_t writeCount, VkBuffer const *bufferWrites) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdBuildAccelerationStructuresKHR);
+  auto &commandInfo = std::get<Args::VkCmdBuildAccelerationStructuresKHR>(GetCommand(command).data);
 
   commandInfo.infoCount = infoCount;
   commandInfo.infos.resize(infoCount);
@@ -720,8 +632,7 @@ auto VirtualCommandBuffer::BuildAccelerationStructuresKHR(
   assert(writeCount != 0U);
   assert(infoCount != 0U);
 
-  memcpy(commandInfo.infos.data(), pInfos,
-         sizeof(VkAccelerationStructureBuildGeometryInfoKHR) * infoCount);
+  memcpy(commandInfo.infos.data(), pInfos, sizeof(VkAccelerationStructureBuildGeometryInfoKHR) * infoCount);
 
   memcpy(commandInfo.bufferReads.data(), bufferReads, // NOLINT
          sizeof(VkBuffer) * readCount);
@@ -745,8 +656,7 @@ auto VirtualCommandBuffer::BuildAccelerationStructuresKHR(
     const size_t offset = commandInfo.geometries.size();
 
     for (uint32_t j = 0; j < commandInfo.infos[i].geometryCount; ++j) {
-      commandInfo.geometries.emplace_back(
-          commandInfo.infos[i].pGeometries[j]); // NOLINT
+      commandInfo.geometries.emplace_back(commandInfo.infos[i].pGeometries[j]); // NOLINT
     }
 
     commandInfo.buildRangeInfos[i] = *ppBuildRangeInfos[i]; // NOLINT
@@ -755,23 +665,18 @@ auto VirtualCommandBuffer::BuildAccelerationStructuresKHR(
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::CopyAccelerationStructureKHR(
-    const VkCopyAccelerationStructureInfoKHR *pInfo) -> Error {
-  CommandID command =
-      GetNewCommand(CommandType::vkCmdCopyAccelerationStructureKHR);
-  auto &commandInfo = std::get<Args::VkCmdCopyAccelerationStructureKHR>(
-      GetCommand(command).data);
+auto VirtualCommandBuffer::CopyAccelerationStructureKHR(const VkCopyAccelerationStructureInfoKHR *pInfo) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdCopyAccelerationStructureKHR);
+  auto &commandInfo = std::get<Args::VkCmdCopyAccelerationStructureKHR>(GetCommand(command).data);
 
   commandInfo.structureInfo = *pInfo;
 
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::PipelineBarrier2(
-    const VkDependencyInfo *pDependencyInfo) -> Error {
+auto VirtualCommandBuffer::PipelineBarrier2(const VkDependencyInfo *pDependencyInfo) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdPipelineBarrier2);
-  auto &commandInfo =
-      std::get<Args::VkCmdPipelineBarrier2>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdPipelineBarrier2>(GetCommand(command).data);
 
   commandInfo.memoryBarriers.clear();
   commandInfo.bufferMemoryBarriers.clear();
@@ -782,28 +687,21 @@ auto VirtualCommandBuffer::PipelineBarrier2(
   commandInfo.imageMemoryBarriers.clear();
 
   commandInfo.memoryBarriers.resize(pDependencyInfo->memoryBarrierCount);
-  commandInfo.bufferMemoryBarriers.resize(
-      pDependencyInfo->bufferMemoryBarrierCount);
-  commandInfo.imageMemoryBarriers.resize(
-      pDependencyInfo->imageMemoryBarrierCount);
+  commandInfo.bufferMemoryBarriers.resize(pDependencyInfo->bufferMemoryBarrierCount);
+  commandInfo.imageMemoryBarriers.resize(pDependencyInfo->imageMemoryBarrierCount);
 
   if (pDependencyInfo->memoryBarrierCount != 0U) {
-    memcpy(commandInfo.memoryBarriers.data(), pDependencyInfo->pMemoryBarriers,
-           sizeof(VkMemoryBarrier2) * pDependencyInfo->memoryBarrierCount);
+    memcpy(commandInfo.memoryBarriers.data(), pDependencyInfo->pMemoryBarriers, sizeof(VkMemoryBarrier2) * pDependencyInfo->memoryBarrierCount);
   }
 
   if (pDependencyInfo->bufferMemoryBarrierCount != 0U) {
-    memcpy(commandInfo.bufferMemoryBarriers.data(),
-           pDependencyInfo->pBufferMemoryBarriers,
-           sizeof(VkBufferMemoryBarrier2) *
-               pDependencyInfo->bufferMemoryBarrierCount);
+    memcpy(commandInfo.bufferMemoryBarriers.data(), pDependencyInfo->pBufferMemoryBarriers,
+           sizeof(VkBufferMemoryBarrier2) * pDependencyInfo->bufferMemoryBarrierCount);
   }
 
   if (pDependencyInfo->imageMemoryBarrierCount != 0U) {
-    memcpy(commandInfo.imageMemoryBarriers.data(),
-           pDependencyInfo->pImageMemoryBarriers,
-           sizeof(VkImageMemoryBarrier2) *
-               pDependencyInfo->imageMemoryBarrierCount);
+    memcpy(commandInfo.imageMemoryBarriers.data(), pDependencyInfo->pImageMemoryBarriers,
+           sizeof(VkImageMemoryBarrier2) * pDependencyInfo->imageMemoryBarrierCount);
   }
 
   return AddCommand(command);
@@ -818,12 +716,9 @@ auto VirtualCommandBuffer::MipmapTexture(Texture *texture) -> Error {
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::ResetQueryPool(VkQueryPool queryPool,
-                                          uint32_t firstQuery,
-                                          uint32_t queryCount) -> Error {
+auto VirtualCommandBuffer::ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdResetQueryPool);
-  auto &commandInfo =
-      std::get<Args::VkCmdResetQueryPool>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdResetQueryPool>(GetCommand(command).data);
 
   commandInfo.queryPool = queryPool;
   commandInfo.firstQuery = firstQuery;
@@ -832,16 +727,11 @@ auto VirtualCommandBuffer::ResetQueryPool(VkQueryPool queryPool,
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::WriteAccelerationStructuresPropertiesKHR(
-    uint32_t accelerationStructureCount,
-    const VkAccelerationStructureKHR *pAccelerationStructures,
-    VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery)
-    -> Error {
-  CommandID command =
-      GetNewCommand(CommandType::vkCmdWriteAccelerationStructuresPropertiesKHR);
-  auto &commandInfo =
-      std::get<Args::VkCmdWriteAccelerationStructuresPropertiesKHR>(
-          GetCommand(command).data);
+auto VirtualCommandBuffer::WriteAccelerationStructuresPropertiesKHR(uint32_t accelerationStructureCount,
+                                                                    const VkAccelerationStructureKHR *pAccelerationStructures, VkQueryType queryType,
+                                                                    VkQueryPool queryPool, uint32_t firstQuery) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdWriteAccelerationStructuresPropertiesKHR);
+  auto &commandInfo = std::get<Args::VkCmdWriteAccelerationStructuresPropertiesKHR>(GetCommand(command).data);
 
   commandInfo.accelerationStructures.resize(accelerationStructureCount);
   memcpy(commandInfo.accelerationStructures.data(), // NOLINT
@@ -854,18 +744,13 @@ auto VirtualCommandBuffer::WriteAccelerationStructuresPropertiesKHR(
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::BindIndexBuffer(
-    const Args::VkCmdBindIndexBuffer &arguments) -> void {
+auto VirtualCommandBuffer::BindIndexBuffer(const Args::VkCmdBindIndexBuffer &arguments) -> void {
   currentState.indexBuffer = arguments.buffer;
   currentState.indexType = arguments.indexType;
   currentState.indexBufferOffset = arguments.offset;
 }
 
-auto VirtualCommandBuffer::BindVertexBuffers(uint32_t firstBinding,
-                                             uint32_t bindingCount,
-                                             const VkBuffer *pBuffers,
-                                             const VkDeviceSize *pOffsets)
-    -> void {
+auto VirtualCommandBuffer::BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets) -> void {
   currentState.vertexBuffers.resize(firstBinding + bindingCount);
   currentState.vertexBufferOffsets.resize(firstBinding + bindingCount);
 
@@ -875,15 +760,11 @@ auto VirtualCommandBuffer::BindVertexBuffers(uint32_t firstBinding,
   }
 }
 
-auto VirtualCommandBuffer::SetVertexInputEXT(
-    uint32_t vertexBindingDescriptionCount,
-    const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions,
-    uint32_t vertexAttributeDescriptionCount,
-    const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
-    -> void {
+auto VirtualCommandBuffer::SetVertexInputEXT(uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions,
+                                             uint32_t vertexAttributeDescriptionCount,
+                                             const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions) -> void {
 
-  if (vertexBindingDescriptionCount == 0 ||
-      vertexAttributeDescriptionCount == 0) {
+  if (vertexBindingDescriptionCount == 0 || vertexAttributeDescriptionCount == 0) {
     currentState.bindingDescriptions.clear();
     currentState.attributeDescriptions.clear();
     return;
@@ -892,42 +773,32 @@ auto VirtualCommandBuffer::SetVertexInputEXT(
   currentState.bindingDescriptions.resize(vertexBindingDescriptionCount);
   currentState.attributeDescriptions.resize(vertexAttributeDescriptionCount);
 
-  memcpy(currentState.bindingDescriptions.data(), pVertexBindingDescriptions,
-         sizeof(VkVertexInputBindingDescription2EXT) *
-             vertexBindingDescriptionCount);
+  memcpy(currentState.bindingDescriptions.data(), pVertexBindingDescriptions, sizeof(VkVertexInputBindingDescription2EXT) * vertexBindingDescriptionCount);
 
-  memcpy(currentState.attributeDescriptions.data(),
-         pVertexAttributeDescriptions,
-         sizeof(VkVertexInputAttributeDescription2EXT) *
-             vertexAttributeDescriptionCount);
+  memcpy(currentState.attributeDescriptions.data(), pVertexAttributeDescriptions,
+         sizeof(VkVertexInputAttributeDescription2EXT) * vertexAttributeDescriptionCount);
 }
 
-auto VirtualCommandBuffer::ClearAttachments(
-    uint32_t attachmentCount, const VkClearAttachment *pAttachments,
-    uint32_t rectCount, const VkClearRect *pRects) -> Error {
+auto VirtualCommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects)
+    -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdClearAttachments);
-  auto &commandInfo =
-      std::get<Args::VkCmdClearAttachments>(GetCommand(command).data);
+  auto &commandInfo = std::get<Args::VkCmdClearAttachments>(GetCommand(command).data);
 
   commandInfo.attachments.resize(attachmentCount);
-  memcpy(commandInfo.attachments.data(), pAttachments,
-         sizeof(VkClearAttachment) * attachmentCount);
+  memcpy(commandInfo.attachments.data(), pAttachments, sizeof(VkClearAttachment) * attachmentCount);
   commandInfo.rects.resize(rectCount);
   memcpy(commandInfo.rects.data(), pRects, sizeof(VkClearRect) * rectCount);
 
   return AddCommand(command);
 }
 
-auto VirtualCommandBuffer::BeginDebugUtilsLabelEXT(
-    const Args::VkCmdBeginDebugUtilsLabelEXT &arguments) -> void {
+auto VirtualCommandBuffer::BeginDebugUtilsLabelEXT(const Args::VkCmdBeginDebugUtilsLabelEXT &arguments) -> void {
   // currentState.currentDebugMarker = arguments.labelInfo.pLabelName;
 }
 
-auto VirtualCommandBuffer::EndDebugUtilsLabelEXT(
-    const Args::VkCmdEndDebugUtilsLabelEXT &arguments) -> void {}
+auto VirtualCommandBuffer::EndDebugUtilsLabelEXT(const Args::VkCmdEndDebugUtilsLabelEXT &arguments) -> void {}
 
-auto VirtualCommandBuffer::InsertDebugUtilsLabelEXT(
-    const Args::VkCmdInsertDebugUtilsLabelEXT &arguments) -> void {}
+auto VirtualCommandBuffer::InsertDebugUtilsLabelEXT(const Args::VkCmdInsertDebugUtilsLabelEXT &arguments) -> void {}
 
 auto GetRequiresRendering(CommandType type) -> bool {
   switch (type) {
@@ -979,8 +850,7 @@ auto VirtualCommandBuffer::Reset() -> void {
   currentState.dirty = true;
 }
 
-auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
-                      VkCommandBuffer cmdBuffer) const -> Error {
+auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent, VkCommandBuffer cmdBuffer) const -> Error {
   ZoneScoped;
 
   const VirtualRenderState &state = parent.state;
@@ -1001,21 +871,17 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent,
 
     {
       ZoneScopedN("vkCmdSetVertexInputEXT");
-      vkCmdSetVertexInputEXT(
-          cmdBuffer, bindingDescriptions.size(), bindingDescriptions.data(),
-          attributeDescriptions.size(), attributeDescriptions.data());
+      vkCmdSetVertexInputEXT(cmdBuffer, bindingDescriptions.size(), bindingDescriptions.data(), attributeDescriptions.size(), attributeDescriptions.data());
     }
 
     if (!vertexBuffers.empty()) {
       ZoneScopedN("vkCmdBindVertexBuffers");
-      vkCmdBindVertexBuffers(cmdBuffer, 0, vertexBuffers.size(),
-                             vertexBuffers.data(), vertexBufferOffsets.data());
+      vkCmdBindVertexBuffers(cmdBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), vertexBufferOffsets.data());
     }
 
     if (indexBuffer != VK_NULL_HANDLE) {
       ZoneScopedN("vkCmdBindIndexBuffer");
-      vkCmdBindIndexBuffer(cmdBuffer, indexBuffer, indexBufferOffset,
-                           indexType);
+      vkCmdBindIndexBuffer(cmdBuffer, indexBuffer, indexBufferOffset, indexType);
     }
   } else {
     ERR_ASSERT(state.bindPoint == VK_PIPELINE_BIND_POINT_COMPUTE);

@@ -159,8 +159,8 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh) -> Result<Re
   vkGetAccelerationStructureBuildSizesKHR(context.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &primitiveCount, &sizeInfo);
 
   auto bvh = Ref<BLAS>::Make();
-  auto &meshInfo = bvh->meshInfo;
   bvh->geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+  MeshData meshInfo;
 
   meshInfo.vertexBuffer = mesh.GetVertexBuffer(positionAttribute->binding);
   meshInfo.indexBuffer = mesh.GetIndexBuffer();
@@ -170,6 +170,7 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh) -> Result<Re
   meshInfo.vertexFormat = positionAttribute->format;
   meshInfo.vertexStride = mesh.GetVertexFormat().GetStride(positionAttribute->binding);
   meshInfo.vertexOffset = positionAttribute->offset;
+  bvh->geometryInfo = meshInfo;
 
   // Create AS storage buffer
   bvh->accelerationStructureBuffer =
@@ -278,7 +279,7 @@ auto BLAS::Create(const GraphicsContext &context, const Ref<Buffer> &aabbs, uint
   vkGetAccelerationStructureBuildSizesKHR(context.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &count, &sizeInfo);
 
   bvh->geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
-  bvh->aabbInfo = {
+  bvh->geometryInfo = AABBData{
       .aabbs = aabbs,
       .aabbCount = count,
   };
@@ -363,6 +364,8 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
   uint32_t primitiveCount{};
 
   if (geometryType == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+    auto &meshInfo = std::get<MeshData>(geometryInfo);
+
     ERR_ASSERT(meshInfo.vertexBuffer != nullptr);
     auto positionAddress = CHECK_RES(meshInfo.vertexBuffer->GetDeviceAddress(context));
     positionAddress += meshInfo.vertexOffset;
@@ -403,6 +406,8 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
       primitiveCount = meshInfo.vertexCount / 3;
     }
   } else if (geometryType == VK_GEOMETRY_TYPE_AABBS_KHR) {
+    auto &aabbInfo = std::get<AABBData>(geometryInfo);
+
     auto deviceAddress = CHECK_RES(aabbInfo.aabbs->GetDeviceAddress(context));
 
     geometry.geometry.aabbs = VkAccelerationStructureGeometryAabbsDataKHR{
@@ -490,6 +495,8 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
   scratchBuffer->MarkUse();
 
   if (geometryType == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+    auto &meshInfo = std::get<MeshData>(geometryInfo);
+
     meshInfo.vertexBuffer->MarkUse();
     if (meshInfo.indexBuffer != nullptr && meshInfo.indexCount > 0) {
       meshInfo.indexBuffer->MarkUse();
@@ -500,6 +507,8 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
       reads.push_back(meshInfo.indexBuffer->handle);
     }
   } else if (geometryType == VK_GEOMETRY_TYPE_AABBS_KHR) {
+    auto &aabbInfo = std::get<AABBData>(geometryInfo);
+
     reads = std::vector<VkBuffer>{aabbInfo.aabbs->handle, scratchBuffer->handle};
   }
   std::vector<VkBuffer> writes{accelerationStructureBuffer->handle, scratchBuffer->handle};
@@ -535,6 +544,8 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
   uint32_t primitiveCount{};
 
   if (geometryType == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+    auto &meshInfo = std::get<MeshData>(geometryInfo);
+
     ERR_ASSERT(meshInfo.vertexBuffer != nullptr);
     auto positionAddress = CHECK_RES(meshInfo.vertexBuffer->GetDeviceAddress(context));
     positionAddress += meshInfo.vertexOffset;
@@ -575,6 +586,8 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
       primitiveCount = meshInfo.vertexCount / 3;
     }
   } else if (geometryType == VK_GEOMETRY_TYPE_AABBS_KHR) {
+    auto &aabbInfo = std::get<AABBData>(geometryInfo);
+
     auto deviceAddress = CHECK_RES(aabbInfo.aabbs->GetDeviceAddress(context));
 
     geometry.geometry.aabbs = VkAccelerationStructureGeometryAabbsDataKHR{
@@ -615,6 +628,8 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
   std::vector<VkBuffer> reads{};
 
   if (geometryType == VK_GEOMETRY_TYPE_TRIANGLES_KHR) {
+    auto &meshInfo = std::get<MeshData>(geometryInfo);
+
     meshInfo.vertexBuffer->MarkUse();
     if (meshInfo.indexBuffer != nullptr && meshInfo.indexCount > 0) {
       meshInfo.indexBuffer->MarkUse();
@@ -625,6 +640,8 @@ auto BLAS::Refit(const GraphicsContext &context) -> Error {
       reads.push_back(meshInfo.indexBuffer->handle);
     }
   } else if (geometryType == VK_GEOMETRY_TYPE_AABBS_KHR) {
+    auto &aabbInfo = std::get<AABBData>(geometryInfo);
+
     reads = std::vector<VkBuffer>{aabbInfo.aabbs->handle};
   }
   std::vector<VkBuffer> writes{accelerationStructureBuffer->handle};

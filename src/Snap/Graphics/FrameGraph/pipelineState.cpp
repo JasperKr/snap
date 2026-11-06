@@ -27,8 +27,7 @@ void Shutdown(const GraphicsContext &context) {
   RecordingState::LastStateStorage = {};
 }
 
-auto IsSwapchainTexture(const GraphicsContext &context,
-                        const Graphics::Texture &texture) -> bool {
+auto IsSwapchainTexture(const GraphicsContext &context, const Graphics::Texture &texture) -> bool {
   for (const auto &swapchainTexture : context.swapchainInfo.textures) {
     if (swapchainTexture.get() == &texture) {
       return true;
@@ -48,20 +47,17 @@ auto BeginFrame(const GraphicsContext &context) -> Error {
   return Error::Success();
 }
 
-auto inline GetInputAssemblyState(const RecordingState::CombinedState &state)
-    -> VkPipelineInputAssemblyStateCreateInfo {
+auto inline GetInputAssemblyState(const RecordingState::CombinedState &state) -> VkPipelineInputAssemblyStateCreateInfo {
   VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 
-  inputAssembly.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+  inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
   inputAssembly.topology = state.renderState->primitiveTopology;
   inputAssembly.primitiveRestartEnable = VK_FALSE;
 
   return inputAssembly;
 }
 
-auto inline GetRasterizationState(const RecordingState::CombinedState &state)
-    -> VkPipelineRasterizationStateCreateInfo {
+auto inline GetRasterizationState(const RecordingState::CombinedState &state) -> VkPipelineRasterizationStateCreateInfo {
   VkPipelineRasterizationStateCreateInfo rasterizer = {};
   rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   rasterizer.depthClampEnable = VK_FALSE;
@@ -75,8 +71,7 @@ auto inline GetRasterizationState(const RecordingState::CombinedState &state)
   return rasterizer;
 }
 
-auto inline GetColorBlendAttachmentState(
-    const GraphicsContext &context, const RecordingState::CombinedState &state)
+auto inline GetColorBlendAttachmentState(const GraphicsContext &context, const RecordingState::CombinedState &state)
     -> Result<std::vector<VkPipelineColorBlendAttachmentState>> {
 
   // Get Shader Output Reflection //
@@ -139,16 +134,14 @@ auto inline GetColorBlendAttachmentState(
     }
 
     if (location < 0 || location >= MAX_COLOR_ATTACHMENTS) {
-      return Error::Unexpected("Render target location is out of bounds: " +
-                               std::to_string(location));
+      return Error::Unexpected("Render target location is out of bounds: " + std::to_string(location));
     }
 
     blendAttachments.at(location) = rendertarget.blendMode;
   }
 
   if (hasImplicitLocation && hasExplicitLocation) {
-    return Error::Unexpected(
-        "Cannot mix implicit and explicit render target locations.");
+    return Error::Unexpected("Cannot mix implicit and explicit render target locations.");
   }
 
   // #ifndef NDEBUG
@@ -169,19 +162,15 @@ auto inline GetColorBlendAttachmentState(
 auto GetTargetSize() -> VkExtent2D {
   if (RecordingState::CurrentState.renderState->colorAttachments.size() > 0) {
     return {
-        RecordingState::CurrentState.renderState->colorAttachments.at(0)
-            .texture->GetWidth(),
-        RecordingState::CurrentState.renderState->colorAttachments.at(0)
-            .texture->GetHeight(),
+        RecordingState::CurrentState.renderState->colorAttachments.at(0).texture->GetWidth(),
+        RecordingState::CurrentState.renderState->colorAttachments.at(0).texture->GetHeight(),
     };
   }
 
   if (RecordingState::CurrentState.renderState->hasDepthStencilAttachment) {
     return {
-        RecordingState::CurrentState.renderState->depthStencilAttachment
-            .texture->GetWidth(),
-        RecordingState::CurrentState.renderState->depthStencilAttachment
-            .texture->GetHeight(),
+        RecordingState::CurrentState.renderState->depthStencilAttachment.texture->GetWidth(),
+        RecordingState::CurrentState.renderState->depthStencilAttachment.texture->GetHeight(),
     };
   }
 
@@ -189,27 +178,20 @@ auto GetTargetSize() -> VkExtent2D {
   return {0, 0};
 }
 
-inline auto CreateGraphicsPipeline(const GraphicsContext &context,
-                                   RecordingState::CombinedState &state)
-    -> Result<VkPipeline> {
+inline auto CreateGraphicsPipeline(const GraphicsContext &context, RecordingState::CombinedState &state) -> Result<VkPipeline> {
   ZoneScoped;
   if (state.renderState->bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS) {
-    return Error::Unexpected(
-        "Attempted to create graphics pipeline with non-graphics bind point.");
+    return Error::Unexpected("Attempted to create graphics pipeline with non-graphics bind point.");
   }
 
-  ERR_ASSERT_MSG(
-      state.renderState->shader->combinedShaderStages !=
-          VK_SHADER_STAGE_COMPUTE_BIT,
-      std::format("Shader: {}, Is being bound to a graphics pipeline.",
-                  state.renderState->shader->moduleName));
+  ERR_ASSERT_MSG(state.renderState->shader->combinedShaderStages != VK_SHADER_STAGE_COMPUTE_BIT,
+                 std::format("Shader: {}, Is being bound to a graphics pipeline.", state.renderState->shader->moduleName));
 
   PrintDebug("Creating graphics pipeline");
 
   VkShaderDescriptorSetAndBindingMappingInfoEXT globalUBOMappingInfo{};
   globalUBOMappingInfo.mappingCount = 1;
-  globalUBOMappingInfo.sType =
-      VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT;
+  globalUBOMappingInfo.sType = VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT;
   globalUBOMappingInfo.pNext = nullptr;
 
   VkDescriptorSetAndBindingMappingEXT globalUBOMapping{
@@ -224,9 +206,7 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
           .pushIndex{
               .heapOffset = 0,
               .pushOffset = 0,
-              .heapIndexStride = static_cast<uint32_t>(
-                  DescriptorHeapManager::GetInstance()
-                      .heapProperties.bufferDescriptorSize),
+              .heapIndexStride = static_cast<uint32_t>(DescriptorHeapManager::GetInstance().heapProperties.bufferDescriptorSize),
               .heapArrayStride = 0,
           },
       },
@@ -263,8 +243,7 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   /// Multisampling ///
 
   VkPipelineMultisampleStateCreateInfo multisampling = {};
-  multisampling.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+  multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable = VK_FALSE;
   multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -297,8 +276,7 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   /// Depth and Stencil ///
 
   VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
-  depthStencilState.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+  depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
   depthStencilState.depthTestEnable = state.depthTestEnable;
   depthStencilState.depthWriteEnable = state.depthWriteEnable;
   depthStencilState.depthCompareOp = state.depthCompareOp;
@@ -340,26 +318,22 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   }
 
   if (hasImplicitLocation && hasExplicitLocation) {
-    return Error::Unexpected(
-        "Cannot mix explicit and implicit render target locations.");
+    return Error::Unexpected("Cannot mix explicit and implicit render target locations.");
   }
 
   /// Color Attachments ///
 
   VkPipelineRenderingCreateInfo renderingCreateInfo = {};
   renderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-  renderingCreateInfo.colorAttachmentCount =
-      state.renderState->colorAttachments.size();
+  renderingCreateInfo.colorAttachmentCount = state.renderState->colorAttachments.size();
   renderingCreateInfo.pColorAttachmentFormats = formats.data();
   renderingCreateInfo.depthAttachmentFormat = depthFormat;
   renderingCreateInfo.stencilAttachmentFormat = stencilFormat;
 
-  auto blendAttachments =
-      CHECK_RES(GetColorBlendAttachmentState(context, state));
+  auto blendAttachments = CHECK_RES(GetColorBlendAttachmentState(context, state));
 
   VkPipelineColorBlendStateCreateInfo colorBlending = {};
-  colorBlending.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+  colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
   colorBlending.logicOpEnable = VK_FALSE;
   colorBlending.attachmentCount = state.renderState->colorAttachments.size();
   colorBlending.pAttachments = blendAttachments.data();
@@ -399,9 +373,7 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   VkPipeline pipeline = VK_NULL_HANDLE;
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkCreateGraphicsPipelines(
-        context.device, VK_NULL_HANDLE, 1, &pipelineInfo,
-        GetAllocationCallbacks(), &pipeline));
+    CHECK_NEW_ERR(vkCreateGraphicsPipelines(context.device, VK_NULL_HANDLE, 1, &pipelineInfo, GetAllocationCallbacks(), &pipeline));
   }
 
   {
@@ -415,20 +387,16 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context,
   return pipeline;
 }
 
-inline auto CreateComputePipeline(const GraphicsContext &context,
-                                  RecordingState::CombinedState &state)
-    -> Result<VkPipeline> {
+inline auto CreateComputePipeline(const GraphicsContext &context, RecordingState::CombinedState &state) -> Result<VkPipeline> {
   ZoneScoped;
 
-  ERR_ASSERT(state.renderState->shader->combinedShaderStages ==
-             VK_SHADER_STAGE_COMPUTE_BIT);
+  ERR_ASSERT(state.renderState->shader->combinedShaderStages == VK_SHADER_STAGE_COMPUTE_BIT);
 
   PrintDebug("Creating compute pipeline");
 
   VkShaderDescriptorSetAndBindingMappingInfoEXT globalUBOMappingInfo{};
   globalUBOMappingInfo.mappingCount = 1;
-  globalUBOMappingInfo.sType =
-      VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT;
+  globalUBOMappingInfo.sType = VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT;
   globalUBOMappingInfo.pNext = nullptr;
 
   VkDescriptorSetAndBindingMappingEXT globalUBOMapping{
@@ -443,9 +411,7 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
           .pushIndex{
               .heapOffset = 0,
               .pushOffset = 0,
-              .heapIndexStride = static_cast<uint32_t>(
-                  DescriptorHeapManager::GetInstance()
-                      .heapProperties.bufferDescriptorSize),
+              .heapIndexStride = static_cast<uint32_t>(DescriptorHeapManager::GetInstance().heapProperties.bufferDescriptorSize),
               .heapArrayStride = 0,
           },
       },
@@ -458,17 +424,13 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
 
   VkComputePipelineCreateInfo pipelineInfo = {};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-  pipelineInfo.stage.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  pipelineInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   pipelineInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
   pipelineInfo.stage.module = state.renderState->shader->module;
   pipelineInfo.stage.pNext = &globalUBOMappingInfo;
 
-  if ((state.renderState->shader->combinedShaderStages &
-       VK_SHADER_STAGE_COMPUTE_BIT) == 0) {
-    return Error::Unexpectedf(
-        "Shader module {} does not have a compute shader stage.",
-        state.renderState->shader->name);
+  if ((state.renderState->shader->combinedShaderStages & VK_SHADER_STAGE_COMPUTE_BIT) == 0) {
+    return Error::Unexpectedf("Shader module {} does not have a compute shader stage.", state.renderState->shader->name);
   }
 
   // If we get a validation error / crash about this not existing; rename to "main"
@@ -488,9 +450,7 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
   VkPipeline pipeline = VK_NULL_HANDLE;
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkCreateComputePipelines(
-        context.device, VK_NULL_HANDLE, 1, &pipelineInfo,
-        GetAllocationCallbacks(), &pipeline));
+    CHECK_NEW_ERR(vkCreateComputePipelines(context.device, VK_NULL_HANDLE, 1, &pipelineInfo, GetAllocationCallbacks(), &pipeline));
   }
 
   {
@@ -504,9 +464,7 @@ inline auto CreateComputePipeline(const GraphicsContext &context,
   return pipeline;
 }
 
-inline auto CreatePipeline(const GraphicsContext &context,
-                           RecordingState::CombinedState &state)
-    -> Result<VkPipeline> {
+inline auto CreatePipeline(const GraphicsContext &context, RecordingState::CombinedState &state) -> Result<VkPipeline> {
   ZoneScoped;
 
   PrintDebug("Creating pipeline");
@@ -523,9 +481,7 @@ inline auto CreatePipeline(const GraphicsContext &context,
   return Error::Unexpected("Unsupported pipeline bind point.");
 }
 
-inline auto GetPipeline(const GraphicsContext &context,
-                        RecordingState::CombinedState &state)
-    -> Result<VkPipeline> {
+inline auto GetPipeline(const GraphicsContext &context, RecordingState::CombinedState &state) -> Result<VkPipeline> {
   ZoneScoped;
 
   PrintDebug("Getting pipeline");
@@ -543,92 +499,71 @@ inline auto GetPipeline(const GraphicsContext &context,
   return CreatePipeline(context, state);
 }
 
-auto FlushCompute(const GraphicsContext &context,
-                  VkCommandBuffer vkCommandBuffer) -> Result<bool> {
+auto FlushCompute(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer) -> Result<bool> {
   ZoneScoped;
 
   PrintDebug("Flushing compute");
 
-  if (RecordingState::CurrentState.renderState->bindPoint !=
-      VK_PIPELINE_BIND_POINT_COMPUTE) {
+  if (RecordingState::CurrentState.renderState->bindPoint != VK_PIPELINE_BIND_POINT_COMPUTE) {
     return Error::Unexpected("Current state is not a compute pipeline.");
   }
 
-  VkPipeline pipeline =
-      CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
+  VkPipeline pipeline = CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
 
-  assert(RecordingState::CurrentState.renderState->shader->entryPoints.at(0)
-             .second == VK_SHADER_STAGE_COMPUTE_BIT);
+  assert(RecordingState::CurrentState.renderState->shader->entryPoints.at(0).second == VK_SHADER_STAGE_COMPUTE_BIT);
 
   PrintDebug("Binding pipeline");
 
-  vkCmdBindPipeline(vkCommandBuffer,
-                    RecordingState::CurrentState.renderState->bindPoint,
-                    pipeline);
+  vkCmdBindPipeline(vkCommandBuffer, RecordingState::CurrentState.renderState->bindPoint, pipeline);
 
   return true;
 }
 
-auto FlushGraphics(const GraphicsContext &context,
-                   VkCommandBuffer vkCommandBuffer) -> Result<bool> {
+auto FlushGraphics(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer) -> Result<bool> {
   ZoneScoped;
 
-  ERR_ASSERT(RecordingState::CurrentState.renderState->bindPoint ==
-             VK_PIPELINE_BIND_POINT_GRAPHICS);
+  ERR_ASSERT(RecordingState::CurrentState.renderState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-  VkPipeline pipeline =
-      CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
+  VkPipeline pipeline = CHECK_RES(GetPipeline(context, RecordingState::CurrentState));
 
   PrintDebug("Binding pipeline");
 
   {
     ZoneScopedN("vkCmdBindPipeline");
-    vkCmdBindPipeline(vkCommandBuffer,
-                      RecordingState::CurrentState.renderState->bindPoint,
-                      pipeline);
+    vkCmdBindPipeline(vkCommandBuffer, RecordingState::CurrentState.renderState->bindPoint, pipeline);
   }
 
   return true;
 }
 
-auto Flush(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer)
-    -> Result<bool> {
+auto Flush(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer) -> Result<bool> {
   ZoneScoped;
-
-  PrintDebug("Flush");
 
   [[likely]]
   if (!Graphics::GetIsStateDirty() && RecordingState::LastState != nullptr &&
-      RecordingState::CurrentState.renderState ==
-          RecordingState::LastState->renderState) {
+      RecordingState::CurrentState.renderState == RecordingState::LastState->renderState) {
     return false;
   }
 
   assert(RecordingState::CurrentState.renderState->shader.get() != nullptr);
 
-  RecordingState::LastStateStorage =
-      RecordingState::CurrentState; // Copy current state to last state storage
-  RecordingState::LastState =
-      &RecordingState::LastStateStorage; // Point last state to the storage
+  RecordingState::LastStateStorage = RecordingState::CurrentState; // Copy current state to last state storage
+  RecordingState::LastState = &RecordingState::LastStateStorage;   // Point last state to the storage
 
-  if (RecordingState::CurrentState.renderState->bindPoint ==
-      VK_PIPELINE_BIND_POINT_GRAPHICS) {
+  if (RecordingState::CurrentState.renderState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
     auto result = FlushGraphics(context, vkCommandBuffer);
     Graphics::GetIsStateDirty() = false;
 
     return result;
   }
-  if (RecordingState::CurrentState.renderState->bindPoint ==
-      VK_PIPELINE_BIND_POINT_COMPUTE) {
+  if (RecordingState::CurrentState.renderState->bindPoint == VK_PIPELINE_BIND_POINT_COMPUTE) {
     auto result = FlushCompute(context, vkCommandBuffer);
     Graphics::GetIsStateDirty() = false;
 
     return result;
   }
 
-  return Error::Unexpectedf(
-      "Unsupported pipeline bind point in Flush: {}.",
-      (int)RecordingState::CurrentState.renderState->bindPoint);
+  return Error::Unexpectedf("Unsupported pipeline bind point in Flush: {}.", (int)RecordingState::CurrentState.renderState->bindPoint);
 }
 
 } // namespace Graphics
