@@ -335,15 +335,15 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
       .bindMaterialBuffer = false,
   };
 
-  PushDebugMarker("Depth Opaque Prepass");
+  Graphics::RenderState::PushDebugMarker("Depth Opaque Prepass");
 
   RenderState::SetShader(depthOpaque);
   for (const auto &item : OpaqueDrawItems) {
     CHECK_ERR(RenderDrawItem(item, depthOpaque, context, opaqueConfig));
   }
 
-  PopDebugMarker();
-  PushDebugMarker("Depth Masked Prepass");
+  Graphics::RenderState::PopDebugMarker();
+  Graphics::RenderState::PushDebugMarker("Depth Masked Prepass");
 
   auto maskedConfig = DrawConfig{
       .bindMaterialTextures = 1,
@@ -354,7 +354,7 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
     CHECK_ERR(RenderDrawItem(item, depthMasked, context, maskedConfig));
   }
 
-  PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   textures.Albedo = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Albedo));
   textures.Normal = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Normal));
@@ -400,14 +400,14 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
       .bindMaterialBuffer = true,
   };
 
-  PushDebugMarker("Opaque Materials");
+  Graphics::RenderState::PushDebugMarker("Opaque Materials");
 
   for (const auto &item : OpaqueDrawItems) {
     CHECK_ERR(RenderDrawItem(item, deferred, context, deferredConfig));
   }
 
-  PopDebugMarker();
-  PushDebugMarker("Masked Materials");
+  Graphics::RenderState::PopDebugMarker();
+  Graphics::RenderState::PushDebugMarker("Masked Materials");
 
   for (const auto &item : MaskedDrawItems) {
     CHECK_ERR(RenderDrawItem(item, deferred, context, deferredConfig));
@@ -425,7 +425,7 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
     CHECK_ERR(RenderState::Clear(context, colors.data(), colors.size(), VkClearDepthStencilValue{.depth = 0.0F}, true, false));
   }
 
-  PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
@@ -453,7 +453,7 @@ auto Scene::DrawTransparentModels(const GraphicsContext &context, Camera &camera
   CHECK_ERR(forward->Send(context, "BlueNoiseTexture", renderer.GetBlueNoiseTexture()));
   CHECK_ERR(forward->Send(context, "SceneBVH", renderer.GetSceneTLAS()));
 
-  PushDebugMarker("Transparent Materials");
+  Graphics::RenderState::PushDebugMarker("Transparent Materials");
 
   RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
@@ -483,7 +483,7 @@ auto Scene::DrawTransparentModels(const GraphicsContext &context, Camera &camera
 
   RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
-  PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   TransparentDrawItems.clear();
 

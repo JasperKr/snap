@@ -65,7 +65,6 @@ auto wrap_GetStats(lua_State *state) -> int;
 
 auto wrap_PushDebugMarker(lua_State *state) -> int;
 auto wrap_PopDebugMarker(lua_State *state) -> int;
-auto wrap_PushDebugLabel(lua_State *state) -> int;
 
 // NOLINTNEXTLINE
 static const std::vector<luaL_Reg> GraphicsLib = {
@@ -117,7 +116,6 @@ static const std::vector<luaL_Reg> GraphicsLib = {
     {"getStats", wrap_GetStats},
     {"pushDebugMarker", wrap_PushDebugMarker},
     {"popDebugMarker", wrap_PopDebugMarker},
-    {"pushDebugLabel", wrap_PushDebugLabel},
 };
 
 // TODO: Replace manual enum stuff in wrap_graphics with ::LuaWrap::LuaEnum

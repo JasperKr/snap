@@ -23,6 +23,9 @@
 
 namespace Graphics {
 
+std::vector<RenderState::DebugMarkerState> LastDebugMarkerStack; // NOLINT
+uint64_t LastDebugMarkerStackFrame = UINT64_MAX;                 // NOLINT
+
 ImageSubresource::ImageSubresource(const Ref<Texture> &texture)
     : layerStart(static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)), layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
       mipStart(static_cast<uint16_t>(texture->subresourceRange.baseMipLevel)), mipCount(static_cast<uint16_t>(texture->subresourceRange.levelCount)),
@@ -152,13 +155,16 @@ auto DrawState::Initialize(CommandType type) -> Error {
   scissor = RenderState::GetScissor();
   viewport = RenderState::GetClippedViewport();
   cullMode = RenderState::GetCullMode();
+  frontFace = RenderState::GetWindingOrder();
+
   depthTestEnable = RenderState::TopOfStack->depthTestEnable;
   depthCompareOp = RenderState::TopOfStack->depthCompareOp;
-  frontFace = RenderState::GetWindingOrder();
 
   boundImages.clear();
   boundBuffers.clear();
   boundASs.clear();
+
+  debugMarkerStack = RenderState::TopOfStack->debugMarkerStack;
 
   for (const auto &texture : shaderState.userBoundTextures) {
     boundImages.emplace_back(BoundResource{
@@ -903,6 +909,53 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent, 
   CHECK_ERR(PrepareRendering(context, cmdBuffer));
 
   vkCmdPushDataEXT(cmdBuffer, &pushInfo);
+
+  if (LastDebugMarkerStackFrame != context.currentFrame) {
+    for (const auto &marker : debugMarkerStack) {
+      VkDebugUtilsLabelEXT info{
+          .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+          .pNext = nullptr,
+          .pLabelName = marker.name.c_str(),
+          .color = {marker.color.x, marker.color.y, marker.color.z, marker.color.w},
+      };
+
+      vkCmdBeginDebugUtilsLabelEXT(cmdBuffer, &info);
+    }
+  } else {
+    if (LastDebugMarkerStack.size() > debugMarkerStack.size()) {
+      for (int i = 0; i < LastDebugMarkerStack.size() - debugMarkerStack.size(); i++) {
+        vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
+      }
+    }
+
+    for (int i = 0; i < debugMarkerStack.size(); i++) {
+      const auto &marker = debugMarkerStack.at(i);
+
+      if (i < LastDebugMarkerStack.size()) {
+        const auto &lastMarker = LastDebugMarkerStack.at(i);
+
+        if (marker.name == lastMarker.name) {
+          continue;
+        }
+
+        for (int j = i; j < LastDebugMarkerStack.size(); j++) {
+          vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
+        }
+      }
+
+      VkDebugUtilsLabelEXT info{
+          .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+          .pNext = nullptr,
+          .pLabelName = marker.name.c_str(),
+          .color = {marker.color.x, marker.color.y, marker.color.z, marker.color.w},
+      };
+
+      vkCmdBeginDebugUtilsLabelEXT(cmdBuffer, &info);
+    }
+  }
+
+  LastDebugMarkerStack = debugMarkerStack;
+  LastDebugMarkerStackFrame = context.currentFrame;
 
   return {};
 }

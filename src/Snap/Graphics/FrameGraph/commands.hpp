@@ -4,6 +4,7 @@
 #include "Graphics/FrameGraph/virtualState.hpp"
 #include "Graphics/FrameGraph/vulkanResource.hpp"
 #include "Graphics/graphics.hpp"
+#include "Graphics/renderState.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"
@@ -39,6 +40,9 @@ static const CommandID InvalidCommandID = UINT16_MAX;
 // only one vk command buffer will be associated per vcmd, or even less than one if one can span multiple (for example, when queue families match)
 
 // This means commands do not need to reference the command buffer at recording time.
+
+extern std::vector<RenderState::DebugMarkerState> LastDebugMarkerStack; // NOLINT
+extern uint64_t LastDebugMarkerStackFrame;                              // NOLINT
 
 enum class CommandType : uint8_t {
   vkCmdDraw, // If this is no longer the first element, update in VirtualCommandBuffer::Initialize
@@ -122,6 +126,10 @@ struct DrawState {
   std::vector<BoundResource> boundImages;
   std::vector<BoundResource> boundBuffers;
   std::vector<BoundResource> boundASs;
+
+#ifndef NDEBUG
+  std::vector<RenderState::DebugMarkerState> debugMarkerStack;
+#endif
 
   std::vector<VkBuffer> vertexBuffers;
   VkBuffer indexBuffer = VK_NULL_HANDLE;

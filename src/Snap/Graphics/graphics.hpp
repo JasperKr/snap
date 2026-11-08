@@ -35,10 +35,6 @@ auto GetCurrentGraphicsContext() -> GraphicsContext *;
 
 auto GetDeferredDestructionAllowed() -> bool &;
 
-auto PushDebugMarker(const std::string_view &name, const struct Color *color = nullptr) -> void;
-auto PopDebugMarker() -> void;
-auto PushDebugLabel(const std::string_view &name, const struct Color *color = nullptr) -> void;
-
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 extern SemaphoreManager semaphoreManager;
 thread_local extern std::string ContextDebugname;

@@ -2,7 +2,6 @@
 
 #include "Graphics/renderTarget.hpp"
 #include "Graphics/shader.hpp"
-#include "Modules/color.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include <vulkan/vulkan_core.h>
@@ -47,8 +46,6 @@ struct VirtualRenderState {
 
   mutable bool dirty = true;
 
-  std::string currentDebugMarker;
-  std::optional<Color> currentDebugMarkerColor;
   Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS> colorBlendEquations;
 
   Ref<Shader> shader;

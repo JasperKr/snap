@@ -429,62 +429,6 @@ auto GetVkCommandBuffer() -> VkCommandBuffer {
   return threadContext.workingCommandBuffer;
 }
 
-auto PushDebugMarker(const std::string_view &name, const Color *color) -> void {
-  auto *cmdBuffer = GetVirtualCommandBuffer();
-  if (cmdBuffer == nullptr) {
-    PrintWarning("PushDebugMarker called with null command buffer.");
-    return;
-  }
-
-  VkDebugUtilsLabelEXT labelInfo{};
-  labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-  labelInfo.pLabelName = name.data();
-
-  // NOLINTBEGIN
-  if (color == nullptr) {
-    Color::RandomColor(name).FillFloatArray(labelInfo.color);
-  } else {
-    color->FillFloatArray(labelInfo.color);
-  }
-  // NOLINTEND
-
-  cmdBuffer->BeginDebugUtilsLabelEXT(
-      Args::VkCmdBeginDebugUtilsLabelEXT{&labelInfo});
-}
-
-auto PopDebugMarker() -> void {
-  auto *cmdBuffer = GetVirtualCommandBuffer();
-  if (cmdBuffer == nullptr) {
-    PrintWarning("PopDebugMarker called with null command buffer.");
-    return;
-  }
-
-  cmdBuffer->EndDebugUtilsLabelEXT({});
-}
-
-auto PushDebugLabel(const std::string_view &name, const Color *color) -> void {
-  auto *cmdBuffer = GetVirtualCommandBuffer();
-  if (cmdBuffer == nullptr) {
-    PrintWarning("PushDebugLabel called with null command buffer.");
-    return;
-  }
-
-  VkDebugUtilsLabelEXT labelInfo{};
-  labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-  labelInfo.pLabelName = name.data();
-
-  // NOLINTBEGIN
-  if (color == nullptr) {
-    Color::RandomColor(name).FillFloatArray(labelInfo.color);
-  } else {
-    color->FillFloatArray(labelInfo.color);
-  }
-  // NOLINTEND
-
-  cmdBuffer->InsertDebugUtilsLabelEXT(
-      Args::VkCmdInsertDebugUtilsLabelEXT{&labelInfo});
-}
-
 static auto CreateSemaphores(GraphicsContext &context) -> Error {
   VkSemaphoreCreateInfo semaphoreInfo = {};
   semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;

@@ -4,6 +4,8 @@
 #include "Graphics/graphicsState.hpp"
 #include "Modules/Helpers/LRUCache.hpp"
 #include "Modules/Helpers/hasher.hpp"
+#include "Modules/Math/vector.hpp"
+#include "Modules/color.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -13,6 +15,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -41,6 +44,11 @@ extern thread_local Stats CurrentStats;
 
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
+struct DebugMarkerState {
+  Math::Vec4 color;
+  std::string name;
+};
+
 struct State {
   VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT;
   VkFrontFace frontFace = VK_FRONT_FACE_CLOCKWISE;
@@ -57,6 +65,10 @@ struct State {
   mutable bool dirty = true;
 
   Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS> colorBlendEquations;
+
+#ifndef NDEBUG
+  std::vector<DebugMarkerState> debugMarkerStack;
+#endif
 
   Ref<Shader> shader;
 
@@ -172,6 +184,10 @@ auto GetWindingOrder() -> VkFrontFace;
 auto GetTopology() -> VkPrimitiveTopology;
 auto SetBindPoint(VkPipelineBindPoint bindPoint) -> void;
 auto GetBindPoint() -> VkPipelineBindPoint;
+
+auto PushDebugMarker(const std::string_view &name, Color color) -> void;
+auto PushDebugMarker(const std::string_view &name) -> void;
+auto PopDebugMarker() -> void;
 
 auto Clear(const GraphicsContext &context, VkClearColorValue const *pColors, uint32_t colorCount, VkClearDepthStencilValue clearDepthStencilValue,
            bool clearDepth, bool clearStencil) -> Error;

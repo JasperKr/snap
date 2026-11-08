@@ -275,7 +275,7 @@ auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const
 
 auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
 
-  Graphics::PushDebugMarker("Apply Light Probes");
+  Graphics::RenderState::PushDebugMarker("Apply Light Probes");
 
   constexpr int MaxLightProbes = 64;
 
@@ -324,13 +324,13 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context, const Dr
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
-  Graphics::PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   return {};
 }
 
 auto Camera::ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> Error {
-  Graphics::PushDebugMarker("Ambient Occlusion");
+  Graphics::RenderState::PushDebugMarker("Ambient Occlusion");
 
   auto [width, height] = GetDimensions();
 
@@ -374,7 +374,7 @@ auto Camera::ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> 
 
   CHECK_ERR(Graphics::DispatchWithin(context, Math::Uvec3(width, height, 1)));
 
-  Graphics::PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   return {};
 }
@@ -491,7 +491,7 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
   CHECK_ERR(Graphics::UniformWriter::Send(volumetricLightingShader, "FrameRandomState", frameRandomState));
   CHECK_ERR(renderer.BindLightBuffers(context, volumetricLightingShader));
 
-  PushDebugMarker("Volumetrics");
+  Graphics::RenderState::PushDebugMarker("Volumetrics");
 
   RenderState::SetShader(volumetricLightingShader);
 
@@ -508,7 +508,7 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
                                                    }}));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
-  PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(textures.VolumetricLighting));
 
@@ -523,7 +523,7 @@ auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawD
   auto &renderer = Renderer::RendererInstance;
   auto &shaderManager = renderer.GetShaderManager();
 
-  PushDebugMarker("Lighting");
+  Graphics::RenderState::PushDebugMarker("Lighting");
 
   auto lightingShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::SimpleLighting));
   CHECK_ERR(lightingShader->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
@@ -596,7 +596,7 @@ auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawD
 
   CHECK_ERR(Graphics::Draw(context, OwnedTextures.Irradiance));
 
-  PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   return {};
 }
@@ -625,12 +625,12 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
 
   CHECK_ERR(scene->PrepareDrawLists(context, frustum));
 
-  Graphics::PushDebugMarker("Draw Models");
+  Graphics::RenderState::PushDebugMarker("Draw Models");
 
   CHECK_ERR(scene->DrawOpaqueModels(context, *this));
 
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Apply lighting");
+  Graphics::RenderState::PopDebugMarker();
+  Graphics::RenderState::PushDebugMarker("Apply lighting");
 
   CHECK_ERR(ApplyAmbientOcclusion(context));
   CHECK_ERR(CalculateShadows(context));
@@ -641,18 +641,18 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
     const auto *environment = entity.try_get<Environment>();
 
     if (environment != nullptr) {
-      Graphics::PushDebugMarker("Render Skybox");
+      Graphics::RenderState::PushDebugMarker("Render Skybox");
 
       CHECK_ERR(RenderSkybox(context, *environment));
 
-      Graphics::PopDebugMarker();
+      Graphics::RenderState::PopDebugMarker();
     }
   }
 
   CHECK_ERR(scene->DrawTransparentModels(context, *this));
   CHECK_ERR(ApplyVolumetricLighting(context));
 
-  Graphics::PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {Graphics::RenderState::RenderTarget{
                                                                   .blendMode = Graphics::DefaultBlendMode,
@@ -664,11 +664,11 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
                                                                   .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                                                               }}));
 
-  Graphics::PushDebugMarker("Draw Lines");
+  Graphics::RenderState::PushDebugMarker("Draw Lines");
   CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
   CHECK_ERR(Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
-  Graphics::PopDebugMarker();
-  Graphics::PushDebugMarker("Temporal Anti-Aliasing");
+  Graphics::RenderState::PopDebugMarker();
+  Graphics::RenderState::PushDebugMarker("Temporal Anti-Aliasing");
 
   auto taaShader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::TAA));
 
@@ -695,16 +695,16 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
 
   OwnedTextures.PreviousTAA = OwnedTextures.TAA;
 
-  Graphics::PopDebugMarker();
+  Graphics::RenderState::PopDebugMarker();
 
   if (settings.DoPostProcessing) {
-    Graphics::PushDebugMarker("Apply Bloom");
+    Graphics::RenderState::PushDebugMarker("Apply Bloom");
     CHECK_ERR(Renderer::RendererInstance.GetBloomManager().ApplyBloom(context, *this));
-    Graphics::PopDebugMarker();
+    Graphics::RenderState::PopDebugMarker();
 
-    Graphics::PushDebugMarker("Apply Post Processing");
+    Graphics::RenderState::PushDebugMarker("Apply Post Processing");
     CHECK_ERR(ApplyPostProcessing(context));
-    Graphics::PopDebugMarker();
+    Graphics::RenderState::PopDebugMarker();
   }
 
   firstFrameAfterResize = false;

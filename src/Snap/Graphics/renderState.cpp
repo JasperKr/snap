@@ -1,6 +1,7 @@
 #include "renderState.hpp"
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/commands.hpp"
+#include "Modules/color.hpp"
 #include "renderTarget.hpp"
 
 #include "Graphics/draw.hpp"
@@ -13,6 +14,7 @@
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include <algorithm>
+#include <string>
 #include <vector>
 
 #include "vulkan/vulkan_core.h"
@@ -495,6 +497,23 @@ auto GetTopology() -> VkPrimitiveTopology { return TopOfStack->primitiveTopology
 
 auto SetBindPoint(VkPipelineBindPoint bindPoint) -> void { TopOfStack->bindPoint = bindPoint; }
 auto GetBindPoint() -> VkPipelineBindPoint { return TopOfStack->bindPoint; }
+
+auto PushDebugMarker(const std::string_view &name, Color color) -> void {
+  TopOfStack->debugMarkerStack.emplace_back(DebugMarkerState{
+      .color = {color.r, color.g, color.b, color.a},
+      .name = std::string(name),
+  });
+}
+
+auto PushDebugMarker(const std::string_view &name) -> void {
+  Color color = Color::RandomColor(name);
+
+  TopOfStack->debugMarkerStack.emplace_back(DebugMarkerState{
+      .color = {color.r, color.g, color.b, color.a},
+      .name = std::string(name),
+  });
+}
+auto PopDebugMarker() -> void { TopOfStack->debugMarkerStack.pop_back(); }
 
 auto Clear(const GraphicsContext &context, VkClearColorValue const *pColors, uint32_t colorCount, VkClearDepthStencilValue clearDepthStencilValue,
            bool clearDepth, bool clearStencil) -> Error {
