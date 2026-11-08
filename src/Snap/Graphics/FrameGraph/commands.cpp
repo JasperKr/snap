@@ -23,8 +23,10 @@
 
 namespace Graphics {
 
+#ifndef NDEBUG
 std::vector<RenderState::DebugMarkerState> LastDebugMarkerStack; // NOLINT
 uint64_t LastDebugMarkerStackFrame = UINT64_MAX;                 // NOLINT
+#endif
 
 ImageSubresource::ImageSubresource(const Ref<Texture> &texture)
     : layerStart(static_cast<uint16_t>(texture->subresourceRange.baseArrayLayer)), layerCount(static_cast<uint16_t>(texture->subresourceRange.layerCount)),
@@ -164,7 +166,9 @@ auto DrawState::Initialize(CommandType type) -> Error {
   boundBuffers.clear();
   boundASs.clear();
 
+#ifndef NDEBUG
   debugMarkerStack = RenderState::TopOfStack->debugMarkerStack;
+#endif
 
   for (const auto &texture : shaderState.userBoundTextures) {
     boundImages.emplace_back(BoundResource{
@@ -910,6 +914,7 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent, 
 
   vkCmdPushDataEXT(cmdBuffer, &pushInfo);
 
+#ifndef NDEBUG
   if (LastDebugMarkerStackFrame != context.currentFrame) {
     for (const auto &marker : debugMarkerStack) {
       VkDebugUtilsLabelEXT info{
@@ -956,6 +961,7 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent, 
 
   LastDebugMarkerStack = debugMarkerStack;
   LastDebugMarkerStackFrame = context.currentFrame;
+#endif
 
   return {};
 }

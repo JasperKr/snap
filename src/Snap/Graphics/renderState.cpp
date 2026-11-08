@@ -499,21 +499,29 @@ auto SetBindPoint(VkPipelineBindPoint bindPoint) -> void { TopOfStack->bindPoint
 auto GetBindPoint() -> VkPipelineBindPoint { return TopOfStack->bindPoint; }
 
 auto PushDebugMarker(const std::string_view &name, Color color) -> void {
+#ifndef NDEBUG
   TopOfStack->debugMarkerStack.emplace_back(DebugMarkerState{
       .color = {color.r, color.g, color.b, color.a},
       .name = std::string(name),
   });
+#endif
 }
 
 auto PushDebugMarker(const std::string_view &name) -> void {
   Color color = Color::RandomColor(name);
 
+#ifndef NDEBUG
   TopOfStack->debugMarkerStack.emplace_back(DebugMarkerState{
       .color = {color.r, color.g, color.b, color.a},
       .name = std::string(name),
   });
+#endif
 }
-auto PopDebugMarker() -> void { TopOfStack->debugMarkerStack.pop_back(); }
+auto PopDebugMarker() -> void {
+#ifndef NDEBUG
+  TopOfStack->debugMarkerStack.pop_back();
+#endif
+}
 
 auto Clear(const GraphicsContext &context, VkClearColorValue const *pColors, uint32_t colorCount, VkClearDepthStencilValue clearDepthStencilValue,
            bool clearDepth, bool clearStencil) -> Error {

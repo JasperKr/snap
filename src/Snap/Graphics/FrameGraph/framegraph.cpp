@@ -1108,9 +1108,11 @@ auto FrameGraph::Write(const GraphicsContext &context, VkCommandBuffer cmdBuffer
   EndRendering(context, cmdBuffer);
   GetThreadContext().workingCommandBuffer = nullptr;
 
+#ifndef NDEBUG
   for (int i = 0; i < LastDebugMarkerStack.size(); i++) {
     vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
   }
+#endif
 
   Reset();
 

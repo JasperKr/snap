@@ -41,8 +41,10 @@ static const CommandID InvalidCommandID = UINT16_MAX;
 
 // This means commands do not need to reference the command buffer at recording time.
 
+#ifndef NDEBUG
 extern std::vector<RenderState::DebugMarkerState> LastDebugMarkerStack; // NOLINT
 extern uint64_t LastDebugMarkerStackFrame;                              // NOLINT
+#endif
 
 enum class CommandType : uint8_t {
   vkCmdDraw, // If this is no longer the first element, update in VirtualCommandBuffer::Initialize
