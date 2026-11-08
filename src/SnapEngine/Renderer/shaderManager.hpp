@@ -39,6 +39,7 @@ enum class ShaderKey : uint8_t {
 
   RTAO,
   AO_Denoise,
+  Variance,
 
   TAA,
 };

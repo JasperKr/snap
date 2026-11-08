@@ -50,6 +50,7 @@ const std::unordered_map<ShaderKey, ShaderConfiguration> ShaderConfigurations = 
 
     {ShaderKey::RTAO, {.path = "Scripting/Graphics/Shaders/Lighting/AmbientOcclusion/rtao.slang"}},
     {ShaderKey::AO_Denoise, {.path = "Scripting/Graphics/Shaders/Lighting/AmbientOcclusion/denoiser.slang"}},
+    {ShaderKey::Variance, {.path = "Scripting/Graphics/Shaders/Lighting/variance.slang"}},
 
     {ShaderKey::TAA, {.path = "Scripting/Graphics/Shaders/PostProcessing/taa.slang"}}};
 

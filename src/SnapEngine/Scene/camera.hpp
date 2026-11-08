@@ -36,6 +36,14 @@ struct Camera {
 
   struct Settings {
     bool DoPostProcessing = true;
+
+    Math::Vec3 AlbedoWeights = {0.1, 0.1, 0.1};
+    Math::Vec3 MaterialWeights = {0.1, 0.1, 0.1};
+    float NormalWeight = {0.2};
+    float DistanceWeights = {10.0};
+
+    float VarianceThreshold = {1.0};
+    bool DebugVariance = false;
   };
 
   void SetVerticalFOV(float fovDeg) {
@@ -149,6 +157,10 @@ struct Camera {
     Renderer::RendertargetDescriptor TemporalAntiAliasing;
 
     Renderer::RendertargetDescriptor VolumetricLighting;
+
+    Renderer::RendertargetDescriptor VariableRateMode;
+
+    Renderer::RendertargetDescriptor VariableRateModeDebug;
   };
 
   // References to the textures we currently own. Dynamic
@@ -175,6 +187,8 @@ struct Camera {
     Ref<Graphics::Texture> PreviousAmbientOcclusion;
     Ref<Graphics::Texture> AmbientOcclusionSamples;
     Ref<Graphics::Texture> VolumetricLighting;
+    Ref<Graphics::Texture> VariableRateMode;
+    Ref<Graphics::Texture> VariableRateModeDebug;
   };
 
   struct PersistentTextureSettings {
@@ -200,6 +214,8 @@ struct Camera {
     bool PreviousAmbientOcclusion = false;
     bool AmbientOcclusionSamples = false;
     bool VolumetricLighting = false;
+    bool VariableRateMode = false;
+    bool VariableRateModeDebug = false;
   };
 
   // NOLINTBEGIN
@@ -274,6 +290,7 @@ private:
   auto CalculateShadows(const Graphics::GraphicsContext &context) -> Error;
   auto ApplyLighting(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
   auto ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -> Error;
+  auto CalculateVariance(const Graphics::GraphicsContext &context) -> Error;
 
   auto UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const DrawData &drawData, Scene *scene) -> void;
 };

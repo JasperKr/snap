@@ -1,3 +1,4 @@
+
 #include "camera.hpp"
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/bufferformat.hpp"
@@ -9,14 +10,17 @@
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
+#include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/Peripherals/keyboard.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
 #include "Modules/window.hpp"
 #include "Renderer/rendertargetManager.hpp"
 #include "Renderer/shaderManager.hpp"
+#include "SDL3/SDL_keycode.h"
 #include "Scene/cameraMatrices.hpp"
 #include "Scene/displayName.hpp"
 #include "Scene/environment.hpp"
@@ -169,7 +173,7 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context) -> Er
 
   [[likely]]
   if (OwnedTextures.BloomFinal.isValid()) {
-    CHECK_ERR(shader->Send(context, incomingLightKey, OwnedTextures.BloomFinal));
+    CHECK_ERR(shader->Send(context, incomingLightKey, settings.DebugVariance ? OwnedTextures.VariableRateModeDebug : OwnedTextures.BloomFinal));
   } else {
     // Bloom might be skipped in the case of a really tiny viewport
     CHECK_ERR(shader->Send(context, incomingLightKey, OwnedTextures.TAA));
@@ -601,6 +605,40 @@ auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawD
   return {};
 }
 
+auto Camera::CalculateVariance(const GraphicsContext &context) -> Error {
+  auto [width, height] = GetDimensions();
+
+  auto &textures = GetOwnedTextures();
+  const auto &rendertargets = GetRendertargets();
+  auto &renderer = Renderer::RendererInstance;
+  auto &shaderManager = renderer.GetShaderManager();
+
+  auto varianceShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::Variance));
+
+  OwnedTextures.VariableRateMode = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VariableRateMode));
+  OwnedTextures.VariableRateModeDebug = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VariableRateModeDebug));
+
+  CHECK_ERR(UniformWriter::Send(varianceShader, "AlbedoWeights", settings.AlbedoWeights));
+  CHECK_ERR(UniformWriter::Send(varianceShader, "MaterialWeights", settings.MaterialWeights));
+  CHECK_ERR(UniformWriter::Send(varianceShader, "NormalWeight", settings.NormalWeight));
+  CHECK_ERR(UniformWriter::Send(varianceShader, "DistanceWeights", settings.DistanceWeights));
+  CHECK_ERR(UniformWriter::Send(varianceShader, "VarianceThreshold", settings.VarianceThreshold));
+
+  CHECK_ERR(varianceShader->Send(context, "AlbedoTexture", OwnedTextures.Albedo));
+  CHECK_ERR(varianceShader->Send(context, "DepthTexture", OwnedTextures.Depth));
+  CHECK_ERR(varianceShader->Send(context, "NormalTexture", OwnedTextures.Normal));
+  CHECK_ERR(varianceShader->Send(context, "MaterialTexture", OwnedTextures.Material));
+  CHECK_ERR(varianceShader->Send(context, "VRCSModeTexture", {OwnedTextures.VariableRateMode, StorageTexture::write}));
+  CHECK_ERR(varianceShader->Send(context, "VRCSModeDebugTexture", {OwnedTextures.VariableRateModeDebug, StorageTexture::write}));
+  CHECK_ERR(varianceShader->Send(context, "CameraData", {GetBuffer(), StorageBuffer::read}))
+
+  RenderState::SetShader(varianceShader);
+
+  CHECK_ERR(DispatchWithin(context, {width, height, 1}));
+
+  return {};
+}
+
 // NOLINTNEXTLINE
 auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
 
@@ -632,6 +670,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Apply lighting");
 
+  CHECK_ERR(CalculateVariance(context));
   CHECK_ERR(ApplyAmbientOcclusion(context));
   CHECK_ERR(CalculateShadows(context));
   CHECK_ERR(ApplyLighting(context, drawData, scene));
@@ -706,6 +745,11 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
     CHECK_ERR(ApplyPostProcessing(context));
     Graphics::RenderState::PopDebugMarker();
   }
+
+  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
+      OwnedTextures.VariableRateMode,
+      OwnedTextures.VariableRateModeDebug,
+  }));
 
   firstFrameAfterResize = false;
 
@@ -879,6 +923,24 @@ auto Camera::ConfigureRendertargets() -> void {
       .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
   };
 
+  Rendertargets.VariableRateMode = Renderer::RendertargetDescriptor{
+      .size = Utils::CeilDiv(Dimensions, 2),
+      .format = VK_FORMAT_R8_UINT,
+      .minFilter = VK_FILTER_NEAREST,
+      .magFilter = VK_FILTER_NEAREST,
+      .mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+      .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+  };
+
+  Rendertargets.VariableRateModeDebug = Renderer::RendertargetDescriptor{
+      .size = Dimensions,
+      .format = VK_FORMAT_R8G8B8A8_UNORM,
+      .minFilter = VK_FILTER_NEAREST,
+      .magFilter = VK_FILTER_NEAREST,
+      .mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+      .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+  };
+
   firstFrameAfterResize = true;
 }
 
@@ -929,14 +991,21 @@ auto Camera::DrawGUI(flecs::entity entity) -> void {
   FarPlane = std::max(FarPlane, NearPlane + 1.0F);
 
   ImGui::SeparatorText("Post Processing Settings");
-  auto &settings = GetPostProcessingConfig();
-  ImGui::Checkbox("AGX", &settings.ApplyAGX);
-  ImGui::DragFloat("Temperature", &settings.Temperature, 0.1F, -100.0F, 100.0F);
-  ImGui::DragFloat("Tint", &settings.Tint, 0.1F, -100.0F, 100.0F);
-  ImGui::DragFloat("Contrast", &settings.Contrast, 0.01F, 0.0F, 10.0F);
-  ImGui::DragFloat("Saturation", &settings.Saturation, 0.01F, 0.0F, 10.0F);
-  ImGui::DragFloat("Vignette", &settings.Vignette, 0.01F, 0.0F, 10.0F);
-  ImGui::DragFloat("Exposure", &settings.Exposure, 0.01F, 0.0F, 10.0F);
+  auto &config = GetPostProcessingConfig();
+  ImGui::Checkbox("AGX", &config.ApplyAGX);
+  ImGui::DragFloat("Temperature", &config.Temperature, 0.1F, -100.0F, 100.0F);
+  ImGui::DragFloat("Tint", &config.Tint, 0.1F, -100.0F, 100.0F);
+  ImGui::DragFloat("Contrast", &config.Contrast, 0.01F, 0.0F, 10.0F);
+  ImGui::DragFloat("Saturation", &config.Saturation, 0.01F, 0.0F, 10.0F);
+  ImGui::DragFloat("Vignette", &config.Vignette, 0.01F, 0.0F, 10.0F);
+  ImGui::DragFloat("Exposure", &config.Exposure, 0.01F, 0.0F, 10.0F);
+
+  ImGui::DragFloat3("Albedo Variance Weight", settings.AlbedoWeights.Ptr(), 0.01);
+  ImGui::DragFloat3("Material Variance Weight", settings.MaterialWeights.Ptr(), 0.01);
+  ImGui::DragFloat("Distance Variance Weight", &settings.DistanceWeights, 0.01);
+  ImGui::DragFloat("Normal Variance Weight", &settings.NormalWeight, 0.01);
+  ImGui::DragFloat("Variance Threshold", &settings.VarianceThreshold, 0.001);
+  ImGui::Checkbox("Toggle Variance debug", &settings.DebugVariance);
 }
 // NOLINTEND
 
