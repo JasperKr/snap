@@ -285,4 +285,20 @@ template <typename T> constexpr auto ObjectTypeName() -> std::string_view {
     }                                                                                                                                                          \
   }
 
+/*
+template <typename... Args> // NOLINTNEXTLINE args forwarding
+  static auto Unexpectedf(std::string_view format, Args &&...args) {
+    return tl::unexpected<Error>(Create(std::vformat(format, std::make_format_args(args...)), -1, 1));
+  }
+*/
+
+#define LUA_ASSERT_MSGF(expr, msg, ...)                                                                                                                        \
+  {                                                                                                                                                            \
+    [[unlikely]]                                                                                                                                               \
+    if (!(expr)) {                                                                                                                                             \
+      std::string formattedMsg = std::format(msg, __VA_ARGS__);                                                                                                \
+      return luaL_error(state, "%s", formattedMsg.c_str());                                                                                                    \
+    }                                                                                                                                                          \
+  }
+
 // NOLINTEND

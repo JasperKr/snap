@@ -9,7 +9,6 @@ struct CombinedState {
   VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT;
   VkFrontFace frontFace = VK_FRONT_FACE_CLOCKWISE;
   VkBool32 depthTestEnable = 1;
-  VkBool32 depthWriteEnable = 1;
   VkCompareOp depthCompareOp = VK_COMPARE_OP_LESS;
   VkViewport viewport{};
   VkRect2D scissor{};

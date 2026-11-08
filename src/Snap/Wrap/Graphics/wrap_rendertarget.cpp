@@ -6,7 +6,10 @@
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
 #include "Wrap/Graphics/wrap_color.hpp"
+#include "Wrap/Helpers/lua_enum.hpp"
 #include "Wrap/wrap.hpp"
+#include <lauxlib.h>
+#include <lua.h>
 #include <lua.hpp>
 #include <string>
 
@@ -14,70 +17,36 @@
 #include <cstring>
 #include <vector>
 namespace Graphics::RenderState {
-auto inline ConvertStringToBlendOp(const char *string) -> VkBlendOp {
-  // add, sub, revsub, min, max
 
-  if (strcmp(string, "add") == 0) {
-    return VK_BLEND_OP_ADD;
-  }
-  if (strcmp(string, "sub") == 0) {
-    return VK_BLEND_OP_SUBTRACT;
-  }
-  if (strcmp(string, "revsub") == 0) {
-    return VK_BLEND_OP_REVERSE_SUBTRACT;
-  }
-  if (strcmp(string, "min") == 0) {
-    return VK_BLEND_OP_MIN;
-  }
-  if (strcmp(string, "max") == 0) {
-    return VK_BLEND_OP_MAX;
-  }
-  {
-    return VK_BLEND_OP_ADD; // Default
-  }
-}
+static const LuaWrap::LuaEnum<VkBlendOp> LuaBlendOpHelper{
+    "BlendOp",
+    {
+        {"add", VK_BLEND_OP_ADD},
+        {"sub", VK_BLEND_OP_SUBTRACT},
+        {"revsub", VK_BLEND_OP_REVERSE_SUBTRACT},
+        {"min", VK_BLEND_OP_MIN},
+        {"max", VK_BLEND_OP_MAX},
+    },
+};
 
-auto inline ConvertStringToBlendFactor(const char *string) -> VkBlendFactor {
-  // zero, one, srccolor, oneminussrccolor, dstcolor, oneminusdstcolor,
-  // srcalpha, oneminussrcalpha, dstalpha, oneminusdstalpha, constantcolor,
-  // oneminusconstantcolor, constantalpha, oneminusconstantalpha, srcalphasat
-
-  if (strcmp(string, "zero") == 0) {
-    return VK_BLEND_FACTOR_ZERO;
-  }
-  if (strcmp(string, "one") == 0) {
-    return VK_BLEND_FACTOR_ONE;
-  }
-  if (strcmp(string, "srccolor") == 0) {
-    return VK_BLEND_FACTOR_SRC_COLOR;
-  }
-  if (strcmp(string, "oneminussrccolor") == 0) {
-    return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-  }
-  if (strcmp(string, "dstcolor") == 0) {
-    return VK_BLEND_FACTOR_DST_COLOR;
-  }
-  if (strcmp(string, "oneminusdstcolor") == 0) {
-    return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-  }
-  if (strcmp(string, "srcalpha") == 0) {
-    return VK_BLEND_FACTOR_SRC_ALPHA;
-  }
-  if (strcmp(string, "oneminussrcalpha") == 0) {
-    return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-  }
-  if (strcmp(string, "dstalpha") == 0) {
-    return VK_BLEND_FACTOR_DST_ALPHA;
-  }
-  if (strcmp(string, "oneminusdstalpha") == 0) {
-    return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-  }
-  return VK_BLEND_FACTOR_ONE; // Default
-}
+static const LuaWrap::LuaEnum<VkBlendFactor> LuaBlendFactorHelper{
+    "BlendFactor",
+    {
+        {"zero", VK_BLEND_FACTOR_ZERO},
+        {"one", VK_BLEND_FACTOR_ONE},
+        {"srccolor", VK_BLEND_FACTOR_SRC_COLOR},
+        {"oneminussrccolor", VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR},
+        {"dstcolor", VK_BLEND_FACTOR_DST_COLOR},
+        {"oneminusdstcolor", VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR},
+        {"srcalpha", VK_BLEND_FACTOR_SRC_ALPHA},
+        {"oneminussrcalpha", VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA},
+        {"dstalpha", VK_BLEND_FACTOR_DST_ALPHA},
+        {"oneminusdstalpha", VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA},
+    },
+};
 
 // blendmode: { blendmode = "none"|"alpha"|"add"|"sub"|"mul", alphamode = "alphamultiply"|"premultiplied", mask = "" }
 // Or, { srccolor = "", dstcolor = "", srcalpha = "", dstalpha = "", opcolor = "", opalpha = "", mask = "" }
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto inline FromLuaState(lua_State *state) -> Result<VkPipelineColorBlendAttachmentState> {
   // blend mode from lua top of stack
   VkPipelineColorBlendAttachmentState blendMode = DefaultBlendMode;
@@ -146,36 +115,30 @@ auto inline FromLuaState(lua_State *state) -> Result<VkPipelineColorBlendAttachm
 
     // Detailed blendmode
     lua_getfield(state, -1, "srccolor");
-    const char *srcColorStr = luaL_checkstring(state, -1);
+    blendMode.srcColorBlendFactor = CHECK_RES(LuaBlendFactorHelper.FromLua(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "dstcolor");
-    const char *dstColorStr = luaL_checkstring(state, -1);
+    blendMode.dstColorBlendFactor = CHECK_RES(LuaBlendFactorHelper.FromLua(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "srcalpha");
-    const char *srcAlphaStr = luaL_checkstring(state, -1);
+    blendMode.srcAlphaBlendFactor = CHECK_RES(LuaBlendFactorHelper.FromLua(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "dstalpha");
-    const char *dstAlphaStr = luaL_checkstring(state, -1);
+    blendMode.dstAlphaBlendFactor = CHECK_RES(LuaBlendFactorHelper.FromLua(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "colorop");
-    const char *opColorStr = luaL_checkstring(state, -1);
+    blendMode.colorBlendOp = CHECK_RES(LuaBlendOpHelper.FromLua(state, -1));
     lua_pop(state, 1);
 
     lua_getfield(state, -1, "alphaop");
-    const char *opAlphaStr = luaL_checkstring(state, -1);
+    blendMode.alphaBlendOp = CHECK_RES(LuaBlendOpHelper.FromLua(state, -1));
     lua_pop(state, 1);
 
     blendMode.blendEnable = VK_TRUE;
-    blendMode.srcColorBlendFactor = ConvertStringToBlendFactor(srcColorStr);
-    blendMode.dstColorBlendFactor = ConvertStringToBlendFactor(dstColorStr);
-    blendMode.colorBlendOp = ConvertStringToBlendOp(opColorStr);
-    blendMode.srcAlphaBlendFactor = ConvertStringToBlendFactor(srcAlphaStr);
-    blendMode.dstAlphaBlendFactor = ConvertStringToBlendFactor(dstAlphaStr);
-    blendMode.alphaBlendOp = ConvertStringToBlendOp(opAlphaStr);
   }
 
   // color write mask
@@ -400,7 +363,6 @@ auto IsOptionsTable(lua_State *state, int index) -> bool {
 // Or, { srccolor = "", dstcolor = "", srcalpha = "", dstalpha = "", opcolor = "", opalpha = "" }
 //
 // TODO: add support for settings parameter for last argument in varargs texture without settings mode
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto wrap_SetRenderTargets(lua_State *state) -> int {
   auto *ctx = Graphics::GetCurrentGraphicsContext();
   std::vector<Graphics::RenderState::RenderTarget> renderTargets;
@@ -440,21 +402,15 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
     for (int i = 1; i <= nArgs; ++i) {
       // if table, treat as render target options
       if (lua_istable(state, i) != 0) {
-        if (!isOptionsVarargs) {
-          return luaL_error(state, "Expected Texture as argument %d to setRenderTargets", i);
-        }
+        LUA_ASSERT_MSGF(isOptionsVarargs, "Expected Texture as argument {} to setRenderTargets", i);
 
-        auto renderTargetResult = RenderTargetsFromOptions(state, i);
-        if (Error::IsError(renderTargetResult)) {
-          return luaL_error(state, renderTargetResult.error().message.c_str());
-        }
-        renderTargets.emplace_back(renderTargetResult.value());
+        auto rendertarget = LUA_CK_RES(RenderTargetsFromOptions(state, i));
+        renderTargets.emplace_back(rendertarget);
+
         continue;
       }
 
-      if (isOptionsVarargs) {
-        return luaL_error(state, "Expected table of render target options as argument %d", i);
-      }
+      LUA_ASSERT_MSGF(!isOptionsVarargs, "Expected table of render target options as argument {}", i);
 
       // else, treat as texture
       auto renderTarget = RenderTargetsFromTexture(state, i);

@@ -1037,59 +1037,46 @@ auto FrameGraph::Write(const GraphicsContext &context, VkCommandBuffer cmdBuffer
   ZoneScoped;
 
   GetThreadContext().workingCommandBuffer = cmdBuffer;
-
   CHECK_ERR(DescriptorHeapManager::GetInstance().Bind(cmdBuffer));
 
   CHECK_ERR(BeginFrame(context));
+  std::vector<VkMemoryBarrier2> memoryBarriers;
+  std::vector<VkImageMemoryBarrier2> imageMemoryBarriers;
+  std::vector<VkBufferMemoryBarrier2> bufferMemoryBarriers;
 
   for (auto &level : graph) {
     ZoneScopedN("Write level");
 
+    VkDependencyInfo depInfo = {};
+    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+
+    memoryBarriers.clear(), imageMemoryBarriers.clear(), bufferMemoryBarriers.clear();
+
     if (!level.userBarriers.empty()) {
-      EndRendering(context, cmdBuffer);
-
       for (const CommandIndex barrier : level.userBarriers) {
-        const auto &command = GetCommand(commands.at(barrier));
-        const auto *callable = get_if_derived<Callable>(command.data);
+        const auto &command = std::get<Args::VkCmdPipelineBarrier2>(GetCommand(commands.at(barrier)).data);
+        // const auto *callable = get_if_derived<Callable>(command.data);
 
-        CHECK_ERR(callable->Call(cmdBuffer));
+        // CHECK_ERR(callable->Call(cmdBuffer));
+        memoryBarriers.append_range(command.memoryBarriers);
+        imageMemoryBarriers.append_range(command.imageMemoryBarriers);
+        bufferMemoryBarriers.append_range(command.bufferMemoryBarriers);
       }
+
+      depInfo.imageMemoryBarrierCount = imageMemoryBarriers.size();
+      depInfo.pImageMemoryBarriers = imageMemoryBarriers.data();
+
+      depInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
+      depInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
     }
 
-    std::vector<VkMemoryBarrier2> barriers = level.barriers;
-
-    // if (GetIsCurrentlyRendering()) {
-    //   // Remove any color / depth attachment WaW barriers if we kept rendering.
-
-    //   Utils::UnorderedErase(
-    //       barriers, [](const VkMemoryBarrier2 &barrier) -> bool {
-    //         constexpr auto colorOutput =
-    //             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    //         constexpr auto depthOutput =
-    //             VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
-    //             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
-
-    //         if (barrier.srcStageMask == colorOutput &&
-    //             barrier.dstStageMask == colorOutput) {
-    //           return true;
-    //         }
-
-    //         if ((barrier.srcStageMask & depthOutput) != 0U &&
-    //             (barrier.dstStageMask & depthOutput) != 0U) {
-    //           return true;
-    //         }
-
-    //         return false;
-    //       });
-    // }
-
-    if (!level.barriers.empty()) {
+    if (!level.barriers.empty() || !level.userBarriers.empty()) {
       EndRendering(context, cmdBuffer);
 
-      VkDependencyInfo depInfo = {};
-      depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-      depInfo.memoryBarrierCount = level.barriers.size();
-      depInfo.pMemoryBarriers = level.barriers.data();
+      memoryBarriers.append_range(level.barriers);
+
+      depInfo.memoryBarrierCount = memoryBarriers.size();
+      depInfo.pMemoryBarriers = memoryBarriers.data();
 
       vkCmdPipelineBarrier2(cmdBuffer, &depInfo);
     }

@@ -25,15 +25,15 @@ static constexpr VkAccessFlags2 readAccesses =
     VK_ACCESS_2_SHADER_BINDING_TABLE_READ_BIT_KHR | VK_ACCESS_2_MICROMAP_READ_BIT_EXT | VK_ACCESS_2_OPTICAL_FLOW_READ_BIT_NV |
     VK_ACCESS_2_DATA_GRAPH_READ_BIT_ARM;
 
-constexpr auto IsAccessFlagReadOnly(VkAccessFlags2 flags) -> bool { return (flags | writeAccesses) == 0U && (flags | readAccesses) != 0U; }
+constexpr auto IsAccessFlagReadOnly(VkAccessFlags2 flags) -> bool { return (flags & writeAccesses) == 0U && (flags & readAccesses) != 0U; }
 
-constexpr auto IsAccessFlagWriteOnly(VkAccessFlags2 flags) -> bool { return (flags | readAccesses) == 0U && (flags | writeAccesses) != 0U; }
+constexpr auto IsAccessFlagWriteOnly(VkAccessFlags2 flags) -> bool { return (flags & readAccesses) == 0U && (flags & writeAccesses) != 0U; }
 
 // Effectively flags != 0U
-constexpr auto IsAccessFlagReadWrite(VkAccessFlags2 flags) -> bool { return (flags | readAccesses) != 0U && (flags | writeAccesses) != 0U; }
+constexpr auto IsAccessFlagReadWrite(VkAccessFlags2 flags) -> bool { return (flags & readAccesses) != 0U && (flags & writeAccesses) != 0U; }
 
-constexpr auto IsWriteAccess(VkAccessFlags2 flags) -> bool { return (flags | writeAccesses) != 0U; }
+constexpr auto IsWriteAccess(VkAccessFlags2 flags) -> bool { return (flags & writeAccesses) != 0U; }
 
-constexpr auto IsReadAccess(VkAccessFlags2 flags) -> bool { return (flags | readAccesses) != 0U; }
+constexpr auto IsReadAccess(VkAccessFlags2 flags) -> bool { return (flags & readAccesses) != 0U; }
 
 } // namespace Graphics::VkAccessHelpers

@@ -278,7 +278,7 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context, RecordingStat
   VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
   depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
   depthStencilState.depthTestEnable = state.depthTestEnable;
-  depthStencilState.depthWriteEnable = state.depthWriteEnable;
+  depthStencilState.depthWriteEnable = state.renderState->depthWriteEnable;
   depthStencilState.depthCompareOp = state.depthCompareOp;
   depthStencilState.depthBoundsTestEnable = VK_FALSE;
   depthStencilState.stencilTestEnable = state.renderState->stencilTestEnable;

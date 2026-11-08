@@ -38,7 +38,7 @@ auto compareViewports(const RecordingState::CombinedState &first, const Recordin
 }
 
 auto compareDepthConfigs(const RecordingState::CombinedState &first, const RecordingState::CombinedState &second) -> bool {
-  return first.depthTestEnable == second.depthTestEnable && first.depthWriteEnable == second.depthWriteEnable && first.depthCompareOp == second.depthCompareOp;
+  return first.depthTestEnable == second.depthTestEnable && first.depthCompareOp == second.depthCompareOp;
 }
 
 auto compareBlendmodes(const RecordingState::CombinedState &first, const RecordingState::CombinedState &second) -> bool {
@@ -184,6 +184,7 @@ auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandB
   bool sameViewport = false;
   bool sameScissor = false;
   bool sameDepth = false;
+  bool sameDepthWrite = false;
   bool sameBlendMode = false;
   bool sameCullmode = false;
   bool sameFFWinding = false;
@@ -196,6 +197,7 @@ auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandB
     sameBlendMode = compareBlendmodes(RecordingState::CurrentState, *RecordingState::LastState);
     sameCullmode = RecordingState::CurrentState.cullMode == RecordingState::LastState->cullMode;
     sameFFWinding = RecordingState::CurrentState.frontFace == RecordingState::LastState->frontFace;
+    sameDepthWrite = RecordingState::CurrentState.renderState->depthWriteEnable == RecordingState::LastState->renderState->depthWriteEnable;
   }
 
   bool isGraphics = RecordingState::CurrentState.renderState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -231,8 +233,11 @@ auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandB
 
     if (!sameDepth) {
       vkCmdSetDepthTestEnable(vkCommandBuffer, RecordingState::CurrentState.depthTestEnable);
-      vkCmdSetDepthWriteEnable(vkCommandBuffer, RecordingState::CurrentState.depthWriteEnable);
       vkCmdSetDepthCompareOp(vkCommandBuffer, RecordingState::CurrentState.depthCompareOp);
+    }
+
+    if (!sameDepthWrite) {
+      vkCmdSetDepthWriteEnable(vkCommandBuffer, RecordingState::CurrentState.renderState->depthWriteEnable);
     }
 
     if (!sameBlendMode && RecordingState::CurrentState.renderState->colorAttachments.size() > 0) {

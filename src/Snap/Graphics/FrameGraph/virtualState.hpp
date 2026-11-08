@@ -59,6 +59,8 @@ struct VirtualRenderState {
   RenderState::RenderTarget depthStencilAttachment;
   bool hasDepthStencilAttachment = false;
 
+  VkBool32 depthWriteEnable = 0;
+
   mutable uint64_t hash{};
 
   void MarkUpdated() { dirty = true; }
@@ -74,7 +76,7 @@ struct VirtualRenderState {
     }
 
     if (stencilTestEnable != other.stencilTestEnable || polygonMode != other.polygonMode || primitiveTopology != other.primitiveTopology ||
-        bindPoint != other.bindPoint) {
+        bindPoint != other.bindPoint || depthWriteEnable != other.depthWriteEnable) {
       return false;
     }
 

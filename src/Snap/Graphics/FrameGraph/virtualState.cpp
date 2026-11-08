@@ -202,7 +202,7 @@ auto VirtualRenderState::operator==(const RenderState::State &other) const -> bo
   }
 
   if (stencilTestEnable != other.stencilTestEnable || polygonMode != other.polygonMode || primitiveTopology != other.primitiveTopology ||
-      bindPoint != other.bindPoint) {
+      bindPoint != other.bindPoint || depthWriteEnable != other.depthWriteEnable) {
     return false;
   }
 
@@ -228,6 +228,7 @@ auto VirtualRenderState::GetHash() const -> uint64_t {
 
   hash.Add(shader->getID());
   hash.Add(stencilTestEnable);
+  hash.Add(depthWriteEnable);
   hash.Add((uint64_t)polygonMode);
   hash.Add((uint64_t)primitiveTopology);
   hash.Add((uint64_t)bindPoint);

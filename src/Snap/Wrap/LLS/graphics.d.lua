@@ -64,21 +64,6 @@ function snap.graphics.pop() end
 --- Resets the graphics state.
 function snap.graphics.reset() end
 
----@alias snap.DepthMode
----| "never" # No depth testing.
----| "less" # Passes if the incoming depth value is less than the stored depth value.
----| "equal" # Passes if the incoming depth value is equal to the stored depth value.
----| "lequal" # Passes if the incoming depth value is less than or equal to the stored depth value.
----| "greater" # Passes if the incoming depth value is greater than the stored depth value.
----| "notequal" # Passes if the incoming depth value is not equal to the stored depth value.
----| "gequal" # Passes if the incoming depth value is greater than or equal to the stored depth value.
----| "always" # Always passes.
-
---- Sets the depth mode.
----@param mode snap.DepthMode The depth mode to set.
----@param write boolean Whether to write to the depth buffer.
-function snap.graphics.setDepthMode(mode, write) end
-
 ---@alias snap.Cullmode
 ---| "none" # No culling.
 ---| "front" # Cull front faces.
