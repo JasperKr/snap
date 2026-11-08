@@ -97,29 +97,22 @@ auto wrap_MatrixToQuaternion(lua_State *state) -> int {
 }
 
 auto wrap_TranslationMatrix(lua_State *state) -> int {
-  auto mat = Matrix::TranslationMatrix(luaL_checkscalar(state, 1),
-                                       luaL_checkscalar(state, 2),
-                                       luaL_checkscalar(state, 3));
+  auto mat = Matrix::TranslationMatrix(luaL_checkscalar(state, 1), luaL_checkscalar(state, 2), luaL_checkscalar(state, 3));
 
   return mat.ToLua(state);
 }
 
 auto wrap_ScaleMatrix(lua_State *state) -> int {
-  auto mat = Matrix::ScaleMatrix(luaL_checkscalar(state, 1),
-                                 luaL_checkscalar(state, 2),
-                                 luaL_checkscalar(state, 3));
+  auto mat = Matrix::ScaleMatrix(luaL_checkscalar(state, 1), luaL_checkscalar(state, 2), luaL_checkscalar(state, 3));
 
   return mat.ToLua(state);
 }
 
 auto wrap_TransformMatrix(lua_State *state) -> int {
   // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-  auto mat = Matrix::TransformationMatrix(
-      luaL_checkscalar(state, 1), luaL_checkscalar(state, 2),
-      luaL_checkscalar(state, 3), luaL_checkscalar(state, 4),
-      luaL_checkscalar(state, 5), luaL_checkscalar(state, 6),
-      luaL_checkscalar(state, 7), luaL_checkscalar(state, 8),
-      luaL_checkscalar(state, 9), luaL_checkscalar(state, 10));
+  auto mat = Matrix::TransformationMatrix(luaL_checkscalar(state, 1), luaL_checkscalar(state, 2), luaL_checkscalar(state, 3), luaL_checkscalar(state, 4),
+                                          luaL_checkscalar(state, 5), luaL_checkscalar(state, 6), luaL_checkscalar(state, 7), luaL_checkscalar(state, 8),
+                                          luaL_checkscalar(state, 9), luaL_checkscalar(state, 10));
   // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
   return mat.ToLua(state);
@@ -213,8 +206,7 @@ auto wrap_NoiseWrapped(lua_State *state) -> int {
     auto y_wrap = static_cast<uint>(luaL_checkinteger(state, 5));
     auto z_wrap = static_cast<uint>(luaL_checkinteger(state, 6));
 
-    auto result =
-        ::Math::Noise(x_channel, y_channel, z_channel, x_wrap, y_wrap, z_wrap);
+    auto result = ::Math::Noise(x_channel, y_channel, z_channel, x_wrap, y_wrap, z_wrap);
     lua_pushnumber(state, result);
     return 1;
   }

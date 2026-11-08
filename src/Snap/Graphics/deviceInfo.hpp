@@ -11,10 +11,8 @@ struct GpuInfo {
   std::string deviceName;
 };
 
-inline auto GetAMDShaderCorePropertiesString(VkPhysicalDevice phys)
-    -> std::string {
-  VkPhysicalDeviceShaderCorePropertiesAMD amdProps{
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD};
+inline auto GetAMDShaderCorePropertiesString(VkPhysicalDevice phys) -> std::string {
+  VkPhysicalDeviceShaderCorePropertiesAMD amdProps{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD};
 
   VkPhysicalDeviceProperties2 props{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
@@ -26,23 +24,19 @@ inline auto GetAMDShaderCorePropertiesString(VkPhysicalDevice phys)
   std::ostringstream stream;
   stream << "VkPhysicalDeviceShaderCorePropertiesAMD\n";
   stream << "  shaderEngineCount: " << amdProps.shaderEngineCount << "\n";
-  stream << "  shaderArraysPerEngineCount: "
-         << amdProps.shaderArraysPerEngineCount << "\n";
-  stream << "  computeUnitsPerShaderArray: "
-         << amdProps.computeUnitsPerShaderArray << "\n";
+  stream << "  shaderArraysPerEngineCount: " << amdProps.shaderArraysPerEngineCount << "\n";
+  stream << "  computeUnitsPerShaderArray: " << amdProps.computeUnitsPerShaderArray << "\n";
   stream << "  simdPerComputeUnit: " << amdProps.simdPerComputeUnit << "\n";
   stream << "  wavefrontsPerSimd: " << amdProps.wavefrontsPerSimd << "\n";
   stream << "  wavefrontSize: " << amdProps.wavefrontSize << "\n";
   stream << "  sgprsPerSimd: " << amdProps.sgprsPerSimd << "\n";
   stream << "  minSgprAllocation: " << amdProps.minSgprAllocation << "\n";
   stream << "  maxSgprAllocation: " << amdProps.maxSgprAllocation << "\n";
-  stream << "  sgprAllocationGranularity: "
-         << amdProps.sgprAllocationGranularity << "\n";
+  stream << "  sgprAllocationGranularity: " << amdProps.sgprAllocationGranularity << "\n";
   stream << "  vgprsPerSimd: " << amdProps.vgprsPerSimd << "\n";
   stream << "  minVgprAllocation: " << amdProps.minVgprAllocation << "\n";
   stream << "  maxVgprAllocation: " << amdProps.maxVgprAllocation << "\n";
-  stream << "  vgprAllocationGranularity: "
-         << amdProps.vgprAllocationGranularity << "\n";
+  stream << "  vgprAllocationGranularity: " << amdProps.vgprAllocationGranularity << "\n";
 
   return stream.str();
 }
@@ -73,8 +67,7 @@ inline auto GetGpuInfo(VkPhysicalDevice phys) -> GpuInfo {
   GpuInfo info{};
   info.vendorID = props.properties.vendorID;
   info.deviceID = props.properties.deviceID;
-  info.deviceName =
-      std::string(static_cast<const char *>(props.properties.deviceName));
+  info.deviceName = std::string(static_cast<const char *>(props.properties.deviceName));
 
   return info;
 }
@@ -117,8 +110,7 @@ inline auto GetGpuInfoString(VkPhysicalDevice phys) -> std::string {
 
   stream << "GPU Info:\n";
   stream << "  Device Name: " << info.deviceName << "\n";
-  stream << "  Vendor: " << GetGpuVendorString(info.vendorID) << " ("
-         << std::hex << info.vendorID << std::dec << ")\n";
+  stream << "  Vendor: " << GetGpuVendorString(info.vendorID) << " (" << std::hex << info.vendorID << std::dec << ")\n";
   stream << "  Device ID: " << std::hex << info.deviceID << std::dec << "\n";
   stream << "  Driver Version: " << GetGpuDriverVersionString(phys) << "\n";
   stream << "  API Version: " << GetGpuApiVersionString(phys) << "\n";

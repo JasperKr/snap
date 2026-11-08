@@ -6,8 +6,7 @@
 namespace Wrap::Graphics::Snapshot {
 
 auto wrap_Draw(lua_State *state) -> int {
-  auto snapshot = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::Snapshot::ThreadSnapshot>(state, 1));
+  auto snapshot = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Snapshot::ThreadSnapshot>(state, 1));
 
   RenderSnapshot(*snapshot);
 

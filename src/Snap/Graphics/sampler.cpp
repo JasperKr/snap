@@ -8,12 +8,9 @@
 
 namespace Graphics {
 
-std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash>
-    SamplerCache; // NOLINT
+std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash> SamplerCache; // NOLINT
 
-auto GetOrCreateSampler(const GraphicsContext &context,
-                        const SamplerDescription &description)
-    -> Result<VkDeviceSize> {
+auto GetOrCreateSampler(const GraphicsContext &context, const SamplerDescription &description) -> Result<VkDeviceSize> {
   ZoneScoped;
 
   auto iter = SamplerCache.find(description);
@@ -30,8 +27,7 @@ auto GetOrCreateSampler(const GraphicsContext &context,
   samplerInfo.addressModeV = description.addressModeV;
   samplerInfo.addressModeW = description.addressModeW;
   samplerInfo.mipLodBias = description.mipLodBias;
-  samplerInfo.anisotropyEnable =
-      description.anisotropyEnable ? VK_TRUE : VK_FALSE;
+  samplerInfo.anisotropyEnable = description.anisotropyEnable ? VK_TRUE : VK_FALSE;
   samplerInfo.maxAnisotropy = description.maxAnisotropy;
   samplerInfo.compareEnable = description.compareEnable ? VK_TRUE : VK_FALSE;
   samplerInfo.compareOp = description.compareOp;
@@ -40,9 +36,7 @@ auto GetOrCreateSampler(const GraphicsContext &context,
   samplerInfo.borderColor = description.borderColor;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
-  VkDeviceSize sampler =
-      CHECK_RES(DescriptorHeapManager::GetInstance().AllocateSampler(
-          context, samplerInfo));
+  VkDeviceSize sampler = CHECK_RES(DescriptorHeapManager::GetInstance().AllocateSampler(context, samplerInfo));
 
   SamplerCache[description] = sampler;
   return sampler;

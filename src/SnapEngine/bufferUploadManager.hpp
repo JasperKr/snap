@@ -12,8 +12,7 @@
 namespace Engine::Renderer {
 struct BufferUploadManager {
   BufferUploadManager() = default;
-  BufferUploadManager(const Ref<Graphics::Buffer> &buffer, size_t elementStride)
-      : buffer(buffer), elementStride(elementStride) {
+  BufferUploadManager(const Ref<Graphics::Buffer> &buffer, size_t elementStride) : buffer(buffer), elementStride(elementStride) {
     assert(buffer.isValid());
     data.resize(buffer->size);
   }
@@ -26,9 +25,7 @@ struct BufferUploadManager {
     return {};
   }
 
-  auto MarkUpdated(uint32_t elementIndex) -> void {
-    dirtyIndices.emplace_back(elementIndex);
-  }
+  auto MarkUpdated(uint32_t elementIndex) -> void { dirtyIndices.emplace_back(elementIndex); }
 
   auto Flush(const Graphics::GraphicsContext &context) -> Error {
     if (dirtyIndices.empty()) {
@@ -43,14 +40,12 @@ struct BufferUploadManager {
       const auto end = range.y * elementStride;
 
       // NOLINTNEXTLINE
-      return buffer->SetData(context, {data.data() + start, data.data() + end},
-                             start);
+      return buffer->SetData(context, {data.data() + start, data.data() + end}, start);
     };
 
     std::ranges::sort(dirtyIndices);
 
-    auto currentRange =
-        Math::Uvec2(dirtyIndices.front(), dirtyIndices.front() + 1);
+    auto currentRange = Math::Uvec2(dirtyIndices.front(), dirtyIndices.front() + 1);
 
     for (size_t i = 1; i < dirtyIndices.size(); ++i) {
       const auto idx = dirtyIndices[i];

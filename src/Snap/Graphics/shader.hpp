@@ -35,9 +35,7 @@ namespace Graphics {
 
 static const Type LuaShaderType = Type("Shader");
 
-constexpr auto
-ShaderStageFlagsToPipelineStageFlags(VkShaderStageFlags shaderStages)
-    -> VkPipelineStageFlags2 {
+constexpr auto ShaderStageFlagsToPipelineStageFlags(VkShaderStageFlags shaderStages) -> VkPipelineStageFlags2 {
   VkPipelineStageFlags2 pipelineStages = 0;
 
   if (shaderStages == VK_SHADER_STAGE_ALL) {
@@ -79,8 +77,7 @@ using BoundASPair = Ref<TLAS>;
 struct BoundState {
   std::unordered_map<uint32_t, BoundShaderResource<Buffer>> userBoundBuffers;
   std::unordered_map<uint32_t, BoundShaderResource<Texture>> userBoundTextures;
-  std::unordered_map<uint32_t, BoundShaderResource<TLAS>>
-      userBoundAccelerationStructures;
+  std::unordered_map<uint32_t, BoundShaderResource<TLAS>> userBoundAccelerationStructures;
   std::vector<uint8_t> uniforms;
 };
 
@@ -119,15 +116,13 @@ struct DynamicUniformBuffer : BoundShaderResource<Buffer> {
   uint32_t offset = 0;
   uint32_t size = 0;
 
-  DynamicUniformBuffer(const Ref<Buffer> &buffer, uint32_t offset,
-                       uint32_t size) {
+  DynamicUniformBuffer(const Ref<Buffer> &buffer, uint32_t offset, uint32_t size) {
     resource = buffer;
     access = VK_ACCESS_2_UNIFORM_READ_BIT;
     type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   }
 
-  DynamicUniformBuffer(const Ref<StructuredBuffer> &buffer, uint32_t offset,
-                       uint32_t size);
+  DynamicUniformBuffer(const Ref<StructuredBuffer> &buffer, uint32_t offset, uint32_t size);
 };
 
 struct StorageBuffer : BoundShaderResource<Buffer> {
@@ -207,41 +202,28 @@ struct Shader : Object, Identifiable {
     }
 
     ScheduleDestruction<VkShaderModule>(
-        [](const GraphicsContext &context, VkShaderModule &module) -> auto {
-          vkDestroyShaderModule(context.device, module,
-                                GetAllocationCallbacks());
-        },
+        [](const GraphicsContext &context, VkShaderModule &module) -> auto { vkDestroyShaderModule(context.device, module, GetAllocationCallbacks()); },
         SemaphoreManager::GetSemaphoreValue(), module);
   }
 
-  static auto Create(const GraphicsContext &context,
-                     const std::string &modulename, const std::string &name,
-                     const std::vector<slang::PreprocessorMacroDesc>
-                         *preprocessorMacros = nullptr) -> Result<Ref<Shader>>;
+  static auto Create(const GraphicsContext &context, const std::string &modulename, const std::string &name,
+                     const std::vector<slang::PreprocessorMacroDesc> *preprocessorMacros = nullptr) -> Result<Ref<Shader>>;
 
-  auto Send(const ResourceKey &key, const std::span<const uint8_t> &data) const
-      -> Error;
+  auto Send(const ResourceKey &key, const std::span<const uint8_t> &data) const -> Error;
 
-  auto Send(const GraphicsContext &context, const ResourceKey &key,
-            const UniformBuffer &buffer) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key, const UniformBuffer &buffer) -> Error;
 
-  auto Send(const GraphicsContext &context, const ResourceKey &key,
-            const DynamicUniformBuffer &buffer) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key, const DynamicUniformBuffer &buffer) -> Error;
 
-  auto Send(const GraphicsContext &context, const ResourceKey &key,
-            const StorageBuffer &buffer) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key, const StorageBuffer &buffer) -> Error;
 
-  auto Send(const GraphicsContext &context, const ResourceKey &key,
-            const SampledTexture &texture) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key, const SampledTexture &texture) -> Error;
 
-  auto Send(const GraphicsContext &context, const ResourceKey &key,
-            const StorageTexture &texture) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key, const StorageTexture &texture) -> Error;
 
-  auto Send(const GraphicsContext &context, const ResourceKey &key,
-            const Ref<TLAS> &accelStructure) -> Error;
+  auto Send(const GraphicsContext &context, const ResourceKey &key, const Ref<TLAS> &accelStructure) -> Error;
 
-  auto GetUniform(const ResourceKey &key) const
-      -> const Reflect::ResourceInfo *;
+  auto GetUniform(const ResourceKey &key) const -> const Reflect::ResourceInfo *;
   auto GetUniform(ResolvedKey key) const -> const Reflect::ResourceInfo &;
 
   auto ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey>;
@@ -267,9 +249,7 @@ struct Shader : Object, Identifiable {
 
   static auto GetType() -> Type const * { return &LuaShaderType; }
 
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return Shader::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return Shader::GetType(); }
 
 private:
   struct CombinedImageSampler {

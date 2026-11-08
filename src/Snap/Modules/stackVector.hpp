@@ -33,14 +33,9 @@ template <typename T, size_t N> struct StackVector {
 
   StackVector(StackVector &&) = default;
   StackVector(const StackVector &) = default;
-  explicit constexpr StackVector(std::vector<T> data)
-      : currentSize(std::min(data.size(), N)) {
-    memcpy(storage.data(), data.data(), sizeof(T) * currentSize);
-  }
+  explicit constexpr StackVector(std::vector<T> data) : currentSize(std::min(data.size(), N)) { memcpy(storage.data(), data.data(), sizeof(T) * currentSize); }
 
-  constexpr auto asVector() -> std::vector<T> {
-    return {storage.data(), storage.data() + currentSize};
-  }
+  constexpr auto asVector() -> std::vector<T> { return {storage.data(), storage.data() + currentSize}; }
 
   auto operator=(StackVector &&) -> StackVector & = default;
   auto operator=(const StackVector &) -> StackVector & = default;
@@ -55,8 +50,7 @@ template <typename T, size_t N> struct StackVector {
     storage[currentSize++] = std::move(value);
   }
 
-  template <typename... Args>
-  constexpr auto emplace_back(Args &&...args) -> T & {
+  template <typename... Args> constexpr auto emplace_back(Args &&...args) -> T & {
     assert(currentSize < N && "StackVector capacity exceeded");
     storage[currentSize] = T(std::forward<Args>(args)...);
     return storage[currentSize++];
@@ -87,21 +81,13 @@ template <typename T, size_t N> struct StackVector {
   }
 
   [[nodiscard]] constexpr auto begin() -> T * { return storage.data(); }
-  [[nodiscard]] constexpr auto end() -> T * {
-    return storage.data() + currentSize;
-  }
+  [[nodiscard]] constexpr auto end() -> T * { return storage.data() + currentSize; }
 
-  [[nodiscard]] constexpr auto begin() const -> const T * {
-    return storage.data();
-  }
-  [[nodiscard]] constexpr auto end() const -> const T * {
-    return storage.data() + currentSize;
-  }
+  [[nodiscard]] constexpr auto begin() const -> const T * { return storage.data(); }
+  [[nodiscard]] constexpr auto end() const -> const T * { return storage.data() + currentSize; }
 
   [[nodiscard]] constexpr auto data() -> T * { return storage.data(); }
-  [[nodiscard]] constexpr auto data() const -> const T * {
-    return storage.data();
-  }
+  [[nodiscard]] constexpr auto data() const -> const T * { return storage.data(); }
 
   [[nodiscard]] constexpr auto front() -> T & {
     assert(currentSize > 0 && "StackVector is empty");
@@ -123,9 +109,7 @@ template <typename T, size_t N> struct StackVector {
     return storage[currentSize - 1];
   }
 
-  [[nodiscard]] constexpr auto empty() const -> bool {
-    return currentSize == 0;
-  }
+  [[nodiscard]] constexpr auto empty() const -> bool { return currentSize == 0; }
   [[nodiscard]] constexpr auto full() const -> bool { return currentSize == N; }
   constexpr auto clear() -> void {
     for (size_t i = 0; i < currentSize; ++i) {
@@ -156,9 +140,7 @@ template <typename T, size_t N> struct StackVector {
     return true;
   }
 
-  constexpr auto operator!=(const StackVector &other) const -> bool {
-    return !(*this == other);
-  }
+  constexpr auto operator!=(const StackVector &other) const -> bool { return !(*this == other); }
 
   constexpr auto fill(const T &value) -> void {
     for (size_t i = 0; i < N; ++i) {
@@ -191,8 +173,7 @@ template <typename T, size_t N> struct StackVector {
     ++currentSize;
   }
 
-  template <class InputIt>
-  constexpr void insert(const_iterator pos, InputIt first, InputIt last) {
+  template <class InputIt> constexpr void insert(const_iterator pos, InputIt first, InputIt last) {
     size_t index = pos - storage.data();
     auto count = std::distance(first, last);
 

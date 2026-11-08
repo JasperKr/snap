@@ -41,9 +41,7 @@ const static Type LuaBufferReadbackType = Type("BufferReadback");
 
 struct BufferReadback : Object {
   static auto GetType() -> Type const * { return &LuaBufferReadbackType; }
-  auto GetInstanceType() const -> Type const * override {
-    return BufferReadback::GetType();
-  }
+  auto GetInstanceType() const -> Type const * override { return BufferReadback::GetType(); }
 
   Ref<struct Buffer> buffer;
   Ref<Data::ByteData> data;
@@ -96,16 +94,10 @@ struct Buffer : Object, Identifiable {
     VkDescriptorType type;
     uint32_t offset;
     uint32_t size;
-    auto operator<(const Address &second) const -> bool {
-      return offset < second.offset;
-    }
-    static auto Less(const Address &first, const Address &second) -> bool {
-      return first.offset < second.offset;
-    }
+    auto operator<(const Address &second) const -> bool { return offset < second.offset; }
+    static auto Less(const Address &first, const Address &second) -> bool { return first.offset < second.offset; }
 
-    auto operator==(const Address &other) const -> bool {
-      return type == other.type && offset == other.offset && size == other.size;
-    }
+    auto operator==(const Address &other) const -> bool { return type == other.type && offset == other.offset && size == other.size; }
 
     [[nodiscard]] auto GetHash() const -> uint64_t {
       Hash::Hasher hasher{};
@@ -119,15 +111,11 @@ struct Buffer : Object, Identifiable {
   };
 
   struct AddressHash {
-    static auto operator()(const Address &addr) -> uint64_t {
-      return addr.GetHash();
-    }
+    static auto operator()(const Address &addr) -> uint64_t { return addr.GetHash(); }
   };
 
   mutable std::unordered_map<Address, VkDeviceSize, AddressHash> addresses;
-  [[nodiscard]] auto GetAddress(const GraphicsContext &context,
-                                VkDescriptorType type, uint32_t offset = 0,
-                                uint32_t size = UINT32_MAX) const
+  [[nodiscard]] auto GetAddress(const GraphicsContext &context, VkDescriptorType type, uint32_t offset = 0, uint32_t size = UINT32_MAX) const
       -> Result<VkDeviceSize>;
 
   std::string debugName;
@@ -135,53 +123,37 @@ struct Buffer : Object, Identifiable {
   auto GetTimestamp() const -> uint64_t { return lastUsedTimestamp; }
   auto MarkUse() const -> void;
 
-  static auto Create(const Graphics::GraphicsContext &context,
-                     const Graphics::BufferCreationInfo &info)
-      -> Result<Ref<Graphics::Buffer>>;
+  static auto Create(const Graphics::GraphicsContext &context, const Graphics::BufferCreationInfo &info) -> Result<Ref<Graphics::Buffer>>;
 
   ~Buffer() override;
 
   // Set data into the buffer at the given offset
-  auto SetData(const GraphicsContext &context,
-               const std::span<const uint8_t> &data, VkDeviceSize offset = 0,
-               VkDeviceSize size = VK_WHOLE_SIZE) -> Error;
+  auto SetData(const GraphicsContext &context, const std::span<const uint8_t> &data, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) -> Error;
 
-  template <typename T>
-  auto SetData(const GraphicsContext &context, const std::span<T> &data,
-               VkDeviceSize offset = 0) -> Error {
-    return SetData(
-        context,
-        std::span<const uint8_t>( // NOLINTNEXTLINE
-            reinterpret_cast<const uint8_t *>(data.data()), data.size_bytes()),
-        offset, data.size_bytes());
+  template <typename T> auto SetData(const GraphicsContext &context, const std::span<T> &data, VkDeviceSize offset = 0) -> Error {
+    return SetData(context,
+                   std::span<const uint8_t>( // NOLINTNEXTLINE
+                       reinterpret_cast<const uint8_t *>(data.data()), data.size_bytes()),
+                   offset, data.size_bytes());
   }
 
-  auto CopyTo(const GraphicsContext &context, Buffer &dstBuffer,
-              size_t srcIndex, size_t dstIndex, size_t size) -> Error;
+  auto CopyTo(const GraphicsContext &context, Buffer &dstBuffer, size_t srcIndex, size_t dstIndex, size_t size) -> Error;
 
-  auto CopyTo(const GraphicsContext &context, struct Texture &dstTexture,
-              VkBufferImageCopy region) const -> Error;
+  auto CopyTo(const GraphicsContext &context, struct Texture &dstTexture, VkBufferImageCopy region) const -> Error;
 
-  auto Grow(const GraphicsContext &context, size_t newSize)
-      -> Result<Ref<Buffer>>;
+  auto Grow(const GraphicsContext &context, size_t newSize) -> Result<Ref<Buffer>>;
 
   auto MapMemory(const GraphicsContext &context) -> Error;
   auto UnmapMemory(const GraphicsContext &context) -> void;
 
   // NOLINTNEXTLINE
-  auto Clear(const GraphicsContext &context, uint32_t value,
-             VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE)
-      -> Error;
+  auto Clear(const GraphicsContext &context, uint32_t value, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) -> Error;
 
   static auto GetType() -> Type const * { return &LuaInternalBufferType; }
 
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return Buffer::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return Buffer::GetType(); }
 
-  auto Upload(const GraphicsContext &context, std::span<const uint8_t> data,
-              VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE)
-      -> Error;
+  auto Upload(const GraphicsContext &context, std::span<const uint8_t> data, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) -> Error;
 
   auto RegisterUpload() -> void;
   auto UploadLarge(const GraphicsContext &context,
@@ -191,13 +163,10 @@ struct Buffer : Object, Identifiable {
                   std::span<const uint8_t> data, // NOLINTNEXTLINE
                   VkDeviceSize offset, VkDeviceSize size) const -> Error;
 
-  auto Readback(const GraphicsContext &context, VkDeviceSize offset = 0,
-                VkDeviceSize size = VK_WHOLE_SIZE,
-                const Ref<Data::ByteData> &output = Ref<Data::ByteData>())
-      -> Result<Ref<BufferReadback>>;
+  auto Readback(const GraphicsContext &context, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE,
+                const Ref<Data::ByteData> &output = Ref<Data::ByteData>()) -> Result<Ref<BufferReadback>>;
 
-  [[nodiscard]] auto GetDeviceAddress(const GraphicsContext &context) const
-      -> Result<VkDeviceAddress>;
+  [[nodiscard]] auto GetDeviceAddress(const GraphicsContext &context) const -> Result<VkDeviceAddress>;
 };
 
 // NOLINTBEGIN

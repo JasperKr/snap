@@ -5,10 +5,7 @@
 
 namespace Engine {
 
-auto CameraMatrices::GetFrustum() const -> Frustum {
-  return Frustum::FromMatrices(ViewProjectionMatrix,
-                               InverseViewProjectionMatrix);
-}
+auto CameraMatrices::GetFrustum() const -> Frustum { return Frustum::FromMatrices(ViewProjectionMatrix, InverseViewProjectionMatrix); }
 
 auto CameraMatrices::Update() -> void {
   constexpr float kUvToNdcScale = 2.0F;
@@ -116,8 +113,7 @@ auto LuaCameraMatrices::GetViewProjectionMatrix(lua_State *state) -> int {
   return cameraMatrices->ViewProjectionMatrix.ToLua(state);
 }
 
-auto LuaCameraMatrices::GetInverseViewProjectionMatrix(lua_State *state)
-    -> int {
+auto LuaCameraMatrices::GetInverseViewProjectionMatrix(lua_State *state) -> int {
   auto *entity = ::LuaWrap::EntityFromLua(state, 1);
   if (entity == nullptr) {
     return luaL_error(state, "Invalid Entity object");
@@ -143,8 +139,7 @@ auto LuaCameraMatrices::GetRotationProjectionMatrix(lua_State *state) -> int {
   return cameraMatrices->RotationProjectionMatrix.ToLua(state);
 }
 
-auto LuaCameraMatrices::GetInverseRotationProjectionMatrix(lua_State *state)
-    -> int {
+auto LuaCameraMatrices::GetInverseRotationProjectionMatrix(lua_State *state) -> int {
   auto *entity = ::LuaWrap::EntityFromLua(state, 1);
   if (entity == nullptr) {
     return luaL_error(state, "Invalid Entity object");
@@ -163,15 +158,11 @@ const ::LuaWrap::LuaComponent CameraMatricesComponent{{
     {"getViewMatrix", LuaCameraMatrices::GetViewMatrix},
     {"getInverseViewMatrix", LuaCameraMatrices::GetInverseViewMatrix},
     {"getProjectionMatrix", LuaCameraMatrices::GetProjectionMatrix},
-    {"getInverseProjectionMatrix",
-     LuaCameraMatrices::GetInverseProjectionMatrix},
+    {"getInverseProjectionMatrix", LuaCameraMatrices::GetInverseProjectionMatrix},
     {"getViewProjectionMatrix", LuaCameraMatrices::GetViewProjectionMatrix},
-    {"getInverseViewProjectionMatrix",
-     LuaCameraMatrices::GetInverseViewProjectionMatrix},
-    {"getRotationProjectionMatrix",
-     LuaCameraMatrices::GetRotationProjectionMatrix},
-    {"getInverseRotationProjectionMatrix",
-     LuaCameraMatrices::GetInverseRotationProjectionMatrix},
+    {"getInverseViewProjectionMatrix", LuaCameraMatrices::GetInverseViewProjectionMatrix},
+    {"getRotationProjectionMatrix", LuaCameraMatrices::GetRotationProjectionMatrix},
+    {"getInverseRotationProjectionMatrix", LuaCameraMatrices::GetInverseRotationProjectionMatrix},
 }};
 
 } // namespace Engine

@@ -55,8 +55,7 @@ static auto wrap_tostring(lua_State *state) -> int {
     return 1;
   }
 
-  lua_pushfstring(state, "%s: %p", proxy->type->GetName().c_str(),
-                  static_cast<void *>(proxy->object));
+  lua_pushfstring(state, "%s: %p", proxy->type->GetName().c_str(), static_cast<void *>(proxy->object));
   return 1;
 }
 
@@ -120,7 +119,7 @@ static auto wrap_release(lua_State *state) -> int {
     // NOLINTNEXTLINE
     lua_pushlightuserdata(state, (void *)object); // [storage, key]
     lua_pushnil(state);                           // [storage, key, nil]
-    lua_settable(state, -3); // storage[key] = nil  [storage]
+    lua_settable(state, -3);                      // storage[key] = nil  [storage]
 
     lua_pop(state, 1); // []
   }
@@ -142,22 +141,20 @@ auto SetStackToTable(lua_State *state, const char *key) -> void {
   }
 }
 
-auto LoadStorageTable(lua_State *state, const char *key) -> void {
-  lua_getfield(state, LUA_REGISTRYINDEX, key);
-}
+auto LoadStorageTable(lua_State *state, const char *key) -> void { lua_getfield(state, LUA_REGISTRYINDEX, key); }
 
 auto LoadOrCreateStorageTable(lua_State *state, const char *key) -> void {
   lua_getfield(state, LUA_REGISTRYINDEX, key); // [storage]
 
   if (!lua_istable(state, -1)) { // no table found
     lua_newtable(state);         // Create new table [nil, new table]
-    lua_replace(state, -2); // replace nil in registry with new table [storage]
+    lua_replace(state, -2);      // replace nil in registry with new table [storage]
 
     // Create metatable with weak values
     lua_newtable(state);               // [storage, mt]
     lua_pushstring(state, "v");        // [storage, mt, "v"]
     lua_setfield(state, -2, "__mode"); // mt.__mode = "v" [storage, mt]
-    lua_setmetatable(state, -2); // new table .mt = mt, popped mt [storage]
+    lua_setmetatable(state, -2);       // new table .mt = mt, popped mt [storage]
 
     lua_pushvalue(state, -1); // [storage, storage]
     lua_setfield(state, LUA_REGISTRYINDEX,
@@ -216,7 +213,7 @@ auto RegisterLuaModule(lua_State *state, const LuaModule &module) -> void {
   lua_pushcfunction(state, wrap_gc);  // [_modules, mt, wrap__gc]
   lua_setfield(state, -2, "__gc");    // mt.__gc = wrap__gc [_modules, mt]
 
-  lua_setmetatable(state, -2); // [_modules, module] Set metatable for userdata
+  lua_setmetatable(state, -2);   // [_modules, module] Set metatable for userdata
   lua_setfield(state, -2, name); // [_modules] _modules[name] = module
   lua_pop(state, 1);             // []
 
@@ -245,12 +242,8 @@ auto RegisterLuaModule(lua_State *state, const LuaModule &module) -> void {
   lua_pop(state, 1); // []
 }
 
-auto RegisterLuaType(lua_State *state, const Type *type,
-                     const std::vector<luaL_Reg> &functions) -> void {
-  RegisterLuaType(state, LuaClass{.Name = type->GetName(),
-                                  .Type = type,
-                                  .Methods = functions,
-                                  .Children = {}});
+auto RegisterLuaType(lua_State *state, const Type *type, const std::vector<luaL_Reg> &functions) -> void {
+  RegisterLuaType(state, LuaClass{.Name = type->GetName(), .Type = type, .Methods = functions, .Children = {}});
 }
 
 auto RegisterLuaType(lua_State *state, const LuaClass &luaClass) -> void {
@@ -289,8 +282,7 @@ auto RegisterLuaType(lua_State *state, const LuaClass &luaClass) -> void {
 
   for (const auto &func : luaClass.Methods) {
     if (func.name == nullptr) {
-      PrintError("Cannot register Lua type {}: function with null name.",
-                 luaClass.Type->GetName());
+      PrintError("Cannot register Lua type {}: function with null name.", luaClass.Type->GetName());
       continue;
     }
 
@@ -303,9 +295,8 @@ auto RegisterLuaType(lua_State *state, const LuaClass &luaClass) -> void {
     }
 #if !defined(NDEBUG) && defined(DEBUG_CPP_EXCEPTION) // If debug build
     // Wrap function in trampoline to catch exceptions
-    lua_pushlightuserdata(
-        state, // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
-        (void *)func.func); // [mt, lightuserdata with function pointer]
+    lua_pushlightuserdata(state,              // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
+                          (void *)func.func); // [mt, lightuserdata with function pointer]
     lua_pushcclosure(state, LuaTrampoline,
                      1); // [mt, cclosure that calls function pointer]
 #else
@@ -317,8 +308,7 @@ auto RegisterLuaType(lua_State *state, const LuaClass &luaClass) -> void {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto firstChar = func.name[0];
     if (firstChar != '\0' && (std::isupper(firstChar) != 0)) {
-      PrintWarning("Expected camelCase. Got: '{}' in class: '{}'.", func.name,
-                   luaClass.Type->GetName());
+      PrintWarning("Expected camelCase. Got: '{}' in class: '{}'.", func.name, luaClass.Type->GetName());
     }
 #endif
   }
@@ -404,8 +394,7 @@ auto PushObject(lua_State *state, const Type *type, Object *object) -> void {
   lua_pushlightuserdata(state, (void *)object); // [storage, key]
   lua_gettable(state, -2);                      // [storage, value]
 
-  if (lua_type(state, -1) != LUA_TLIGHTUSERDATA &&
-      lua_type(state, -1) != LUA_TUSERDATA) {
+  if (lua_type(state, -1) != LUA_TLIGHTUSERDATA && lua_type(state, -1) != LUA_TUSERDATA) {
 
     // No existing userdata
     lua_pop(state, 1); // Remove nil [storage]
@@ -415,8 +404,8 @@ auto PushObject(lua_State *state, const Type *type, Object *object) -> void {
 
     // Store in storage table
     lua_pushlightuserdata(state, (void *)object); // [storage, userdata, key]
-    lua_pushvalue(state, -2); // [storage, userdata, key, userdata]
-    lua_settable(state, -4);  // storage[key] = userdata [storage, userdata]
+    lua_pushvalue(state, -2);                     // [storage, userdata, key, userdata]
+    lua_settable(state, -4);                      // storage[key] = userdata [storage, userdata]
   }
 
   lua_remove(state, -2); // Remove storage table [userdata]
@@ -454,8 +443,8 @@ auto PushObject(lua_State *state, Object *object) -> void {
 
     // Store in storage table
     lua_pushlightuserdata(state, (void *)object); // [storage, userdata, key]
-    lua_pushvalue(state, -2); // [storage, userdata, key, userdata]
-    lua_settable(state, -4);  // storage[key] = userdata [storage, userdata]
+    lua_pushvalue(state, -2);                     // [storage, userdata, key, userdata]
+    lua_settable(state, -4);                      // storage[key] = userdata [storage, userdata]
   }
 
   lua_remove(state, -2); // Remove storage table [userdata]
@@ -463,16 +452,11 @@ auto PushObject(lua_State *state, Object *object) -> void {
 
 // NOLINTNEXTLINE
 static const std::vector<luaL_Reg> SnapModules = {
-    {"graphics", Wrap::Graphics::luaopen_graphics},
-    {"event", Wrap::Event::luaopen_event},
-    {"timer", Wrap::Timer::luaopen_timer},
-    {"data", Wrap::Data::luaopen_data},
-    {"thread", Wrap::Threading::luaopen_threading},
-    {"filesystem", Wrap::Filesystem::luaopen_filesystem},
-    {"keyboard", Wrap::Keyboard::luaopen_keyboard},
-    {"mouse", Wrap::Mouse::luaopen_mouse},
-    {"window", Wrap::Window::luaopen_window},
-    {"math", Wrap::Math::luaopen_engine_math},
+    {"graphics", Wrap::Graphics::luaopen_graphics}, {"event", Wrap::Event::luaopen_event},
+    {"timer", Wrap::Timer::luaopen_timer},          {"data", Wrap::Data::luaopen_data},
+    {"thread", Wrap::Threading::luaopen_threading}, {"filesystem", Wrap::Filesystem::luaopen_filesystem},
+    {"keyboard", Wrap::Keyboard::luaopen_keyboard}, {"mouse", Wrap::Mouse::luaopen_mouse},
+    {"window", Wrap::Window::luaopen_window},       {"math", Wrap::Math::luaopen_engine_math},
 };
 
 auto RegisterModules(lua_State *state) -> void {
@@ -493,12 +477,9 @@ auto RegisterModules(lua_State *state) -> void {
 
 // No namespace.
 
-auto luaL_checkscalar(lua_State *state, int index) -> Math::Scalar {
-  return static_cast<Math::Scalar>(luaL_checknumber(state, index));
-}
+auto luaL_checkscalar(lua_State *state, int index) -> Math::Scalar { return static_cast<Math::Scalar>(luaL_checknumber(state, index)); }
 
-auto luaL_optscalar(lua_State *state, int index, Math::Scalar defaultValue)
-    -> Math::Scalar {
+auto luaL_optscalar(lua_State *state, int index, Math::Scalar defaultValue) -> Math::Scalar {
   if (lua_isnoneornil(state, index)) {
     return defaultValue;
   }

@@ -35,6 +35,8 @@ enum class ShaderKey : uint8_t {
   Shadows_Denoise,
   Shadows_ClearHitFlags,
 
+  Clear,
+
   RTAO,
   AO_Denoise,
 
@@ -47,8 +49,7 @@ struct ShaderConfiguration {
   std::vector<slang::PreprocessorMacroDesc> externs;
 };
 
-const extern std::unordered_map<ShaderKey, ShaderConfiguration>
-    ShaderConfigurations;
+const extern std::unordered_map<ShaderKey, ShaderConfiguration> ShaderConfigurations;
 
 struct ShaderManager {
   auto Preload() -> Error;

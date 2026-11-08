@@ -33,8 +33,7 @@ FragmentOutput fragmentMain(FragmentInput input) {
 
   float3 albedo = AlbedoTexture.Sample(input.tex_coord).rgb;
   float3 normalData = NormalTexture.Sample(input.tex_coord).xyz;
-  MaterialChannel material =
-      MaterialChannel(MaterialTexture.Sample(input.tex_coord));
+  MaterialChannel material = MaterialChannel(MaterialTexture.Sample(input.tex_coord));
   float3 emissive = EmissiveTexture.Sample(input.tex_coord).rgb;
   float depth = DepthTexture.Sample(input.tex_coord).r;
 
@@ -55,8 +54,7 @@ FragmentOutput fragmentMain(FragmentInput input) {
   pixel.Metallic = material.metallic;
   pixel.PerceptualRoughness = material.perceptualRoughness;
   pixel.Roughness = material.roughness;
-  pixel.Fresnel0 =
-      ComputeFresnel0(albedo, material.metallic, material.reflectance);
+  pixel.Fresnel0 = ComputeFresnel0(albedo, material.metallic, material.reflectance);
   pixel.NoV = ClampNoV(dot(normal, viewDir));
   pixel.LambdaV = ComputeLambdaV(pixel.Roughness, pixel.NoV);
 
@@ -65,8 +63,7 @@ FragmentOutput fragmentMain(FragmentInput input) {
   for (int i = 0; i < DirectionalLightCount; i++) {
     var light = DirectionalLights.Load(i);
 
-    incomingLight += light.GetIntensityAt(worldPosition, pixel, viewDir) *
-                     light.SampleShadow(screenCoords);
+    incomingLight += light.GetIntensityAt(worldPosition, pixel, viewDir) * light.SampleShadow(screenCoords);
   }
 
   // incomingLight +=

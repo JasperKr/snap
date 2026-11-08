@@ -12,11 +12,9 @@ public interface ILight {
   float GetIntensity();
   float3 GetColor();
 
-  float3 GetIntensityAt(float3 WorldPosition, Pixel pixel,
-                        float3 ViewDirection);
+  float3 GetIntensityAt(float3 WorldPosition, Pixel pixel, float3 ViewDirection);
 
-  bool TraceShadow(float3 WorldPosition, float3 Normal, uint2 screenCoords,
-                   uint frameRandomState);
+  bool TraceShadow(float3 WorldPosition, float3 Normal, uint2 screenCoords, uint frameRandomState);
 
   float SampleShadow(int2 screenCoords);
 };

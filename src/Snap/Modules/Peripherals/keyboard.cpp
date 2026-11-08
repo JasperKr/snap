@@ -10,13 +10,9 @@ namespace Keyboard {
 constexpr int MaxKeycode = 512;
 bool KeyRepeatEnabled = true; // NOLINT
 
-inline auto Register(std::unordered_map<uint32_t, std::string> &vector,
-                     uint32_t scancode, const std::string &name) -> void {
-  vector[scancode] = name;
-}
+inline auto Register(std::unordered_map<uint32_t, std::string> &vector, uint32_t scancode, const std::string &name) -> void { vector[scancode] = name; }
 
-const std::unordered_map<uint32_t, std::string> KeycodeToStringMap =
-    []() -> std::unordered_map<uint32_t, std::string> {
+const std::unordered_map<uint32_t, std::string> KeycodeToStringMap = []() -> std::unordered_map<uint32_t, std::string> {
   std::unordered_map<uint32_t, std::string> vec(MaxKeycode + 1);
   Register(vec, SDLK_UNKNOWN, "unknown");
 
@@ -274,8 +270,7 @@ const std::unordered_map<uint32_t, std::string> KeycodeToStringMap =
   return vec;
 }();
 
-const std::unordered_map<uint32_t, std::string> ScancodeToStringMap =
-    []() -> std::unordered_map<uint32_t, std::string> {
+const std::unordered_map<uint32_t, std::string> ScancodeToStringMap = []() -> std::unordered_map<uint32_t, std::string> {
   std::unordered_map<uint32_t, std::string> vec(MaxKeycode + 1);
   Register(vec, SDL_SCANCODE_UNKNOWN, "unknown");
 
@@ -507,8 +502,7 @@ const std::unordered_map<uint32_t, std::string> ScancodeToStringMap =
   return vec;
 }();
 
-const std::unordered_map<std::string, SDL_Keycode> StringToKeycodeMap =
-    []() -> std::unordered_map<std::string, SDL_Keycode> {
+const std::unordered_map<std::string, SDL_Keycode> StringToKeycodeMap = []() -> std::unordered_map<std::string, SDL_Keycode> {
   std::unordered_map<std::string, SDL_Keycode> map;
   for (const auto &pair : KeycodeToStringMap) {
     map[pair.second] = static_cast<SDL_Keycode>(pair.first);
@@ -516,8 +510,7 @@ const std::unordered_map<std::string, SDL_Keycode> StringToKeycodeMap =
   return map;
 }();
 
-const std::unordered_map<std::string, uint32_t> StringToScancodeMap =
-    []() -> std::unordered_map<std::string, uint32_t> {
+const std::unordered_map<std::string, uint32_t> StringToScancodeMap = []() -> std::unordered_map<std::string, uint32_t> {
   std::unordered_map<std::string, uint32_t> map;
   for (const auto &pair : ScancodeToStringMap) {
     map[pair.second] = pair.first;

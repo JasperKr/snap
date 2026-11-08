@@ -18,9 +18,7 @@ const static Type DisplayNameType = Type("DisplayName");
 
 struct LuaDisplayName : LuaWrap::LuaECSObject {
   static auto GetType() -> const Type * { return &DisplayNameType; }
-  [[nodiscard]] auto GetInstanceType() const -> const Type * override {
-    return LuaDisplayName::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> const Type * override { return LuaDisplayName::GetType(); }
 
   static auto GetName(lua_State *state) -> int;
   static auto SetName(lua_State *state) -> int;

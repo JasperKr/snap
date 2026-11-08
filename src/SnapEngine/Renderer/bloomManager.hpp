@@ -13,10 +13,8 @@ struct BloomManager {
   auto Initialize(const Graphics::GraphicsContext &context) -> Error;
   auto Deinitialize() -> void;
 
-  auto ApplyBloom(const Graphics::GraphicsContext &context, Camera &camera)
-      -> Error;
-  auto UpdateViews(const Graphics::GraphicsContext &context, Camera &camera)
-      -> Error;
+  auto ApplyBloom(const Graphics::GraphicsContext &context, Camera &camera) -> Error;
+  auto UpdateViews(const Graphics::GraphicsContext &context, Camera &camera) -> Error;
 
 private:
   Ref<Graphics::Shader> ThresholdShader;

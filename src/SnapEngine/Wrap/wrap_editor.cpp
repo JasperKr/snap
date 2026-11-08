@@ -8,11 +8,9 @@
 namespace Engine::Wrap_Editor {
 
 auto wrap_PickObject(lua_State *state) -> int {
-  Math::Vec2 mousePos =
-      Math::Vec2{luaL_checkscalar(state, 1), luaL_checkscalar(state, 2)};
+  Math::Vec2 mousePos = Math::Vec2{luaL_checkscalar(state, 1), luaL_checkscalar(state, 2)};
 
-  LUA_CK_ERR(
-      Editor::PickEntity(*Graphics::GetCurrentGraphicsContext(), mousePos));
+  LUA_CK_ERR(Editor::PickEntity(*Graphics::GetCurrentGraphicsContext(), mousePos));
 
   return 0;
 }
@@ -53,8 +51,7 @@ auto wrap_StartScaling(lua_State *state) -> int {
 }
 
 auto wrap_SetTransformAxis(lua_State *state) -> int {
-  Editor::SetTransformAxis(
-      TransformAxisEnum.FromLua(state, 1, TransformAxis::None));
+  Editor::SetTransformAxis(TransformAxisEnum.FromLua(state, 1, TransformAxis::None));
 
   return 0;
 }

@@ -131,12 +131,9 @@ inline auto DXgiDDSFormatToVkFormat(uint32_t dxgiFormat) {
   // NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 }
 
-constexpr auto MakeFourCC(char char0, char char1, char char2, char char3)
-    -> uint32_t {
+constexpr auto MakeFourCC(char char0, char char1, char char2, char char3) -> uint32_t {
   // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
-  return (uint32_t(uint8_t(char0))) | (uint32_t(uint8_t(char1)) << 8UL) |
-         (uint32_t(uint8_t(char2)) << 16UL) |
-         (uint32_t(uint8_t(char3)) << 24UL);
+  return (uint32_t(uint8_t(char0))) | (uint32_t(uint8_t(char1)) << 8UL) | (uint32_t(uint8_t(char2)) << 16UL) | (uint32_t(uint8_t(char3)) << 24UL);
   // NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 }
 

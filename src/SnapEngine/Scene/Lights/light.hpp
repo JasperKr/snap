@@ -54,8 +54,7 @@ struct Light {
     floatData[2] = Color.b;
     floatData[3] = Intensity;
 
-    auto *int32Data = reinterpret_cast<int32_t *>(buffer.data() + offset +
-                                                  (4UL * sizeof(float)));
+    auto *int32Data = reinterpret_cast<int32_t *>(buffer.data() + offset + (4UL * sizeof(float)));
     int32Data[0] = ShadowBufferIndex;
 
     return 5UL * sizeof(float);

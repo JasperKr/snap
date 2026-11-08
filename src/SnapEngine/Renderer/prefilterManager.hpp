@@ -33,13 +33,9 @@ struct LightprobePrefilterManager {
 
   auto Deinitialize() -> void;
 
-  auto PrefilterLightProbe(const Graphics::GraphicsContext &context,
-                           LightProbe &lightProbe, Engine::Scene *scene,
-                           const Transform &transform) -> Error;
+  auto PrefilterLightProbe(const Graphics::GraphicsContext &context, LightProbe &lightProbe, Engine::Scene *scene, const Transform &transform) -> Error;
 
-  auto PrefilterEnvironment(const Graphics::GraphicsContext &context,
-                            const Ref<Graphics::Texture> &skyboxTexture)
-      -> Error;
+  auto PrefilterEnvironment(const Graphics::GraphicsContext &context, const Ref<Graphics::Texture> &skyboxTexture) -> Error;
 
   auto GetIrradianceMaps() -> Ref<Graphics::Texture> { return IrradianceMaps; }
   auto GetRadianceMaps() -> Ref<Graphics::Texture> { return RadianceMaps; }
@@ -82,8 +78,7 @@ private:
     // NOLINTEND
   }
 
-  auto CreateStorageTextures(const Graphics::GraphicsContext &context,
-                             uint32_t arrayLayers) -> Error;
+  auto CreateStorageTextures(const Graphics::GraphicsContext &context, uint32_t arrayLayers) -> Error;
 
   auto GetFreeEnvMapIndex() -> std::optional<int32_t> {
     // Zero is reserved for the default environment map, so we start searching from 1
@@ -108,16 +103,11 @@ private:
     EnvMapUsed.at(index) = false;
   }
 
-  auto PrefilterRadianceMap(const Graphics::GraphicsContext &context,
-                            const Ref<Graphics::Texture> &envMap,
-                            const Ref<Graphics::Texture> &output,
+  auto PrefilterRadianceMap(const Graphics::GraphicsContext &context, const Ref<Graphics::Texture> &envMap, const Ref<Graphics::Texture> &output,
                             const LightProbe &lightProbe) -> Error;
 
-  auto PrefilterIrradianceMap(const Graphics::GraphicsContext &context,
-                              int32_t slice) -> Error;
+  auto PrefilterIrradianceMap(const Graphics::GraphicsContext &context, int32_t slice) -> Error;
 
-  auto PrefilterEnvironmentMap(const Graphics::GraphicsContext &context,
-                               const Ref<Graphics::Texture> &envMap,
-                               LightProbe &lightProbe) -> Error;
+  auto PrefilterEnvironmentMap(const Graphics::GraphicsContext &context, const Ref<Graphics::Texture> &envMap, LightProbe &lightProbe) -> Error;
 };
 } // namespace Engine::Renderer

@@ -37,9 +37,7 @@ struct LuaRef {
     return *this;
   }
 
-  [[nodiscard]] auto valid() const -> bool {
-    return ref != LUA_NOREF && ref != LUA_REFNIL;
-  }
+  [[nodiscard]] auto valid() const -> bool { return ref != LUA_NOREF && ref != LUA_REFNIL; }
 
   // Push the stored value onto the stack
   void push() const {

@@ -20,8 +20,7 @@ public struct PointLight : ILight {
 
   public float Range;
 
-  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel,
-                               const float3 ViewDirection) {
+  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel, const float3 ViewDirection) {
     float3 LightVector = Position.xyz - WorldPosition;
     float Attenuation = AttenuateCusp(length(LightVector), Range, 4.0f);
 
@@ -33,15 +32,12 @@ public struct PointLight : ILight {
     float NoL = saturate(dot(pixel.Normal, LightVector));
 
     float3 Diffuse = ComputeDiffuseColor(pixel.Albedo, pixel.Metallic);
-    float3 brdf = SampleBRDF(ViewDirection, LightVector, pixel.NoV,
-                             pixel.Normal, pixel.Roughness, pixel.Fresnel0,
-                             Diffuse, NoL, pixel.LambdaV);
+    float3 brdf = SampleBRDF(ViewDirection, LightVector, pixel.NoV, pixel.Normal, pixel.Roughness, pixel.Fresnel0, Diffuse, NoL, pixel.LambdaV);
 
     return Color * brdf * (Intensity * (NoL * Attenuation));
   }
 
-  public bool TraceShadow(float3 WorldPosition, const float3 Normal,
-                          uint2 screenCoords, const uint frameRandomState) {
+  public bool TraceShadow(float3 WorldPosition, const float3 Normal, uint2 screenCoords, const uint frameRandomState) {
     float3 LightVector = Position.xyz - WorldPosition;
     float Attenuation = AttenuateCusp(length(LightVector), Range, 4.0f);
 
@@ -70,8 +66,7 @@ public struct PointLight : ILight {
       return 1.0f;
     }
 
-    return ShadowVisibilityTexture.Load(
-        int4(screenCoords, 0, ShadowBufferIndex));
+    return ShadowVisibilityTexture.Load(int4(screenCoords, 0, ShadowBufferIndex));
   }
 }
 

@@ -28,10 +28,8 @@ auto main(int argCount, char **argValues) -> int {
 
   auto err = MainLoop(args);
   if (Error::IsError(err)) {
-    PrintFatal(
-        ColorText(err.message, ConsoleColor::Reset) +
-        "\nCode: " + ColorText(std::to_string(err.code), ConsoleColor::Green) +
-        "\nTraceback:\n" + ColorText(err.backtrace, ConsoleColor::Cyan) + "\n");
+    PrintFatal(ColorText(err.message, ConsoleColor::Reset) + "\nCode: " + ColorText(std::to_string(err.code), ConsoleColor::Green) + "\nTraceback:\n" +
+               ColorText(err.backtrace, ConsoleColor::Cyan) + "\n");
 
     return Event::ExitCode != 0 ? Event::ExitCode : err.code;
   }

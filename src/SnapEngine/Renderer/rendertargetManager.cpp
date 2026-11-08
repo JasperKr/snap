@@ -20,8 +20,7 @@ namespace Engine::Renderer {
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 RenderTargetManager GlobalRenderTargetManager;
 
-auto RendertargetDescriptor::Score(const RendertargetDescriptor &other) const
-    -> int {
+auto RendertargetDescriptor::Score(const RendertargetDescriptor &other) const -> int {
   uint32_t score = 0;
   constexpr auto SizeMatchScore = 10;
   constexpr auto SizeDiffPixelCount = 100;
@@ -85,21 +84,13 @@ auto RendertargetDescriptor::Score(const RendertargetDescriptor &other) const
   return static_cast<int>(score);
 };
 
-auto RendertargetDescriptor::operator==(
-    const RendertargetDescriptor &other) const -> bool {
-  return size == other.size && GetMipmapCount() == other.GetMipmapCount() &&
-         arrayLayers == other.arrayLayers && format == other.format &&
-         minFilter == other.minFilter && magFilter == other.magFilter &&
-         mipFilter == other.mipFilter && addressModeU == other.addressModeU &&
-         addressModeV == other.addressModeV &&
-         addressModeW == other.addressModeW &&
-         borderColor == other.borderColor && usage == other.usage;
+auto RendertargetDescriptor::operator==(const RendertargetDescriptor &other) const -> bool {
+  return size == other.size && GetMipmapCount() == other.GetMipmapCount() && arrayLayers == other.arrayLayers && format == other.format &&
+         minFilter == other.minFilter && magFilter == other.magFilter && mipFilter == other.mipFilter && addressModeU == other.addressModeU &&
+         addressModeV == other.addressModeV && addressModeW == other.addressModeW && borderColor == other.borderColor && usage == other.usage;
 }
 
-auto RendertargetDescriptor::operator!=(
-    const RendertargetDescriptor &other) const -> bool {
-  return !(*this == other);
-}
+auto RendertargetDescriptor::operator!=(const RendertargetDescriptor &other) const -> bool { return !(*this == other); }
 
 auto RendertargetDescriptor::GetMipmapCount() const -> uint32_t {
   if (mipmapCount > 0) {
@@ -113,8 +104,7 @@ auto RendertargetDescriptor::GetMipmapCount() const -> uint32_t {
   return Image::GetMipmapCount(size.x, size.y);
 }
 
-auto RendertargetDescriptorHash::operator()(
-    const RendertargetDescriptor &desc) const -> size_t {
+auto RendertargetDescriptorHash::operator()(const RendertargetDescriptor &desc) const -> size_t {
   Hash::Hasher hasher;
   hasher.Add(desc.size.x);
   hasher.Add(desc.size.y);
@@ -132,9 +122,7 @@ auto RendertargetDescriptorHash::operator()(
   return hasher.Get();
 }
 
-auto RenderTargetManager::GetRendertarget(
-    const struct ::Graphics::GraphicsContext &context,
-    const RendertargetDescriptor &descriptor)
+auto RenderTargetManager::GetRendertarget(const struct ::Graphics::GraphicsContext &context, const RendertargetDescriptor &descriptor)
     -> Result<Ref<::Graphics::Texture>> {
   // First try to find an exact match.
   for (auto &entry : Rendertargets) {
@@ -187,18 +175,14 @@ auto RenderTargetManager::GetRendertarget(
   if (Rendertargets.size() >= MaxRendertargets) {
     std::string message = "Currently allocated:\n";
     for (const auto &entry : Rendertargets) {
-      message += std::format(
-          "- {}x{}, format: {}, usage: {}, mip levels: {}, filters: {} / {}\n",
-          entry.descriptor.size.x, entry.descriptor.size.y,
-          Graphics::Format::ImageFormatToString(entry.descriptor.format),
-          (int)entry.descriptor.usage, entry.descriptor.GetMipmapCount(),
-          (int)entry.descriptor.minFilter, (int)entry.descriptor.magFilter);
+      message += std::format("- {}x{}, format: {}, usage: {}, mip levels: {}, filters: {} / {}\n", entry.descriptor.size.x, entry.descriptor.size.y,
+                             Graphics::Format::ImageFormatToString(entry.descriptor.format), (int)entry.descriptor.usage, entry.descriptor.GetMipmapCount(),
+                             (int)entry.descriptor.minFilter, (int)entry.descriptor.magFilter);
     }
 
     PrintError("RenderTargetManager: {}", message);
 
-    return Error::Unexpectedf("Exceeded maximum number of rendertargets ({}).",
-                              MaxRendertargets);
+    return Error::Unexpectedf("Exceeded maximum number of rendertargets ({}).", MaxRendertargets);
   }
 
   auto info = ::Graphics::TextureCreationInfo{
@@ -207,14 +191,9 @@ auto RenderTargetManager::GetRendertarget(
       .format = descriptor.format,
       .usage = descriptor.usage,
       .mipmapCount = static_cast<int>(descriptor.GetMipmapCount()),
-      .debugName =
-          std::format("Rendertarget / {} / {}x{} #{}",
-                      Graphics::Format::ImageFormatToString(descriptor.format),
-                      std::to_string(descriptor.size.x),
-                      std::to_string(descriptor.size.y), Rendertargets.size()),
-      .textureType = descriptor.arrayLayers == 1
-                         ? ::Graphics::TextureType::DEFAULT
-                         : ::Graphics::TextureType::ARRAY,
+      .debugName = std::format("Rendertarget / {} / {}x{} #{}", Graphics::Format::ImageFormatToString(descriptor.format), std::to_string(descriptor.size.x),
+                               std::to_string(descriptor.size.y), Rendertargets.size()),
+      .textureType = descriptor.arrayLayers == 1 ? ::Graphics::TextureType::DEFAULT : ::Graphics::TextureType::ARRAY,
   };
 
   auto texture = CHECK_RES(::Graphics::Texture::Create(context, info));
@@ -229,8 +208,7 @@ auto RenderTargetManager::GetRendertarget(
   return texture;
 }
 
-auto RenderTargetManager::ReleaseRendertarget(
-    const Ref<::Graphics::Texture> &texture) -> Error {
+auto RenderTargetManager::ReleaseRendertarget(const Ref<::Graphics::Texture> &texture) -> Error {
   if (texture == nullptr) {
     return {};
   }
@@ -245,15 +223,13 @@ auto RenderTargetManager::ReleaseRendertarget(
   }
 
   if (count > 1) {
-    return Error::Create(
-        "RenderTargetManager: Released more than one rendertarget texture");
+    return Error::Create("RenderTargetManager: Released more than one rendertarget texture");
   }
 
   return {};
 }
 
-auto RenderTargetManager::ReleaseRendertargets(
-    const std::vector<Ref<::Graphics::Texture>> &textures) -> Error {
+auto RenderTargetManager::ReleaseRendertargets(const std::vector<Ref<::Graphics::Texture>> &textures) -> Error {
   for (const auto &texture : textures) {
     CHECK_ERR(ReleaseRendertarget(texture));
   }
@@ -261,13 +237,9 @@ auto RenderTargetManager::ReleaseRendertargets(
   return {};
 }
 
-auto RenderTargetManager::ReconfigureTexture(
-    const RendertargetDescriptor &descriptor,
-    const Ref<::Graphics::Texture> &texture) -> void {
-  texture->SetFilter(descriptor.minFilter, descriptor.magFilter,
-                     descriptor.mipFilter);
-  texture->SetWrapmode(descriptor.addressModeU, descriptor.addressModeV,
-                       descriptor.addressModeW);
+auto RenderTargetManager::ReconfigureTexture(const RendertargetDescriptor &descriptor, const Ref<::Graphics::Texture> &texture) -> void {
+  texture->SetFilter(descriptor.minFilter, descriptor.magFilter, descriptor.mipFilter);
+  texture->SetWrapmode(descriptor.addressModeU, descriptor.addressModeV, descriptor.addressModeW);
   texture->SetBorderColor(descriptor.borderColor);
 }
 
@@ -275,18 +247,15 @@ auto RenderTargetManager::ReconfigureTexture(
 // Optionally force all unused rendertargets to be evicted prematurely
 auto RenderTargetManager::Cleanup(bool evictAll) -> void {
   auto currentFrame = Graphics::GetCurrentGraphicsContext()->currentFrame;
-  Utils::UnorderedErase(
-      Rendertargets,
-      [currentFrame, evictAll](RendertargetEntry &entry) -> bool {
-        bool expired =
-            (currentFrame - entry.lastUsedFrame) > RendertargetLifetime;
-        bool clean = !entry.inUse && (expired || evictAll);
-        if (clean) {
-          entry.texture = nullptr;
-        }
+  Utils::UnorderedErase(Rendertargets, [currentFrame, evictAll](RendertargetEntry &entry) -> bool {
+    bool expired = (currentFrame - entry.lastUsedFrame) > RendertargetLifetime;
+    bool clean = !entry.inUse && (expired || evictAll);
+    if (clean) {
+      entry.texture = nullptr;
+    }
 
-        return clean;
-      });
+    return clean;
+  });
 }
 
 auto RenderTargetManager::Update() -> void { Cleanup(); }

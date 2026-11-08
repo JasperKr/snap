@@ -10,10 +10,7 @@
 
 namespace LuaWrap {
 
-template <typename T>
-inline auto EnumFromLua(lua_State *state, int index,
-                        std::unordered_map<std::string, T> enumMap)
-    -> Result<T> {
+template <typename T> inline auto EnumFromLua(lua_State *state, int index, std::unordered_map<std::string, T> enumMap) -> Result<T> {
 
   if (!lua_isstring(state, index)) {
     return Error::Unexpected("Expected string for enum value.");
@@ -35,16 +32,12 @@ inline auto EnumFromLua(lua_State *state, int index,
       }
     }
 
-    return Error::Unexpectedf("Invalid enum value: '{}'\nExpected one of: {}",
-                              str, validKeysStr);
+    return Error::Unexpectedf("Invalid enum value: '{}'\nExpected one of: {}", str, validKeysStr);
   }
   return iter->second;
 }
 
-template <typename T>
-inline auto EnumToLua(lua_State *state, T value,
-                      const std::unordered_map<std::string, T> &enumMap)
-    -> Error {
+template <typename T> inline auto EnumToLua(lua_State *state, T value, const std::unordered_map<std::string, T> &enumMap) -> Error {
   for (const auto &[key, val] : enumMap) {
     if (val == value) {
       lua_pushstring(state, key.c_str());
@@ -55,10 +48,7 @@ inline auto EnumToLua(lua_State *state, T value,
   return Error::Createf("Invalid enum value: {}", static_cast<int>(value));
 }
 
-template <typename T>
-inline auto EnumToLua(lua_State *state, T value,
-                      const std::unordered_map<T, std::string> &reverseEnumMap)
-    -> Error {
+template <typename T> inline auto EnumToLua(lua_State *state, T value, const std::unordered_map<T, std::string> &reverseEnumMap) -> Error {
   auto iter = reverseEnumMap.find(value);
   if (iter == reverseEnumMap.end()) {
     auto intValue = static_cast<int>(value);
@@ -83,9 +73,7 @@ private:
   std::unordered_map<T, std::string> ReverseEnumMap;
 
 public:
-  explicit LuaEnum(const std::string &enumName,
-                   const std::vector<std::pair<std::string, T>> &entries)
-      : LuaEnumBase{enumName, {}} {
+  explicit LuaEnum(const std::string &enumName, const std::vector<std::pair<std::string, T>> &entries) : LuaEnumBase{enumName, {}} {
 
     for (const auto &[key, value] : entries) {
       EnumMap[key] = value;
@@ -96,13 +84,9 @@ public:
     RegisteredEnums.emplace_back(*this);
   }
 
-  auto FromLua(lua_State *state, int index) const -> Result<T> {
-    return EnumFromLua(state, index, EnumMap);
-  }
+  auto FromLua(lua_State *state, int index) const -> Result<T> { return EnumFromLua(state, index, EnumMap); }
 
-  auto ToLua(lua_State *state, T value) const -> Error {
-    return EnumToLua<T>(state, value, ReverseEnumMap);
-  }
+  auto ToLua(lua_State *state, T value) const -> Error { return EnumToLua<T>(state, value, ReverseEnumMap); }
 
   auto FromLua(lua_State *state, int index, T defaultValue) const -> T {
     if (lua_type(state, index) != LUA_TSTRING) {
@@ -139,8 +123,7 @@ public:
     return iter->second;
   }
 
-  [[nodiscard]] auto GetOptions() const
-      -> std::vector<std::pair<std::string, T>> {
+  [[nodiscard]] auto GetOptions() const -> std::vector<std::pair<std::string, T>> {
     std::vector<std::pair<std::string, T>> options;
     for (const auto &[key, value] : EnumMap) {
       options.emplace_back(key, value);

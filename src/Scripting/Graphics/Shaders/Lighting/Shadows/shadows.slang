@@ -52,29 +52,23 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
 
   float3 worldPosition = CameraData[0].GetWorldPosition(uv, depth);
   uint2 screenCoords = uint2(id.xy);
-  uint randomState =
-      FrameRandomState + screenCoords.x * 1702 + screenCoords.y * 40301;
+  uint randomState = FrameRandomState + screenCoords.x * 1702 + screenCoords.y * 40301;
 
 #ifdef SHADER_LIGHT_TYPE_DIRECTIONAL
   var light = DirectionalLights.Load(LightIndex + id.z);
-  bool inShadow =
-      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
+  bool inShadow = light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_POINT)
   var light = PointLights.Load(LightIndex + id.z);
-  bool inShadow =
-      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
+  bool inShadow = light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPOT)
   var light = SpotLights.Load(LightIndex + id.z);
-  bool inShadow =
-      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
+  bool inShadow = light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_SPHERE)
   var light = SphereLights.Load(LightIndex + id.z);
-  bool inShadow =
-      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
+  bool inShadow = light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #elif defined(SHADER_LIGHT_TYPE_RECTANGLE)
   var light = RectangleLights.Load(LightIndex + id.z);
-  bool inShadow =
-      light.TraceShadow(worldPosition, normal, screenCoords, randomState);
+  bool inShadow = light.TraceShadow(worldPosition, normal, screenCoords, randomState);
 #else
 #error "Invalid light type";
   bool inShadow = false;

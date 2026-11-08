@@ -13,8 +13,7 @@ uniform Sampler2D<float2>.Handle MotionTexture;
 
 // Samples a texture with Catmull-Rom filtering, using 9 texture fetches instead of 16.
 // See http://vec3.ca/bicubic-filtering-in-fewer-taps/ for more details
-float3 SampleTextureCatmullRom(Sampler2D<float3> tex, float2 uv, float2 texSize,
-                               float2 texelSize) {
+float3 SampleTextureCatmullRom(Sampler2D<float3> tex, float2 uv, float2 texSize, float2 texelSize) {
   // We're going to sample a a 4x4 grid of texels surrounding the target UV coordinate. We'll do this by rounding
   // down the sample location to get the exact center of our "starting" texel. The starting texel will be at
   // location [1, 1] in the grid, where [0, 0] is the top left corner.
@@ -66,8 +65,7 @@ float3 SampleTextureCatmullRom(Sampler2D<float3> tex, float2 uv, float2 texSize,
   return result;
 }
 
-[shader("fragment")]
-float3 fragmentMain(float2 texCoords: TEXCOORDS) {
+[shader("fragment")] float3 fragmentMain(float2 texCoords : TEXCOORDS) {
   float3 neighbourMin = float3(1e6);
   float3 neighbourMax = float3(-1e6);
   float3 neighbourSum = 0.0;
@@ -87,15 +85,12 @@ float3 fragmentMain(float2 texCoords: TEXCOORDS) {
     for (int y = -1; y <= 1; y++) {
       float2 sampleCoords = texCoords + float2(x, y) * texelSize;
 
-      if (sampleCoords.x < halfTexelSize.x ||
-          sampleCoords.x > 1.0 - halfTexelSize.x ||
-          sampleCoords.y < halfTexelSize.y ||
+      if (sampleCoords.x < halfTexelSize.x || sampleCoords.x > 1.0 - halfTexelSize.x || sampleCoords.y < halfTexelSize.y ||
           sampleCoords.y > 1.0 - halfTexelSize.y) {
         continue;
       }
 
-      float3 sampleColor =
-          Sanitise(IncomingLight.SampleLevelZero(sampleCoords));
+      float3 sampleColor = Sanitise(IncomingLight.SampleLevelZero(sampleCoords));
       neighbourMin = min(neighbourMin, sampleColor);
       neighbourMax = max(neighbourMax, sampleColor);
       neighbourSum += sampleColor;
@@ -111,22 +106,17 @@ float3 fragmentMain(float2 texCoords: TEXCOORDS) {
   float2 motion = UnpackMotionVector(MotionTexture.SampleLevelZero(texCoords));
   float2 historyTexCoords = texCoords - motion;
 
-  bool historyOutOfBounds = historyTexCoords.x < halfTexelSize.x ||
-                            historyTexCoords.x > 1.0 - halfTexelSize.x ||
-                            historyTexCoords.y < halfTexelSize.y ||
+  bool historyOutOfBounds = historyTexCoords.x < halfTexelSize.x || historyTexCoords.x > 1.0 - halfTexelSize.x || historyTexCoords.y < halfTexelSize.y ||
                             historyTexCoords.y > 1.0 - halfTexelSize.y;
 
   if (historyOutOfBounds) {
     return currentColor;
   }
 
-  float3 historyColor = SampleTextureCatmullRom(
-      PreviousIncomingLight, historyTexCoords, texSize, texelSize);
+  float3 historyColor = SampleTextureCatmullRom(PreviousIncomingLight, historyTexCoords, texSize, texelSize);
 
   float3 neighbourMean = neighbourSum / max(neighbourCount, 1.0);
-  float3 neighbourVariance =
-      max(float3(0.0), neighbourSumSq / max(neighbourCount, 1.0) -
-                           neighbourMean * neighbourMean);
+  float3 neighbourVariance = max(float3(0.0), neighbourSumSq / max(neighbourCount, 1.0) - neighbourMean * neighbourMean);
   float3 neighbourSigma = sqrt(neighbourVariance);
 
   const float kVarianceGamma = 1.25;
@@ -142,8 +132,7 @@ float3 fragmentMain(float2 texCoords: TEXCOORDS) {
   // Use less history as motion increases to reduce ghosting and background blur.
   const float kStaticHistoryWeight = 0.92;
   const float kDynamicHistoryWeight = 0.55;
-  float previousWeight =
-      lerp(kStaticHistoryWeight, kDynamicHistoryWeight, motionFactor);
+  float previousWeight = lerp(kStaticHistoryWeight, kDynamicHistoryWeight, motionFactor);
 
   float sigmaLuma = dot(neighbourSigma, float3(0.299, 0.587, 0.114));
   float currentLuma = dot(currentColor, float3(0.299, 0.587, 0.114));
@@ -151,14 +140,12 @@ float3 fragmentMain(float2 texCoords: TEXCOORDS) {
   float lumaDelta = abs(currentLuma - historyLuma);
 
   const float kLumaRejectionScale = 4.0;
-  float lumaRejection =
-      saturate(lumaDelta / max(sigmaLuma * kLumaRejectionScale, 1e-4));
+  float lumaRejection = saturate(lumaDelta / max(sigmaLuma * kLumaRejectionScale, 1e-4));
   previousWeight *= 1.0 - lumaRejection;
 
   float currentWeight = 1.0 - previousWeight;
 
-  float3 finalColor =
-      currentColor * currentWeight + clampedHistoryColor * previousWeight;
+  float3 finalColor = currentColor * currentWeight + clampedHistoryColor * previousWeight;
 
   // Recover some local detail without destabilizing static regions.
   // float sharpenAmount = lerp(0.06, 0.0, motionFactor);

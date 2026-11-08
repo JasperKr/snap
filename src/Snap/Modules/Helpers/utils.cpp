@@ -13,9 +13,7 @@
 
 namespace Utils {
 
-auto InterleaveSpans(
-    std::vector<std::pair<std::span<const uint8_t>, size_t>> &spans)
-    -> std::vector<uint8_t> {
+auto InterleaveSpans(std::vector<std::pair<std::span<const uint8_t>, size_t>> &spans) -> std::vector<uint8_t> {
   assert(!spans.empty());
   size_t count = spans.size();
 
@@ -46,25 +44,21 @@ auto InterleaveSpans(
 }
 
 auto AlignUp(size_t value, size_t alignment) -> size_t {
-  assert(alignment != 0 && (alignment & (alignment - 1)) == 0 &&
-         "Alignment must be a non-zero power of two.");
+  assert(alignment != 0 && (alignment & (alignment - 1)) == 0 && "Alignment must be a non-zero power of two.");
   return (value + alignment - 1) & ~(alignment - 1);
 }
 
 auto AlignDown(size_t value, size_t alignment) -> size_t {
-  assert(alignment != 0 && (alignment & (alignment - 1)) == 0 &&
-         "Alignment must be a non-zero power of two.");
+  assert(alignment != 0 && (alignment & (alignment - 1)) == 0 && "Alignment must be a non-zero power of two.");
   return value & ~(alignment - 1);
 }
 
-auto Subspan(std::span<const uint8_t> span, size_t offset, size_t size)
-    -> std::span<const uint8_t> {
+auto Subspan(std::span<const uint8_t> span, size_t offset, size_t size) -> std::span<const uint8_t> {
   auto range = std::min(offset + size, span.size());
   return span.subspan(offset, range - offset);
 }
 
-auto Subspan(std::vector<uint8_t> &vec, size_t offset, size_t size)
-    -> std::span<uint8_t> {
+auto Subspan(std::vector<uint8_t> &vec, size_t offset, size_t size) -> std::span<uint8_t> {
   auto range = std::min(offset + size, vec.size());
   // NOLINTNEXTLINE, because of pointer arithmetic
   return {vec.data() + offset, range - offset};
@@ -90,8 +84,7 @@ auto NextCapacity(size_t currentCapacity, size_t requiredCapacity) -> size_t {
 
 // Returns the next capacity that is greater than or equal to requiredCapacity
 // and is a power-of-two multiple of currentCapacity.
-auto NextCapacity(size_t currentCapacity, size_t requiredCapacity,
-                  size_t initialCapacity) -> size_t {
+auto NextCapacity(size_t currentCapacity, size_t requiredCapacity, size_t initialCapacity) -> size_t {
   assert(initialCapacity > 0 && "Initial size must be greater than zero.");
   currentCapacity = std::max(currentCapacity, initialCapacity);
 
@@ -106,13 +99,9 @@ auto NextCapacity(size_t currentCapacity, size_t requiredCapacity,
   return currentCapacity;
 }
 
-auto Includes(uint64_t src, uint64_t flag) -> bool {
-  return (src & flag) != 0U;
-}
+auto Includes(uint64_t src, uint64_t flag) -> bool { return (src & flag) != 0U; }
 
-auto Excludes(uint64_t src, uint64_t flag) -> bool {
-  return (src & flag) == 0U;
-}
+auto Excludes(uint64_t src, uint64_t flag) -> bool { return (src & flag) == 0U; }
 
 #if defined(__linux__)
 auto GetMemoryUsage() -> size_t {
@@ -141,8 +130,7 @@ auto GetMemoryUsage() -> size_t {
 auto GetMemoryUsage() -> size_t {
   // Windows implementation using GetProcessMemoryInfo
   PROCESS_MEMORY_COUNTERS memCounters;
-  if (GetProcessMemoryInfo(GetCurrentProcess(), &memCounters,
-                           sizeof(memCounters))) {
+  if (GetProcessMemoryInfo(GetCurrentProcess(), &memCounters, sizeof(memCounters))) {
     return memCounters.WorkingSetSize; // Resident memory usage in bytes
   }
   return 0; // Could not get memory info
@@ -152,8 +140,7 @@ auto GetMemoryUsage() -> size_t {
   // macOS implementation using task_info
   struct mach_task_basic_info info;
   mach_msg_type_number_t infoCount = MACH_TASK_BASIC_INFO_COUNT;
-  if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info,
-                &infoCount) == KERN_SUCCESS) {
+  if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &infoCount) == KERN_SUCCESS) {
     return info.resident_size; // Resident memory usage in bytes
   }
   return 0; // Could not get memory info

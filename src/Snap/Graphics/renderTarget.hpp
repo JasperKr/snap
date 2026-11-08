@@ -8,17 +8,12 @@
 #include <vulkan/vulkan_core.h>
 namespace Graphics::RenderState {
 
-inline auto CompareVkPipelineColorBlendAttachmentState(
-    const VkPipelineColorBlendAttachmentState &first,
-    const VkPipelineColorBlendAttachmentState &second) -> bool {
-  return first.blendEnable == second.blendEnable &&
-         first.srcColorBlendFactor == second.srcColorBlendFactor &&
-         first.dstColorBlendFactor == second.dstColorBlendFactor &&
-         first.colorBlendOp == second.colorBlendOp &&
-         first.srcAlphaBlendFactor == second.srcAlphaBlendFactor &&
-         first.dstAlphaBlendFactor == second.dstAlphaBlendFactor &&
-         first.alphaBlendOp == second.alphaBlendOp &&
-         first.colorWriteMask == second.colorWriteMask;
+inline auto CompareVkPipelineColorBlendAttachmentState(const VkPipelineColorBlendAttachmentState &first, const VkPipelineColorBlendAttachmentState &second)
+    -> bool {
+  return first.blendEnable == second.blendEnable && first.srcColorBlendFactor == second.srcColorBlendFactor &&
+         first.dstColorBlendFactor == second.dstColorBlendFactor && first.colorBlendOp == second.colorBlendOp &&
+         first.srcAlphaBlendFactor == second.srcAlphaBlendFactor && first.dstAlphaBlendFactor == second.dstAlphaBlendFactor &&
+         first.alphaBlendOp == second.alphaBlendOp && first.colorWriteMask == second.colorWriteMask;
 }
 
 const static Type LuaRendertargetType = Type("RenderTarget");
@@ -44,8 +39,7 @@ struct RenderTarget {
       return false;
     }
 
-    if (!CompareVkPipelineColorBlendAttachmentState(blendMode,
-                                                    other.blendMode)) {
+    if (!CompareVkPipelineColorBlendAttachmentState(blendMode, other.blendMode)) {
       return false;
     }
 
@@ -54,16 +48,13 @@ struct RenderTarget {
 };
 
 struct LuaRenderTarget : Object {
-  explicit LuaRenderTarget(RenderTarget renderTarget)
-      : renderTarget(std::move(renderTarget)) {}
+  explicit LuaRenderTarget(RenderTarget renderTarget) : renderTarget(std::move(renderTarget)) {}
 
   RenderTarget renderTarget;
 
   static auto GetType() -> Type const * { return &LuaRendertargetType; }
 
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return LuaRenderTarget::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return LuaRenderTarget::GetType(); }
 };
 
 } // namespace Graphics::RenderState

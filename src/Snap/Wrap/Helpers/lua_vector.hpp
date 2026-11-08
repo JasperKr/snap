@@ -7,8 +7,7 @@
 
 namespace LuaWrap {
 
-template <typename T>
-auto PushVector(lua_State *state, const std::vector<T> &value) -> void {
+template <typename T> auto PushVector(lua_State *state, const std::vector<T> &value) -> void {
   lua_newtable(state);
   for (std::size_t i = 0; i < value.size(); ++i) {
     PushObject(state, T::GetType(), value[i]);
@@ -16,9 +15,7 @@ auto PushVector(lua_State *state, const std::vector<T> &value) -> void {
   }
 }
 
-template <typename T>
-inline auto VectorFromLua(lua_State *state, int index)
-    -> Result<std::vector<T>> {
+template <typename T> inline auto VectorFromLua(lua_State *state, int index) -> Result<std::vector<T>> {
   if (!lua_istable(state, index)) {
     return Error::Createf("Expected a table at index {}", index);
   }
@@ -29,8 +26,7 @@ inline auto VectorFromLua(lua_State *state, int index)
     lua_rawgeti(state, index, static_cast<int>(i));
     auto elementResult = ObjectFromLua<T>(state, -1);
     if (!elementResult) {
-      return Error::Createf("Failed to convert element at index {}: {}", i,
-                            elementResult.Error().Message());
+      return Error::Createf("Failed to convert element at index {}: {}", i, elementResult.Error().Message());
     }
     result.emplace_back(elementResult.Value());
     lua_pop(state, 1); // Pop the element
@@ -39,9 +35,7 @@ inline auto VectorFromLua(lua_State *state, int index)
   return result;
 }
 
-template <typename T, typename ToLuaFn>
-auto PushVector(lua_State *state, const std::vector<T> &value, ToLuaFn toLua)
-    -> void {
+template <typename T, typename ToLuaFn> auto PushVector(lua_State *state, const std::vector<T> &value, ToLuaFn toLua) -> void {
   lua_newtable(state);
   for (std::size_t i = 0; i < value.size(); ++i) {
     toLua(state, value[i]);
@@ -49,9 +43,7 @@ auto PushVector(lua_State *state, const std::vector<T> &value, ToLuaFn toLua)
   }
 }
 
-template <typename T, typename FromLuaFn>
-inline auto VectorFromLua(lua_State *state, int index, FromLuaFn fromLua)
-    -> Result<std::vector<T>> {
+template <typename T, typename FromLuaFn> inline auto VectorFromLua(lua_State *state, int index, FromLuaFn fromLua) -> Result<std::vector<T>> {
   if (!lua_istable(state, index)) {
     return Error::Createf("Expected a table at index {}", index);
   }
@@ -61,8 +53,7 @@ inline auto VectorFromLua(lua_State *state, int index, FromLuaFn fromLua)
     lua_rawgeti(state, index, static_cast<int>(i));
     auto elementResult = fromLua(state, -1);
     if (!elementResult) {
-      return Error::Createf("Failed to convert element at index {}: {}", i,
-                            elementResult.Error().Message());
+      return Error::Createf("Failed to convert element at index {}: {}", i, elementResult.Error().Message());
     }
     result.emplace_back(elementResult.Value());
     lua_pop(state, 1);

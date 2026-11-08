@@ -22,8 +22,7 @@ struct SphereLight {
 
   static auto GetBufferFormat() -> Graphics::BufferFormat &;
 
-  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const
-      -> Error;
+  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const -> Error;
 
   // -1 if no free index is available
   static auto GetFreeBufferIndex() -> int32_t {
@@ -42,9 +41,7 @@ struct LuaSphereLight : LuaWrap::LuaECSObject {
 
   static auto Create(lua_State *state) -> int;
   static auto GetType() -> const Type * { return &sphereLightType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &sphereLightType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &sphereLightType; }
 };
 
 extern const ::LuaWrap::LuaClass SphereLightClass;

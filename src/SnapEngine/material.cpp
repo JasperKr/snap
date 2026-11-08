@@ -10,20 +10,18 @@
 
 namespace Engine::Renderer {
 
-const static ::LuaWrap::LuaEnum<AlphaMode>
-    LuaAlphaModeEnum("AlphaMode", {
-                                      {"opaque", AlphaMode::Opaque},
-                                      {"mask", AlphaMode::Mask},
-                                      {"blend", AlphaMode::Blend},
-                                  });
+const static ::LuaWrap::LuaEnum<AlphaMode> LuaAlphaModeEnum("AlphaMode", {
+                                                                             {"opaque", AlphaMode::Opaque},
+                                                                             {"mask", AlphaMode::Mask},
+                                                                             {"blend", AlphaMode::Blend},
+                                                                         });
 
-const static ::LuaWrap::LuaEnum<VkCullModeFlags>
-    LuaCullModeEnum("CullMode", {
-                                    {"none", VK_CULL_MODE_NONE},
-                                    {"front", VK_CULL_MODE_FRONT_BIT},
-                                    {"back", VK_CULL_MODE_BACK_BIT},
-                                    {"all", VK_CULL_MODE_FRONT_AND_BACK},
-                                });
+const static ::LuaWrap::LuaEnum<VkCullModeFlags> LuaCullModeEnum("CullMode", {
+                                                                                 {"none", VK_CULL_MODE_NONE},
+                                                                                 {"front", VK_CULL_MODE_FRONT_BIT},
+                                                                                 {"back", VK_CULL_MODE_BACK_BIT},
+                                                                                 {"all", VK_CULL_MODE_FRONT_AND_BACK},
+                                                                             });
 
 auto LuaMaterial::wrap_setTextureUVIndex(lua_State *state) -> int {
   auto *entity = ::LuaWrap::EntityFromLua(state, 1);
@@ -37,8 +35,7 @@ auto LuaMaterial::wrap_setTextureUVIndex(lua_State *state) -> int {
   }
 
   auto textureType = luaL_checkinteger(state, 2);
-  if (textureType < 0 ||
-      textureType >= static_cast<int>(material->textureUVIndices.size())) {
+  if (textureType < 0 || textureType >= static_cast<int>(material->textureUVIndices.size())) {
     return luaL_error(state, "Invalid texture type index");
   }
 
@@ -62,8 +59,7 @@ auto LuaMaterial::wrap_getTextureUVIndex(lua_State *state) -> int {
     return luaL_error(state, "Entity does not have a Material component");
   }
   auto textureType = luaL_checkinteger(state, 2);
-  if (textureType < 0 ||
-      textureType >= static_cast<int>(material->textureUVIndices.size())) {
+  if (textureType < 0 || textureType >= static_cast<int>(material->textureUVIndices.size())) {
     return luaL_error(state, "Invalid texture type index");
   }
 
@@ -155,8 +151,7 @@ auto Material::DrawGUI(flecs::entity entity) -> void {
   // ImGui::Text("Cull Mode: %s", LuaCullModeEnum.ToString(cullMode).c_str());
   // ImGui::Text("Alpha Mode: %s", LuaAlphaModeEnum.ToString(alphaMode).c_str());
 
-  if (ImGui::BeginCombo("Cull Mode",
-                        LuaCullModeEnum.ToString(cullMode).c_str())) {
+  if (ImGui::BeginCombo("Cull Mode", LuaCullModeEnum.ToString(cullMode).c_str())) {
     for (const auto &option : LuaCullModeEnum.GetOptions()) {
       bool isSelected = option.second == cullMode;
       if (ImGui::Selectable(option.first.c_str(), isSelected)) {
@@ -169,8 +164,7 @@ auto Material::DrawGUI(flecs::entity entity) -> void {
     ImGui::EndCombo();
   }
 
-  if (ImGui::BeginCombo("Alpha Mode",
-                        LuaAlphaModeEnum.ToString(alphaMode).c_str())) {
+  if (ImGui::BeginCombo("Alpha Mode", LuaAlphaModeEnum.ToString(alphaMode).c_str())) {
     for (const auto &option : LuaAlphaModeEnum.GetOptions()) {
       bool isSelected = option.second == alphaMode;
       if (ImGui::Selectable(option.first.c_str(), isSelected)) {
@@ -212,8 +206,7 @@ auto Material::DrawGUI(flecs::entity entity) -> void {
   if (ImGui::CollapsingHeader("Albedo Texture")) {
     if (albedoTexture.isValid()) {
       // NOLINTNEXTLINE
-      ImGui::Image(reinterpret_cast<ImTextureID>(albedoTexture.get()),
-                   PreviewSize);
+      ImGui::Image(reinterpret_cast<ImTextureID>(albedoTexture.get()), PreviewSize);
     }
   }
   ImGui::EndDisabled();
@@ -222,8 +215,7 @@ auto Material::DrawGUI(flecs::entity entity) -> void {
   if (ImGui::CollapsingHeader("Metallic Roughness Texture")) {
     if (metallicRoughnessTexture.isValid()) {
       ImGui::Image( // NOLINTNEXTLINE
-          reinterpret_cast<ImTextureID>(metallicRoughnessTexture.get()),
-          PreviewSize);
+          reinterpret_cast<ImTextureID>(metallicRoughnessTexture.get()), PreviewSize);
     }
   }
   ImGui::EndDisabled();
@@ -232,8 +224,7 @@ auto Material::DrawGUI(flecs::entity entity) -> void {
   if (ImGui::CollapsingHeader("Ambient Occlusion Texture")) {
     if (ambientOcclusionTexture.isValid()) {
       ImGui::Image( // NOLINTNEXTLINE
-          reinterpret_cast<ImTextureID>(ambientOcclusionTexture.get()),
-          PreviewSize);
+          reinterpret_cast<ImTextureID>(ambientOcclusionTexture.get()), PreviewSize);
     }
   }
   ImGui::EndDisabled();
@@ -318,8 +309,7 @@ auto Material::Write(Graphics::GraphicsContext &context) -> Error {
 
   uint64_t packedIndices = 0;
   for (size_t i = 0; i < textureUVIndices.size(); ++i) {
-    packedIndices |=
-        (static_cast<uint64_t>(textureUVIndices.at(i)) << (i * UINT8_WIDTH));
+    packedIndices |= (static_cast<uint64_t>(textureUVIndices.at(i)) << (i * UINT8_WIDTH));
   }
   materialData.textureUVIndices[0] = packedIndices & ~0U;
   materialData.textureUVIndices[1] = (packedIndices >> UINT32_WIDTH) & ~0U;
@@ -329,8 +319,7 @@ auto Material::Write(Graphics::GraphicsContext &context) -> Error {
   // return buffer->GetBuffer()->SetData(context, span,
   //                                     materialSSBOIndex * buffer->GetStride());
 
-  auto *ptr =
-      RendererInstance.GetMaterialUploadManager().GetPtrAt(materialSSBOIndex);
+  auto *ptr = RendererInstance.GetMaterialUploadManager().GetPtrAt(materialSSBOIndex);
   memcpy(ptr, &materialData, sizeof(MaterialData));
   RendererInstance.GetMaterialUploadManager().MarkUpdated(materialSSBOIndex);
 

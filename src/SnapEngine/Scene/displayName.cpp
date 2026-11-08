@@ -6,9 +6,7 @@
 
 namespace Engine {
 
-auto DisplayName::DrawGUI(flecs::entity entity) const -> void {
-  ImGui::Text("Display Name: %s", Name.c_str());
-}
+auto DisplayName::DrawGUI(flecs::entity entity) const -> void { ImGui::Text("Display Name: %s", Name.c_str()); }
 
 auto LuaDisplayName::GetName(lua_State *state) -> int {
   auto *entity = ::LuaWrap::EntityFromLua(state, 1);

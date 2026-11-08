@@ -4,8 +4,7 @@
 
 namespace Data {
 
-[[nodiscard]] auto ByteData::View(size_t offset, size_t range)
-    -> Result<Ref<ByteData>> {
+[[nodiscard]] auto ByteData::View(size_t offset, size_t range) -> Result<Ref<ByteData>> {
   if (offset + range > size) {
     return Error::Unexpected("ByteData view out of bounds.");
   }

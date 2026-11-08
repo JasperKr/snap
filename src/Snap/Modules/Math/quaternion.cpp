@@ -8,23 +8,17 @@ namespace Math {
   return {x / length, y / length, z / length, w / length};
 }
 
-[[nodiscard]] auto Quaternion::Conjugate() const -> Quaternion {
-  return {-x, -y, -z, w};
-}
+[[nodiscard]] auto Quaternion::Conjugate() const -> Quaternion { return {-x, -y, -z, w}; }
 
 [[nodiscard]] auto Quaternion::Inverse() const -> Quaternion {
   float lengthSq = (x * x) + (y * y) + (z * z) + (w * w);
   Quaternion conj = Conjugate();
-  return {conj.x / lengthSq, conj.y / lengthSq, conj.z / lengthSq,
-          conj.w / lengthSq};
+  return {conj.x / lengthSq, conj.y / lengthSq, conj.z / lengthSq, conj.w / lengthSq};
 }
 
-[[nodiscard]] auto Quaternion::Dot(const Quaternion &other) const -> float {
-  return (x * other.x) + (y * other.y) + (z * other.z) + (w * other.w);
-}
+[[nodiscard]] auto Quaternion::Dot(const Quaternion &other) const -> float { return (x * other.x) + (y * other.y) + (z * other.z) + (w * other.w); }
 
-[[nodiscard]] auto Quaternion::Multiply(const Quaternion &other) const
-    -> Quaternion {
+[[nodiscard]] auto Quaternion::Multiply(const Quaternion &other) const -> Quaternion {
   return {
       (w * other.x) + (x * other.w) + (y * other.z) - (z * other.y),
       (w * other.y) - (x * other.z) + (y * other.w) + (z * other.x),

@@ -6,8 +6,7 @@
 #include <lauxlib.h>
 #include <lua.h>
 
-inline auto ResourceKeyFromLuaTable(lua_State *state, int index)
-    -> Result<Graphics::ResourceKey> {
+inline auto ResourceKeyFromLuaTable(lua_State *state, int index) -> Result<Graphics::ResourceKey> {
   if (index < 0) {
     index = lua_gettop(state) + index + 1;
   }
@@ -27,15 +26,13 @@ inline auto ResourceKeyFromLuaTable(lua_State *state, int index)
       auto indexValue = luaL_checkinteger(state, -1);
       if (root.empty()) {
         lua_pop(state, 1);
-        return Error::Create(
-            "Invalid resource key: indexing without a preceding key part");
+        return Error::Create("Invalid resource key: indexing without a preceding key part");
       }
 
       root.back().Index = static_cast<uint64_t>(indexValue);
     } else {
       lua_pop(state, 1);
-      return Error::Create(
-          "Invalid resource key: expected string or number in table");
+      return Error::Create("Invalid resource key: expected string or number in table");
     }
 
     lua_pop(state, 1);
@@ -44,8 +41,7 @@ inline auto ResourceKeyFromLuaTable(lua_State *state, int index)
   return root;
 }
 
-inline auto ResourceKeyFromSingleLuaObject(lua_State *state, int index)
-    -> Result<Graphics::ResourceKey> {
+inline auto ResourceKeyFromSingleLuaObject(lua_State *state, int index) -> Result<Graphics::ResourceKey> {
   // Just a single string, treat it as a key with one part
   if (lua_type(state, index) == LUA_TSTRING) {
     return Graphics::ResourceKey{luaL_checkstring(state, index)};

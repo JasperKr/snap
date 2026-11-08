@@ -19,25 +19,20 @@ namespace Graphics {
 
 struct FrameUniformBufferObject {
 public:
-  static auto Create(GraphicsContext &context)
-      -> Result<FrameUniformBufferObject>;
+  static auto Create(GraphicsContext &context) -> Result<FrameUniformBufferObject>;
 
-  auto Write(const GraphicsContext &context,
-             const std::span<const uint8_t> &data) -> Error;
+  auto Write(const GraphicsContext &context, const std::span<const uint8_t> &data) -> Error;
 
   [[nodiscard]] auto GetOffset() const -> size_t { return offset; }
   [[nodiscard]] auto GetSize() const -> size_t { return buffer->size; }
-  [[nodiscard]] auto GetBuffer() const -> Ref<Graphics::Buffer> {
-    return buffer;
-  }
+  [[nodiscard]] auto GetBuffer() const -> Ref<Graphics::Buffer> { return buffer; }
 
   auto Finalize(const GraphicsContext &context) -> Error;
   auto NewFrame() -> void { offset = 0; }
 
 private:
   Ref<Graphics::Buffer> buffer;
-  std::vector<uint8_t> stagingBuffer =
-      std::vector<uint8_t>(InitialUniformBufferSize);
+  std::vector<uint8_t> stagingBuffer = std::vector<uint8_t>(InitialUniformBufferSize);
 
   size_t internalSize = InitialUniformBufferSize;
   size_t offset{};
@@ -45,8 +40,7 @@ private:
   size_t uboAlignment;
 };
 
-extern thread_local std::vector<FrameUniformBufferObject>
-    ThreadUniformBuffers; // NOLINT
+extern thread_local std::vector<FrameUniformBufferObject> ThreadUniformBuffers; // NOLINT
 auto InitializeUniformBufferModule(GraphicsContext &context) -> Error;
 auto GetGlobalUniformBuffer(uint32_t frameIndex) -> FrameUniformBufferObject &;
 auto DeInitializeUniformBufferModule(GraphicsContext &context) -> void;

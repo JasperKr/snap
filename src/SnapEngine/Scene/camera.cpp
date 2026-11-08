@@ -9,7 +9,6 @@
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
-#include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
@@ -17,6 +16,7 @@
 #include "Modules/stackVector.hpp"
 #include "Modules/window.hpp"
 #include "Renderer/rendertargetManager.hpp"
+#include "Renderer/shaderManager.hpp"
 #include "Scene/cameraMatrices.hpp"
 #include "Scene/displayName.hpp"
 #include "Scene/environment.hpp"
@@ -466,6 +466,17 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
   Math::StackVector<Math::Uvec2, 4> offsets{{0, 0}, {1, 1}, {1, 0}, {0, 1}};
   Math::Uvec2 offset = offsets[context.currentFrame % 4U];
 
+  if (firstFrameAfterResize) {
+    auto clearShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::Clear));
+
+    CHECK_ERR(clearShader->Send(context, "ClearTexture", {textures.VolumetricLighting, StorageTexture::write}));
+    CHECK_ERR(UniformWriter::Send(clearShader, "ClearValue", Math::Vec4(0.0, 0.0, 0.0, 1.0)));
+
+    RenderState::SetShader(clearShader);
+
+    CHECK_ERR(DispatchWithin(context, {width, height, 1}));
+  }
+
   auto volumetricLightingShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::VolumetricLighting));
   CHECK_ERR(volumetricLightingShader->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
   CHECK_ERR(UniformWriter::Send(volumetricLightingShader, "DirectionalLightCount", renderer.GetSceneLightBuffers().DirectionalLightCount));
@@ -696,6 +707,8 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
     Graphics::PopDebugMarker();
   }
 
+  firstFrameAfterResize = false;
+
   return {};
 }
 
@@ -865,6 +878,8 @@ auto Camera::ConfigureRendertargets() -> void {
       .mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST,
       .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
   };
+
+  firstFrameAfterResize = true;
 }
 
 auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform &transform) const -> Error {

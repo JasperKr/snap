@@ -16,15 +16,9 @@ public:
 
   explicit ByteData(size_t size) : size(size), data(new uint8_t[size]) {}
 
-  ByteData(const uint8_t *src, size_t size)
-      : size(size), data(new uint8_t[size]) {
-    std::memcpy(data, src, size);
-  }
+  ByteData(const uint8_t *src, size_t size) : size(size), data(new uint8_t[size]) { std::memcpy(data, src, size); }
 
-  ByteData(const std::byte *src, size_t size)
-      : size(size), data(new uint8_t[size]) {
-    std::memcpy(data, src, size);
-  }
+  ByteData(const std::byte *src, size_t size) : size(size), data(new uint8_t[size]) { std::memcpy(data, src, size); }
 
   ByteData(const ByteData &other) = delete; // disable copy constructor
   ByteData(ByteData &&other) = delete;
@@ -42,9 +36,7 @@ public:
   [[nodiscard]] auto GetSize() const -> size_t { return size; }
   auto GetData() -> uint8_t * { return data; }
   [[nodiscard]] auto GetData() const -> const uint8_t * { return data; }
-  [[nodiscard]] auto GetDataSpan() const -> std::span<uint8_t> {
-    return {data, size};
-  }
+  [[nodiscard]] auto GetDataSpan() const -> std::span<uint8_t> { return {data, size}; }
 
   template <typename T> constexpr auto GetDataSpan() -> std::span<T> {
     // NOLINTNEXTLINE
@@ -53,17 +45,14 @@ public:
 
   [[nodiscard]] auto Clone() const -> ByteData { return {data, size}; }
 
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return ByteData::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return ByteData::GetType(); }
 
   [[nodiscard]] auto GetParent() const -> ByteData * { return parent; }
 
   [[nodiscard]] auto View(size_t offset, size_t range) -> Result<Ref<ByteData>>;
 
   // private constructor for views
-  ByteData(uint8_t *data, size_t size, ByteData *parent)
-      : size(size), data(data), parent(parent) {}
+  ByteData(uint8_t *data, size_t size, ByteData *parent) : size(size), data(data), parent(parent) {}
 
 private:
   size_t size = 0;

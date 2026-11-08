@@ -36,10 +36,8 @@ struct FrameGraph {
   // also defined in command.hpp
   static inline const CommandLevel InvalidDepth = UINT16_MAX;
 
-  auto Submit(const GraphicsContext &context,
-              std::vector<VirtualCommandBuffer *> &newCommandBuffers) -> Error;
-  auto Write(const GraphicsContext &context, VkCommandBuffer cmdBuffer)
-      -> Error;
+  auto Submit(const GraphicsContext &context, std::vector<VirtualCommandBuffer *> &newCommandBuffers) -> Error;
+  auto Write(const GraphicsContext &context, VkCommandBuffer cmdBuffer) -> Error;
 
 private:
   std::vector<VirtualCommandBuffer *> commandBuffers;
@@ -86,25 +84,17 @@ private:
   auto PreCompile() -> Error;
   auto Compile(const GraphicsContext &context) -> Error;
   auto BuildGraph() -> Error;
-  auto MarkAncestors(CommandIndex from, CommandIndex floor, uint32_t stamp)
-      -> void;
-  auto ReduceParents(CommandIndex idx,
-                     const std::vector<CommandIndex> &candidates) -> void;
+  auto MarkAncestors(CommandIndex from, CommandIndex floor, uint32_t stamp) -> void;
+  auto ReduceParents(CommandIndex idx, const std::vector<CommandIndex> &candidates) -> void;
   auto CompactRenderPasses() -> Error;
 
   auto InsertBarriers() -> Error;
   auto BuildReadyState() -> Error;
 
-  auto GetRequiredBarriers(CommandID commandId, const VulkanResource &resource,
-                           VkAccessFlags2 accesses,
-                           VkPipelineStageFlags2 pipelines,
-                           std::vector<VkMemoryBarrier2> &memoryBarriers)
-      -> void;
-  auto SyncMask(CommandLevel start, CommandLevel end,
-                VkAccessFlags2 lastWriteAccess,
-                VkPipelineStageFlags2 lastWritePipeline,
-                VkAccessFlags2 dstAccess, VkPipelineStageFlags2 dstPipeline)
-      -> std::array<VkPipelineStageFlags2, UINT64_WIDTH>;
+  auto GetRequiredBarriers(CommandID commandId, const VulkanResource &resource, VkAccessFlags2 accesses, VkPipelineStageFlags2 pipelines,
+                           std::vector<VkMemoryBarrier2> &memoryBarriers) -> void;
+  auto SyncMask(CommandLevel start, CommandLevel end, VkAccessFlags2 lastWriteAccess, VkPipelineStageFlags2 lastWritePipeline, VkAccessFlags2 dstAccess,
+                VkPipelineStageFlags2 dstPipeline) -> std::array<VkPipelineStageFlags2, UINT64_WIDTH>;
   auto PickNextCommands(CommandIndex parent) -> std::vector<CommandIndex>;
   auto ScoreCommand(CommandIndex parent, CommandIndex child) -> uint32_t;
   auto Reorder() -> Result<std::vector<CommandIndex> *>;
@@ -113,9 +103,6 @@ private:
   auto Reset() -> void;
   auto GetCommand(CommandIDPair identifier) -> Command &;
   auto GetCommand(CommandID identifier) -> Command &;
-  static auto WriteCommand(const Command &command,
-                           const GraphicsContext &context,
-                           const RenderPass *parent, VkCommandBuffer cmdBuffer)
-      -> Error;
+  static auto WriteCommand(const Command &command, const GraphicsContext &context, const RenderPass *parent, VkCommandBuffer cmdBuffer) -> Error;
 };
 } // namespace Graphics

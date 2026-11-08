@@ -14,8 +14,7 @@
 
 namespace Graphics {
 
-thread_local std::vector<FrameUniformBufferObject>
-    ThreadUniformBuffers{}; // NOLINT
+thread_local std::vector<FrameUniformBufferObject> ThreadUniformBuffers{}; // NOLINT
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::atomic<int> UniformBufferObjectCount{0};
@@ -30,42 +29,33 @@ auto InitializeUniformBufferModule(GraphicsContext &context) -> Error {
   return Error::Success();
 }
 
-auto DeInitializeUniformBufferModule(GraphicsContext &context) -> void {
-  ThreadUniformBuffers.clear();
-}
+auto DeInitializeUniformBufferModule(GraphicsContext &context) -> void { ThreadUniformBuffers.clear(); }
 
 auto GetGlobalUniformBuffer(uint32_t frameIndex) -> FrameUniformBufferObject & {
-  assert(frameIndex < ThreadUniformBuffers.size() &&
-         "Frame index out of bounds in GetGlobalUniformBuffer");
+  assert(frameIndex < ThreadUniformBuffers.size() && "Frame index out of bounds in GetGlobalUniformBuffer");
   return ThreadUniformBuffers.at(frameIndex);
 }
 
-auto FrameUniformBufferObject::Create(GraphicsContext &context)
-    -> Result<FrameUniformBufferObject> {
+auto FrameUniformBufferObject::Create(GraphicsContext &context) -> Result<FrameUniformBufferObject> {
 
   FrameUniformBufferObject obj{};
   BufferCreationInfo info{};
   info.size = InitialUniformBufferSize;
   info.persistentMapping = false;
   info.stagingBuffer = true;
-  info.properties = static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) |
-                    static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
+  info.properties = static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) | static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
                     static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-               static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+  info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) | static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
   info.debugName = "Frame Uniform Buffer";
 
   obj.buffer = CHECK_RES(Buffer::Create(context, info));
-  obj.uboAlignment =
-      context.deviceProperties.limits.minUniformBufferOffsetAlignment;
+  obj.uboAlignment = context.deviceProperties.limits.minUniformBufferOffsetAlignment;
 
   return obj;
 }
 
-auto FrameUniformBufferObject::Write(const GraphicsContext &context,
-                                     const std::span<const uint8_t> &data)
-    -> Error {
+auto FrameUniformBufferObject::Write(const GraphicsContext &context, const std::span<const uint8_t> &data) -> Error {
   ZoneScoped;
 
   [[unlikely]]
@@ -75,8 +65,7 @@ auto FrameUniformBufferObject::Write(const GraphicsContext &context,
 
   [[unlikely]]
   if (data.size() > MaximumUniformBufferSize) {
-    return Error::Create(
-        "Tried to set uniform buffer data larger than maximum. (holy shit)");
+    return Error::Create("Tried to set uniform buffer data larger than maximum. (holy shit)");
   }
 
   const auto requiredSize = Utils::AlignUp(offset + data.size(), uboAlignment);
@@ -100,20 +89,16 @@ auto FrameUniformBufferObject::Write(const GraphicsContext &context,
     info.size = internalSize;
     info.persistentMapping = false;
     info.stagingBuffer = true;
-    info.properties =
-        static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) |
-        static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
-        static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-                 static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
+    info.properties = static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) | static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
+                      static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    info.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) | static_cast<uint32_t>(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) |
                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     info.debugName = "Frame Uniform Buffer";
 
     buffer = CHECK_RES(Graphics::Buffer::Create(context, info));
   }
 
-  assert(requiredSize <= stagingBuffer.size() &&
-         "Write operation exceeds the size of the staging buffer.");
+  assert(requiredSize <= stagingBuffer.size() && "Write operation exceeds the size of the staging buffer.");
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   memcpy(stagingBuffer.data() + offset, data.data(), data.size());
@@ -122,8 +107,7 @@ auto FrameUniformBufferObject::Write(const GraphicsContext &context,
   return {};
 }
 
-auto FrameUniformBufferObject::Finalize(const GraphicsContext &context)
-    -> Error {
+auto FrameUniformBufferObject::Finalize(const GraphicsContext &context) -> Error {
   ZoneScoped;
 
   if (offset == 0) {

@@ -33,19 +33,16 @@ enum class GraphicsResourceUsage : uint64_t {
   Uniform = VK_ACCESS_2_UNIFORM_READ_BIT,
   Read = VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
   Write = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-  ReadWrite = VK_ACCESS_2_SHADER_STORAGE_READ_BIT |
-              VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+  ReadWrite = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
 };
 
-static const ::LuaWrap::LuaEnum<GraphicsResourceUsage>
-    GraphicsResourceUsageEnumHelper{
-        "GraphicsResourceUsage",
-        {
-            {"sampled", GraphicsResourceUsage::Sampled},
-            {"read", GraphicsResourceUsage::Read},
-            {"write", GraphicsResourceUsage::Write},
-            {"readwrite", GraphicsResourceUsage::ReadWrite},
-        }};
+static const ::LuaWrap::LuaEnum<GraphicsResourceUsage> GraphicsResourceUsageEnumHelper{"GraphicsResourceUsage",
+                                                                                       {
+                                                                                           {"sampled", GraphicsResourceUsage::Sampled},
+                                                                                           {"read", GraphicsResourceUsage::Read},
+                                                                                           {"write", GraphicsResourceUsage::Write},
+                                                                                           {"readwrite", GraphicsResourceUsage::ReadWrite},
+                                                                                       }};
 
 extern "C" inline auto luaopen_shader(lua_State *state) -> int {
   LuaWrap::RegisterLuaType(state, ::Graphics::Shader::GetType(),

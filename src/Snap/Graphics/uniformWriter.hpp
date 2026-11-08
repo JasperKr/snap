@@ -18,67 +18,46 @@ struct UniformWriter {
     };
   };
 
-  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader,
-                   const ResourceKey &key, const Ref<Buffer> &buffer,
-                   VkDescriptorType type) -> Error;
-
-  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader,
-                   const ResourceKey &key,
-                   const Ref<Graphics::StructuredBuffer> &buffer,
-                   VkDescriptorType type) -> Error;
-
-  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader,
-                   const ResourceKey &key,
-                   const Ref<Graphics::Texture> &texture, VkDescriptorType type)
+  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader, const ResourceKey &key, const Ref<Buffer> &buffer, VkDescriptorType type)
       -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const std::span<const uint8_t> &data) -> Error;
+  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader, const ResourceKey &key, const Ref<Graphics::StructuredBuffer> &buffer,
+                   VkDescriptorType type) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   float value) -> Error;
+  static auto Send(const GraphicsContext &context, const Ref<Shader> &shader, const ResourceKey &key, const Ref<Graphics::Texture> &texture,
+                   VkDescriptorType type) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, int value)
-      -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const std::span<const uint8_t> &data) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   uint32_t value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, float value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   bool value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, int value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Vec2 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, uint32_t value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Vec3 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, bool value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Vec4 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Vec2 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Uvec2 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Vec3 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Uvec3 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Vec4 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Uvec4 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Uvec2 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Ivec2 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Uvec3 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Ivec3 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Uvec4 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Ivec4 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Ivec2 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Matrix4x4 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Ivec3 &value) -> Error;
 
-  static auto Send(const Ref<Shader> &shader, const ResourceKey &key,
-                   const Math::Matrix3x3 &value) -> Error;
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Ivec4 &value) -> Error;
+
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Matrix4x4 &value) -> Error;
+
+  static auto Send(const Ref<Shader> &shader, const ResourceKey &key, const Math::Matrix3x3 &value) -> Error;
 };
 
 } // namespace Graphics

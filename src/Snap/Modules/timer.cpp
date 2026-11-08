@@ -9,28 +9,18 @@ auto GetTimerInfo() -> TimerFrameInfo & {
   return timerInfo;
 }
 
-inline auto NanoToSeconds(uint64_t nanoseconds) -> double {
-  return static_cast<double>(nanoseconds) * NANO_TO_SECONDS;
-}
+inline auto NanoToSeconds(uint64_t nanoseconds) -> double { return static_cast<double>(nanoseconds) * NANO_TO_SECONDS; }
 
-inline auto SecondsToNano(double seconds) -> uint64_t {
-  return static_cast<uint64_t>(seconds * SECONDS_TO_NANO);
-}
+inline auto SecondsToNano(double seconds) -> uint64_t { return static_cast<uint64_t>(seconds * SECONDS_TO_NANO); }
 
-inline auto MilliToSeconds(uint64_t milliseconds) -> double {
-  return static_cast<double>(milliseconds) * MILLI_TO_SECONDS;
-}
+inline auto MilliToSeconds(uint64_t milliseconds) -> double { return static_cast<double>(milliseconds) * MILLI_TO_SECONDS; }
 
-inline auto SecondsToMilli(double seconds) -> uint64_t {
-  return static_cast<uint64_t>(seconds * SECONDS_TO_MILLI);
-}
+inline auto SecondsToMilli(double seconds) -> uint64_t { return static_cast<uint64_t>(seconds * SECONDS_TO_MILLI); }
 
 auto GetTime() -> double { return NanoToSeconds(SDL_GetTicksNS()); }
 auto GetTimeNS() -> uint64_t { return SDL_GetTicksNS(); }
 auto GetDelta() -> double { return NanoToSeconds(GetTimerInfo().deltaTime); }
-auto GetAverageDelta() -> double {
-  return NanoToSeconds(GetTimerInfo().averageDeltaTime);
-}
+auto GetAverageDelta() -> double { return NanoToSeconds(GetTimerInfo().averageDeltaTime); }
 auto GetFPS() -> double {
   if (GetTimerInfo().averageDeltaTime == 0) {
     return 0.0;
@@ -68,8 +58,7 @@ void Step() {
   if ((currentTime - timerInfo.lastAveragingTime) >= BufferingTimeNS) {
     timerInfo.lastAveragingTime = currentTime;
 
-    timerInfo.averageDeltaTime =
-        timerInfo.accumulatedTime / timerInfo.sampleCount;
+    timerInfo.averageDeltaTime = timerInfo.accumulatedTime / timerInfo.sampleCount;
 
     timerInfo.sampleCount = 0;
     timerInfo.accumulatedTime = 0;

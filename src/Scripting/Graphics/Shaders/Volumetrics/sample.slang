@@ -451,9 +451,7 @@ uniform WTexture2D<float4>.Handle OutputTexture;
 uniform Sampler2D<float>.Handle DepthTexture;
 uniform uint2 PixelOffset;
 
-[shader("compute")]
-[numthreads(8, 8, 1)]
-void computeMain(uint2 invocationID: SV_DispatchThreadID) {
+[shader("compute")][numthreads(8, 8, 1)] void computeMain(uint2 invocationID : SV_DispatchThreadID) {
   uint2 outputTextureSize;
   OutputTexture.GetDimensions(outputTextureSize.x, outputTextureSize.y);
   uint2 pixelPosition = invocationID * 2UL + PixelOffset;

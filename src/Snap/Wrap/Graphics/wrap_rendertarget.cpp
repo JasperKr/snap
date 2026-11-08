@@ -78,8 +78,7 @@ auto inline ConvertStringToBlendFactor(const char *string) -> VkBlendFactor {
 // blendmode: { blendmode = "none"|"alpha"|"add"|"sub"|"mul", alphamode = "alphamultiply"|"premultiplied", mask = "" }
 // Or, { srccolor = "", dstcolor = "", srcalpha = "", dstalpha = "", opcolor = "", opalpha = "", mask = "" }
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto inline FromLuaState(lua_State *state)
-    -> Result<VkPipelineColorBlendAttachmentState> {
+auto inline FromLuaState(lua_State *state) -> Result<VkPipelineColorBlendAttachmentState> {
   // blend mode from lua top of stack
   VkPipelineColorBlendAttachmentState blendMode = DefaultBlendMode;
 
@@ -90,8 +89,7 @@ auto inline FromLuaState(lua_State *state)
     lua_getfield(state, -2, "alphamode");   // get alphamode field
 
     if (lua_isstring(state, -1) == 0) {
-      return Error::Unexpected(
-          "Expected string as second argument for blendmode");
+      return Error::Unexpected("Expected string as second argument for blendmode");
     }
     // [stuff, blendmode table, blendmode string, alphamode string]
 
@@ -139,8 +137,7 @@ auto inline FromLuaState(lua_State *state)
     } else if (strcmp(alphaModeStr, "premultiplied") == 0) {
       blendMode.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     } else {
-      return Error::Unexpected("Invalid alpha blend mode: " +
-                               std::string(alphaModeStr));
+      return Error::Unexpected("Invalid alpha blend mode: " + std::string(alphaModeStr));
     }
 
     lua_pop(state, 2); // pop blendmode string and alphamode string
@@ -188,8 +185,7 @@ auto inline FromLuaState(lua_State *state)
     const char *maskStr = luaL_checkstring(state, -1);
 
     if (strlen(maskStr) >= MaxMaskLength) {
-      return Error::Unexpected("Blend mask string too long: " +
-                               std::string(maskStr));
+      return Error::Unexpected("Blend mask string too long: " + std::string(maskStr));
     }
 
     blendMode.colorWriteMask = 0;
@@ -198,50 +194,42 @@ auto inline FromLuaState(lua_State *state)
       switch (character) {
       case 'r':
         if ((blendMode.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) != 0) {
-          return Error::Unexpected("Duplicate 'r' in blend mask: " +
-                                   std::string(maskStr));
+          return Error::Unexpected("Duplicate 'r' in blend mask: " + std::string(maskStr));
         }
         blendMode.colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
         break;
       case 'g':
         if ((blendMode.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) != 0) {
-          return Error::Unexpected("Duplicate 'g' in blend mask: " +
-                                   std::string(maskStr));
+          return Error::Unexpected("Duplicate 'g' in blend mask: " + std::string(maskStr));
         }
         blendMode.colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
         break;
       case 'b':
         if ((blendMode.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) != 0) {
-          return Error::Unexpected("Duplicate 'b' in blend mask: " +
-                                   std::string(maskStr));
+          return Error::Unexpected("Duplicate 'b' in blend mask: " + std::string(maskStr));
         }
         blendMode.colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
         break;
       case 'a':
         if ((blendMode.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) != 0) {
-          return Error::Unexpected("Duplicate 'a' in blend mask: " +
-                                   std::string(maskStr));
+          return Error::Unexpected("Duplicate 'a' in blend mask: " + std::string(maskStr));
         }
         blendMode.colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
         break;
       default:
-        return Error::Unexpected("Invalid character in blend mask: " +
-                                 std::string(1, character));
+        return Error::Unexpected("Invalid character in blend mask: " + std::string(1, character));
       }
     }
   } else {
-    blendMode.colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) |
-                               static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
-                               static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) |
-                               static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT);
+    blendMode.colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
+                               static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT);
   }
   lua_pop(state, 1);
 
   return blendMode;
 }
 
-auto RenderTargetsFromTexture(lua_State *state, int index)
-    -> Graphics::RenderState::RenderTarget {
+auto RenderTargetsFromTexture(lua_State *state, int index) -> Graphics::RenderState::RenderTarget {
   luaL_checktype(state, index, LUA_TUSERDATA);
 
   auto texture = LuaWrap::ObjectFromLua<Graphics::Texture>(state, index);
@@ -262,8 +250,7 @@ auto RenderTargetsFromTexture(lua_State *state, int index)
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto RenderTargetsFromOptions(lua_State *state, int index)
-    -> Result<Graphics::RenderState::RenderTarget> {
+auto RenderTargetsFromOptions(lua_State *state, int index) -> Result<Graphics::RenderState::RenderTarget> {
 
   luaL_checktype(state, index, LUA_TTABLE);
 
@@ -274,13 +261,10 @@ auto RenderTargetsFromOptions(lua_State *state, int index)
 
   lua_rawgeti(state, index, 1);
   if (lua_isnoneornil(state, -1) == 0) {
-    ERR_ASSERT_MSG(
-        !LuaWrap::IsType<Graphics::Texture>(state, -1),
-        "Expected named field 'texture' in options table, got texture at index "
-        "1.");
+    ERR_ASSERT_MSG(!LuaWrap::IsType<Graphics::Texture>(state, -1), "Expected named field 'texture' in options table, got texture at index "
+                                                                   "1.");
 
-    return Error::Unexpected(
-        "Expected named fields in render target options table");
+    return Error::Unexpected("Expected named fields in render target options table");
   }
   lua_pop(state, 1);
 
@@ -289,11 +273,9 @@ auto RenderTargetsFromOptions(lua_State *state, int index)
   if (lua_isnoneornil(state, -1) != 0) {
     auto *context = Graphics::GetCurrentGraphicsContext();
 
-    rendertarget.texture =
-        context->swapchainInfo.textures[context->swapchainImageIndex];
+    rendertarget.texture = context->swapchainInfo.textures[context->swapchainImageIndex];
   } else {
-    rendertarget.texture =
-        CHECK_NULL(LuaWrap::ObjectFromLua<Graphics::Texture>(state, -1));
+    rendertarget.texture = CHECK_NULL(LuaWrap::ObjectFromLua<Graphics::Texture>(state, -1));
   }
   lua_pop(state, 1);
 
@@ -345,20 +327,16 @@ auto RenderTargetsFromOptions(lua_State *state, int index)
     } else if (strcmp(loadasStr, "none") == 0) {
       rendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     } else {
-      return Error::Unexpected(std::string("Invalid loadas mode: ") +
-                               loadasStr);
+      return Error::Unexpected(std::string("Invalid loadas mode: ") + loadasStr);
     }
   } else if (lua_type(state, -1) == LUA_TNUMBER) {
     // If it's a number, expect it to be a depth / stencil clear value, and set loadOp to clear
     if (rendertarget.texture->IsDepthTexture()) {
-      rendertarget.clearValue.depthStencil.depth =
-          static_cast<float>(lua_tonumber(state, -1));
+      rendertarget.clearValue.depthStencil.depth = static_cast<float>(lua_tonumber(state, -1));
     } else if (rendertarget.texture->IsStencilTexture()) {
-      rendertarget.clearValue.depthStencil.stencil =
-          static_cast<uint32_t>(lua_tointeger(state, -1));
+      rendertarget.clearValue.depthStencil.stencil = static_cast<uint32_t>(lua_tointeger(state, -1));
     } else {
-      return Error::Unexpected(
-          "Numeric loadas value only valid for depth or stencil textures");
+      return Error::Unexpected("Numeric loadas value only valid for depth or stencil textures");
     }
 
     rendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -434,8 +412,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
 
     rendertarget.blendMode = DefaultBlendMode;
     rendertarget.clearValue = {0.0F, 0.0F, 0.0F, 1.0F};
-    rendertarget.texture =
-        ctx->swapchainInfo.textures[ctx->swapchainImageIndex];
+    rendertarget.texture = ctx->swapchainInfo.textures[ctx->swapchainImageIndex];
     rendertarget.location = 0;
     rendertarget.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
@@ -464,8 +441,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
       // if table, treat as render target options
       if (lua_istable(state, i) != 0) {
         if (!isOptionsVarargs) {
-          return luaL_error(
-              state, "Expected Texture as argument %d to setRenderTargets", i);
+          return luaL_error(state, "Expected Texture as argument %d to setRenderTargets", i);
         }
 
         auto renderTargetResult = RenderTargetsFromOptions(state, i);
@@ -477,8 +453,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
       }
 
       if (isOptionsVarargs) {
-        return luaL_error(
-            state, "Expected table of render target options as argument %d", i);
+        return luaL_error(state, "Expected table of render target options as argument %d", i);
       }
 
       // else, treat as texture
@@ -496,8 +471,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
 
       // if table, treat as render target options
       if (lua_istable(state, -1) != 0) {
-        renderTargets.emplace_back(
-            LUA_CK_RES(RenderTargetsFromOptions(state, -1)));
+        renderTargets.emplace_back(LUA_CK_RES(RenderTargetsFromOptions(state, -1)));
         lua_pop(state, 1);
         continue;
       }
@@ -508,8 +482,7 @@ auto wrap_SetRenderTargets(lua_State *state) -> int {
       lua_pop(state, 1);
     }
   } else {
-    return luaL_error(state,
-                      "Invalid arguments to RenderTarget.setRenderTargets");
+    return luaL_error(state, "Invalid arguments to RenderTarget.setRenderTargets");
   }
 
   LUA_CK_ERR(Graphics::RenderState::SetRenderTargets(*ctx, renderTargets));

@@ -21,8 +21,7 @@ enum class MatchType : uint8_t {
 };
 
 auto DrawEntity(const flecs::entity &entity) -> bool;
-auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter)
-    -> void;
+auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter) -> void;
 auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error;
 auto EntityName(const flecs::entity &entity) -> std::string_view;
 
@@ -87,16 +86,14 @@ struct Editor {
   static std::vector<flecs::entity> SelectedEntities;
   static flecs::entity EditorCamera;
 
-  static void GizmoTranslation(const Math::Ray &currentRay,
-                               Transform &transform);
+  static void GizmoTranslation(const Math::Ray &currentRay, Transform &transform);
   static void GizmoRotation(const Math::Ray &currentRay, Transform &transform);
   static void GizmoScale(Transform &transform);
   static void TransformGizmo(const Math::Ray &currentRay, Transform &transform);
   static auto DrawGizmo() -> void;
 
   // Mouse position is expected to be within the range [0, 1]
-  static auto PickEntity(const Graphics::GraphicsContext &context,
-                         Math::Vec2 mousePos) -> Error;
+  static auto PickEntity(const Graphics::GraphicsContext &context, Math::Vec2 mousePos) -> Error;
 
   static auto PopEntityPickResult() -> Result<std::optional<PickEntityResult>>;
 

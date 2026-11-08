@@ -6,9 +6,7 @@ namespace Graphics {
 
 struct GraphicsContext;
 
-auto PrepareRendering(const GraphicsContext &context,
-                      VkCommandBuffer vkCommandBuffer) -> Error;
-auto EndRendering(const GraphicsContext &context,
-                  VkCommandBuffer vkCommandBuffer) -> void;
+auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer) -> Error;
+auto EndRendering(const GraphicsContext &context, VkCommandBuffer vkCommandBuffer) -> void;
 
 } // namespace Graphics

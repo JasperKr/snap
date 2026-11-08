@@ -10,8 +10,7 @@
 
 namespace LuaWrap::Data {
 
-using LuaType = std::variant<std::monostate, bool, double, std::string, Proxy,
-                             std::vector<struct LuaData>>;
+using LuaType = std::variant<std::monostate, bool, double, std::string, Proxy, std::vector<struct LuaData>>;
 
 struct LuaData {
   LuaType key;

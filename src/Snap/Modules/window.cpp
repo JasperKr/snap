@@ -28,15 +28,13 @@ auto IsFullscreen(SDL_Window *window) -> bool {
   Uint32 flags = SDL_GetWindowFlags(window);
   return (flags & SDL_WINDOW_FULLSCREEN) != 0;
 }
-auto GetFullscreenDimensions(SDL_Window *window, int displayIndex)
-    -> std::vector<Math::Uvec2> {
+auto GetFullscreenDimensions(SDL_Window *window, int displayIndex) -> std::vector<Math::Uvec2> {
   std::vector<Math::Uvec2> resolutions;
   int modeCount = 0;
   auto **modes = SDL_GetFullscreenDisplayModes(displayIndex, &modeCount);
   for (int i = 0; i < modeCount; ++i) {
     SDL_DisplayMode mode = *modes[i]; // NOLINT pointer arithmetic
-    resolutions.emplace_back(static_cast<uint32_t>(mode.w),
-                             static_cast<uint32_t>(mode.h));
+    resolutions.emplace_back(static_cast<uint32_t>(mode.w), static_cast<uint32_t>(mode.h));
   }
 
   return resolutions;
@@ -69,16 +67,12 @@ auto GetDimensions(SDL_Window *window) -> Math::Uvec2 {
   return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 }
 
-auto SetDimensions(SDL_Window *window, int width, int height) -> void {
-  SDL_SetWindowSize(window, width, height);
-}
+auto SetDimensions(SDL_Window *window, int width, int height) -> void { SDL_SetWindowSize(window, width, height); }
 
 auto SetIcon(SDL_Window *window, const Ref<Image::ImageData> &icon) -> void {
   if (icon.get() != nullptr && icon->GetFormat() == VK_FORMAT_R8G8B8A8_UNORM) {
-    SDL_Surface *surface = SDL_CreateSurfaceFrom(
-        static_cast<int>(icon->GetWidth()), static_cast<int>(icon->GetHeight()),
-        SDL_PIXELFORMAT_RGBA8888, icon->GetDataPtr(),
-        static_cast<int>(icon->GetWidth() * 4));
+    SDL_Surface *surface = SDL_CreateSurfaceFrom(static_cast<int>(icon->GetWidth()), static_cast<int>(icon->GetHeight()), SDL_PIXELFORMAT_RGBA8888,
+                                                 icon->GetDataPtr(), static_cast<int>(icon->GetWidth() * 4));
 
     if (surface != nullptr) {
       SDL_SetWindowIcon(window, surface);
@@ -107,11 +101,9 @@ auto GetSettings(WindowContext &wcontext) -> Settings {
 
   if (settings.fullscreen) {
     const auto *mode = SDL_GetWindowFullscreenMode(window);
-    settings.fullscreenMode = (mode == nullptr) ? FullscreenMode::Borderless
-                                                : FullscreenMode::Fullscreen;
+    settings.fullscreenMode = (mode == nullptr) ? FullscreenMode::Borderless : FullscreenMode::Fullscreen;
   }
-  bool success = SDL_GetWindowMinimumSize(window, &settings.minimumWidth,
-                                          &settings.minimumHeight);
+  bool success = SDL_GetWindowMinimumSize(window, &settings.minimumWidth, &settings.minimumHeight);
   if (!success) {
     settings.minimumWidth = 0;
     settings.minimumHeight = 0;
@@ -133,15 +125,13 @@ auto SetSettings(WindowContext &wcontext, const Settings &settings) -> void {
   wcontext.vsync = settings.vsync;
   wcontext.swapchainOutOfDate = true;
 
-  SDL_SetWindowMinimumSize(window, settings.minimumWidth,
-                           settings.minimumHeight);
+  SDL_SetWindowMinimumSize(window, settings.minimumWidth, settings.minimumHeight);
   SDL_SetWindowPosition(window, settings.xPosition, settings.yPosition);
 
   SetColorSpace(wcontext, settings.colorSpace);
 }
 
-auto UpdateSettings(WindowContext &wcontext, const SettingsUpdate &update)
-    -> void {
+auto UpdateSettings(WindowContext &wcontext, const SettingsUpdate &update) -> void {
   Settings currentSettings = GetSettings(wcontext);
   Settings newSettings = currentSettings;
 
@@ -189,18 +179,14 @@ auto GetTitle(SDL_Window *window) -> std::string {
   const char *title = SDL_GetWindowTitle(window);
   return (title != nullptr) ? std::string(title) : std::string();
 }
-auto SetTitle(SDL_Window *window, const std::string &title) -> void {
-  SDL_SetWindowTitle(window, title.c_str());
-}
+auto SetTitle(SDL_Window *window, const std::string &title) -> void { SDL_SetWindowTitle(window, title.c_str()); }
 
 auto GetPosition(SDL_Window *window) -> Math::Ivec2 {
   Math::Ivec2 pos{};
   SDL_GetWindowPosition(window, &pos.x, &pos.y);
   return pos;
 }
-auto SetPosition(SDL_Window *window, int x_pos, int y_pos) -> void {
-  SDL_SetWindowPosition(window, x_pos, y_pos);
-}
+auto SetPosition(SDL_Window *window, int x_pos, int y_pos) -> void { SDL_SetWindowPosition(window, x_pos, y_pos); }
 
 auto SetVSync(SDL_Window *window, VsyncMode vsync) -> void {
   WindowContext *wcontext = GetWindowContext();
@@ -248,33 +234,22 @@ auto EnableDisplaySleep(SDL_Window *window, bool enable) -> void {
   }
 }
 
-auto IsDisplaySleepEnabled(SDL_Window *window) -> bool {
-  return SDL_ScreenSaverEnabled();
-}
+auto IsDisplaySleepEnabled(SDL_Window *window) -> bool { return SDL_ScreenSaverEnabled(); }
 
-auto RequestAttention(SDL_Window *window, bool continuous) -> void {
-  SDL_FlashWindow(window,
-                  continuous ? SDL_FLASH_UNTIL_FOCUSED : SDL_FLASH_BRIEFLY);
-}
+auto RequestAttention(SDL_Window *window, bool continuous) -> void { SDL_FlashWindow(window, continuous ? SDL_FLASH_UNTIL_FOCUSED : SDL_FLASH_BRIEFLY); }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 WindowContext *global_window_context;
 
 auto GetWindowContext() -> WindowContext * { return global_window_context; }
-auto SetWindowContext(WindowContext &context) -> void {
-  global_window_context = &context;
-}
+auto SetWindowContext(WindowContext &context) -> void { global_window_context = &context; }
 
 auto SetColorSpace(WindowContext &window, ColorSpace colorSpace) -> void {
   window.colorSpace = colorSpace;
   window.swapchainOutOfDate = true;
 
-  Graphics::DefaultPixelFormat = (colorSpace == ColorSpace::Linear)
-                                     ? VK_FORMAT_R8G8B8A8_UNORM
-                                     : VK_FORMAT_R8G8B8A8_SRGB;
+  Graphics::DefaultPixelFormat = (colorSpace == ColorSpace::Linear) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
 }
-auto GetColorSpace(WindowContext &window) -> ColorSpace {
-  return window.colorSpace;
-}
+auto GetColorSpace(WindowContext &window) -> ColorSpace { return window.colorSpace; }
 
 } // namespace Window

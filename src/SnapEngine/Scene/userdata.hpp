@@ -23,9 +23,7 @@ struct Userdata {
     return currentIndex++;
   }
 
-  static auto FreeUserdataIndex(int32_t index) -> void {
-    FreedUserdataIndices.emplace_back(index);
-  }
+  static auto FreeUserdataIndex(int32_t index) -> void { FreedUserdataIndices.emplace_back(index); }
 
   static auto SetUserdata(lua_State *state) -> int;
   static auto GetUserdata(lua_State *state) -> int;

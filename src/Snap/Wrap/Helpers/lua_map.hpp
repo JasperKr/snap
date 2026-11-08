@@ -7,83 +7,67 @@
 
 namespace LuaWrap {
 
-template <typename K>
-inline auto ConvertLuaKey(lua_State *state, int index) -> Result<K> {
-  if constexpr (std::is_same_v<K, std::string> ||
-                std::is_same_v<K, const char *>) {
+template <typename K> inline auto ConvertLuaKey(lua_State *state, int index) -> Result<K> {
+  if constexpr (std::is_same_v<K, std::string> || std::is_same_v<K, const char *>) {
     if (!lua_isstring(state, index)) {
-      return Error::Createf("Expected string keys in the table at index {}",
-                            index);
+      return Error::Createf("Expected string keys in the table at index {}", index);
     }
     return lua_tostring(state, index);
   } else if constexpr (std::is_same_v<K, double>) {
     if (!lua_isnumber(state, index)) {
-      return Error::Createf("Expected number keys in the table at index {}",
-                            index);
+      return Error::Createf("Expected number keys in the table at index {}", index);
     }
     return lua_tonumber(state, index);
   } else if constexpr (std::is_same_v<K, int>) {
     if (!lua_isnumber(state, index)) {
-      return Error::Createf("Expected integer keys in the table at index {}",
-                            index);
+      return Error::Createf("Expected integer keys in the table at index {}", index);
     }
     return lua_tointeger(state, index);
   } else if constexpr (std::is_same_v<K, bool>) {
     if (!lua_isboolean(state, index)) {
-      return Error::Createf("Expected boolean keys in the table at index {}",
-                            index);
+      return Error::Createf("Expected boolean keys in the table at index {}", index);
     }
     return lua_toboolean(state, index) != 0;
   } else {
     auto keyResult = ObjectFromLua<K>(state, index);
     if (!keyResult) {
-      return Error::Createf("Failed to convert key at index {}: {}", index,
-                            keyResult.Error().Message());
+      return Error::Createf("Failed to convert key at index {}: {}", index, keyResult.Error().Message());
     }
     return keyResult.Value();
   }
 }
 
-template <typename V>
-inline auto ConvertLuaValue(lua_State *state, int index) -> Result<V> {
-  if constexpr (std::is_same_v<V, std::string> ||
-                std::is_same_v<V, const char *>) {
+template <typename V> inline auto ConvertLuaValue(lua_State *state, int index) -> Result<V> {
+  if constexpr (std::is_same_v<V, std::string> || std::is_same_v<V, const char *>) {
     if (!lua_isstring(state, index)) {
-      return Error::Createf("Expected string values in the table at index {}",
-                            index);
+      return Error::Createf("Expected string values in the table at index {}", index);
     }
     return lua_tostring(state, index);
   } else if constexpr (std::is_same_v<V, double>) {
     if (!lua_isnumber(state, index)) {
-      return Error::Createf("Expected number values in the table at index {}",
-                            index);
+      return Error::Createf("Expected number values in the table at index {}", index);
     }
     return lua_tonumber(state, index);
   } else if constexpr (std::is_same_v<V, int>) {
     if (!lua_isnumber(state, index)) {
-      return Error::Createf("Expected integer values in the table at index {}",
-                            index);
+      return Error::Createf("Expected integer values in the table at index {}", index);
     }
     return lua_tointeger(state, index);
   } else if constexpr (std::is_same_v<V, bool>) {
     if (!lua_isboolean(state, index)) {
-      return Error::Createf("Expected boolean values in the table at index {}",
-                            index);
+      return Error::Createf("Expected boolean values in the table at index {}", index);
     }
     return lua_toboolean(state, index) != 0;
   } else {
     auto valueResult = ObjectFromLua<V>(state, index);
     if (!valueResult) {
-      return Error::Createf("Failed to convert value at index {}: {}", index,
-                            valueResult.Error().Message());
+      return Error::Createf("Failed to convert value at index {}: {}", index, valueResult.Error().Message());
     }
     return valueResult.Value();
   }
 }
 
-template <typename K, typename V, typename H = std::hash<K>>
-auto PushMap(lua_State *state, const std::unordered_map<K, V, H> &value)
-    -> void {
+template <typename K, typename V, typename H = std::hash<K>> auto PushMap(lua_State *state, const std::unordered_map<K, V, H> &value) -> void {
   lua_newtable(state);
   for (std::size_t i = 0; i < value.size(); ++i) {
     // Push the key
@@ -119,9 +103,7 @@ auto PushMap(lua_State *state, const std::unordered_map<K, V, H> &value)
     lua_rawset(state, -3);
   }
 }
-template <typename K, typename V, typename H = std::hash<K>>
-inline auto MapFromLua(lua_State *state, int index)
-    -> Result<std::unordered_map<K, V, H>> {
+template <typename K, typename V, typename H = std::hash<K>> inline auto MapFromLua(lua_State *state, int index) -> Result<std::unordered_map<K, V, H>> {
   if (!lua_istable(state, index)) {
     return Error::Createf("Expected a table at index {}", index);
   }
@@ -137,18 +119,15 @@ inline auto MapFromLua(lua_State *state, int index)
     if (!valueResult) {
       return valueResult.Error();
     }
-    result.emplace(std::move(keyResult.Value()),
-                   std::move(valueResult.Value()));
+    result.emplace(std::move(keyResult.Value()), std::move(valueResult.Value()));
     lua_pop(state, 1); // Remove value, keep key for next iteration
   }
   return result;
 }
 
 // Variant: PushMap with custom conversion
-template <typename K, typename V, typename H = std::hash<K>,
-          typename KeyToLuaFn, typename ValueToLuaFn>
-auto PushMap(lua_State *state, const std::unordered_map<K, V, H> &value,
-             KeyToLuaFn keyToLua, ValueToLuaFn valueToLua) -> void {
+template <typename K, typename V, typename H = std::hash<K>, typename KeyToLuaFn, typename ValueToLuaFn>
+auto PushMap(lua_State *state, const std::unordered_map<K, V, H> &value, KeyToLuaFn keyToLua, ValueToLuaFn valueToLua) -> void {
   lua_newtable(state);
   for (const auto &pair : value) {
     keyToLua(state, pair.first);
@@ -158,11 +137,8 @@ auto PushMap(lua_State *state, const std::unordered_map<K, V, H> &value,
 }
 
 // Variant: MapFromLua with custom conversion
-template <typename K, typename V, typename H = std::hash<K>,
-          typename KeyFromLuaFn, typename ValueFromLuaFn>
-inline auto MapFromLua(lua_State *state, int index, KeyFromLuaFn keyFromLua,
-                       ValueFromLuaFn valueFromLua)
-    -> Result<std::unordered_map<K, V, H>> {
+template <typename K, typename V, typename H = std::hash<K>, typename KeyFromLuaFn, typename ValueFromLuaFn>
+inline auto MapFromLua(lua_State *state, int index, KeyFromLuaFn keyFromLua, ValueFromLuaFn valueFromLua) -> Result<std::unordered_map<K, V, H>> {
   if (!lua_istable(state, index)) {
     return Error::Createf("Expected a table at index {}", index);
   }
@@ -177,8 +153,7 @@ inline auto MapFromLua(lua_State *state, int index, KeyFromLuaFn keyFromLua,
     if (!valueResult) {
       return valueResult.Error();
     }
-    result.emplace(std::move(keyResult.Value()),
-                   std::move(valueResult.Value()));
+    result.emplace(std::move(keyResult.Value()), std::move(valueResult.Value()));
     lua_pop(state, 1);
   }
   return result;

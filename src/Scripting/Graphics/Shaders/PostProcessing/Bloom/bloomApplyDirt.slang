@@ -4,8 +4,7 @@ uniform Sampler2D.Handle mainScene;
 
 #include "fullscreen.slang"
 
-[shader("fragment")]
-float4 fragmentMain(float2 tex_coord: TEXCOORDS) {
+[shader("fragment")] float4 fragmentMain(float2 tex_coord : TEXCOORDS) {
   float abberationScale = length(tex_coord - 0.5) + 0.5;
   float lod = Lod;
   float offset = 0.005 * abberationScale;

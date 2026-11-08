@@ -23,8 +23,7 @@ struct RectangleLight {
 
   static auto GetBufferFormat() -> Graphics::BufferFormat &;
 
-  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const
-      -> Error;
+  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const -> Error;
 
   // -1 if no free index is available
   static auto GetFreeBufferIndex() -> int32_t {
@@ -43,9 +42,7 @@ struct LuaRectangleLight : LuaWrap::LuaECSObject {
 
   static auto Create(lua_State *state) -> int;
   static auto GetType() -> const Type * { return &rectangleLightType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &rectangleLightType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &rectangleLightType; }
 };
 
 extern const ::LuaWrap::LuaClass RectangleLightClass;

@@ -20,8 +20,7 @@ public:
 namespace LuaWrap {
 
 template <typename T>
-concept IsLuaECSObject =
-    std::is_base_of_v<Engine::LuaWrap::LuaECSObject, std::remove_cvref_t<T>>;
+concept IsLuaECSObject = std::is_base_of_v<Engine::LuaWrap::LuaECSObject, std::remove_cvref_t<T>>;
 
 inline auto EntityFromLua(lua_State *state, int index) -> flecs::entity * {
   // Check if userdata
@@ -50,8 +49,7 @@ inline auto EntityFromLua(lua_State *state, int index) -> flecs::entity * {
   return &obj->entity;
 }
 
-template <typename T>
-inline auto ComponentFromLua(lua_State *state, int index) -> Result<T *> {
+template <typename T> inline auto ComponentFromLua(lua_State *state, int index) -> Result<T *> {
   auto *entity = EntityFromLua(state, index);
   CHECK_NULL(entity);
 

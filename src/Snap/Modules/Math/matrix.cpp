@@ -15,9 +15,7 @@ Matrix4x4::Matrix4x4(Matrix3x3 init) {
   At(3, 3) = 1.0F;
 }
 
-auto Matrix4x4::FromRows(std::initializer_list<float> init) -> Matrix4x4 {
-  return {init};
-}
+auto Matrix4x4::FromRows(std::initializer_list<float> init) -> Matrix4x4 { return {init}; }
 
 auto Matrix4x4::At(size_t row, size_t col) -> float & {
 #ifndef NDEBUG
@@ -59,72 +57,55 @@ auto Matrix4x4::Determinant() const -> std::pair<float, Matrix4x4> {
 
   // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
-  inv[0] = (At(5) * At(10) * At(15)) - (At(5) * At(11) * At(14)) -
-           (At(9) * At(6) * At(15)) + (At(9) * At(7) * At(14)) +
-           (At(13) * At(6) * At(11)) - (At(13) * At(7) * At(10));
+  inv[0] = (At(5) * At(10) * At(15)) - (At(5) * At(11) * At(14)) - (At(9) * At(6) * At(15)) + (At(9) * At(7) * At(14)) + (At(13) * At(6) * At(11)) -
+           (At(13) * At(7) * At(10));
 
-  inv[4] = (-At(4) * At(10) * At(15)) + (At(4) * At(11) * At(14)) +
-           (At(8) * At(6) * At(15)) - (At(8) * At(7) * At(14)) -
-           (At(12) * At(6) * At(11)) + (At(12) * At(7) * At(10));
+  inv[4] = (-At(4) * At(10) * At(15)) + (At(4) * At(11) * At(14)) + (At(8) * At(6) * At(15)) - (At(8) * At(7) * At(14)) - (At(12) * At(6) * At(11)) +
+           (At(12) * At(7) * At(10));
 
-  inv[8] = (At(4) * At(9) * At(15)) - (At(4) * At(11) * At(13)) -
-           (At(8) * At(5) * At(15)) + (At(8) * At(7) * At(13)) +
-           (At(12) * At(5) * At(11)) - (At(12) * At(7) * At(9));
+  inv[8] = (At(4) * At(9) * At(15)) - (At(4) * At(11) * At(13)) - (At(8) * At(5) * At(15)) + (At(8) * At(7) * At(13)) + (At(12) * At(5) * At(11)) -
+           (At(12) * At(7) * At(9));
 
-  inv[12] = (-At(4) * At(9) * At(14)) + (At(4) * At(10) * At(13)) +
-            (At(8) * At(5) * At(14)) - (At(8) * At(6) * At(13)) -
-            (At(12) * At(5) * At(10)) + (At(12) * At(6) * At(9));
+  inv[12] = (-At(4) * At(9) * At(14)) + (At(4) * At(10) * At(13)) + (At(8) * At(5) * At(14)) - (At(8) * At(6) * At(13)) - (At(12) * At(5) * At(10)) +
+            (At(12) * At(6) * At(9));
 
-  inv[1] = (-At(1) * At(10) * At(15)) + (At(1) * At(11) * At(14)) +
-           (At(9) * At(2) * At(15)) - (At(9) * At(3) * At(14)) -
-           (At(13) * At(2) * At(11)) + (At(13) * At(3) * At(10));
+  inv[1] = (-At(1) * At(10) * At(15)) + (At(1) * At(11) * At(14)) + (At(9) * At(2) * At(15)) - (At(9) * At(3) * At(14)) - (At(13) * At(2) * At(11)) +
+           (At(13) * At(3) * At(10));
 
-  inv[5] = (At(0) * At(10) * At(15)) - (At(0) * At(11) * At(14)) -
-           (At(8) * At(2) * At(15)) + (At(8) * At(3) * At(14)) +
-           (At(12) * At(2) * At(11)) - (At(12) * At(3) * At(10));
+  inv[5] = (At(0) * At(10) * At(15)) - (At(0) * At(11) * At(14)) - (At(8) * At(2) * At(15)) + (At(8) * At(3) * At(14)) + (At(12) * At(2) * At(11)) -
+           (At(12) * At(3) * At(10));
 
-  inv[9] = (-At(0) * At(9) * At(15)) + (At(0) * At(11) * At(13)) +
-           (At(8) * At(1) * At(15)) - (At(8) * At(3) * At(13)) -
-           (At(12) * At(1) * At(11)) + (At(12) * At(3) * At(9));
+  inv[9] = (-At(0) * At(9) * At(15)) + (At(0) * At(11) * At(13)) + (At(8) * At(1) * At(15)) - (At(8) * At(3) * At(13)) - (At(12) * At(1) * At(11)) +
+           (At(12) * At(3) * At(9));
 
-  inv[13] = (At(0) * At(9) * At(14)) - (At(0) * At(10) * At(13)) -
-            (At(8) * At(1) * At(14)) + (At(8) * At(2) * At(13)) +
-            (At(12) * At(1) * At(10)) - (At(12) * At(2) * At(9));
+  inv[13] = (At(0) * At(9) * At(14)) - (At(0) * At(10) * At(13)) - (At(8) * At(1) * At(14)) + (At(8) * At(2) * At(13)) + (At(12) * At(1) * At(10)) -
+            (At(12) * At(2) * At(9));
 
-  inv[2] = (At(1) * At(6) * At(15)) - (At(1) * At(7) * At(14)) -
-           (At(5) * At(2) * At(15)) + (At(5) * At(3) * At(14)) +
-           (At(13) * At(2) * At(7)) - (At(13) * At(3) * At(6));
+  inv[2] = (At(1) * At(6) * At(15)) - (At(1) * At(7) * At(14)) - (At(5) * At(2) * At(15)) + (At(5) * At(3) * At(14)) + (At(13) * At(2) * At(7)) -
+           (At(13) * At(3) * At(6));
 
-  inv[6] = (-At(0) * At(6) * At(15)) + (At(0) * At(7) * At(14)) +
-           (At(4) * At(2) * At(15)) - (At(4) * At(3) * At(14)) -
-           (At(12) * At(2) * At(7)) + (At(12) * At(3) * At(6));
+  inv[6] = (-At(0) * At(6) * At(15)) + (At(0) * At(7) * At(14)) + (At(4) * At(2) * At(15)) - (At(4) * At(3) * At(14)) - (At(12) * At(2) * At(7)) +
+           (At(12) * At(3) * At(6));
 
-  inv[10] = (At(0) * At(5) * At(15)) - (At(0) * At(7) * At(13)) -
-            (At(4) * At(1) * At(15)) + (At(4) * At(3) * At(13)) +
-            (At(12) * At(1) * At(7)) - (At(12) * At(3) * At(5));
+  inv[10] = (At(0) * At(5) * At(15)) - (At(0) * At(7) * At(13)) - (At(4) * At(1) * At(15)) + (At(4) * At(3) * At(13)) + (At(12) * At(1) * At(7)) -
+            (At(12) * At(3) * At(5));
 
-  inv[14] = (-At(0) * At(5) * At(14)) + (At(0) * At(6) * At(13)) +
-            (At(4) * At(1) * At(14)) - (At(4) * At(2) * At(13)) -
-            (At(12) * At(1) * At(6)) + (At(12) * At(2) * At(5));
+  inv[14] = (-At(0) * At(5) * At(14)) + (At(0) * At(6) * At(13)) + (At(4) * At(1) * At(14)) - (At(4) * At(2) * At(13)) - (At(12) * At(1) * At(6)) +
+            (At(12) * At(2) * At(5));
 
-  inv[3] = (-At(1) * At(6) * At(11)) + (At(1) * At(7) * At(10)) +
-           (At(5) * At(2) * At(11)) - (At(5) * At(3) * At(10)) -
-           (At(9) * At(2) * At(7)) + (At(9) * At(3) * At(6));
+  inv[3] = (-At(1) * At(6) * At(11)) + (At(1) * At(7) * At(10)) + (At(5) * At(2) * At(11)) - (At(5) * At(3) * At(10)) - (At(9) * At(2) * At(7)) +
+           (At(9) * At(3) * At(6));
 
-  inv[7] = (At(0) * At(6) * At(11)) - (At(0) * At(7) * At(10)) -
-           (At(4) * At(2) * At(11)) + (At(4) * At(3) * At(10)) +
-           (At(8) * At(2) * At(7)) - (At(8) * At(3) * At(6));
+  inv[7] = (At(0) * At(6) * At(11)) - (At(0) * At(7) * At(10)) - (At(4) * At(2) * At(11)) + (At(4) * At(3) * At(10)) + (At(8) * At(2) * At(7)) -
+           (At(8) * At(3) * At(6));
 
-  inv[11] = (-At(0) * At(5) * At(11)) + (At(0) * At(7) * At(9)) +
-            (At(4) * At(1) * At(11)) - (At(4) * At(3) * At(9)) -
-            (At(8) * At(1) * At(7)) + (At(8) * At(3) * At(5));
+  inv[11] = (-At(0) * At(5) * At(11)) + (At(0) * At(7) * At(9)) + (At(4) * At(1) * At(11)) - (At(4) * At(3) * At(9)) - (At(8) * At(1) * At(7)) +
+            (At(8) * At(3) * At(5));
 
-  inv[15] = (At(0) * At(5) * At(10)) - (At(0) * At(6) * At(9)) -
-            (At(4) * At(1) * At(10)) + (At(4) * At(2) * At(9)) +
-            (At(8) * At(1) * At(6)) - ((At(8) * At(2) * At(5)));
+  inv[15] = (At(0) * At(5) * At(10)) - (At(0) * At(6) * At(9)) - (At(4) * At(1) * At(10)) + (At(4) * At(2) * At(9)) + (At(8) * At(1) * At(6)) -
+            ((At(8) * At(2) * At(5)));
 
-  float det = (At(0) * inv[0]) + (At(1) * inv[4]) + (At(2) * inv[8]) +
-              (At(3) * inv[12]);
+  float det = (At(0) * inv[0]) + (At(1) * inv[4]) + (At(2) * inv[8]) + (At(3) * inv[12]);
 
   // NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
@@ -197,9 +178,7 @@ auto Matrix4x4::operator*(const Vec4 &vec) const -> Vec4 {
   return result;
 }
 
-auto Matrix4x4::operator==(const Matrix4x4 &other) const -> bool {
-  return elements == other.elements;
-}
+auto Matrix4x4::operator==(const Matrix4x4 &other) const -> bool { return elements == other.elements; }
 
 auto Matrix4x4::Inverse() const -> Matrix4x4 {
   auto detPair = Determinant();
@@ -207,8 +186,7 @@ auto Matrix4x4::Inverse() const -> Matrix4x4 {
   auto inv = detPair.second;
 
   if (det == 0.0F) {
-    return Matrix4x4{NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                     NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
+    return Matrix4x4{NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
   }
 
   auto invDet = 1.0F / det;
@@ -223,17 +201,11 @@ auto Matrix4x4::Inverse() const -> Matrix4x4 {
   return result;
 }
 
-auto Matrix4x4::InverseTranspose() const -> Matrix4x4 {
-  return Inverse().Transpose();
-}
+auto Matrix4x4::InverseTranspose() const -> Matrix4x4 { return Inverse().Transpose(); }
 
-auto Matrix4x4::GetTranslation() const -> Vec3 {
-  return {At(3, 0), At(3, 1), At(3, 2)};
-}
+auto Matrix4x4::GetTranslation() const -> Vec3 { return {At(3, 0), At(3, 1), At(3, 2)}; }
 
-auto Matrix4x4::operator!=(const Matrix4x4 &other) const -> bool {
-  return !(*this == other);
-}
+auto Matrix4x4::operator!=(const Matrix4x4 &other) const -> bool { return !(*this == other); }
 
 auto Matrix4x4::operator[](size_t index) -> float & {
 #ifndef NDEBUG
@@ -249,8 +221,7 @@ auto Matrix4x4::operator[](size_t index) const -> float {
   return elements.at(index);
 }
 
-auto Matrix4x4::Perspective(float left, float right, float bottom, float top,
-                            float near, float far) -> Matrix4x4 {
+auto Matrix4x4::Perspective(float left, float right, float bottom, float top, float near, float far) -> Matrix4x4 {
 
   auto rml = right - left;
   auto tmb = top - bottom;
@@ -275,8 +246,7 @@ auto Matrix4x4::Perspective(float left, float right, float bottom, float top,
 }
 
 // NOLINTNEXTLINE
-auto Matrix4x4::Perspective(float fov, float aspect, float near, float far)
-    -> Matrix4x4 {
+auto Matrix4x4::Perspective(float fov, float aspect, float near, float far) -> Matrix4x4 {
   float ithf = 1.0F / std::tan(fov / 2.0F); // NOLINT
   float invr = 1.0F / (near - far);
   auto npf = near + far;
@@ -298,8 +268,7 @@ auto Matrix4x4::Perspective(float fov, float aspect, float near, float far)
   return result;
 }
 
-auto Matrix4x4::Orthographic(float left, float right, float bottom, float top,
-                             float nearPlane, float farPlane) -> Matrix4x4 {
+auto Matrix4x4::Orthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane) -> Matrix4x4 {
 
   auto rml = right - left;
   auto tmb = top - bottom;
@@ -324,8 +293,7 @@ auto Matrix4x4::Orthographic(float left, float right, float bottom, float top,
 }
 
 // NOLINTBEGIN
-auto Matrix4x4::Orthographic(float width, float height, float nearPlane,
-                             float farPlane) -> Matrix4x4 {
+auto Matrix4x4::Orthographic(float width, float height, float nearPlane, float farPlane) -> Matrix4x4 {
   float left = -width / 2.0F;
   float right = width / 2.0F;
   float bottom = -height / 2.0F;
@@ -343,8 +311,7 @@ auto Matrix4x4::TranslationMatrix(Vec3 translation) -> Matrix4x4 {
   return result;
 }
 
-auto Matrix4x4::TranslationMatrix(float x_pos, float y_pos, float z_pos)
-    -> Matrix4x4 {
+auto Matrix4x4::TranslationMatrix(float x_pos, float y_pos, float z_pos) -> Matrix4x4 {
   Matrix4x4 result;
   result.At(3, 0) = x_pos;
   result.At(3, 1) = y_pos;
@@ -360,8 +327,7 @@ auto Matrix4x4::ScaleMatrix(Vec3 scale) -> Matrix4x4 {
   return result;
 }
 
-auto Matrix4x4::ScaleMatrix(float x_scale, float y_scale, float z_scale)
-    -> Matrix4x4 {
+auto Matrix4x4::ScaleMatrix(float x_scale, float y_scale, float z_scale) -> Matrix4x4 {
   Matrix4x4 result;
   result.At(0, 0) = x_scale;
   result.At(1, 1) = y_scale;
@@ -370,20 +336,16 @@ auto Matrix4x4::ScaleMatrix(float x_scale, float y_scale, float z_scale)
 }
 
 // NOLINTNEXTLINE
-auto Matrix4x4::TransformationMatrix(Vec3 translation, Vec3 scale,
-                                     Quaternion rotation) -> Matrix4x4 {
+auto Matrix4x4::TransformationMatrix(Vec3 translation, Vec3 scale, Quaternion rotation) -> Matrix4x4 {
   Matrix4x4 translationMatrix = Matrix4x4::TranslationMatrix(translation);
   Matrix4x4 scaleMatrix = Matrix4x4::ScaleMatrix(scale);
   Matrix4x4 rotationMatrix = Conversions::ToMatrix(rotation);
   return scaleMatrix * rotationMatrix * translationMatrix;
 }
 
-auto Matrix4x4::TransformationMatrix(float x_pos, float y_pos, float z_pos,
-                                     float x_scale, float y_scale,
-                                     float z_scale, float x_rot, float y_rot,
-                                     float z_rot, float w_rot) -> Matrix4x4 {
-  Matrix4x4 translationMatrix =
-      Matrix4x4::TranslationMatrix(x_pos, y_pos, z_pos);
+auto Matrix4x4::TransformationMatrix(float x_pos, float y_pos, float z_pos, float x_scale, float y_scale, float z_scale, float x_rot, float y_rot, float z_rot,
+                                     float w_rot) -> Matrix4x4 {
+  Matrix4x4 translationMatrix = Matrix4x4::TranslationMatrix(x_pos, y_pos, z_pos);
   Matrix4x4 scaleMatrix = Matrix4x4::ScaleMatrix(x_scale, y_scale, z_scale);
   Quaternion rotation{x_rot, y_rot, z_rot, w_rot};
   Matrix4x4 rotationMatrix = Conversions::ToMatrix(rotation);
@@ -481,19 +443,13 @@ auto Matrix3x3::operator*(const Vec3 &vec) const -> Vec3 {
   return result;
 }
 
-auto Matrix3x3::operator==(const Matrix3x3 &other) const -> bool {
-  return elements == other.elements;
-}
+auto Matrix3x3::operator==(const Matrix3x3 &other) const -> bool { return elements == other.elements; }
 
-auto Matrix3x3::operator!=(const Matrix3x3 &other) const -> bool {
-  return !(*this == other);
-}
+auto Matrix3x3::operator!=(const Matrix3x3 &other) const -> bool { return !(*this == other); }
 
 auto Matrix3x3::Determinant() const -> std::pair<float, Matrix3x3> {
   // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
-  float det = (At(0) * (At(4) * At(8) - At(5) * At(7))) -
-              (At(1) * (At(3) * At(8) - At(5) * At(6))) +
-              (At(2) * (At(3) * At(7) - At(4) * At(6)));
+  float det = (At(0) * (At(4) * At(8) - At(5) * At(7))) - (At(1) * (At(3) * At(8) - At(5) * At(6))) + (At(2) * (At(3) * At(7) - At(4) * At(6)));
 
   Matrix3x3 cofactorMatrix{};
   cofactorMatrix.At(0) = (At(4) * At(8)) - (At(5) * At(7));
@@ -510,9 +466,7 @@ auto Matrix3x3::Determinant() const -> std::pair<float, Matrix3x3> {
   return {det, cofactorMatrix.Transpose()};
 }
 
-auto Matrix3x3::Inverse() const -> Matrix3x3 {
-  return InverseTranspose().Transpose();
-}
+auto Matrix3x3::Inverse() const -> Matrix3x3 { return InverseTranspose().Transpose(); }
 
 auto Matrix3x3::InverseTranspose() const -> Matrix3x3 {
   auto detPair = Determinant();

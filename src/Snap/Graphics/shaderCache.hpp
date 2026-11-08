@@ -29,8 +29,7 @@ struct ShaderCache {
 struct ShaderCacheManager {
   const char *cachePath = ".shaderCache";
 
-  auto TryLoadModule(const std::string_view &modulename)
-      -> Result<std::optional<ShaderCache>>;
+  auto TryLoadModule(const std::string_view &modulename) -> Result<std::optional<ShaderCache>>;
 
   auto SaveModule(const ShaderCache &cache) -> Error;
 };

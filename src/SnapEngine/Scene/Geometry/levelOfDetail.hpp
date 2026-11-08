@@ -13,11 +13,9 @@ struct LevelOfDetail {
   // This threshold determines when to switch to the next level of detail.
   float TransitionThreshold = 0.0F;
 
-  static auto CreateLevelOfDetail(flecs::world &world, const std::string &name,
-                                  float transitionThreshold) -> flecs::entity {
+  static auto CreateLevelOfDetail(flecs::world &world, const std::string &name, float transitionThreshold) -> flecs::entity {
     auto lod = world.entity(name.c_str());
-    lod.set<LevelOfDetail>(
-        LevelOfDetail{.TransitionThreshold = transitionThreshold});
+    lod.set<LevelOfDetail>(LevelOfDetail{.TransitionThreshold = transitionThreshold});
 
     lod.add<Engine::WorldBounds>();
     lod.add<Engine::LocalBounds>();
@@ -32,17 +30,12 @@ struct LevelOfDetail {
 static const Type levelOfDetailType = Type("LevelOfDetail");
 
 struct LuaLevelOfDetail : LuaWrap::LuaECSObject {
-  explicit LuaLevelOfDetail(const flecs::entity &entity)
-      : LuaECSObject(entity) {}
+  explicit LuaLevelOfDetail(const flecs::entity &entity) : LuaECSObject(entity) {}
 
   static auto GetType() -> const Type * { return &levelOfDetailType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &levelOfDetailType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &levelOfDetailType; }
 
-  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaLevelOfDetail> {
-    return Ref<LuaLevelOfDetail>::Make(entity);
-  }
+  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaLevelOfDetail> { return Ref<LuaLevelOfDetail>::Make(entity); }
 
   static auto Create(lua_State *state) -> int;
 

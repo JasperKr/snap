@@ -21,8 +21,7 @@ auto BoundingBox::Union(const BoundingBox &other) const -> BoundingBox {
   return result;
 }
 
-auto BoundingBox::Union(const BoundingBox &other, BoundingBox &result) const
-    -> void {
+auto BoundingBox::Union(const BoundingBox &other, BoundingBox &result) const -> void {
   result.Min = Math::Min(Min, other.Min);
   result.Max = Math::Max(Max, other.Max);
 }
@@ -39,8 +38,7 @@ auto BoundingBox::Intersect(const BoundingBox &other) const -> BoundingBox {
   return result;
 }
 
-auto BoundingBox::Intersect(const BoundingBox &other, BoundingBox &result) const
-    -> void {
+auto BoundingBox::Intersect(const BoundingBox &other, BoundingBox &result) const -> void {
   result.Min = Math::Max(Min, other.Min);
   result.Max = Math::Min(Max, other.Max);
 }
@@ -50,17 +48,14 @@ auto BoundingBox::IntersectInPlace(const BoundingBox &other) -> void {
   Max = Math::Min(Max, other.Max);
 }
 
-auto BoundingBox::IsValid() const -> bool {
-  return Min.x <= Max.x && Min.y <= Max.y && Min.z <= Max.z;
-}
+auto BoundingBox::IsValid() const -> bool { return Min.x <= Max.x && Min.y <= Max.y && Min.z <= Max.z; }
 
 /*
 auto Construct(const Transform &transform, const BoundingBox &localBounds)
       -> void;
 */
 
-auto BoundingBox::Construct(const Transform &transform,
-                            const BoundingBox &localBounds) -> void {
+auto BoundingBox::Construct(const Transform &transform, const BoundingBox &localBounds) -> void {
   // Get the 8 corners of the local bounding box
   auto center = localBounds.GetCenter();
   auto extents = localBounds.GetSize() * 0.5F; // NOLINT
@@ -213,8 +208,7 @@ auto LuaBoundingBox::Union(lua_State *state) -> int {
   auto boundingBox2 = luaBoundingBox2->get_ref<BoundingBox>();
 
   if (boundingBox1.get() == nullptr || boundingBox2.get() == nullptr) {
-    return luaL_error(state,
-                      "BoundingBox component not found in one of the objects");
+    return luaL_error(state, "BoundingBox component not found in one of the objects");
   }
 
   auto luaBoundingBoxOut = ::LuaWrap::ObjectFromLua<LuaBoundingBox>(state, 3);
@@ -225,21 +219,18 @@ auto LuaBoundingBox::Union(lua_State *state) -> int {
     auto resultEntity = luaBoundingBox1->world().entity();
     resultEntity.set<BoundingBox>(result);
     auto resultLuaBoundingBox = LuaBoundingBox(resultEntity);
-    ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(),
-                          &resultLuaBoundingBox);
+    ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(), &resultLuaBoundingBox);
     return 1;
   }
 
   auto boundingBoxOut = luaBoundingBoxOut->entity.get_ref<BoundingBox>();
   if (boundingBoxOut.get() == nullptr) {
-    return luaL_error(state,
-                      "BoundingBox component not found in output object");
+    return luaL_error(state, "BoundingBox component not found in output object");
   }
 
   boundingBox1->Union(*boundingBox2.get(), *boundingBoxOut.get());
 
-  ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(),
-                        luaBoundingBoxOut.get());
+  ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(), luaBoundingBoxOut.get());
 
   return 1;
 }
@@ -256,8 +247,7 @@ auto LuaBoundingBox::Intersect(lua_State *state) -> int {
   auto boundingBox2 = luaBoundingBox2->get_ref<BoundingBox>();
 
   if (boundingBox1.get() == nullptr || boundingBox2.get() == nullptr) {
-    return luaL_error(state,
-                      "BoundingBox component not found in one of the objects");
+    return luaL_error(state, "BoundingBox component not found in one of the objects");
   }
 
   auto luaBoundingBoxOut = ::LuaWrap::ObjectFromLua<LuaBoundingBox>(state, 3);
@@ -269,20 +259,17 @@ auto LuaBoundingBox::Intersect(lua_State *state) -> int {
     auto resultEntity = luaBoundingBox1->world().entity();
     resultEntity.set<BoundingBox>(result);
     auto resultLuaBoundingBox = LuaBoundingBox(resultEntity);
-    ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(),
-                          &resultLuaBoundingBox);
+    ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(), &resultLuaBoundingBox);
     return 1;
   }
 
   auto boundingBoxOut = luaBoundingBoxOut->entity.get_ref<BoundingBox>();
   if (boundingBoxOut.get() == nullptr) {
-    return luaL_error(state,
-                      "BoundingBox component not found in output object");
+    return luaL_error(state, "BoundingBox component not found in output object");
   }
 
   boundingBox1->Intersect(*boundingBox2.get(), *boundingBoxOut.get());
-  ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(),
-                        luaBoundingBoxOut.get());
+  ::LuaWrap::PushObject(state, LuaBoundingBox::GetType(), luaBoundingBoxOut.get());
 
   return 1;
 }
@@ -299,8 +286,7 @@ auto LuaBoundingBox::UnionInPlace(lua_State *state) -> int {
   auto boundingBox2 = luaBoundingBox2->get_ref<BoundingBox>();
 
   if (boundingBox1.get() == nullptr || boundingBox2.get() == nullptr) {
-    return luaL_error(state,
-                      "BoundingBox component not found in one of the objects");
+    return luaL_error(state, "BoundingBox component not found in one of the objects");
   }
 
   boundingBox1->UnionInPlace(*boundingBox2.get());
@@ -319,28 +305,26 @@ auto LuaBoundingBox::IntersectInPlace(lua_State *state) -> int {
   auto boundingBox2 = luaBoundingBox2->get_ref<BoundingBox>();
 
   if (boundingBox1.get() == nullptr || boundingBox2.get() == nullptr) {
-    return luaL_error(state,
-                      "BoundingBox component not found in one of the objects");
+    return luaL_error(state, "BoundingBox component not found in one of the objects");
   }
 
   boundingBox1->IntersectInPlace(*boundingBox2.get());
   return 0;
 }
 
-const ::LuaWrap::LuaClass BoundingBoxClass = {
-    .Name = "BoundingBox",
-    .Type = LuaBoundingBox::GetType(),
-    .Methods = {
-        {"getMin", LuaBoundingBox::GetMin},
-        {"setMin", LuaBoundingBox::SetMin},
-        {"getMax", LuaBoundingBox::GetMax},
-        {"setMax", LuaBoundingBox::SetMax},
-        {"getCenter", LuaBoundingBox::GetCenter},
-        {"getSize", LuaBoundingBox::GetSize},
-        {"union", LuaBoundingBox::Union},
-        {"intersect", LuaBoundingBox::Intersect},
-        {"unionInPlace", LuaBoundingBox::UnionInPlace},
-        {"intersectInPlace", LuaBoundingBox::IntersectInPlace},
-    }};
+const ::LuaWrap::LuaClass BoundingBoxClass = {.Name = "BoundingBox",
+                                              .Type = LuaBoundingBox::GetType(),
+                                              .Methods = {
+                                                  {"getMin", LuaBoundingBox::GetMin},
+                                                  {"setMin", LuaBoundingBox::SetMin},
+                                                  {"getMax", LuaBoundingBox::GetMax},
+                                                  {"setMax", LuaBoundingBox::SetMax},
+                                                  {"getCenter", LuaBoundingBox::GetCenter},
+                                                  {"getSize", LuaBoundingBox::GetSize},
+                                                  {"union", LuaBoundingBox::Union},
+                                                  {"intersect", LuaBoundingBox::Intersect},
+                                                  {"unionInPlace", LuaBoundingBox::UnionInPlace},
+                                                  {"intersectInPlace", LuaBoundingBox::IntersectInPlace},
+                                              }};
 
 } // namespace Engine

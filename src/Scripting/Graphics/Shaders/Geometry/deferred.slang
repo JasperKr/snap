@@ -93,11 +93,9 @@ FragmentOutput fragmentMain(FragmentInput input) {
 
   float3 albedo = texColor.rgb * matData.albedoFactor.rgb;
 
-  float2 metallicRoughness =
-      MetallicRoughnessTexture.Sample(input.tex_coord).bg;
+  float2 metallicRoughness = MetallicRoughnessTexture.Sample(input.tex_coord).bg;
 
-  float3 normalMap =
-      normalize(NormalTexture.Sample(input.tex_coord).xyz * 2.0f - 1.0f);
+  float3 normalMap = normalize(NormalTexture.Sample(input.tex_coord).xyz * 2.0f - 1.0f);
 
   float3 bitangent = cross(normal, tangent.xyz) * tangent.w;
   float3x3 TBN = float3x3(tangent.xyz, bitangent, normal);
@@ -111,8 +109,7 @@ FragmentOutput fragmentMain(FragmentInput input) {
   float perceptualRoughness = metallicRoughness.y * matData.roughnessFactor;
   float reflectance = reflectanceSample * matData.reflectanceFactor;
 
-  MaterialChannel material =
-      MaterialChannel(metallic, perceptualRoughness, reflectance, 1.0F);
+  MaterialChannel material = MaterialChannel(metallic, perceptualRoughness, reflectance, 1.0F);
 
   float3 emissive = emissiveSample * matData.emissiveFactor;
 
@@ -125,7 +122,5 @@ FragmentOutput fragmentMain(FragmentInput input) {
   float2 motion = currentNDC - previousNDC;
   // motion = motion * 0.5 + 0.5; // remap to [0, 1] range
 
-  return FragmentOutput(
-      float4(albedo, 0.0), float4(normalize(normal) * 0.5 + 0.5, 0.0),
-      material.packed, float4(emissive, 1.0), PackMotionVector(motion));
+  return FragmentOutput(float4(albedo, 0.0), float4(normalize(normal) * 0.5 + 0.5, 0.0), material.packed, float4(emissive, 1.0), PackMotionVector(motion));
 }

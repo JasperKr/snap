@@ -129,8 +129,7 @@ struct Event {
   Timestamp timestamp;
 
   auto DrawImGui(struct ThreadSnapshot const *parent) const -> void;
-  virtual auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void;
+  virtual auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void;
 };
 
 struct GraphicsEvent {
@@ -152,14 +151,10 @@ struct BufferCreateEvent : public Event {
 
   BufferCreateEvent() : Event(EventType::Create_Buffer) {}
 
-  BufferCreateEvent(Handle bufferHandle, Handle memoryHandle, VkDeviceSize size,
-                    uint32_t usage, uint32_t properties)
-      : Event(EventType::Create_Buffer), bufferHandle(bufferHandle),
-        memoryHandle(memoryHandle), size(size), usage(usage),
-        properties(properties) {}
+  BufferCreateEvent(Handle bufferHandle, Handle memoryHandle, VkDeviceSize size, uint32_t usage, uint32_t properties)
+      : Event(EventType::Create_Buffer), bufferHandle(bufferHandle), memoryHandle(memoryHandle), size(size), usage(usage), properties(properties) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct BufferDestroyEvent : public Event {
@@ -168,12 +163,9 @@ struct BufferDestroyEvent : public Event {
 
   BufferDestroyEvent() : Event(EventType::Destroy_Buffer) {}
 
-  BufferDestroyEvent(Handle bufferHandle, Handle memoryHandle)
-      : Event(EventType::Destroy_Buffer), bufferHandle(bufferHandle),
-        memoryHandle(memoryHandle) {}
+  BufferDestroyEvent(Handle bufferHandle, Handle memoryHandle) : Event(EventType::Destroy_Buffer), bufferHandle(bufferHandle), memoryHandle(memoryHandle) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct BufferUploadEvent : public Event {
@@ -184,14 +176,10 @@ struct BufferUploadEvent : public Event {
   std::vector<uint8_t> data;
 
   BufferUploadEvent() : Event(EventType::Upload_To_Buffer) {}
-  BufferUploadEvent(Handle bufferHandle, Handle memoryHandle,
-                    VkDeviceSize offset, VkDeviceSize size,
-                    const std::vector<uint8_t> &data)
-      : Event(EventType::Upload_To_Buffer), bufferHandle(bufferHandle),
-        memoryHandle(memoryHandle), offset(offset), size(size), data(data) {}
+  BufferUploadEvent(Handle bufferHandle, Handle memoryHandle, VkDeviceSize offset, VkDeviceSize size, const std::vector<uint8_t> &data)
+      : Event(EventType::Upload_To_Buffer), bufferHandle(bufferHandle), memoryHandle(memoryHandle), offset(offset), size(size), data(data) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct StructuredBufferUploadEvent : public Event {
@@ -205,11 +193,9 @@ struct StructuredBufferUploadEvent : public Event {
 
   StructuredBufferUploadEvent() : Event(EventType::Structured_Buffer_Upload) {}
   StructuredBufferUploadEvent(Handle bufferHandle, BufferFormat format)
-      : Event(EventType::Structured_Buffer_Upload), bufferHandle(bufferHandle),
-        format(std::move(format)) {}
+      : Event(EventType::Structured_Buffer_Upload), bufferHandle(bufferHandle), format(std::move(format)) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct BufferCopyEvent : public Event {
@@ -220,15 +206,11 @@ struct BufferCopyEvent : public Event {
   VkDeviceSize size{};
 
   BufferCopyEvent() : Event(EventType::Copy_Buffer_To_Buffer) {}
-  BufferCopyEvent(Handle srcBufferHandle, Handle dstBufferHandle,
-                  VkDeviceSize srcOffset, VkDeviceSize dstOffset,
-                  VkDeviceSize size)
-      : Event(EventType::Copy_Buffer_To_Buffer),
-        srcBufferHandle(srcBufferHandle), dstBufferHandle(dstBufferHandle),
-        srcOffset(srcOffset), dstOffset(dstOffset), size(size) {}
+  BufferCopyEvent(Handle srcBufferHandle, Handle dstBufferHandle, VkDeviceSize srcOffset, VkDeviceSize dstOffset, VkDeviceSize size)
+      : Event(EventType::Copy_Buffer_To_Buffer), srcBufferHandle(srcBufferHandle), dstBufferHandle(dstBufferHandle), srcOffset(srcOffset), dstOffset(dstOffset),
+        size(size) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct TextureCreateEvent : public Event {
@@ -244,17 +226,12 @@ struct TextureCreateEvent : public Event {
   uint32_t properties{};
 
   TextureCreateEvent() : Event(EventType::Create_Texture) {}
-  TextureCreateEvent(Handle textureHandle, Handle memoryHandle, uint32_t width,
-                     uint32_t height, uint32_t depth, uint32_t mipLevels,
-                     uint32_t arrayLayers, uint32_t format, uint32_t usage,
-                     uint32_t properties)
-      : Event(EventType::Create_Texture), textureHandle(textureHandle),
-        memoryHandle(memoryHandle), width(width), height(height), depth(depth),
-        mipLevels(mipLevels), arrayLayers(arrayLayers), format(format),
-        usage(usage), properties(properties) {}
+  TextureCreateEvent(Handle textureHandle, Handle memoryHandle, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevels, uint32_t arrayLayers,
+                     uint32_t format, uint32_t usage, uint32_t properties)
+      : Event(EventType::Create_Texture), textureHandle(textureHandle), memoryHandle(memoryHandle), width(width), height(height), depth(depth),
+        mipLevels(mipLevels), arrayLayers(arrayLayers), format(format), usage(usage), properties(properties) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct TextureDestroyEvent : public Event {
@@ -263,11 +240,9 @@ struct TextureDestroyEvent : public Event {
 
   TextureDestroyEvent() : Event(EventType::Destroy_Texture) {}
   TextureDestroyEvent(Handle textureHandle, Handle memoryHandle)
-      : Event(EventType::Destroy_Texture), textureHandle(textureHandle),
-        memoryHandle(memoryHandle) {}
+      : Event(EventType::Destroy_Texture), textureHandle(textureHandle), memoryHandle(memoryHandle) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct TextureUploadEvent : public Event {
@@ -282,17 +257,12 @@ struct TextureUploadEvent : public Event {
   VkDeviceSize dataSize{};
 
   TextureUploadEvent() : Event(EventType::Upload_To_Texture) {}
-  TextureUploadEvent(Handle textureHandle, Handle memoryHandle, uint32_t width,
-                     uint32_t height, uint32_t depth, uint32_t mipLevel,
-                     uint32_t arrayLayer, uint32_t format,
-                     VkDeviceSize dataSize)
-      : Event(EventType::Upload_To_Texture), textureHandle(textureHandle),
-        memoryHandle(memoryHandle), width(width), height(height), depth(depth),
-        mipLevel(mipLevel), arrayLayer(arrayLayer), format(format),
-        dataSize(dataSize) {}
+  TextureUploadEvent(Handle textureHandle, Handle memoryHandle, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel, uint32_t arrayLayer,
+                     uint32_t format, VkDeviceSize dataSize)
+      : Event(EventType::Upload_To_Texture), textureHandle(textureHandle), memoryHandle(memoryHandle), width(width), height(height), depth(depth),
+        mipLevel(mipLevel), arrayLayer(arrayLayer), format(format), dataSize(dataSize) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct TextureCopyEvent : public Event {
@@ -311,22 +281,14 @@ struct TextureCopyEvent : public Event {
   VkDeviceSize dataSize{};
 
   TextureCopyEvent() : Event(EventType::Copy_Texture_To_Texture) {}
-  TextureCopyEvent(Handle srcTextureHandle, Handle dstTextureHandle,
-                   uint32_t srcWidth, uint32_t srcHeight, uint32_t srcDepth,
-                   uint32_t srcMipLevel, uint32_t srcArrayLayer,
-                   uint32_t dstWidth, uint32_t dstHeight, uint32_t dstDepth,
-                   uint32_t dstMipLevel, uint32_t dstArrayLayer,
+  TextureCopyEvent(Handle srcTextureHandle, Handle dstTextureHandle, uint32_t srcWidth, uint32_t srcHeight, uint32_t srcDepth, uint32_t srcMipLevel,
+                   uint32_t srcArrayLayer, uint32_t dstWidth, uint32_t dstHeight, uint32_t dstDepth, uint32_t dstMipLevel, uint32_t dstArrayLayer,
                    VkDeviceSize dataSize)
-      : Event(EventType::Copy_Texture_To_Texture),
-        srcTextureHandle(srcTextureHandle), dstTextureHandle(dstTextureHandle),
-        srcWidth(srcWidth), srcHeight(srcHeight), srcDepth(srcDepth),
-        srcMipLevel(srcMipLevel), srcArrayLayer(srcArrayLayer),
-        dstWidth(dstWidth), dstHeight(dstHeight), dstDepth(dstDepth),
-        dstMipLevel(dstMipLevel), dstArrayLayer(dstArrayLayer),
-        dataSize(dataSize) {}
+      : Event(EventType::Copy_Texture_To_Texture), srcTextureHandle(srcTextureHandle), dstTextureHandle(dstTextureHandle), srcWidth(srcWidth),
+        srcHeight(srcHeight), srcDepth(srcDepth), srcMipLevel(srcMipLevel), srcArrayLayer(srcArrayLayer), dstWidth(dstWidth), dstHeight(dstHeight),
+        dstDepth(dstDepth), dstMipLevel(dstMipLevel), dstArrayLayer(dstArrayLayer), dataSize(dataSize) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct PipelineCreateEvent : public Event {
@@ -335,46 +297,36 @@ struct PipelineCreateEvent : public Event {
 
   PipelineCreateEvent() : Event(EventType::Create_Pipeline) {}
   PipelineCreateEvent(Handle pipelineHandle, uint32_t pipelineType)
-      : Event(EventType::Create_Pipeline), pipelineHandle(pipelineHandle),
-        pipelineType(pipelineType) {}
+      : Event(EventType::Create_Pipeline), pipelineHandle(pipelineHandle), pipelineType(pipelineType) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct PipelineDestroyEvent : public Event {
   Handle pipelineHandle{};
 
   PipelineDestroyEvent() : Event(EventType::Destroy_Pipeline) {}
-  explicit PipelineDestroyEvent(Handle pipelineHandle)
-      : Event(EventType::Destroy_Pipeline), pipelineHandle(pipelineHandle) {}
+  explicit PipelineDestroyEvent(Handle pipelineHandle) : Event(EventType::Destroy_Pipeline), pipelineHandle(pipelineHandle) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DescriptorSetCreateEvent : public Event {
   Handle descriptorSetHandle{};
 
   DescriptorSetCreateEvent() : Event(EventType::Create_DescriptorSet) {}
-  explicit DescriptorSetCreateEvent(Handle descriptorSetHandle)
-      : Event(EventType::Create_DescriptorSet),
-        descriptorSetHandle(descriptorSetHandle) {}
+  explicit DescriptorSetCreateEvent(Handle descriptorSetHandle) : Event(EventType::Create_DescriptorSet), descriptorSetHandle(descriptorSetHandle) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DescriptorSetDestroyEvent : public Event {
   Handle descriptorSetHandle{};
 
   DescriptorSetDestroyEvent() : Event(EventType::Destroy_DescriptorSet) {}
-  explicit DescriptorSetDestroyEvent(Handle descriptorSetHandle)
-      : Event(EventType::Destroy_DescriptorSet),
-        descriptorSetHandle(descriptorSetHandle) {}
+  explicit DescriptorSetDestroyEvent(Handle descriptorSetHandle) : Event(EventType::Destroy_DescriptorSet), descriptorSetHandle(descriptorSetHandle) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct SamplerCreateEvent : public Event {
@@ -395,35 +347,23 @@ struct SamplerCreateEvent : public Event {
   VkBorderColor borderColor{};
 
   SamplerCreateEvent() : Event(EventType::Create_Sampler) {}
-  SamplerCreateEvent(Handle samplerHandle, VkFilter magFilter,
-                     VkFilter minFilter, VkSamplerMipmapMode mipmapMode,
-                     VkSamplerAddressMode addressModeU,
-                     VkSamplerAddressMode addressModeV,
-                     VkSamplerAddressMode addressModeW, float mipLodBias,
-                     bool anisotropyEnable, float maxAnisotropy,
-                     bool compareEnable, VkCompareOp compareOp, float minLod,
-                     float maxLod, VkBorderColor borderColor)
-      : Event(EventType::Create_Sampler), samplerHandle(samplerHandle),
-        magFilter(magFilter), minFilter(minFilter), mipmapMode(mipmapMode),
-        addressModeU(addressModeU), addressModeV(addressModeV),
-        addressModeW(addressModeW), mipLodBias(mipLodBias),
-        anisotropyEnable(anisotropyEnable), maxAnisotropy(maxAnisotropy),
-        compareEnable(compareEnable), compareOp(compareOp), minLod(minLod),
-        maxLod(maxLod), borderColor(borderColor) {}
+  SamplerCreateEvent(Handle samplerHandle, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressModeU,
+                     VkSamplerAddressMode addressModeV, VkSamplerAddressMode addressModeW, float mipLodBias, bool anisotropyEnable, float maxAnisotropy,
+                     bool compareEnable, VkCompareOp compareOp, float minLod, float maxLod, VkBorderColor borderColor)
+      : Event(EventType::Create_Sampler), samplerHandle(samplerHandle), magFilter(magFilter), minFilter(minFilter), mipmapMode(mipmapMode),
+        addressModeU(addressModeU), addressModeV(addressModeV), addressModeW(addressModeW), mipLodBias(mipLodBias), anisotropyEnable(anisotropyEnable),
+        maxAnisotropy(maxAnisotropy), compareEnable(compareEnable), compareOp(compareOp), minLod(minLod), maxLod(maxLod), borderColor(borderColor) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct SamplerDestroyEvent : public Event {
   Handle samplerHandle{};
 
   SamplerDestroyEvent() : Event(EventType::Destroy_Sampler) {}
-  explicit SamplerDestroyEvent(Handle samplerHandle)
-      : Event(EventType::Destroy_Sampler), samplerHandle(samplerHandle) {}
+  explicit SamplerDestroyEvent(Handle samplerHandle) : Event(EventType::Destroy_Sampler), samplerHandle(samplerHandle) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct ShaderModuleCreateEvent : public Event {
@@ -432,24 +372,18 @@ struct ShaderModuleCreateEvent : public Event {
 
   ShaderModuleCreateEvent() : Event(EventType::Create_ShaderModule) {}
   ShaderModuleCreateEvent(Handle shaderModuleHandle, std::string moduleName)
-      : Event(EventType::Create_ShaderModule),
-        shaderModuleHandle(shaderModuleHandle),
-        moduleName(std::move(moduleName)) {}
+      : Event(EventType::Create_ShaderModule), shaderModuleHandle(shaderModuleHandle), moduleName(std::move(moduleName)) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct ShaderModuleDestroyEvent : public Event {
   Handle shaderModuleHandle{};
 
   ShaderModuleDestroyEvent() : Event(EventType::Destroy_ShaderModule) {}
-  explicit ShaderModuleDestroyEvent(Handle shaderModuleHandle)
-      : Event(EventType::Destroy_ShaderModule),
-        shaderModuleHandle(shaderModuleHandle) {}
+  explicit ShaderModuleDestroyEvent(Handle shaderModuleHandle) : Event(EventType::Destroy_ShaderModule), shaderModuleHandle(shaderModuleHandle) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DrawEvent : public Event, public GraphicsEvent {
@@ -459,14 +393,10 @@ struct DrawEvent : public Event, public GraphicsEvent {
   uint32_t firstInstance{};
 
   DrawEvent() : Event(EventType::Draw) {}
-  DrawEvent(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
-            uint32_t firstInstance)
-      : Event(EventType::Draw), vertexCount(vertexCount),
-        instanceCount(instanceCount), firstVertex(firstVertex),
-        firstInstance(firstInstance) {}
+  DrawEvent(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+      : Event(EventType::Draw), vertexCount(vertexCount), instanceCount(instanceCount), firstVertex(firstVertex), firstInstance(firstInstance) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DrawIndexedEvent : public Event, public GraphicsEvent {
@@ -477,15 +407,11 @@ struct DrawIndexedEvent : public Event, public GraphicsEvent {
   uint32_t firstInstance{};
 
   DrawIndexedEvent() : Event(EventType::DrawIndexed) {}
-  DrawIndexedEvent(uint32_t indexCount, uint32_t instanceCount,
-                   uint32_t firstIndex, int32_t vertexOffset,
-                   uint32_t firstInstance)
-      : Event(EventType::DrawIndexed), indexCount(indexCount),
-        instanceCount(instanceCount), firstIndex(firstIndex),
-        vertexOffset(vertexOffset), firstInstance(firstInstance) {}
+  DrawIndexedEvent(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+      : Event(EventType::DrawIndexed), indexCount(indexCount), instanceCount(instanceCount), firstIndex(firstIndex), vertexOffset(vertexOffset),
+        firstInstance(firstInstance) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DrawIndirectEvent : public Event, public GraphicsEvent {
@@ -495,14 +421,10 @@ struct DrawIndirectEvent : public Event, public GraphicsEvent {
   uint32_t stride{};
 
   DrawIndirectEvent() : Event(EventType::DrawIndirect) {}
-  DrawIndirectEvent(Handle indirectBufferHandle, VkDeviceSize offset,
-                    uint32_t drawCount, uint32_t stride)
-      : Event(EventType::DrawIndirect),
-        indirectBufferHandle(indirectBufferHandle), offset(offset),
-        drawCount(drawCount), stride(stride) {}
+  DrawIndirectEvent(Handle indirectBufferHandle, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
+      : Event(EventType::DrawIndirect), indirectBufferHandle(indirectBufferHandle), offset(offset), drawCount(drawCount), stride(stride) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DrawIndexedIndirectEvent : public Event, public GraphicsEvent {
@@ -512,14 +434,10 @@ struct DrawIndexedIndirectEvent : public Event, public GraphicsEvent {
   uint32_t stride{};
 
   DrawIndexedIndirectEvent() : Event(EventType::DrawIndexedIndirect) {}
-  DrawIndexedIndirectEvent(Handle indirectBufferHandle, VkDeviceSize offset,
-                           uint32_t drawCount, uint32_t stride)
-      : Event(EventType::DrawIndexedIndirect),
-        indirectBufferHandle(indirectBufferHandle), offset(offset),
-        drawCount(drawCount), stride(stride) {}
+  DrawIndexedIndirectEvent(Handle indirectBufferHandle, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
+      : Event(EventType::DrawIndexedIndirect), indirectBufferHandle(indirectBufferHandle), offset(offset), drawCount(drawCount), stride(stride) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DispatchEvent : public Event, public GraphicsEvent {
@@ -528,13 +446,10 @@ struct DispatchEvent : public Event, public GraphicsEvent {
   uint32_t groupCountZ{};
 
   DispatchEvent() : Event(EventType::Dispatch) {}
-  DispatchEvent(uint32_t groupCountX, uint32_t groupCountY,
-                uint32_t groupCountZ)
-      : Event(EventType::Dispatch), groupCountX(groupCountX),
-        groupCountY(groupCountY), groupCountZ(groupCountZ) {}
+  DispatchEvent(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+      : Event(EventType::Dispatch), groupCountX(groupCountX), groupCountY(groupCountY), groupCountZ(groupCountZ) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct DispatchIndirectEvent : public Event, public GraphicsEvent {
@@ -543,11 +458,9 @@ struct DispatchIndirectEvent : public Event, public GraphicsEvent {
 
   DispatchIndirectEvent() : Event(EventType::DispatchIndirect) {}
   DispatchIndirectEvent(Handle indirectBufferHandle, VkDeviceSize offset)
-      : Event(EventType::DispatchIndirect),
-        indirectBufferHandle(indirectBufferHandle), offset(offset) {}
+      : Event(EventType::DispatchIndirect), indirectBufferHandle(indirectBufferHandle), offset(offset) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct SetPipelineEvent : public Event, public GraphicsEvent {
@@ -556,11 +469,9 @@ struct SetPipelineEvent : public Event, public GraphicsEvent {
 
   SetPipelineEvent() : Event(EventType::Set_Pipeline) {}
   SetPipelineEvent(Handle pipelineHandle, uint32_t pipelineBindPoint)
-      : Event(EventType::Set_Pipeline), pipelineHandle(pipelineHandle),
-        pipelineBindPoint(pipelineBindPoint) {}
+      : Event(EventType::Set_Pipeline), pipelineHandle(pipelineHandle), pipelineBindPoint(pipelineBindPoint) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct SetDescriptorSetEvent : public Event {
@@ -569,11 +480,9 @@ struct SetDescriptorSetEvent : public Event {
 
   SetDescriptorSetEvent() : Event(EventType::Set_DescriptorSet) {}
   SetDescriptorSetEvent(Handle descriptorSetHandle, uint32_t setIndex)
-      : Event(EventType::Set_DescriptorSet),
-        descriptorSetHandle(descriptorSetHandle), setIndex(setIndex) {}
+      : Event(EventType::Set_DescriptorSet), descriptorSetHandle(descriptorSetHandle), setIndex(setIndex) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct SetVertexBufferEvent : public Event {
@@ -581,12 +490,9 @@ struct SetVertexBufferEvent : public Event {
   VkDeviceSize offset{};
 
   SetVertexBufferEvent() : Event(EventType::Set_VertexBuffer) {}
-  SetVertexBufferEvent(Handle bufferHandle, VkDeviceSize offset)
-      : Event(EventType::Set_VertexBuffer), bufferHandle(bufferHandle),
-        offset(offset) {}
+  SetVertexBufferEvent(Handle bufferHandle, VkDeviceSize offset) : Event(EventType::Set_VertexBuffer), bufferHandle(bufferHandle), offset(offset) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct SetIndexBufferEvent : public Event {
@@ -595,13 +501,10 @@ struct SetIndexBufferEvent : public Event {
   uint32_t indexType{};
 
   SetIndexBufferEvent() : Event(EventType::Set_IndexBuffer) {}
-  SetIndexBufferEvent(Handle bufferHandle, VkDeviceSize offset,
-                      uint32_t indexType)
-      : Event(EventType::Set_IndexBuffer), bufferHandle(bufferHandle),
-        offset(offset), indexType(indexType) {}
+  SetIndexBufferEvent(Handle bufferHandle, VkDeviceSize offset, uint32_t indexType)
+      : Event(EventType::Set_IndexBuffer), bufferHandle(bufferHandle), offset(offset), indexType(indexType) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct SetPushConstantsEvent : public Event {
@@ -613,16 +516,12 @@ struct SetPushConstantsEvent : public Event {
   BufferFormat pushConstantFormat;
 
   SetPushConstantsEvent() : Event(EventType::Set_PushConstants) {}
-  SetPushConstantsEvent(uint32_t layoutHandle, uint32_t stageFlags,
-                        uint32_t offset, uint32_t size,
-                        const std::vector<uint8_t> &data,
+  SetPushConstantsEvent(uint32_t layoutHandle, uint32_t stageFlags, uint32_t offset, uint32_t size, const std::vector<uint8_t> &data,
                         BufferFormat pushConstantFormat)
-      : Event(EventType::Set_PushConstants), layoutHandle(layoutHandle),
-        stageFlags(stageFlags), offset(offset), size(size), data(data),
+      : Event(EventType::Set_PushConstants), layoutHandle(layoutHandle), stageFlags(stageFlags), offset(offset), size(size), data(data),
         pushConstantFormat(std::move(pushConstantFormat)) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 // struct BarrierEvent : public Event {
@@ -648,19 +547,12 @@ struct LayoutTransitionEvent : public Event {
   VkPipelineStageFlags2 dstStageMask{};
 
   LayoutTransitionEvent() : Event(EventType::LayoutTransition) {}
-  explicit LayoutTransitionEvent(VkImageLayout srcLayout,
-                                 VkImageLayout dstLayout,
-                                 VkAccessFlags2 srcAccessMask,
-                                 VkAccessFlags2 dstAccessMask,
-                                 VkPipelineStageFlags2 srcStageMask,
-                                 VkPipelineStageFlags2 dstStageMask)
-      : srcLayout(srcLayout), dstLayout(dstLayout),
-        srcAccessMask(srcAccessMask), dstAccessMask(dstAccessMask),
-        srcStageMask(srcStageMask), dstStageMask(dstStageMask),
-        Event(EventType::LayoutTransition) {}
+  explicit LayoutTransitionEvent(VkImageLayout srcLayout, VkImageLayout dstLayout, VkAccessFlags2 srcAccessMask, VkAccessFlags2 dstAccessMask,
+                                 VkPipelineStageFlags2 srcStageMask, VkPipelineStageFlags2 dstStageMask)
+      : srcLayout(srcLayout), dstLayout(dstLayout), srcAccessMask(srcAccessMask), dstAccessMask(dstAccessMask), srcStageMask(srcStageMask),
+        dstStageMask(dstStageMask), Event(EventType::LayoutTransition) {}
 
-  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const
-      -> void override;
+  auto DrawVariantImGui(struct ThreadSnapshot const *parent) const -> void override;
 };
 
 struct EndRenderingEvent : public Event {
@@ -668,10 +560,8 @@ struct EndRenderingEvent : public Event {
 };
 
 constexpr VkShaderStageFlagBits allRTStages =
-    static_cast<VkShaderStageFlagBits>(
-        static_cast<uint32_t>(VK_SHADER_STAGE_ANY_HIT_BIT_KHR) |
-        VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_RAYGEN_BIT_KHR |
-        VK_SHADER_STAGE_MISS_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR);
+    static_cast<VkShaderStageFlagBits>(static_cast<uint32_t>(VK_SHADER_STAGE_ANY_HIT_BIT_KHR) | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
+                                       VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR);
 
 inline auto HexToImU32(uint32_t hex) -> ImU32 {
   uint32_t result = hex;
@@ -735,21 +625,14 @@ struct ThreadSnapshot : Object, Identifiable {
     return "Unnamed Thread";
   }
 
-  [[nodiscard]] auto Copy() const -> Ref<ThreadSnapshot> {
-    return Ref<ThreadSnapshot>::Make(events, renderStates, threadId, threadName,
-                                     false);
-  }
+  [[nodiscard]] auto Copy() const -> Ref<ThreadSnapshot> { return Ref<ThreadSnapshot>::Make(events, renderStates, threadId, threadName, false); }
 
   static auto GetType() -> Type const * { return &ThreadSnapshotType; }
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return GetType(); }
 
-  ThreadSnapshot(std::vector<std::shared_ptr<Event>> events,
-                 std::vector<RenderState::State> renderStates,
-                 uint64_t threadId, std::string threadName, bool active)
-      : events(std::move(events)), renderStates(std::move(renderStates)),
-        threadId(threadId), threadName(std::move(threadName)), active(active) {}
+  ThreadSnapshot(std::vector<std::shared_ptr<Event>> events, std::vector<RenderState::State> renderStates, uint64_t threadId, std::string threadName,
+                 bool active)
+      : events(std::move(events)), renderStates(std::move(renderStates)), threadId(threadId), threadName(std::move(threadName)), active(active) {}
 };
 
 // NOLINTEND(bugprone-easily-swappable-parameters)
@@ -772,14 +655,11 @@ template <typename T> auto CaptureEvent(const T &event) -> bool {
   if (index > 0) {
     const auto &back = currentSnapshot->events[index - 1];
 
-    if (back->type == EventType::Structured_Buffer_Upload &&
-        newEvent->type == EventType::Upload_To_Buffer) {
+    if (back->type == EventType::Structured_Buffer_Upload && newEvent->type == EventType::Upload_To_Buffer) {
 
       // NOLINTBEGIN(cppcoreguidelines-pro-type-static-cast-downcast)
-      auto *structuredEvent =
-          static_cast<StructuredBufferUploadEvent *>(back.get());
-      auto *bufferUploadEvent =
-          static_cast<BufferUploadEvent *>(newEvent.get());
+      auto *structuredEvent = static_cast<StructuredBufferUploadEvent *>(back.get());
+      auto *bufferUploadEvent = static_cast<BufferUploadEvent *>(newEvent.get());
       // NOLINTEND(cppcoreguidelines-pro-type-static-cast-downcast)
 
       structuredEvent->uploadEvent = *bufferUploadEvent;

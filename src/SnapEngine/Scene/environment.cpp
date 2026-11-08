@@ -14,9 +14,7 @@ namespace Engine {
 
 auto LuaEnvironment::LoadBinding(lua_State *state) -> int {
   Bindings::LuaBoundStruct<LuaEnvironment> bindings("Environment");
-  bindings.DocumentCustomMethod(Bindings::MethodInfo{
-      .name = "getSkyboxTexture",
-      .description = "Gets the skybox texture of this environment."});
+  bindings.DocumentCustomMethod(Bindings::MethodInfo{.name = "getSkyboxTexture", .description = "Gets the skybox texture of this environment."});
   bindings.Register(state);
 
   return 0;
@@ -32,8 +30,7 @@ auto LuaEnvironment::GetSkyboxTexture(lua_State *state) -> int {
     return 1;
   }
 
-  ::LuaWrap::PushObject(state, Graphics::Texture::GetType(),
-                        skyboxTexture.get());
+  ::LuaWrap::PushObject(state, Graphics::Texture::GetType(), skyboxTexture.get());
 
   return 1;
 }
@@ -42,16 +39,12 @@ auto LuaEnvironment::Create(lua_State *state) -> int {
   auto scene = LUA_CK_NULL(::LuaWrap::ObjectFromLua<Scene>(state, 1));
   const char *name = luaL_checkstring(state, 2);
 
-  auto texture =
-      LUA_CK_NULL(::LuaWrap::ObjectFromLua<Graphics::Texture>(state, 3));
+  auto texture = LUA_CK_NULL(::LuaWrap::ObjectFromLua<Graphics::Texture>(state, 3));
 
   Environment newEnvironment{};
   newEnvironment.SkyboxTexture = Ref<Graphics::Texture>(texture);
 
-  LUA_CK_ERR(
-      Renderer::RendererInstance.GetPrefilterManager().PrefilterEnvironment(
-          *Graphics::GetCurrentGraphicsContext(),
-          newEnvironment.SkyboxTexture));
+  LUA_CK_ERR(Renderer::RendererInstance.GetPrefilterManager().PrefilterEnvironment(*Graphics::GetCurrentGraphicsContext(), newEnvironment.SkyboxTexture));
 
   auto environmentEntity = scene->world.entity();
   environmentEntity.set<Environment>(newEnvironment);

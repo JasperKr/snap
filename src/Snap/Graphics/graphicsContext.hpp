@@ -56,8 +56,7 @@ struct GraphicsContext {
   SwapchainInfo swapchainInfo;
   SurfaceInfo surfaceInfo;
   VkPhysicalDeviceProperties deviceProperties;
-  VkPhysicalDeviceAccelerationStructurePropertiesKHR
-      accelerationStructureProperties;
+  VkPhysicalDeviceAccelerationStructurePropertiesKHR accelerationStructureProperties;
 
   // Frame resources & image are ready for reuse
   Math::StackVector<VkSemaphore, MaxImageCount> imageAvailable;

@@ -26,14 +26,9 @@ struct VertexComponent {
 };
 
 struct VertexFormat {
-  explicit VertexFormat(std::vector<VertexComponent> attributes)
-      : Attributes(std::move(attributes)) {
-    ConstructBindings();
-  }
+  explicit VertexFormat(std::vector<VertexComponent> attributes) : Attributes(std::move(attributes)) { ConstructBindings(); }
 
-  explicit VertexFormat(std::vector<VertexComponent> attributes,
-                        std::vector<uint32_t> divisors)
-      : Attributes(std::move(attributes)) {
+  explicit VertexFormat(std::vector<VertexComponent> attributes, std::vector<uint32_t> divisors) : Attributes(std::move(attributes)) {
     ConstructBindings();
 
     for (size_t i = 0; i < divisors.size(); ++i) {
@@ -51,13 +46,9 @@ public:
   // Trivial copy, but not very cheap. So explicitly use Copy when needed.
   [[nodiscard]] auto Copy() const -> VertexFormat { return *this; }
 
-  [[nodiscard]] auto GetAttributes() const
-      -> const std::vector<VertexComponent> & {
-    return Attributes;
-  }
+  [[nodiscard]] auto GetAttributes() const -> const std::vector<VertexComponent> & { return Attributes; }
 
-  [[nodiscard]] auto GetAttribute(std::string_view name) const
-      -> const VertexComponent * {
+  [[nodiscard]] auto GetAttribute(std::string_view name) const -> const VertexComponent * {
     for (const auto &attribute : Attributes) {
       if (attribute.name == name) {
         return &attribute;
@@ -86,15 +77,9 @@ public:
     PrintError("Binding {} not found in vertex format.", binding);
   }
 
-  [[nodiscard]] auto GetVkAttributes2() const
-      -> const std::vector<VkVertexInputAttributeDescription2EXT> & {
-    return VkAttributes2;
-  }
+  [[nodiscard]] auto GetVkAttributes2() const -> const std::vector<VkVertexInputAttributeDescription2EXT> & { return VkAttributes2; }
 
-  [[nodiscard]] auto GetBindings() const
-      -> const std::vector<VkVertexInputBindingDescription2EXT> & {
-    return Bindings;
-  }
+  [[nodiscard]] auto GetBindings() const -> const std::vector<VkVertexInputBindingDescription2EXT> & { return Bindings; }
 
   [[nodiscard]] auto GetStride(uint32_t binding) const -> uint32_t {
     assert(binding < Bindings.size());
@@ -112,28 +97,19 @@ public:
     for (const auto &attribute : Attributes) {
       auto formatStr = Format::ToString(attribute.format);
       auto offsetStr = std::to_string(attribute.offset);
-      result = std::format("{}  - {}: {} - offset: {}\n", result,
-                           attribute.name, formatStr, offsetStr);
+      result = std::format("{}  - {}: {} - offset: {}\n", result, attribute.name, formatStr, offsetStr);
     }
     return result;
   }
 
-  auto BindDynamicInputState(struct VirtualCommandBuffer *commandBuffer) const
-      -> void;
+  auto BindDynamicInputState(struct VirtualCommandBuffer *commandBuffer) const -> void;
 
-  [[nodiscard]] auto GetBindingCount() const -> size_t {
-    return BindingIndices.size();
-  }
-  [[nodiscard]] auto GetAttributeCount() const -> size_t {
-    return Attributes.size();
-  }
+  [[nodiscard]] auto GetBindingCount() const -> size_t { return BindingIndices.size(); }
+  [[nodiscard]] auto GetAttributeCount() const -> size_t { return Attributes.size(); }
 
   // Returns an array mapping, for example,
   // [0, 1, 2] -> [0, 2, 5] if the vertex format has 3 bindings at indices 0, 2, and 5.
-  [[nodiscard]] auto GetBindingMapping() const
-      -> const std::vector<uint32_t> & {
-    return BindingIndices;
-  }
+  [[nodiscard]] auto GetBindingMapping() const -> const std::vector<uint32_t> & { return BindingIndices; }
 
   auto operator==(const VertexFormat &other) const -> bool {
     if (GetHash() != other.GetHash()) {
@@ -145,10 +121,8 @@ public:
     }
 
     for (size_t i = 0; i < Attributes.size(); ++i) {
-      if (Attributes[i].location != other.Attributes[i].location ||
-          Attributes[i].binding != other.Attributes[i].binding ||
-          Attributes[i].format != other.Attributes[i].format ||
-          Attributes[i].offset != other.Attributes[i].offset ||
+      if (Attributes[i].location != other.Attributes[i].location || Attributes[i].binding != other.Attributes[i].binding ||
+          Attributes[i].format != other.Attributes[i].format || Attributes[i].offset != other.Attributes[i].offset ||
           Attributes[i].name != other.Attributes[i].name) {
         return false;
       }
@@ -157,9 +131,7 @@ public:
     return true;
   }
 
-  auto operator!=(const VertexFormat &other) const -> bool {
-    return !(*this == other);
-  }
+  auto operator!=(const VertexFormat &other) const -> bool { return !(*this == other); }
 
   [[nodiscard]] auto GetHash() const -> size_t { return Hash; }
 
@@ -185,18 +157,15 @@ private:
 
   // NOLINTNEXTLINE
   void ConstructBindings() {
-    std::ranges::sort(Attributes,
-                      [](const VertexComponent &first,
-                         const VertexComponent &second) -> bool {
-                        if (first.binding != second.binding) {
-                          return first.binding < second.binding;
-                        }
-                        return first.location < second.location;
-                      });
+    std::ranges::sort(Attributes, [](const VertexComponent &first, const VertexComponent &second) -> bool {
+      if (first.binding != second.binding) {
+        return first.binding < second.binding;
+      }
+      return first.location < second.location;
+    });
 
     for (auto &component : Attributes) {
-      assert(component.binding < MAX_BOUND_VERTEX_BUFFERS &&
-             "Vertex attribute binding exceeds maximum");
+      assert(component.binding < MAX_BOUND_VERTEX_BUFFERS && "Vertex attribute binding exceeds maximum");
     }
 
     VkAttributes2.reserve(Attributes.size());
@@ -205,13 +174,11 @@ private:
     auto lastBinding = 0UL;
     for (const auto &component : Attributes) {
       // Attributes are sorted by binding, so we can just check the last used binding to avoid duplicates.
-      if (BindingIndices.empty() ||
-          BindingIndices.back() != component.binding) {
+      if (BindingIndices.empty() || BindingIndices.back() != component.binding) {
         BindingIndices.emplace_back(component.binding);
       }
 
-      assert(lastBinding <= component.binding &&
-             "Bindings must be processed in ascending order");
+      assert(lastBinding <= component.binding && "Bindings must be processed in ascending order");
 
       lastBinding = component.binding;
     }
@@ -237,12 +204,9 @@ private:
       auto formatSize = Format::GetSize(component.format);
 
       if (formatSize == 0) {
-        PrintFatal(
-            "Vertex attribute '{}' has unsupported or unknown format: {}",
-            component.name, Format::ToString(component.format));
+        PrintFatal("Vertex attribute '{}' has unsupported or unknown format: {}", component.name, Format::ToString(component.format));
       }
-      assert(formatSize > 0 &&
-             "Vertex attribute has unsupported or unknown format: ");
+      assert(formatSize > 0 && "Vertex attribute has unsupported or unknown format: ");
 
       auto idx = bindingToBindingIndex.at(component.binding);
 
@@ -271,9 +235,7 @@ private:
 };
 
 struct VertexFormatHash {
-  auto operator()(const VertexFormat &format) const noexcept -> size_t {
-    return format.GetHash();
-  }
+  auto operator()(const VertexFormat &format) const noexcept -> size_t { return format.GetHash(); }
 };
 
 } // namespace Graphics

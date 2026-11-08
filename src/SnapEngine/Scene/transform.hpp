@@ -25,19 +25,11 @@ private:
   Math::Matrix3x3 NormalMatrix;
 
 public:
-  [[nodiscard]] auto GetLocalMatrix() const -> const Math::Matrix4x4 & {
-    return LocalMatrix;
-  }
-  [[nodiscard]] auto GetWorldMatrix() const -> const Math::Matrix4x4 & {
-    return WorldMatrix;
-  }
-  [[nodiscard]] auto GetNormalMatrix() const -> const Math::Matrix3x3 & {
-    return NormalMatrix;
-  }
+  [[nodiscard]] auto GetLocalMatrix() const -> const Math::Matrix4x4 & { return LocalMatrix; }
+  [[nodiscard]] auto GetWorldMatrix() const -> const Math::Matrix4x4 & { return WorldMatrix; }
+  [[nodiscard]] auto GetNormalMatrix() const -> const Math::Matrix3x3 & { return NormalMatrix; }
   [[nodiscard]] auto GetPosition() const -> Math::Vec3 { return Position; }
-  [[nodiscard]] auto GetRotation() const -> Math::Quaternion {
-    return Rotation;
-  }
+  [[nodiscard]] auto GetRotation() const -> Math::Quaternion { return Rotation; }
   [[nodiscard]] auto GetScale() const -> Math::Vec3 { return Scale; }
   auto SetPosition(const Math::Vec3 &position) -> void {
     Position = position;
@@ -52,17 +44,11 @@ public:
     LocalDirty = true;
   }
 
-  auto SetPosition(float xPos, float yPos, float zPos) -> void {
-    SetPosition(Math::Vec3(xPos, yPos, zPos));
-  }
+  auto SetPosition(float xPos, float yPos, float zPos) -> void { SetPosition(Math::Vec3(xPos, yPos, zPos)); }
 
-  auto SetRotation(float xRot, float yRot, float zRot, float wRot) -> void {
-    SetRotation(Math::Quaternion(xRot, yRot, zRot, wRot));
-  }
+  auto SetRotation(float xRot, float yRot, float zRot, float wRot) -> void { SetRotation(Math::Quaternion(xRot, yRot, zRot, wRot)); }
 
-  auto SetScale(float xScale, float yScale, float zScale) -> void {
-    SetScale(Math::Vec3(xScale, yScale, zScale));
-  }
+  auto SetScale(float xScale, float yScale, float zScale) -> void { SetScale(Math::Vec3(xScale, yScale, zScale)); }
 
   auto ApplyTranslation(const Math::Vec3 &translation) -> void {
     Position += translation;
@@ -83,15 +69,10 @@ public:
   auto UpdateWorldMatrix(const Transform *parent) -> void;
   auto MarkChildrenUpdated() -> void;
 
-  constexpr explicit Transform(Math::Vec3 position = {},
-                               Math::Quaternion rotation = {0.0F, 0.0F, 0.0F,
-                                                            1.0F},
-                               Math::Vec3 scale = {1.0F, 1.0F, 1.0F})
+  constexpr explicit Transform(Math::Vec3 position = {}, Math::Quaternion rotation = {0.0F, 0.0F, 0.0F, 1.0F}, Math::Vec3 scale = {1.0F, 1.0F, 1.0F})
       : Position(position), Rotation(rotation), Scale(scale) {}
 
-  constexpr explicit Transform(Math::Quaternion rotation)
-      : Position(Math::Vec3{0.0F, 0.0F, 0.0F}), Rotation(rotation),
-        Scale(Math::Vec3{1.0F, 1.0F, 1.0F}) {}
+  constexpr explicit Transform(Math::Quaternion rotation) : Position(Math::Vec3{0.0F, 0.0F, 0.0F}), Rotation(rotation), Scale(Math::Vec3{1.0F, 1.0F, 1.0F}) {}
 
   auto DrawGUI(flecs::entity entity) -> void;
 };
@@ -100,9 +81,7 @@ const static Type TransformType = Type("Transform");
 
 struct LuaTransform : LuaWrap::LuaECSObject {
   static auto GetType() -> const Type * { return &TransformType; }
-  [[nodiscard]] auto GetInstanceType() const -> const Type * override {
-    return LuaTransform::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> const Type * override { return LuaTransform::GetType(); }
 
   static auto SetPosition(lua_State *state) -> int;
   static auto GetPosition(lua_State *state) -> int;

@@ -30,8 +30,7 @@ auto LuaTransform::SetPosition(lua_State *state) -> int {
     transform = entity->try_get_mut<Transform>();
   }
 
-  transform->SetPosition(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3),
-                         luaL_checkscalar(state, 4));
+  transform->SetPosition(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3), luaL_checkscalar(state, 4));
 
   return 0;
 }
@@ -71,9 +70,7 @@ auto LuaTransform::SetRotation(lua_State *state) -> int {
     transform = entity->try_get_mut<Transform>();
   }
 
-  transform->SetRotation(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3),
-                         luaL_checkscalar(state, 4),
-                         luaL_checkscalar(state, 5));
+  transform->SetRotation(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3), luaL_checkscalar(state, 4), luaL_checkscalar(state, 5));
 
   return 0;
 }
@@ -117,8 +114,7 @@ auto LuaTransform::SetScale(lua_State *state) -> int {
     transform = entity->try_get_mut<Transform>();
   }
 
-  transform->SetScale(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3),
-                      luaL_checkscalar(state, 4));
+  transform->SetScale(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3), luaL_checkscalar(state, 4));
 
   return 0;
 }
@@ -160,15 +156,12 @@ auto LuaTransform::SetTransform(lua_State *state) -> int {
     transform = entity->try_get_mut<Transform>();
   }
 
-  transform->SetPosition(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3),
-                         luaL_checkscalar(state, 4));
+  transform->SetPosition(luaL_checkscalar(state, 2), luaL_checkscalar(state, 3), luaL_checkscalar(state, 4));
 
-  transform->SetRotation(luaL_checkscalar(state, 5), luaL_checkscalar(state, 6),
-                         luaL_checkscalar(state, 7),
+  transform->SetRotation(luaL_checkscalar(state, 5), luaL_checkscalar(state, 6), luaL_checkscalar(state, 7),
 
                          luaL_checkscalar(state, 8));
-  transform->SetScale(luaL_checkscalar(state, 9), luaL_checkscalar(state, 10),
-                      luaL_checkscalar(state, 11));
+  transform->SetScale(luaL_checkscalar(state, 9), luaL_checkscalar(state, 10), luaL_checkscalar(state, 11));
 
   return 0;
 }
@@ -240,8 +233,7 @@ auto Transform::UpdateLocalMatrix() -> void {
     return;
   }
 
-  LocalMatrix =
-      Math::Matrix4x4::TransformationMatrix(Position, Scale, Rotation);
+  LocalMatrix = Math::Matrix4x4::TransformationMatrix(Position, Scale, Rotation);
   LocalDirty = false;
   WorldDirty = true;
 }
@@ -276,11 +268,8 @@ enum class RotationMode : uint8_t {
 };
 
 auto Transform::DrawGUI(flecs::entity entity) -> void {
-  ImGuiDataType dataType = sizeof(float) == sizeof(double)
-                               ? ImGuiDataType_Double
-                               : ImGuiDataType_Float;
-  if (ImGui::DragScalarN("Position", dataType, (void *)Position.Ptr(), 3,
-                         0.1F)) {
+  ImGuiDataType dataType = sizeof(float) == sizeof(double) ? ImGuiDataType_Double : ImGuiDataType_Float;
+  if (ImGui::DragScalarN("Position", dataType, (void *)Position.Ptr(), 3, 0.1F)) {
     LocalDirty = true;
   }
 
@@ -333,8 +322,7 @@ auto Transform::DrawGUI(flecs::entity entity) -> void {
 
   switch (rotationMode) {
   case RotationMode::EulerRadians: {
-    if (ImGui::DragScalarN("Euler Rotation", dataType,
-                           (void *)lastEulerRotation.Ptr(), 3, 0.01F)) {
+    if (ImGui::DragScalarN("Euler Rotation", dataType, (void *)lastEulerRotation.Ptr(), 3, 0.01F)) {
       lastEulerRotation.SanitiseAsRadians();
       Rotation = Math::Conversions::ToQuaternion(lastEulerRotation);
 
@@ -345,8 +333,7 @@ auto Transform::DrawGUI(flecs::entity entity) -> void {
     break;
   }
   case RotationMode::EulerDegrees: {
-    if (ImGui::DragScalarN("Euler Rotation", dataType,
-                           (void *)lastEulerRotation.Ptr(), 3, 1.0F)) {
+    if (ImGui::DragScalarN("Euler Rotation", dataType, (void *)lastEulerRotation.Ptr(), 3, 1.0F)) {
       lastEulerRotation.SanitiseAsDegrees();
       Rotation = Math::Conversions::ToQuaternion(lastEulerRotation.ToRadians());
 
@@ -357,16 +344,14 @@ auto Transform::DrawGUI(flecs::entity entity) -> void {
     break;
   }
   case RotationMode::Quaternion:
-    if (ImGui::DragScalarN("Quaternion Rotation", dataType,
-                           (void *)Rotation.Ptr(), 4, 0.01F)) {
+    if (ImGui::DragScalarN("Quaternion Rotation", dataType, (void *)Rotation.Ptr(), 4, 0.01F)) {
       LocalDirty = true;
       lastQuaternionRotation = Rotation;
     }
     break;
   }
 
-  if (ImGui::IsItemActivated() || ImGui::IsItemDeactivatedAfterEdit() ||
-      ImGui::IsItemActive()) {
+  if (ImGui::IsItemActivated() || ImGui::IsItemDeactivatedAfterEdit() || ImGui::IsItemActive()) {
     UserInteractedLastFrame = true;
   }
 
@@ -457,8 +442,7 @@ auto LuaTransform::GetInverseUp(lua_State *state) -> int {
     return 1;
   }
 
-  auto vec =
-      transform->GetRotation().Inverse().RotateVector({0.0F, 1.0F, 0.0F});
+  auto vec = transform->GetRotation().Inverse().RotateVector({0.0F, 1.0F, 0.0F});
   lua_pushnumber(state, vec.x);
   lua_pushnumber(state, vec.y);
   lua_pushnumber(state, vec.z);
@@ -478,8 +462,7 @@ auto LuaTransform::GetInverseRight(lua_State *state) -> int {
     return 1;
   }
 
-  auto vec =
-      transform->GetRotation().Inverse().RotateVector({1.0F, 0.0F, 0.0F});
+  auto vec = transform->GetRotation().Inverse().RotateVector({1.0F, 0.0F, 0.0F});
   lua_pushnumber(state, vec.x);
   lua_pushnumber(state, vec.y);
   lua_pushnumber(state, vec.z);
@@ -499,8 +482,7 @@ auto LuaTransform::GetInverseForward(lua_State *state) -> int {
     return 1;
   }
 
-  auto vec =
-      transform->GetRotation().Inverse().RotateVector({0.0F, 0.0F, 1.0F});
+  auto vec = transform->GetRotation().Inverse().RotateVector({0.0F, 0.0F, 1.0F});
   lua_pushnumber(state, vec.x);
   lua_pushnumber(state, vec.y);
   lua_pushnumber(state, vec.z);

@@ -34,24 +34,21 @@ auto wrap_NewBuffer(lua_State *state) -> int;
 */
 
 auto wrap_GetSize(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   lua_pushinteger(state, static_cast<lua_Integer>(buffer->GetSize()));
   return 1;
 }
 
 auto wrap_GetElementCount(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   lua_pushinteger(state, static_cast<lua_Integer>(buffer->GetElementCount()));
   return 1;
 }
 
 auto wrap_GetElementStride(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   lua_pushinteger(state, static_cast<lua_Integer>(buffer->GetStride()));
   return 1;
@@ -59,8 +56,7 @@ auto wrap_GetElementStride(lua_State *state) -> int {
 
 // [value = 0], [offset = 0], [size = whole size]
 auto wrap_ClearBuffer(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   uint32_t value = 0;
   if (lua_gettop(state) >= 2) {
@@ -86,16 +82,13 @@ auto wrap_ClearBuffer(lua_State *state) -> int {
   auto clearResult = buffer->GetBuffer()->Clear(*ctx, value, offset, size);
 
   if (Error::IsError(clearResult)) {
-    return luaL_error(state, "Failed to clear buffer: %s",
-                      clearResult.message.c_str());
+    return luaL_error(state, "Failed to clear buffer: %s", clearResult.message.c_str());
   }
 
   return 0;
 }
 
-inline auto BuildBufferFormatTree(lua_State *state,
-                                  const ::Graphics::BufferFormat &format)
-    -> void {
+inline auto BuildBufferFormatTree(lua_State *state, const ::Graphics::BufferFormat &format) -> void {
 
   // [{}]
   lua_newtable(state);
@@ -124,8 +117,7 @@ inline auto BuildBufferFormatTree(lua_State *state,
     if (std::holds_alternative<VkFormat>(component.format)) {
       auto vkFormat = std::get<VkFormat>(component.format);
       lua_pushstring(state, ::Graphics::Format::ToString(vkFormat).data());
-    } else if (std::holds_alternative<::Graphics::BufferFormat>(
-                   component.format)) {
+    } else if (std::holds_alternative<::Graphics::BufferFormat>(component.format)) {
       auto bufferFormat = std::get<::Graphics::BufferFormat>(component.format);
       BuildBufferFormatTree(state, bufferFormat);
     }
@@ -140,8 +132,7 @@ inline auto BuildBufferFormatTree(lua_State *state,
 // returns:
 // { { name = ..., offset = ..., format = ... } }
 auto wrap_GetFormat(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   auto format = buffer->GetFormat();
 
@@ -157,8 +148,7 @@ auto wrap_SetData(lua_State *state) -> int {
   ZoneScoped;
   auto *ctx = LUA_CK_NULL(::Graphics::GetCurrentGraphicsContext());
 
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   thread_local std::vector<uint8_t> data{};
   snap_defer(data.clear());
@@ -177,9 +167,7 @@ auto wrap_SetData(lua_State *state) -> int {
   }
 
 #if Enable_Snapshots
-  ::Graphics::Snapshot::CaptureEvent(
-      ::Graphics::Snapshot::StructuredBufferUploadEvent(
-          buffer->GetBuffer()->handle, buffer->GetFormat()));
+  ::Graphics::Snapshot::CaptureEvent(::Graphics::Snapshot::StructuredBufferUploadEvent(buffer->GetBuffer()->handle, buffer->GetFormat()));
 #endif
 
   if (lua_istable(state, 2)) {
@@ -192,12 +180,10 @@ auto wrap_SetData(lua_State *state) -> int {
       auto value = luaL_checknumber(state, -1);
 
       auto result = // NOLINTNEXTLINE; pointer arithmetic
-          Wrap::Utils::SetData(value, data.data() + (i * sizeof(float)),
-                               buffer->GetFormat().FormatAt(i));
+          Wrap::Utils::SetData(value, data.data() + (i * sizeof(float)), buffer->GetFormat().FormatAt(i));
 
       if (Error::IsError(result)) {
-        return luaL_error(state, "Failed to set buffer data: %s",
-                          result.message.c_str());
+        return luaL_error(state, "Failed to set buffer data: %s", result.message.c_str());
       }
 
       lua_pop(state, 1);
@@ -205,42 +191,35 @@ auto wrap_SetData(lua_State *state) -> int {
 
     auto result = buffer->GetBuffer()->SetData(*ctx, data, offset, size);
     if (Error::IsError(result)) {
-      return luaL_error(state, "Failed to set buffer data: %s",
-                        result.message.c_str());
+      return luaL_error(state, "Failed to set buffer data: %s", result.message.c_str());
     }
 
   } else {
-    auto bytedata =
-        LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, 2));
+    auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, 2));
 
-    LUA_CK_ERR(buffer->GetBuffer()->SetData(*ctx, bytedata->GetDataSpan(),
-                                            offset, size));
+    LUA_CK_ERR(buffer->GetBuffer()->SetData(*ctx, bytedata->GetDataSpan(), offset, size));
   }
 
   return 0;
 }
 
 auto wrap_GetDebugName(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   lua_pushstring(state, buffer->GetBuffer()->debugName.c_str());
   return 1;
 }
 
 auto wrap_BufferHasPadding(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   // Todo: allow 140
-  auto paddingResult =
-      buffer->GetFormat().NeedsPadding(::Graphics::Standard::Std430);
+  auto paddingResult = buffer->GetFormat().NeedsPadding(::Graphics::Standard::Std430);
 
   lua_pushboolean(state, static_cast<int>(paddingResult.needsPadding));
   if (paddingResult.needsPadding) {
     lua_pushstring(state, paddingResult.needsPaddingAt.c_str());
-    lua_pushinteger(state,
-                    static_cast<lua_Integer>(paddingResult.amountOfPadding));
+    lua_pushinteger(state, static_cast<lua_Integer>(paddingResult.amountOfPadding));
     return 3;
   }
 
@@ -248,8 +227,7 @@ auto wrap_BufferHasPadding(lua_State *state) -> int {
 }
 
 auto wrap_Readback_GetData(lua_State *state) -> int {
-  auto readback =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
+  auto readback = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
 
   std::lock_guard<std::mutex> lock(readback->mutex);
 
@@ -263,8 +241,7 @@ auto wrap_Readback_GetData(lua_State *state) -> int {
 }
 
 auto wrap_Readback_IsReady(lua_State *state) -> int {
-  auto readback =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
+  auto readback = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
 
   std::lock_guard<std::mutex> lock(readback->mutex);
 
@@ -273,8 +250,7 @@ auto wrap_Readback_IsReady(lua_State *state) -> int {
 }
 
 auto wrap_Readback_GetError(lua_State *state) -> int {
-  auto readback =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
+  auto readback = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
 
   std::lock_guard<std::mutex> lock(readback->mutex);
 
@@ -287,8 +263,7 @@ auto wrap_Readback_GetError(lua_State *state) -> int {
 }
 
 auto wrap_Readback_Wait(lua_State *state) -> int {
-  auto readback =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
+  auto readback = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::BufferReadback>(state, 1));
 
   {
     std::lock_guard<std::mutex> lock(readback->mutex);
@@ -300,16 +275,14 @@ auto wrap_Readback_Wait(lua_State *state) -> int {
 
   {
     std::unique_lock<std::mutex> lock(readback->mutex);
-    readback->conditionVar.wait(lock,
-                                [&]() -> bool { return readback->completed; });
+    readback->conditionVar.wait(lock, [&]() -> bool { return readback->completed; });
   }
 
   return 0;
 }
 
 auto wrap_Readback(lua_State *state) -> int {
-  auto buffer = LUA_CK_NULL(
-      LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
+  auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, 1));
 
   auto *ctx = ::Graphics::GetCurrentGraphicsContext();
 
@@ -320,21 +293,18 @@ auto wrap_Readback(lua_State *state) -> int {
   auto readbackResult = buffer->GetBuffer()->Readback(*ctx);
 
   if (Error::IsError(readbackResult)) {
-    return luaL_error(state, "Failed to read back buffer: %s",
-                      readbackResult.error().message.c_str());
+    return luaL_error(state, "Failed to read back buffer: %s", readbackResult.error().message.c_str());
   }
 
   auto readbackData = readbackResult.value();
 
-  LuaWrap::PushObject(state, ::Graphics::BufferReadback::GetType(),
-                      readbackData.get());
+  LuaWrap::PushObject(state, ::Graphics::BufferReadback::GetType(), readbackData.get());
 
   return 1;
 }
 
 // Buffer format: { { name = ..., format = ... }, ... }
-inline auto BufferFormatFromLua(lua_State *state, int index)
-    -> Result<::Graphics::BufferFormat> {
+inline auto BufferFormatFromLua(lua_State *state, int index) -> Result<::Graphics::BufferFormat> {
   std::vector<::Graphics::BufferComponent> components;
 
   if (lua_type(state, index) == LUA_TSTRING) {
@@ -398,19 +368,14 @@ auto wrap_NewBuffer(lua_State *state) -> int {
     usageFlags |= ConditionalFlag(state, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     lua_getfield(state, 3, "cpupersistent");
-    memoryFlags |=
-        ConditionalFlag(state, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    memoryFlags |= ConditionalFlag(state, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     lua_getfield(state, 3, "gpuonly");
     if (lua_toboolean(state, -1) != 0) {
       lua_pop(state, 1); // pop boolean
 
-      if ((memoryFlags &
-           (static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) != 0U) {
-        return luaL_error(state,
-                          "Buffer cannot be both cpu persistent and gpu only.");
+      if ((memoryFlags & (static_cast<uint32_t>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) != 0U) {
+        return luaL_error(state, "Buffer cannot be both cpu persistent and gpu only.");
       }
 
       memoryFlags |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -424,8 +389,7 @@ auto wrap_NewBuffer(lua_State *state) -> int {
   }
 
   if ((memoryFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0U) {
-    usageFlags |=
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT; // allow data upload if not gpu only
+    usageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT; // allow data upload if not gpu only
   }
 
   if ((usageFlags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) == 0U) {
@@ -438,18 +402,15 @@ auto wrap_NewBuffer(lua_State *state) -> int {
   info.usageFlags = usageFlags;
   info.debugName = "Structured Buffer";
 
-  auto result =
-      ::Graphics::StructuredBuffer::Create(*ctx, format, elementCount, info);
+  auto result = ::Graphics::StructuredBuffer::Create(*ctx, format, elementCount, info);
 
   if (Error::IsError(result)) {
-    return luaL_error(state, "Failed to create Buffer: %s",
-                      result.error().message.c_str());
+    return luaL_error(state, "Failed to create Buffer: %s", result.error().message.c_str());
   }
 
   auto buffer = result.value();
 
-  LuaWrap::PushObject(state, ::Graphics::StructuredBuffer::GetType(),
-                      buffer.get());
+  LuaWrap::PushObject(state, ::Graphics::StructuredBuffer::GetType(), buffer.get());
 
   return 1;
 }

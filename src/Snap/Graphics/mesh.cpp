@@ -20,14 +20,9 @@
 
 namespace Graphics {
 
-static auto VertexFormatSize(const VertexFormat &format, uint32_t binding)
-    -> uint32_t {
-  return format.GetStride(binding);
-}
+static auto VertexFormatSize(const VertexFormat &format, uint32_t binding) -> uint32_t { return format.GetStride(binding); }
 
-auto Mesh::UploadVertices(const GraphicsContext &context, uint32_t binding,
-                          const std::span<const uint8_t> &vertices,
-                          uint64_t offset) -> Error {
+auto Mesh::UploadVertices(const GraphicsContext &context, uint32_t binding, const std::span<const uint8_t> &vertices, uint64_t offset) -> Error {
   ZoneScoped;
 
   std::lock_guard<std::mutex> lock(VertexBuffers.at(binding)->mutex);
@@ -35,9 +30,7 @@ auto Mesh::UploadVertices(const GraphicsContext &context, uint32_t binding,
   return VertexBuffers.at(binding)->SetData(context, vertices, offset);
 }
 
-auto Mesh::UploadIndices(const GraphicsContext &context,
-                         const std::span<uint8_t> &indices, uint64_t offset,
-                         VkIndexType format) -> Error {
+auto Mesh::UploadIndices(const GraphicsContext &context, const std::span<uint8_t> &indices, uint64_t offset, VkIndexType format) -> Error {
   ZoneScoped;
 
   std::lock_guard<std::mutex> lock(IndexBuffer->mutex);
@@ -45,8 +38,7 @@ auto Mesh::UploadIndices(const GraphicsContext &context,
   return IndexBuffer->SetData(context, indices, offset);
 }
 
-auto Mesh::Create(const GraphicsContext &context, const MeshCreationInfo &info)
-    -> Result<Ref<Mesh>> {
+auto Mesh::Create(const GraphicsContext &context, const MeshCreationInfo &info) -> Result<Ref<Mesh>> {
 
   Ref<Mesh> mesh;
 
@@ -60,9 +52,7 @@ auto Mesh::Create(const GraphicsContext &context, const MeshCreationInfo &info)
   return mesh;
 }
 
-auto Mesh::CreateFromVertexData(const GraphicsContext &context,
-                                const MeshCreationInfo &info)
-    -> Result<Ref<Mesh>> {
+auto Mesh::CreateFromVertexData(const GraphicsContext &context, const MeshCreationInfo &info) -> Result<Ref<Mesh>> {
 
   auto mesh = Ref<Mesh>::Make();
 
@@ -75,10 +65,9 @@ auto Mesh::CreateFromVertexData(const GraphicsContext &context,
   for (size_t i = 1; i < vertexDatas.size(); ++i) {
     auto vtxCount = vertexDatas.at(i).size() / vertexFormat.GetStride(i);
     if (vtxCount != firstVtxCount) {
-      return Error::Createf(
-          "Vertex data for binding {} has a different vertex count than "
-          "binding 0.",
-          i);
+      return Error::Createf("Vertex data for binding {} has a different vertex count than "
+                            "binding 0.",
+                            i);
     }
   }
 
@@ -89,11 +78,8 @@ auto Mesh::CreateFromVertexData(const GraphicsContext &context,
   auto properties = static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   Graphics::BufferCreationInfo vboCreationInfo = {};
-  vboCreationInfo.usage =
-      static_cast<uint32_t>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) |
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-      VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+  vboCreationInfo.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
   mesh->VertexBuffers.resize(vertexFormat.GetBindingCount());
 
@@ -106,8 +92,7 @@ auto Mesh::CreateFromVertexData(const GraphicsContext &context,
     vboCreationInfo.debugName = debugName + " Vertex Buffer";
     mesh->DebugName = debugName;
 
-    mesh->VertexBuffers.at(i) =
-        CHECK_RES(Buffer::Create(context, vboCreationInfo));
+    mesh->VertexBuffers.at(i) = CHECK_RES(Buffer::Create(context, vboCreationInfo));
 
     CHECK_ERR(mesh->UploadVertices(context, i, vertexData, 0));
   }
@@ -119,9 +104,7 @@ auto Mesh::CreateFromVertexData(const GraphicsContext &context,
   return mesh;
 }
 
-auto Mesh::CreateFromVertexCount(const GraphicsContext &context,
-                                 const MeshCreationInfo &info)
-    -> Result<Ref<Mesh>> {
+auto Mesh::CreateFromVertexCount(const GraphicsContext &context, const MeshCreationInfo &info) -> Result<Ref<Mesh>> {
   const auto &vertexFormat = *info.vertexFormat;
   const auto &vertexCount = info.vertexCount;
   const auto &debugName = info.debugName;
@@ -138,11 +121,8 @@ auto Mesh::CreateFromVertexCount(const GraphicsContext &context,
   uint32_t bindingCount = vertexFormat.GetBindingCount();
 
   Graphics::BufferCreationInfo vboCreationInfo = {};
-  vboCreationInfo.usage =
-      static_cast<uint32_t>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) |
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-      VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+  vboCreationInfo.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
   for (uint32_t i = 0; i < bindingCount; ++i) {
     auto vertexDataSize = vertexCount * VertexFormatSize(vertexFormat, i);
@@ -166,17 +146,11 @@ auto Mesh::CreateFromVertexCount(const GraphicsContext &context,
 
 [[nodiscard]] auto Mesh::GetVertexFormat() -> VertexFormat & { return *Format; }
 
-[[nodiscard]] auto Mesh::GetVertexFormat() const -> const VertexFormat & {
-  return *Format;
-}
+[[nodiscard]] auto Mesh::GetVertexFormat() const -> const VertexFormat & { return *Format; }
 
-[[nodiscard]] auto Mesh::GetVertexCount() const -> uint32_t {
-  return VertexCount;
-}
+[[nodiscard]] auto Mesh::GetVertexCount() const -> uint32_t { return VertexCount; }
 
-[[nodiscard]] auto Mesh::GetIndexCount() const -> uint32_t {
-  return IndexCount;
-}
+[[nodiscard]] auto Mesh::GetIndexCount() const -> uint32_t { return IndexCount; }
 
 void Mesh::SetDrawRange(MeshDrawRange range) {
   auto maxCount = IndexCount == 0 ? VertexCount : IndexCount;
@@ -187,22 +161,15 @@ void Mesh::SetDrawRange(MeshDrawRange range) {
   DrawRange.Count = range.Count;
 }
 
-[[nodiscard]] auto Mesh::GetDrawRange() const -> MeshDrawRange {
-  return DrawRange;
-}
+[[nodiscard]] auto Mesh::GetDrawRange() const -> MeshDrawRange { return DrawRange; }
 
-auto Mesh::SetVertices(const GraphicsContext &context, uint32_t binding,
-                       const std::span<const uint8_t> &vertexData,
-                       uint64_t offset) -> Error {
+auto Mesh::SetVertices(const GraphicsContext &context, uint32_t binding, const std::span<const uint8_t> &vertexData, uint64_t offset) -> Error {
   return UploadVertices(context, binding, vertexData, offset);
 }
 
-auto Mesh::SetIndices(const GraphicsContext &context,
-                      const std::span<uint8_t> &indexData, VkIndexType format,
-                      uint32_t offset) -> Error {
+auto Mesh::SetIndices(const GraphicsContext &context, const std::span<uint8_t> &indexData, VkIndexType format, uint32_t offset) -> Error {
 
-  if (format != VK_INDEX_TYPE_UINT16 && format != VK_INDEX_TYPE_UINT32 &&
-      format != VK_INDEX_TYPE_UINT8) {
+  if (format != VK_INDEX_TYPE_UINT16 && format != VK_INDEX_TYPE_UINT32 && format != VK_INDEX_TYPE_UINT8) {
     return Error::Create("Invalid Index Type");
   }
 
@@ -210,14 +177,10 @@ auto Mesh::SetIndices(const GraphicsContext &context,
 
   if (IndexBuffer.get() == nullptr || IndexBuffer->size < indexData.size()) {
     Graphics::BufferCreationInfo iboCreationInfo = {};
-    iboCreationInfo.usage =
-        static_cast<uint32_t>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT) |
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    iboCreationInfo.usage = static_cast<uint32_t>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT) | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-    auto properties =
-        static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    auto properties = static_cast<uint32_t>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     iboCreationInfo.properties = properties;
     iboCreationInfo.size = indexData.size();
@@ -227,8 +190,7 @@ auto Mesh::SetIndices(const GraphicsContext &context,
     IndexCount = newCount;
 
     DrawRange.Count = IndexCount;
-    DrawRange.Offset =
-        (std::min)(DrawRange.Offset, static_cast<uint32_t>(IndexCount - 1));
+    DrawRange.Offset = (std::min)(DrawRange.Offset, static_cast<uint32_t>(IndexCount - 1));
   }
 
   IndicesFormat = format;
@@ -236,47 +198,39 @@ auto Mesh::SetIndices(const GraphicsContext &context,
   return UploadIndices(context, indexData, offset, format);
 }
 
-auto Mesh::SetVertexBuffer(const Ref<Buffer> &buffer, uint32_t binding)
-    -> void {
+auto Mesh::SetVertexBuffer(const Ref<Buffer> &buffer, uint32_t binding) -> void {
   VertexBuffers.at(binding) = buffer;
   ConstructBindingRanges();
 }
 
-auto Mesh::SetIndexBuffer(const Ref<Buffer> &buffer, VkIndexType format)
-    -> Error {
+auto Mesh::SetIndexBuffer(const Ref<Buffer> &buffer, VkIndexType format) -> Error {
 
-  if (format != VK_INDEX_TYPE_UINT16 && format != VK_INDEX_TYPE_UINT32 &&
-      format != VK_INDEX_TYPE_UINT8) {
+  if (format != VK_INDEX_TYPE_UINT16 && format != VK_INDEX_TYPE_UINT32 && format != VK_INDEX_TYPE_UINT8) {
     return Error::Create("Invalid Index Type");
   }
 
   IndexBuffer = buffer;
   IndicesFormat = format;
 
-  auto newCount =
-      static_cast<uint32_t>(buffer->size / GetIndexFormatSize(format));
+  auto newCount = static_cast<uint32_t>(buffer->size / GetIndexFormatSize(format));
 
   IndexCount = newCount;
   DrawRange.Count = IndexCount;
-  DrawRange.Offset =
-      (std::min)(DrawRange.Offset, static_cast<uint32_t>(IndexCount - 1));
+  DrawRange.Offset = (std::min)(DrawRange.Offset, static_cast<uint32_t>(IndexCount - 1));
 
   return Error::Success();
 }
 
 auto Mesh::GetIndexFormat() const -> VkIndexType { return IndicesFormat; }
 
-auto Mesh::GetVertexBuffer(uint32_t binding) const -> Ref<Buffer> {
-  return VertexBuffers.at(binding);
-}
+auto Mesh::GetVertexBuffer(uint32_t binding) const -> Ref<Buffer> { return VertexBuffers.at(binding); }
 
 auto Mesh::GetIndexBuffer() const -> Ref<Buffer> { return IndexBuffer; }
 
 // Disallow: Fan, Geometry, Patch
 constexpr std::array<VkPrimitiveTopology, 5> validTopologies = {
-    VK_PRIMITIVE_TOPOLOGY_POINT_LIST,     VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
-    VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+    VK_PRIMITIVE_TOPOLOGY_POINT_LIST,    VK_PRIMITIVE_TOPOLOGY_LINE_LIST,      VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
 };
 
 auto Mesh::SetTopology(VkPrimitiveTopology topology) -> Error {

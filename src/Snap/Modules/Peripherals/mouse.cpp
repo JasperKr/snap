@@ -24,13 +24,9 @@ auto GetPosition() -> Math::Vec2 {
   return Math::Vec2{x_position, y_position};
 }
 
-auto SetPosition(float x_position, float y_position) -> void {
-  SDL_WarpMouseInWindow(nullptr, x_position, y_position);
-}
+auto SetPosition(float x_position, float y_position) -> void { SDL_WarpMouseInWindow(nullptr, x_position, y_position); }
 
-auto SetPosition(const Math::Vec2 &position) -> void {
-  SDL_WarpMouseInWindow(nullptr, position.x, position.y);
-}
+auto SetPosition(const Math::Vec2 &position) -> void { SDL_WarpMouseInWindow(nullptr, position.x, position.y); }
 
 auto IsButtonDown(const std::string &buttonName) -> bool {
   auto iterator = MouseButtonMap.find(buttonName);
@@ -65,15 +61,13 @@ auto SetCursor(const Ref<MouseCursor> &cursor) -> Error {
 
   if (!success) {
     const auto *sdlError = SDL_GetError();
-    return Error::Create("Failed to set mouse cursor: " +
-                         std::string(sdlError));
+    return Error::Create("Failed to set mouse cursor: " + std::string(sdlError));
   }
 
   return Error::Success();
 }
 
-auto CreateSystemCursor(SDL_SystemCursor sdlCursorType)
-    -> Result<Ref<MouseCursor>> {
+auto CreateSystemCursor(SDL_SystemCursor sdlCursorType) -> Result<Ref<MouseCursor>> {
   if (sdlCursorType == SDL_SYSTEM_CURSOR_COUNT) {
     return Error::Create("Unknown system cursor type.");
   }
@@ -82,8 +76,7 @@ auto CreateSystemCursor(SDL_SystemCursor sdlCursorType)
 
   if (sdlCursor == nullptr) {
     const auto *sdlError = SDL_GetError();
-    return Error::Create("Failed to create system mouse cursor: " +
-                         std::string(sdlError));
+    return Error::Create("Failed to create system mouse cursor: " + std::string(sdlError));
   }
 
   return Ref<MouseCursor>::Make(sdlCursor);

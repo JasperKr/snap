@@ -3,8 +3,7 @@
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
-template <typename Storage, int EXP_BITS, int MANT_BITS, bool SIGNED>
-struct CustomFloat {
+template <typename Storage, int EXP_BITS, int MANT_BITS, bool SIGNED> struct CustomFloat {
   static constexpr uint32_t exp_bits = EXP_BITS;
   static constexpr uint32_t mant_bits = MANT_BITS;
   static constexpr bool has_sign = SIGNED;

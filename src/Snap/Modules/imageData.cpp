@@ -70,12 +70,8 @@ static const std::unordered_map<VkFormat, FormatFunctions> formatFunctionMap = {
         outColor.a = static_cast<float>(inData[3]) * FromUint8_t;
       }}},
     {VK_FORMAT_R8_UNORM,
-     {.set = [](const Color &color, uint8_t *__restrict outData) -> void {
-        outData[0] = static_cast<uint8_t>(color.r * ToUint8_t);
-      },
-      .get = [](const uint8_t *__restrict inData, Color &outColor) -> void {
-        outColor.r = static_cast<float>(inData[0]) * FromUint8_t;
-      }}},
+     {.set = [](const Color &color, uint8_t *__restrict outData) -> void { outData[0] = static_cast<uint8_t>(color.r * ToUint8_t); },
+      .get = [](const uint8_t *__restrict inData, Color &outColor) -> void { outColor.r = static_cast<float>(inData[0]) * FromUint8_t; }}},
     {VK_FORMAT_R8G8_UNORM,
      {.set = [](const Color &color, uint8_t *__restrict outData) -> void {
         outData[0] = static_cast<uint8_t>(color.r * ToUint8_t);
@@ -167,10 +163,8 @@ static const std::unordered_map<VkFormat, FormatFunctions> formatFunctionMap = {
       }}},
     {VK_FORMAT_R4G4B4A4_UNORM_PACK16,
      {.set = [](const Color &color, uint8_t *__restrict outData) -> void {
-        uint16_t packed = (static_cast<uint32_t>(color.r * 15.0F) << 12U) |
-                          (static_cast<uint32_t>(color.g * 15.0F) << 8U) |
-                          (static_cast<uint32_t>(color.b * 15.0F) << 4U) |
-                          (static_cast<uint32_t>(color.a * 15.0F) << 0U);
+        uint16_t packed = (static_cast<uint32_t>(color.r * 15.0F) << 12U) | (static_cast<uint32_t>(color.g * 15.0F) << 8U) |
+                          (static_cast<uint32_t>(color.b * 15.0F) << 4U) | (static_cast<uint32_t>(color.a * 15.0F) << 0U);
         std::memcpy(outData, &packed, sizeof(uint16_t));
       },
       .get = [](const uint8_t *__restrict inData, Color &outColor) -> void {
@@ -183,10 +177,8 @@ static const std::unordered_map<VkFormat, FormatFunctions> formatFunctionMap = {
       }}},
     {VK_FORMAT_R5G5B5A1_UNORM_PACK16,
      {.set = [](const Color &color, uint8_t *__restrict outData) -> void {
-        uint16_t packed = (static_cast<uint32_t>(color.r * 31.0F) << 11U) |
-                          (static_cast<uint32_t>(color.g * 31.0F) << 6U) |
-                          (static_cast<uint32_t>(color.b * 31.0F) << 1U) |
-                          (static_cast<uint32_t>(color.a * 1.0F) << 0U);
+        uint16_t packed = (static_cast<uint32_t>(color.r * 31.0F) << 11U) | (static_cast<uint32_t>(color.g * 31.0F) << 6U) |
+                          (static_cast<uint32_t>(color.b * 31.0F) << 1U) | (static_cast<uint32_t>(color.a * 1.0F) << 0U);
         std::memcpy(outData, &packed, sizeof(uint16_t));
       },
       .get = [](const uint8_t *__restrict inData, Color &outColor) -> void {
@@ -218,8 +210,7 @@ static const std::unordered_map<VkFormat, FormatFunctions> formatFunctionMap = {
 
 namespace Image {
 auto ImageData::SetColor(Math::Uvec3 position, const Color &color) -> Error {
-  size_t index = (GetSlicePitch() * position.z) + (GetRowPitch() * position.y) +
-                 (position.x * GetFormatSize());
+  size_t index = (GetSlicePitch() * position.z) + (GetRowPitch() * position.y) + (position.x * GetFormatSize());
 
   auto funcIterator = formatFunctionMap.find(format);
   if (funcIterator != formatFunctionMap.end()) {
@@ -232,8 +223,7 @@ auto ImageData::SetColor(Math::Uvec3 position, const Color &color) -> Error {
 }
 
 auto ImageData::GetColor(Math::Uvec3 position) -> Result<Color> {
-  size_t index = (GetSlicePitch() * position.z) + (GetRowPitch() * position.y) +
-                 (position.x * GetFormatSize());
+  size_t index = (GetSlicePitch() * position.z) + (GetRowPitch() * position.y) + (position.x * GetFormatSize());
 
   auto funcIterator = formatFunctionMap.find(format);
   static Color outColor; // NOLINT
@@ -247,25 +237,20 @@ auto ImageData::GetColor(Math::Uvec3 position) -> Result<Color> {
   return Error::Create("Unsupported image format.");
 }
 
-auto ImageData::Create(VkExtent3D dimensions, VkFormat format)
-    -> Result<Ref<ImageData>> {
+auto ImageData::Create(VkExtent3D dimensions, VkFormat format) -> Result<Ref<ImageData>> {
   assert(Graphics::Format::GetSize(format) != 0);
   return Ref<ImageData>::Make(dimensions, format);
 }
 
-auto ImageData::Create(VkExtent3D dimensions, const std::span<uint8_t> &srcData,
-                       VkFormat format) -> Result<Ref<ImageData>> {
+auto ImageData::Create(VkExtent3D dimensions, const std::span<uint8_t> &srcData, VkFormat format) -> Result<Ref<ImageData>> {
   assert(Graphics::Format::GetSize(format) != 0);
   auto imgdata = Ref<ImageData>::Make(dimensions, format);
   std::memcpy(imgdata->GetDataPtr(), srcData.data(), srcData.size());
   return imgdata;
 }
 
-auto ImageData::Create(VkExtent3D dimensions, Data::ByteData &byteData,
-                       VkFormat format) -> Result<Ref<ImageData>> {
-  size_t dataSize = static_cast<size_t>(dimensions.width) *
-                    static_cast<size_t>(dimensions.height) *
-                    static_cast<size_t>(dimensions.depth) *
+auto ImageData::Create(VkExtent3D dimensions, Data::ByteData &byteData, VkFormat format) -> Result<Ref<ImageData>> {
+  size_t dataSize = static_cast<size_t>(dimensions.width) * static_cast<size_t>(dimensions.height) * static_cast<size_t>(dimensions.depth) *
                     Graphics::Format::GetSize(format);
 
   if (byteData.GetSize() != dataSize && dataSize > 0) {
@@ -291,8 +276,7 @@ auto ImageData::Create(const std::string &filepath) -> Result<Ref<ImageData>> {
   return Create(bytedata);
 }
 
-auto ImageData::Create(const std::span<uint8_t> &data)
-    -> Result<Ref<ImageData>> {
+auto ImageData::Create(const std::span<uint8_t> &data) -> Result<Ref<ImageData>> {
   // Allowed formats: jpeg, png, tga, bmp, psd, gif, hdr, pic, ppm
 
   int texWidth = 0;
@@ -305,23 +289,16 @@ auto ImageData::Create(const std::span<uint8_t> &data)
   }
 
   // check for LDR formats, supported by default stbi_load
-  if (stbi_is_hdr_from_memory(data.data(), static_cast<int>(data.size())) ==
-      0) {
-    stbi_uc *pixels = stbi_load_from_memory(
-        data.data(), static_cast<int>(data.size()), &texWidth, &texHeight,
-        &texChannels, STBI_rgb_alpha);
+  if (stbi_is_hdr_from_memory(data.data(), static_cast<int>(data.size())) == 0) {
+    stbi_uc *pixels = stbi_load_from_memory(data.data(), static_cast<int>(data.size()), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
     if (pixels == nullptr) {
       return Error::Unexpected("Failed to load rgba8 imageData.");
     }
 
-    auto span =
-        std::span<uint8_t>(pixels, static_cast<size_t>(texWidth) *
-                                       static_cast<size_t>(texHeight) * 4);
+    auto span = std::span<uint8_t>(pixels, static_cast<size_t>(texWidth) * static_cast<size_t>(texHeight) * 4);
 
-    auto imageData = Image::ImageData::Create(
-        {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1},
-        span, VK_FORMAT_R8G8B8A8_UNORM);
+    auto imageData = Image::ImageData::Create({static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1}, span, VK_FORMAT_R8G8B8A8_UNORM);
 
     stbi_image_free(pixels);
 
@@ -332,24 +309,18 @@ auto ImageData::Create(const std::span<uint8_t> &data)
     return imageData.value();
   }
 
-  if (stbi_is_hdr_from_memory(data.data(), static_cast<int>(data.size())) !=
-      0) {
-    float *__restrict pixels =
-        stbi_loadf_from_memory(data.data(), static_cast<int>(data.size()),
-                               &texWidth, &texHeight, &texChannels, STBI_rgb);
+  if (stbi_is_hdr_from_memory(data.data(), static_cast<int>(data.size())) != 0) {
+    float *__restrict pixels = stbi_loadf_from_memory(data.data(), static_cast<int>(data.size()), &texWidth, &texHeight, &texChannels, STBI_rgb);
 
     if (pixels == nullptr) {
       return Error::Unexpected("Failed to load b10gr11f imageData.");
     }
 
-    auto imageData = CHECK_RES(Image::ImageData::Create(
-        {static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1},
-        VK_FORMAT_B10G11R11_UFLOAT_PACK32));
-    auto *__restrict ptr =
-        reinterpret_cast<uint32_t *>(imageData->GetDataPtr()); // NOLINT
+    auto imageData =
+        CHECK_RES(Image::ImageData::Create({static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1}, VK_FORMAT_B10G11R11_UFLOAT_PACK32));
+    auto *__restrict ptr = reinterpret_cast<uint32_t *>(imageData->GetDataPtr()); // NOLINT
 
-    size_t iterCount =
-        static_cast<size_t>(texWidth) * static_cast<size_t>(texHeight);
+    size_t iterCount = static_cast<size_t>(texWidth) * static_cast<size_t>(texHeight);
     size_t readIdx = 0;
 
 #pragma unroll 4
@@ -369,10 +340,7 @@ auto ImageData::Create(const std::span<uint8_t> &data)
   return Error::Unexpected("Unsupported image format.");
 }
 
-auto ImageData::Create(const Data::ByteData &byteData)
-    -> Result<Ref<ImageData>> {
-  return Create(byteData.GetDataSpan());
-}
+auto ImageData::Create(const Data::ByteData &byteData) -> Result<Ref<ImageData>> { return Create(byteData.GetDataSpan()); }
 
 } // namespace Image
 

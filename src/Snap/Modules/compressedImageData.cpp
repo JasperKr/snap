@@ -7,28 +7,20 @@
 #include <vector>
 
 namespace Image {
-auto CompressedImageData::Create(VkExtent2D dimensions, VkFormat format)
-    -> Result<Ref<CompressedImageData>> {
+auto CompressedImageData::Create(VkExtent2D dimensions, VkFormat format) -> Result<Ref<CompressedImageData>> {
   assert(Graphics::Format::GetSize(format) != 0);
   return Ref<CompressedImageData>::Make(dimensions, format);
 }
 
-auto CompressedImageData::Create(VkExtent2D dimensions,
-                                 const std::span<uint8_t> &srcData,
-                                 VkFormat format)
-    -> Result<Ref<CompressedImageData>> {
+auto CompressedImageData::Create(VkExtent2D dimensions, const std::span<uint8_t> &srcData, VkFormat format) -> Result<Ref<CompressedImageData>> {
   assert(Graphics::Format::GetSize(format) != 0);
   auto imgdata = Ref<CompressedImageData>::Make(dimensions, format);
   std::memcpy(imgdata->GetDataPtr(), srcData.data(), srcData.size());
   return imgdata;
 }
 
-auto CompressedImageData::Create(VkExtent2D dimensions,
-                                 Data::ByteData &byteData, VkFormat format)
-    -> Result<Ref<CompressedImageData>> {
-  size_t dataSize = static_cast<size_t>(dimensions.width) *
-                    static_cast<size_t>(dimensions.height) *
-                    Graphics::Format::GetSize(format);
+auto CompressedImageData::Create(VkExtent2D dimensions, Data::ByteData &byteData, VkFormat format) -> Result<Ref<CompressedImageData>> {
+  size_t dataSize = static_cast<size_t>(dimensions.width) * static_cast<size_t>(dimensions.height) * Graphics::Format::GetSize(format);
 
   if (byteData.GetSize() != dataSize && dataSize > 0) {
     return Error::Unexpected("ByteData size does not match image dimensions.");
@@ -37,8 +29,7 @@ auto CompressedImageData::Create(VkExtent2D dimensions,
   return Ref<CompressedImageData>::Make(dimensions, byteData, format);
 }
 
-auto CompressedImageData::Create(const std::string &filepath)
-    -> Result<Ref<CompressedImageData>> {
+auto CompressedImageData::Create(const std::string &filepath) -> Result<Ref<CompressedImageData>> {
 
   auto fileLoadResult = Filesystem::ReadFile(filepath);
 
@@ -54,8 +45,7 @@ auto CompressedImageData::Create(const std::string &filepath)
   return Create(bytedata);
 }
 
-auto CompressedImageData::Create(const std::span<uint8_t> &data)
-    -> Result<Ref<CompressedImageData>> {
+auto CompressedImageData::Create(const std::span<uint8_t> &data) -> Result<Ref<CompressedImageData>> {
   if (!Image::IsDDS(data)) {
     return Error::Unexpected("Unsupported image format.");
   }
@@ -96,8 +86,7 @@ auto CompressedImageData::Create(const std::span<uint8_t> &data)
   auto formatResult = DXgiDDSFormatToVkFormat(header10.dxgiFormat);
 
   if (formatResult == VK_FORMAT_UNDEFINED) {
-    return Error::Unexpected(
-        "Unsupported DDS format (unsupported DXGI format).");
+    return Error::Unexpected("Unsupported DDS format (unsupported DXGI format).");
   }
 
   format = formatResult;
@@ -109,17 +98,13 @@ auto CompressedImageData::Create(const std::span<uint8_t> &data)
 
   VkExtent2D size = {header.width, header.height};
 
-  const auto &imgdata = CHECK_RES(
-      CompressedImageData::Create(size, data.subspan(headerSize), format));
+  const auto &imgdata = CHECK_RES(CompressedImageData::Create(size, data.subspan(headerSize), format));
 
   imgdata->mipmapCount = static_cast<int>(header.mipMapCount);
 
   return imgdata;
 }
 
-auto CompressedImageData::Create(const Data::ByteData &byteData)
-    -> Result<Ref<CompressedImageData>> {
-  return Create(byteData.GetDataSpan());
-}
+auto CompressedImageData::Create(const Data::ByteData &byteData) -> Result<Ref<CompressedImageData>> { return Create(byteData.GetDataSpan()); }
 
 } // namespace Image

@@ -51,15 +51,13 @@ auto main(int argCount, char **argValues) -> int {
   RegisterAllLuaModules(state);
 
   // Log real path
-  std::cout << "Current working directory: "
-            << std::filesystem::current_path().string() << "\n";
+  std::cout << "Current working directory: " << std::filesystem::current_path().string() << "\n";
 
   std::cout << "Emitting Lua bindings to 'generated/' directory...\n";
   std::filesystem::create_directories("generated");
   for (const auto &module : Bindings::LuaModules) {
     std::string filename = "generated/" + module.first + "_bindings.d.lua";
-    std::cout << "Generating bindings for module: " << module.first << " -> "
-              << filename << "\n";
+    std::cout << "Generating bindings for module: " << module.first << " -> " << filename << "\n";
     std::ofstream outFile(filename);
 
     if (!outFile) {
@@ -81,8 +79,7 @@ auto main(int argCount, char **argValues) -> int {
   Bindings::EmitLuaEnums(enumOutFile, LuaWrap::RegisteredEnums);
   enumOutFile.close();
 
-  std::cout
-      << "Emitting Lua type aliases to 'generated/lua_aliases.d.lua'...\n";
+  std::cout << "Emitting Lua type aliases to 'generated/lua_aliases.d.lua'...\n";
   std::ofstream aliasOutFile("generated/lua_aliases.d.lua");
   if (!aliasOutFile) {
     std::cerr << "Failed to open file for Lua type aliases\n";

@@ -50,8 +50,7 @@ struct Mesh : Object, Identifiable {
   // Vertex data must be laid out as tightly packed arrays;
   // for example, 2 triangles with 2 bindings: [0, 1, 2, 0, 1, 2], [0, 1, 2, 0, 1, 2]
   // where the first array is for binding 0 and the second array is for binding 1.
-  static auto Create(const GraphicsContext &context,
-                     const MeshCreationInfo &info) -> Result<Ref<Mesh>>;
+  static auto Create(const GraphicsContext &context, const MeshCreationInfo &info) -> Result<Ref<Mesh>>;
 
   [[nodiscard]] auto GetVertexFormat() -> VertexFormat &;
   [[nodiscard]] auto GetVertexFormat() const -> const VertexFormat &;
@@ -69,12 +68,8 @@ struct Mesh : Object, Identifiable {
   auto SetTopology(VkPrimitiveTopology topology) -> Error;
   [[nodiscard]] auto GetTopology() const -> VkPrimitiveTopology;
 
-  auto SetVertices(const GraphicsContext &context, uint32_t binding,
-                   const std::span<const uint8_t> &vertexData,
-                   uint64_t offset = 0) -> Error;
-  auto SetIndices(const GraphicsContext &context,
-                  const std::span<uint8_t> &indexData, VkIndexType format,
-                  uint32_t offset = 0) -> Error;
+  auto SetVertices(const GraphicsContext &context, uint32_t binding, const std::span<const uint8_t> &vertexData, uint64_t offset = 0) -> Error;
+  auto SetIndices(const GraphicsContext &context, const std::span<uint8_t> &indexData, VkIndexType format, uint32_t offset = 0) -> Error;
 
   auto SetVertexBuffer(const Ref<Buffer> &buffer, uint32_t binding = 0) -> void;
   auto SetIndexBuffer(const Ref<Buffer> &buffer, VkIndexType format) -> Error;
@@ -84,9 +79,7 @@ struct Mesh : Object, Identifiable {
 
   static auto GetType() -> Type const * { return &meshType; }
 
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return Mesh::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return Mesh::GetType(); }
 
   auto GetHash() const -> size_t {
     Hash::Hasher hasher;
@@ -101,13 +94,9 @@ struct Mesh : Object, Identifiable {
     return hasher.Get();
   }
 
-  auto GetVertexBuffers() const -> const std::vector<Ref<Buffer>> & {
-    return VertexBuffers;
-  }
+  auto GetVertexBuffers() const -> const std::vector<Ref<Buffer>> & { return VertexBuffers; }
 
-  auto GetBindingCount() const -> uint32_t {
-    return static_cast<uint32_t>(VertexBuffers.size());
-  }
+  auto GetBindingCount() const -> uint32_t { return static_cast<uint32_t>(VertexBuffers.size()); }
 
   struct VertexBindingRange {
     uint32_t firstBinding;
@@ -116,30 +105,18 @@ struct Mesh : Object, Identifiable {
     VkDeviceSize *offsets;
   };
 
-  auto GetBindingRanges() const
-      -> Math::StackVector<VertexBindingRange, MAX_BOUND_VERTEX_BUFFERS> const
-          & {
-    return BindingRanges;
-  }
+  auto GetBindingRanges() const -> Math::StackVector<VertexBindingRange, MAX_BOUND_VERTEX_BUFFERS> const & { return BindingRanges; }
 
   auto CreateBLAS(const GraphicsContext &context) -> Error;
   auto GetBLAS() const -> Ref<BLAS> { return BottomLevelAS; }
 
 private:
-  static auto CreateFromVertexData(const GraphicsContext &context,
-                                   const MeshCreationInfo &info)
-      -> Result<Ref<Mesh>>;
+  static auto CreateFromVertexData(const GraphicsContext &context, const MeshCreationInfo &info) -> Result<Ref<Mesh>>;
 
-  static auto CreateFromVertexCount(const GraphicsContext &context,
-                                    const MeshCreationInfo &info)
-      -> Result<Ref<Mesh>>;
+  static auto CreateFromVertexCount(const GraphicsContext &context, const MeshCreationInfo &info) -> Result<Ref<Mesh>>;
 
-  auto UploadVertices(const GraphicsContext &context, uint32_t binding,
-                      const std::span<const uint8_t> &vertices, uint64_t offset)
-      -> Error;
-  auto UploadIndices(const GraphicsContext &context,
-                     const std::span<uint8_t> &indices, uint64_t offset,
-                     VkIndexType format) -> Error;
+  auto UploadVertices(const GraphicsContext &context, uint32_t binding, const std::span<const uint8_t> &vertices, uint64_t offset) -> Error;
+  auto UploadIndices(const GraphicsContext &context, const std::span<uint8_t> &indices, uint64_t offset, VkIndexType format) -> Error;
   auto ConstructBindingRanges() -> void;
 
   std::array<VkBuffer, MAX_BOUND_VERTEX_BUFFERS> Bindings;

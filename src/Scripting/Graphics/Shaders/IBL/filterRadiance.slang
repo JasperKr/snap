@@ -40,8 +40,7 @@ import cubemapHelpers;
 
 #define GROUP_SIZE 64
 
-static float3[3] UpAxes = { float3(1.0, 0.0, 0.0), float3(0.0, 1.0, 0.0),
-                            float3(0.0, 0.0, 1.0) };
+static float3[3] UpAxes = { float3(1.0, 0.0, 0.0), float3(0.0, 1.0, 0.0), float3(0.0, 0.0, 1.0) };
 
 [shader("compute")]
 [numthreads(GROUP_SIZE, 1, 1)]
@@ -151,34 +150,21 @@ void computeMain(uint3 invocationID: SV_DispatchThreadID) {
         [[unroll]]
         for (int iSubTap = 0; iSubTap < 4; iSubTap++) {
           // determine sample attributes (dir, weight, level)
-          float3 sample_dir = frameX * (coeffsDir0[0][iSubTap] +
-                                        coeffsDir0[1][iSubTap] * theta2 +
-                                        coeffsDir0[2][iSubTap] * phi2) +
-                              frameY * (coeffsDir1[0][iSubTap] +
-                                        coeffsDir1[1][iSubTap] * theta2 +
-                                        coeffsDir1[2][iSubTap] * phi2) +
-                              frameZ * (coeffsDir2[0][iSubTap] +
-                                        coeffsDir2[1][iSubTap] * theta2 +
-                                        coeffsDir2[2][iSubTap] * phi2);
+          float3 sample_dir = frameX * (coeffsDir0[0][iSubTap] + coeffsDir0[1][iSubTap] * theta2 + coeffsDir0[2][iSubTap] * phi2) +
+                              frameY * (coeffsDir1[0][iSubTap] + coeffsDir1[1][iSubTap] * theta2 + coeffsDir1[2][iSubTap] * phi2) +
+                              frameZ * (coeffsDir2[0][iSubTap] + coeffsDir2[1][iSubTap] * theta2 + coeffsDir2[2][iSubTap] * phi2);
 
-          float sample_level = coeffsLevel[0][iSubTap] +
-                               coeffsLevel[1][iSubTap] * theta2 +
-                               coeffsLevel[2][iSubTap] * phi2;
+          float sample_level = coeffsLevel[0][iSubTap] + coeffsLevel[1][iSubTap] * theta2 + coeffsLevel[2][iSubTap] * phi2;
 
-          float sample_weight = coeffsWeight[0][iSubTap] +
-                                coeffsWeight[1][iSubTap] * theta2 +
-                                coeffsWeight[2][iSubTap] * phi2;
+          float sample_weight = coeffsWeight[0][iSubTap] + coeffsWeight[1][iSubTap] * theta2 + coeffsWeight[2][iSubTap] * phi2;
           sample_weight *= frameweight;
 
           // adjust for jacobian
-          sample_dir /= max(abs(sample_dir[0]),
-                            max(abs(sample_dir[1]), abs(sample_dir[2])));
+          sample_dir /= max(abs(sample_dir[0]), max(abs(sample_dir[1]), abs(sample_dir[2])));
           sample_level += 0.75 * log2(dot(sample_dir, sample_dir));
 
           // sample cubemap
-          color.xyz +=
-              Sanitise(InputTexture.SampleLevel(sample_dir, sample_level).xyz) *
-              sample_weight;
+          color.xyz += Sanitise(InputTexture.SampleLevel(sample_dir, sample_level).xyz) * sample_weight;
           color.w += sample_weight;
         }
       }

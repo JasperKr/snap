@@ -33,22 +33,18 @@ auto GetWrites(const Command &command) -> const std::vector<VulkanResource> & {
   return empty;
 }
 
-inline auto GetReadsFromDrawState(
-    DrawState &state, std::vector<VulkanResource> &reads,
-    std::unordered_set<VulkanResource, VulkanResourceHash<true>> &knownReads)
-    -> void {
+inline auto GetReadsFromDrawState(DrawState &state, std::vector<VulkanResource> &reads,
+                                  std::unordered_set<VulkanResource, VulkanResourceHash<true>> &knownReads) -> void {
 
   for (const auto &image : state.boundImages) {
-    if (VkAccessHelpers::IsReadAccess(image.access) &&
-        !knownReads.contains(image.resource)) {
+    if (VkAccessHelpers::IsReadAccess(image.access) && !knownReads.contains(image.resource)) {
       reads.emplace_back(image.resource);
       knownReads.emplace(image.resource);
     }
   }
 
   for (const auto &buffer : state.boundBuffers) {
-    if (VkAccessHelpers::IsReadAccess(buffer.access) &&
-        !knownReads.contains(buffer.resource)) {
+    if (VkAccessHelpers::IsReadAccess(buffer.access) && !knownReads.contains(buffer.resource)) {
       reads.emplace_back(buffer.resource);
       knownReads.emplace(buffer.resource);
     }
@@ -72,10 +68,8 @@ inline auto GetReadsFromDrawState(
   }
 }
 
-auto GetReadsInternal(
-    Command &command, DrawState *drawState, std::vector<VulkanResource> &reads,
-    std::unordered_set<VulkanResource, VulkanResourceHash<true>> *knownReads)
-    -> void {
+auto GetReadsInternal(Command &command, DrawState *drawState, std::vector<VulkanResource> &reads,
+                      std::unordered_set<VulkanResource, VulkanResourceHash<true>> *knownReads) -> void {
   ZoneScoped;
   if (drawState != nullptr) {
     ASSUME(knownReads != nullptr);
@@ -91,8 +85,7 @@ auto GetReadsInternal(
   }
   case CommandType::mipmapTexture: {
     const auto &args = std::get<Args::MipmapTexture>(command.data);
-    reads.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1,
-                                        0, args.texture->GetMipmapCount()));
+    reads.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1, 0, args.texture->GetMipmapCount()));
     break;
   }
   case CommandType::vkCmdCopyBuffer: {
@@ -118,8 +111,7 @@ auto GetReadsInternal(
   case CommandType::vkCmdPipelineBarrier2: {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
     for (const auto &barrier : args.imageMemoryBarriers) {
-      reads.emplace_back(
-          ImageSubresource(barrier.image, barrier.subresourceRange));
+      reads.emplace_back(ImageSubresource(barrier.image, barrier.subresourceRange));
     }
 
     for (const auto &barrier : args.bufferMemoryBarriers) {
@@ -128,8 +120,7 @@ auto GetReadsInternal(
     break;
   }
   case CommandType::vkCmdBuildAccelerationStructuresKHR: {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+    const auto &args = std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
     reads.append_range(args.bufferReads);
     break;
   }
@@ -138,9 +129,7 @@ auto GetReadsInternal(
   }
 }
 
-inline auto GetWritesFromDrawState(DrawState &state,
-                                   std::vector<VulkanResource> &writes)
-    -> void {
+inline auto GetWritesFromDrawState(DrawState &state, std::vector<VulkanResource> &writes) -> void {
 
   for (const auto &buffer : state.boundBuffers) {
     if (VkAccessHelpers::IsWriteAccess(buffer.access)) {
@@ -155,8 +144,7 @@ inline auto GetWritesFromDrawState(DrawState &state,
   }
 }
 
-auto GetWritesInternal(Command &command, DrawState *drawState,
-                       std::vector<VulkanResource> &writes) -> void {
+auto GetWritesInternal(Command &command, DrawState *drawState, std::vector<VulkanResource> &writes) -> void {
   ZoneScoped;
   if (drawState != nullptr) {
     GetWritesFromDrawState(*drawState, writes);
@@ -171,8 +159,7 @@ auto GetWritesInternal(Command &command, DrawState *drawState,
   }
   case CommandType::mipmapTexture: {
     const auto &args = std::get<Args::MipmapTexture>(command.data);
-    writes.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1,
-                                         0, args.texture->GetMipmapCount()));
+    writes.emplace_back(ImageSubresource(args.texture->imageMemory->image, 0, 1, 0, args.texture->GetMipmapCount()));
     break;
   }
   case CommandType::vkCmdCopyBuffer: {
@@ -203,8 +190,7 @@ auto GetWritesInternal(Command &command, DrawState *drawState,
   case CommandType::vkCmdPipelineBarrier2: {
     const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
     for (const auto &barrier : args.imageMemoryBarriers) {
-      writes.emplace_back(
-          ImageSubresource(barrier.image, barrier.subresourceRange));
+      writes.emplace_back(ImageSubresource(barrier.image, barrier.subresourceRange));
     }
 
     for (const auto &barrier : args.bufferMemoryBarriers) {
@@ -213,8 +199,7 @@ auto GetWritesInternal(Command &command, DrawState *drawState,
     break;
   }
   case CommandType::vkCmdBuildAccelerationStructuresKHR: {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+    const auto &args = std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
     writes.append_range(args.bufferWrites);
     break;
   }
@@ -224,19 +209,13 @@ auto GetWritesInternal(Command &command, DrawState *drawState,
 }
 
 // NOLINTNEXTLINE
-auto GetResourceAccesses(
-    const Command &command,
-    std::unordered_map<VulkanResource,
-                       std::pair<VkAccessFlags2, VkPipelineStageFlags2>,
-                       VulkanResourceHash<true>> &accesses) -> void {
+auto GetResourceAccesses(const Command &command,
+                         std::unordered_map<VulkanResource, std::pair<VkAccessFlags2, VkPipelineStageFlags2>, VulkanResourceHash<true>> &accesses) -> void {
   ZoneScoped;
 
   const auto *drawState = command.GetDrawState();
 
-  auto addAccess =
-      [&accesses](
-          const VulkanResource &resource,
-          std::pair<VkAccessFlags2, VkPipelineStageFlags2> access) -> void {
+  auto addAccess = [&accesses](const VulkanResource &resource, std::pair<VkAccessFlags2, VkPipelineStageFlags2> access) -> void {
     auto &info = accesses[resource];
     info.first |= access.first;
     info.second |= access.second;
@@ -249,78 +228,52 @@ auto GetResourceAccesses(
     const auto &args = std::get<Args::VkCmdBlitImage>(command.data);
 
     for (const auto &srcResource : args.srcResources) {
-      addAccess(srcResource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                            VK_PIPELINE_STAGE_2_TRANSFER_BIT));
+      addAccess(srcResource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT));
     }
 
     for (const auto &dstResource : args.dstResources) {
-      addAccess(dstResource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                            VK_PIPELINE_STAGE_2_TRANSFER_BIT));
+      addAccess(dstResource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT));
     }
   } else if (std::holds_alternative<Args::MipmapTexture>(command.data)) {
     const auto &args = std::get<Args::MipmapTexture>(command.data);
-    addAccess(VulkanResource(ImageSubresource(args.texture)),
-              std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                             VK_PIPELINE_STAGE_2_TRANSFER_BIT));
+    addAccess(VulkanResource(ImageSubresource(args.texture)), std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT));
   } else if (std::holds_alternative<Args::VkCmdCopyBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyBuffer>(command.data);
-    addAccess(VulkanResource(args.srcBuffer),
-              std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                             VK_PIPELINE_STAGE_2_COPY_BIT));
-    addAccess(VulkanResource(args.dstBuffer),
-              std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                             VK_PIPELINE_STAGE_2_COPY_BIT));
+    addAccess(VulkanResource(args.srcBuffer), std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
+    addAccess(VulkanResource(args.dstBuffer), std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
   } else if (std::holds_alternative<Args::VkCmdCopyImage>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyImage>(command.data);
     for (const auto &resource : args.srcResources) {
-      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                         VK_PIPELINE_STAGE_2_COPY_BIT));
+      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
     }
     for (const auto &resource : args.dstResources) {
-      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                         VK_PIPELINE_STAGE_2_COPY_BIT));
+      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
     }
-  } else if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(
-                 command.data)) {
+  } else if (std::holds_alternative<Args::VkCmdCopyBufferToImage>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyBufferToImage>(command.data);
-    addAccess(args.srcBuffer, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                             VK_PIPELINE_STAGE_2_COPY_BIT));
+    addAccess(args.srcBuffer, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
     for (const auto &resource : args.dstResources) {
-      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                         VK_PIPELINE_STAGE_2_COPY_BIT));
+      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
     }
-  } else if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(
-                 command.data)) {
+  } else if (std::holds_alternative<Args::VkCmdCopyImageToBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdCopyImageToBuffer>(command.data);
     for (const auto &resource : args.srcResources) {
-      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT,
-                                         VK_PIPELINE_STAGE_2_COPY_BIT));
+      addAccess(resource, std::make_pair(VK_ACCESS_2_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
     }
-    addAccess(args.dstBuffer, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                             VK_PIPELINE_STAGE_2_COPY_BIT));
+    addAccess(args.dstBuffer, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT));
   } else if (std::holds_alternative<Args::VkCmdFillBuffer>(command.data)) {
     const auto &args = std::get<Args::VkCmdFillBuffer>(command.data);
-    addAccess(args.dstBuffer, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                             VK_PIPELINE_STAGE_2_TRANSFER_BIT));
-  } else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(
-                 command.data)) {
-    const auto &args =
-        std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
+    addAccess(args.dstBuffer, std::make_pair(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT));
+  } else if (std::holds_alternative<Args::VkCmdBuildAccelerationStructuresKHR>(command.data)) {
+    const auto &args = std::get<Args::VkCmdBuildAccelerationStructuresKHR>(command.data);
     for (const auto &read : args.reads) {
-      addAccess(read,
-                std::make_pair(
-                    VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-                        VK_ACCESS_2_SHADER_READ_BIT,
-                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR));
+      addAccess(read, std::make_pair(VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_SHADER_READ_BIT,
+                                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR));
     }
     for (const auto &write : args.writes) {
-      addAccess(write,
-                std::make_pair(
-                    VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
-                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR));
+      addAccess(write, std::make_pair(VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR));
     }
-  } else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(
-                 command.data)) {
+  } else if (std::holds_alternative<Args::VkCmdPipelineBarrier2>(command.data)) {
     // const auto &args = std::get<Args::VkCmdPipelineBarrier2>(command.data);
     // for (const auto &barrier : args.imageMemoryBarriers) {
     //   accesses.emplace(

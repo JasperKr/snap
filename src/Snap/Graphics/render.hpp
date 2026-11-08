@@ -20,11 +20,8 @@ extern StitchInfo GlobalStitchInfo;
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 extern SwapchainManager swapchainManager;
 
-auto Present(GraphicsContext &context,
-             const std::vector<Ref<Threading::RenderThreadInfo>> &commands)
-    -> Error;
-auto InitializeRendering(GraphicsContext &context,
-                         Window::WindowContext &windowContext) -> Error;
+auto Present(GraphicsContext &context, const std::vector<Ref<Threading::RenderThreadInfo>> &commands) -> Error;
+auto InitializeRendering(GraphicsContext &context, Window::WindowContext &windowContext) -> Error;
 auto DeinitializeRendering(GraphicsContext &context) -> void;
 auto UseCommands(uint64_t key) -> void;
 auto UseCommands(const std::string &name) -> void;

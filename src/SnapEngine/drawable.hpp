@@ -17,8 +17,7 @@ public:
 
   virtual auto DrawUiElement() -> Error = 0;
 
-  template <typename T>
-  static constexpr auto GetDrawUiElementLuaBinding() -> lua_CFunction {
+  template <typename T> static constexpr auto GetDrawUiElementLuaBinding() -> lua_CFunction {
     return [](lua_State *state) -> int {
       auto *uiElement = LuaWrap::ObjectFromLua<T>(state, 1);
       if (uiElement == nullptr) {
@@ -27,8 +26,7 @@ public:
 
       auto error = uiElement->DrawUiElement();
       if (Error::IsError(error)) {
-        return luaL_error(state, "Error drawing UI element: %s",
-                          error.message.c_str());
+        return luaL_error(state, "Error drawing UI element: %s", error.message.c_str());
       }
 
       return 0;

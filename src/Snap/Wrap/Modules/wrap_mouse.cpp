@@ -151,8 +151,7 @@ auto Wrap_GetHardwareCursor(lua_State *state) -> int {
 
   auto mouseCursor = Ref<::Mouse::MouseCursor>::Make(sdlCursor);
 
-  LuaWrap::PushObject(state, ::Mouse::MouseCursor::GetType(),
-                      mouseCursor.get());
+  LuaWrap::PushObject(state, ::Mouse::MouseCursor::GetType(), mouseCursor.get());
 
   return 1;
 }
@@ -164,17 +163,13 @@ auto Wrap_NewCursor(lua_State *state) -> int {
 
   SDL_PixelFormat format = SDL_PIXELFORMAT_RGBA32;
 
-  LUA_ASSERT_MSG(data->GetFormat() == VK_FORMAT_R8G8B8A8_UNORM,
-                 "ImageData must be in rgba8 format");
+  LUA_ASSERT_MSG(data->GetFormat() == VK_FORMAT_R8G8B8A8_UNORM, "ImageData must be in rgba8 format");
 
-  SDL_Surface *surface = SDL_CreateSurfaceFrom(
-      static_cast<int32_t>(data->GetWidth()),
-      static_cast<int32_t>(data->GetHeight()), format, data->GetDataPtr(),
-      static_cast<int32_t>(data->GetFormatSize()));
+  SDL_Surface *surface = SDL_CreateSurfaceFrom(static_cast<int32_t>(data->GetWidth()), static_cast<int32_t>(data->GetHeight()), format, data->GetDataPtr(),
+                                               static_cast<int32_t>(data->GetFormatSize()));
 
   if (surface == nullptr) {
-    luaL_error(state, "Failed to create surface for cursor: %s",
-               SDL_GetError());
+    luaL_error(state, "Failed to create surface for cursor: %s", SDL_GetError());
     return 0;
   }
 
@@ -188,15 +183,13 @@ auto Wrap_NewCursor(lua_State *state) -> int {
 
   auto mouseCursor = Ref<::Mouse::MouseCursor>::Make(sdlCursor);
 
-  LuaWrap::PushObject(state, ::Mouse::MouseCursor::GetType(),
-                      mouseCursor.get());
+  LuaWrap::PushObject(state, ::Mouse::MouseCursor::GetType(), mouseCursor.get());
 
   return 1;
 }
 
 auto Wrap_SetCursor(lua_State *state) -> int {
-  auto mouseCursor =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Mouse::MouseCursor>(state, 1));
+  auto mouseCursor = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Mouse::MouseCursor>(state, 1));
 
   SDL_SetCursor(mouseCursor->sdlCursor);
   return 0;

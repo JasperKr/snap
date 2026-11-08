@@ -5,12 +5,9 @@
 
 namespace Math {
 
-auto Ray::PointAt(float time) const -> Math::Vec3 {
-  return Origin + Direction * time;
-}
+auto Ray::PointAt(float time) const -> Math::Vec3 { return Origin + Direction * time; }
 
-auto Ray::IntersectPlane(const Math::Plane &plane) const
-    -> std::optional<Math::Vec3> {
+auto Ray::IntersectPlane(const Math::Plane &plane) const -> std::optional<Math::Vec3> {
   constexpr static float Epsilon = 1e-6F;
 
   float denom = plane.Normal().Dot(Direction);
@@ -26,8 +23,7 @@ auto Ray::IntersectPlane(const Math::Plane &plane) const
   return std::nullopt;
 }
 
-auto Ray::IntersectPlane2Way(const Math::Plane &plane) const
-    -> std::optional<Math::Vec3> {
+auto Ray::IntersectPlane2Way(const Math::Plane &plane) const -> std::optional<Math::Vec3> {
   constexpr static float Epsilon = 1e-6F;
 
   float denom = plane.Normal().Dot(Direction);
@@ -40,8 +36,7 @@ auto Ray::IntersectPlane2Way(const Math::Plane &plane) const
   return std::nullopt;
 }
 
-auto Ray::IntersectAABB(const Math::Vec3 &min, const Math::Vec3 &max) const
-    -> std::optional<Math::Vec3> {
+auto Ray::IntersectAABB(const Math::Vec3 &min, const Math::Vec3 &max) const -> std::optional<Math::Vec3> {
   float tmin = (min.x - Origin.x) / Direction.x;
   float tmax = (max.x - Origin.x) / Direction.x;
 
@@ -85,8 +80,7 @@ auto Ray::IntersectAABB(const Math::Vec3 &min, const Math::Vec3 &max) const
   return PointAt(intersectionTime);
 }
 
-auto Ray::IntersectSphere(const Math::Vec3 &center, float radius) const
-    -> std::optional<Math::Vec3> {
+auto Ray::IntersectSphere(const Math::Vec3 &center, float radius) const -> std::optional<Math::Vec3> {
   // NOLINTBEGIN
 
   Math::Vec3 originToCenter = Origin - center;
@@ -114,10 +108,7 @@ auto Ray::IntersectSphere(const Math::Vec3 &center, float radius) const
   return std::nullopt; // Intersection is behind the ray origin
 }
 
-auto Ray::IntersectTriangle(const Math::Vec3 &vertex0,
-                            const Math::Vec3 &vertex1,
-                            const Math::Vec3 &vertex2) const
-    -> std::optional<Math::Vec3> {
+auto Ray::IntersectTriangle(const Math::Vec3 &vertex0, const Math::Vec3 &vertex1, const Math::Vec3 &vertex2) const -> std::optional<Math::Vec3> {
   // NOLINTBEGIN
 
   constexpr static float Epsilon = 1e-6F;
@@ -207,9 +198,7 @@ auto Ray::DistanceSqrToRay(const Ray &other) const -> float {
   return (closestPoint - other.ClosestPoint(closestPoint)).LengthSqr();
 }
 
-auto Ray::ClosestPointOnSegment(const Math::Vec3 &point,
-                                const Math::Vec3 &segmentStart,
-                                const Math::Vec3 &segmentEnd) -> Math::Vec3 {
+auto Ray::ClosestPointOnSegment(const Math::Vec3 &point, const Math::Vec3 &segmentStart, const Math::Vec3 &segmentEnd) -> Math::Vec3 {
   Math::Vec3 segmentDirection = segmentEnd - segmentStart;
   float segmentLengthSqr = segmentDirection.LengthSqr();
 
@@ -223,9 +212,6 @@ auto Ray::ClosestPointOnSegment(const Math::Vec3 &point,
   return segmentStart + segmentDirection * time;
 }
 
-auto Ray::ToString() const -> std::string {
-  return "Ray(Origin: " + Origin.ToString() +
-         ", Direction: " + Direction.ToString() + ")";
-}
+auto Ray::ToString() const -> std::string { return "Ray(Origin: " + Origin.ToString() + ", Direction: " + Direction.ToString() + ")"; }
 
 } // namespace Math

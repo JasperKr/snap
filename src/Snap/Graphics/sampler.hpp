@@ -49,12 +49,9 @@ struct SamplerDescHash {
   }
 };
 
-extern std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash>
-    SamplerCache; // NOLINT
+extern std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash> SamplerCache; // NOLINT
 
-auto GetOrCreateSampler(const struct GraphicsContext &context,
-                        const SamplerDescription &description)
-    -> Result<VkDeviceSize>;
+auto GetOrCreateSampler(const struct GraphicsContext &context, const SamplerDescription &description) -> Result<VkDeviceSize>;
 
 auto DestroySamplers(const struct GraphicsContext &context) -> void;
 

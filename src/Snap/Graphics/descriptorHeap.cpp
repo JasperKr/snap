@@ -21,10 +21,8 @@ namespace Graphics {
 static const VkDeviceSize maxResourceHeapSize = Units::Memory::MiBToBytes(16);
 static const VkDeviceSize maxSamplerHeapSize = Units::Memory::MiBToBytes(1);
 
-auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
-    -> Error {
-  heapProperties.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_PROPERTIES_EXT;
+auto DescriptorHeapManager::Initialize(const GraphicsContext &context) -> Error {
+  heapProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_PROPERTIES_EXT;
 
   VkPhysicalDeviceProperties2 deviceProps2{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
@@ -64,13 +62,10 @@ auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
   resourceAddress = CHECK_RES(ResourceHeap->GetDeviceAddress(context));
   samplerAddress = CHECK_RES(SamplerHeap->GetDeviceAddress(context));
 
-  auto bufferAlignedDownToSize =
-      Utils::AlignDown(ResourceHeap->size - heapProperties.bufferDescriptorSize,
-                       heapProperties.bufferDescriptorSize);
+  auto bufferAlignedDownToSize = Utils::AlignDown(ResourceHeap->size - heapProperties.bufferDescriptorSize, heapProperties.bufferDescriptorSize);
 
   if (heapProperties.bufferDescriptorAlignment != 0) {
-    BufferCursorOrigin = Utils::AlignDown(
-        bufferAlignedDownToSize, heapProperties.bufferDescriptorAlignment);
+    BufferCursorOrigin = Utils::AlignDown(bufferAlignedDownToSize, heapProperties.bufferDescriptorAlignment);
   } else {
     BufferCursorOrigin = bufferAlignedDownToSize;
   }
@@ -78,14 +73,9 @@ auto DescriptorHeapManager::Initialize(const GraphicsContext &context)
   samplerCursor = heapProperties.minSamplerHeapReservedRange;
   imageCursor = heapProperties.minResourceHeapReservedRange;
 
-  bufferDescriptorSize =
-      Utils::AlignUp(heapProperties.bufferDescriptorSize,
-                     heapProperties.bufferDescriptorAlignment);
-  imageDescriptorSize = Utils::AlignUp(heapProperties.imageDescriptorSize,
-                                       heapProperties.imageDescriptorAlignment);
-  samplerDescriptorSize =
-      Utils::AlignUp(heapProperties.samplerDescriptorSize,
-                     heapProperties.samplerDescriptorAlignment);
+  bufferDescriptorSize = Utils::AlignUp(heapProperties.bufferDescriptorSize, heapProperties.bufferDescriptorAlignment);
+  imageDescriptorSize = Utils::AlignUp(heapProperties.imageDescriptorSize, heapProperties.imageDescriptorAlignment);
+  samplerDescriptorSize = Utils::AlignUp(heapProperties.samplerDescriptorSize, heapProperties.samplerDescriptorAlignment);
 
   imageCursor += imageDescriptorSize;
   samplerCursor += samplerDescriptorSize;
@@ -113,8 +103,7 @@ auto DescriptorHeapManager::DeInitialize() -> void {
   SamplerHeap.reset();
 }
 
-auto DescriptorHeapManager::AllocateResource(bool isImage)
-    -> Result<VkDeviceSize> {
+auto DescriptorHeapManager::AllocateResource(bool isImage) -> Result<VkDeviceSize> {
   auto *memoryManager = isImage ? &imageMemoryManager : &bufferMemoryManager;
   VkDeviceSize size = isImage ? imageDescriptorSize : bufferDescriptorSize;
 
@@ -136,8 +125,7 @@ auto DescriptorHeapManager::AllocateResource(bool isImage)
   // meaning that as long as the cursor origins were aligned to start with (0 and aligned down size) then we can never get out of alignment.
 
   auto &cursor = isImage ? imageCursor : bufferCursor;
-  auto alignment = isImage ? heapProperties.imageDescriptorAlignment
-                           : heapProperties.bufferDescriptorAlignment;
+  auto alignment = isImage ? heapProperties.imageDescriptorAlignment : heapProperties.bufferDescriptorAlignment;
 
   VkDeviceSize offset = Utils::AlignUp(cursor, alignment);
   if (!isImage) {
@@ -146,20 +134,16 @@ auto DescriptorHeapManager::AllocateResource(bool isImage)
 
   cursor = Utils::AlignUp(cursor + size, alignment);
 
-  ERR_ASSERT_MSG(imageCursor + imageDescriptorSize <
-                     BufferCursorOrigin - (bufferCursor + bufferDescriptorSize),
-                 "Out of heap memory");
+  ERR_ASSERT_MSG(imageCursor + imageDescriptorSize < BufferCursorOrigin - (bufferCursor + bufferDescriptorSize), "Out of heap memory");
 
-  assert(!std::ranges::contains(
-      isImage ? InvalidImageOffsets : InvalidBufferOffsets, cursor));
+  assert(!std::ranges::contains(isImage ? InvalidImageOffsets : InvalidBufferOffsets, cursor));
 
   return offset;
 }
 
 auto DescriptorHeapManager::AllocateSampler() -> Result<VkDeviceSize> {
   VkDeviceSize size = samplerDescriptorSize;
-  auto addressFromGap =
-      CHECK_RES(samplerMemoryManager.TryAllocateFromGap(size));
+  auto addressFromGap = CHECK_RES(samplerMemoryManager.TryAllocateFromGap(size));
 
   if (addressFromGap.has_value()) {
     return addressFromGap.value();
@@ -177,36 +161,25 @@ auto DescriptorHeapManager::AllocateSampler() -> Result<VkDeviceSize> {
 }
 
 auto DescriptorHeapManager::IsBufferOffsetValid(uint32_t offset) -> bool {
-  return !std::ranges::contains(InvalidBufferOffsets,
-                                offset * bufferDescriptorSize) &&
-         (BufferCursorOrigin - (offset * bufferDescriptorSize)) < bufferCursor;
+  return !std::ranges::contains(InvalidBufferOffsets, offset * bufferDescriptorSize) && (BufferCursorOrigin - (offset * bufferDescriptorSize)) < bufferCursor;
 }
 
 auto DescriptorHeapManager::IsImageOffsetValid(uint32_t offset) -> bool {
-  return !std::ranges::contains(InvalidImageOffsets,
-                                offset * imageDescriptorSize) &&
-         (offset * imageDescriptorSize) < imageCursor;
+  return !std::ranges::contains(InvalidImageOffsets, offset * imageDescriptorSize) && (offset * imageDescriptorSize) < imageCursor;
 }
 
 auto DescriptorHeapManager::IsSamplerOffsetValid(uint32_t offset) -> bool {
-  return !std::ranges::contains(InvalidSamplerOffsets,
-                                offset * samplerDescriptorSize) &&
-         (offset * samplerDescriptorSize) < samplerCursor;
+  return !std::ranges::contains(InvalidSamplerOffsets, offset * samplerDescriptorSize) && (offset * samplerDescriptorSize) < samplerCursor;
 }
 
-auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
-                                             const Buffer *buffer,
-                                             VkDescriptorType type,
-                                             uint32_t offset, uint32_t size)
+auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context, const Buffer *buffer, VkDescriptorType type, uint32_t offset, uint32_t size)
     -> Result<VkDeviceSize> {
   auto deviceAddress = CHECK_RES(buffer->GetDeviceAddress(context));
 
   return AllocateResource(context, deviceAddress, type, offset, size);
 }
 
-auto DescriptorHeapManager::AllocateResource(
-    const GraphicsContext &context,
-    VkAccelerationStructureKHR accelerationStructure) -> Result<VkDeviceSize> {
+auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context, VkAccelerationStructureKHR accelerationStructure) -> Result<VkDeviceSize> {
 
   VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
@@ -218,19 +191,14 @@ auto DescriptorHeapManager::AllocateResource(
   {
     std::lock_guard<std::mutex> lock(GraphicsContext::mutexes.device);
 
-    deviceAddress = vkGetAccelerationStructureDeviceAddressKHR(context.device,
-                                                               &addressInfo);
+    deviceAddress = vkGetAccelerationStructureDeviceAddressKHR(context.device, &addressInfo);
   }
 
-  return AllocateResource(context, deviceAddress,
-                          VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0, 0);
+  return AllocateResource(context, deviceAddress, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0, 0);
 }
 
-auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
-                                             VkDeviceAddress deviceAddress,
-                                             VkDescriptorType type,
-                                             uint32_t offset, uint32_t size)
-    -> Result<VkDeviceSize> {
+auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context, VkDeviceAddress deviceAddress, VkDescriptorType type, uint32_t offset,
+                                             uint32_t size) -> Result<VkDeviceSize> {
 
   VkDeviceAddressRangeKHR addressRange{
       .address = deviceAddress + offset,
@@ -238,10 +206,7 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
   };
 
   VkResourceDescriptorInfoEXT resourceInfo{
-      .sType = VK_STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT,
-      .pNext = nullptr,
-      .type = type,
-      .data = {.pAddressRange = &addressRange}};
+      .sType = VK_STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT, .pNext = nullptr, .type = type, .data = {.pAddressRange = &addressRange}};
 
   VkHostAddressRangeEXT hostAddressRange{};
   VkDeviceSize address{};
@@ -257,8 +222,7 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
 
     assert(bufferDescriptorSize <= 1024);
 
-    CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(
-        context.device, 1, &resourceInfo, &hostAddressRange));
+    CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(context.device, 1, &resourceInfo, &hostAddressRange));
   }
 
   CHECK_ERR(ResourceHeap->SetData(context, descriptor, address));
@@ -266,10 +230,7 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
   return address / bufferDescriptorSize;
 }
 
-auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
-                                             const Texture *texture,
-                                             VkDescriptorType type)
-    -> Result<VkDeviceSize> {
+auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context, const Texture *texture, VkDescriptorType type) -> Result<VkDeviceSize> {
   std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
 
   VkImageDescriptorInfoEXT imageInfo{
@@ -280,10 +241,7 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
   };
 
   VkResourceDescriptorInfoEXT resourceInfo{
-      .sType = VK_STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT,
-      .pNext = nullptr,
-      .type = type,
-      .data = {.pImage = &imageInfo}};
+      .sType = VK_STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT, .pNext = nullptr, .type = type, .data = {.pImage = &imageInfo}};
 
   VkHostAddressRangeEXT hostAddressRange{};
   VkDeviceSize address{};
@@ -295,17 +253,14 @@ auto DescriptorHeapManager::AllocateResource(const GraphicsContext &context,
   hostAddressRange.address = descriptor.data();
   hostAddressRange.size = descriptor.size();
 
-  CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(context.device, 1, &resourceInfo,
-                                              &hostAddressRange));
+  CHECK_NEW_ERR(vkWriteResourceDescriptorsEXT(context.device, 1, &resourceInfo, &hostAddressRange));
   address = CHECK_RES(AllocateResource(true));
   CHECK_ERR(ResourceHeap->SetData(context, descriptor, address));
 
   return address / imageDescriptorSize;
 }
 
-auto DescriptorHeapManager::AllocateSampler(
-    const GraphicsContext &context, VkSamplerCreateInfo samplerCreateInfo)
-    -> Result<VkDeviceSize> {
+auto DescriptorHeapManager::AllocateSampler(const GraphicsContext &context, VkSamplerCreateInfo samplerCreateInfo) -> Result<VkDeviceSize> {
 
   std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
   VkHostAddressRangeEXT hostAddressRange{};
@@ -315,8 +270,7 @@ auto DescriptorHeapManager::AllocateSampler(
   hostAddressRange.address = descriptor.data();
   hostAddressRange.size = descriptor.size();
 
-  CHECK_NEW_ERR(vkWriteSamplerDescriptorsEXT(
-      context.device, 1, &samplerCreateInfo, &hostAddressRange));
+  CHECK_NEW_ERR(vkWriteSamplerDescriptorsEXT(context.device, 1, &samplerCreateInfo, &hostAddressRange));
 
   VkDeviceSize address = CHECK_RES(AllocateSampler());
   CHECK_ERR(SamplerHeap->SetData(context, descriptor, address));
@@ -324,8 +278,7 @@ auto DescriptorHeapManager::AllocateSampler(
   return address / samplerDescriptorSize;
 }
 
-auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr)
-    -> void {
+auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr) -> void {
   resourcePtr *= imageDescriptorSize;
 
   assert(resourcePtr <= imageCursor); // Cannot free outside of used range
@@ -334,27 +287,23 @@ auto DescriptorHeapManager::FreeImageResourceIndex(VkDeviceSize resourcePtr)
   imageMemoryManager.Deallocate(resourcePtr, imageDescriptorSize, imageCursor);
 }
 
-auto DescriptorHeapManager::FreeBufferResourceIndex(VkDeviceSize resourcePtr)
-    -> void {
+auto DescriptorHeapManager::FreeBufferResourceIndex(VkDeviceSize resourcePtr) -> void {
   resourcePtr *= bufferDescriptorSize;
   resourcePtr = BufferCursorOrigin - resourcePtr;
 
   // Cannot free outside of used range
   assert(resourcePtr < bufferCursor);
 
-  bufferMemoryManager.Deallocate(resourcePtr, bufferDescriptorSize,
-                                 bufferCursor);
+  bufferMemoryManager.Deallocate(resourcePtr, bufferDescriptorSize, bufferCursor);
 }
 
-auto DescriptorHeapManager::FreeSamplerResourceIndex(VkDeviceSize resourcePtr)
-    -> void {
+auto DescriptorHeapManager::FreeSamplerResourceIndex(VkDeviceSize resourcePtr) -> void {
   resourcePtr *= samplerDescriptorSize;
 
   assert(resourcePtr <= samplerCursor); // Cannot free outside of used range
   assert(resourcePtr >= heapProperties.minSamplerHeapReservedRange);
 
-  samplerMemoryManager.Deallocate(resourcePtr, samplerDescriptorSize,
-                                  samplerCursor);
+  samplerMemoryManager.Deallocate(resourcePtr, samplerDescriptorSize, samplerCursor);
 }
 
 auto DescriptorHeapManager::Bind(VkCommandBuffer commandBuffer) -> Error {

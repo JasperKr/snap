@@ -22,8 +22,7 @@ extern std::array<bool, MaxDirectionalLights> UsedDirectionalLightIndices;
 struct DirectionalLight {
   static auto GetBufferFormat() -> Graphics::BufferFormat &;
 
-  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const
-      -> Error;
+  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const -> Error;
 
   // -1 if no free index is available
   static auto GetFreeBufferIndex() -> int32_t {
@@ -42,9 +41,7 @@ struct LuaDirectionalLight : LuaWrap::LuaECSObject {
 
   static auto Create(lua_State *state) -> int;
   static auto GetType() -> const Type * { return &directionalLightType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &directionalLightType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &directionalLightType; }
 };
 
 extern const ::LuaWrap::LuaClass DirectionalLightClass;

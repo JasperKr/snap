@@ -47,8 +47,7 @@ auto wrap_SetVertices(lua_State *state) -> int {
       std::span<uint8_t>(data->GetData() + offset, static_cast<size_t>(count));
 
   auto *ctx = LUA_CK_NULL(::Graphics::GetCurrentGraphicsContext());
-  LUA_CK_ERR(
-      mesh->SetVertices(*ctx, 0, vertexData, static_cast<uint64_t>(offset)));
+  LUA_CK_ERR(mesh->SetVertices(*ctx, 0, vertexData, static_cast<uint64_t>(offset)));
 
   return 0;
 }
@@ -83,10 +82,8 @@ auto wrap_SetIndices(lua_State *state) -> int {
 
   LUA_ASSERT(count <= data->GetSize() / ::Graphics::GetIndexFormatSize(format));
 
-  std::span<uint8_t> indexData = std::span<
-      uint8_t>( // NOLINTNEXTLINE, pointer arithmetic and reinterpret cast
-      reinterpret_cast<uint8_t *>(data->GetData()),
-      (count * ::Graphics::GetIndexFormatSize(format)));
+  std::span<uint8_t> indexData = std::span<uint8_t>( // NOLINTNEXTLINE, pointer arithmetic and reinterpret cast
+      reinterpret_cast<uint8_t *>(data->GetData()), (count * ::Graphics::GetIndexFormatSize(format)));
 
   auto *ctx = LUA_CK_NULL(::Graphics::GetCurrentGraphicsContext());
   LUA_CK_ERR(mesh->SetIndices(*ctx, indexData, format));
@@ -135,8 +132,7 @@ auto wrap_SetDrawRange(lua_State *state) -> int {
   auto offset = static_cast<uint32_t>(luaL_checkinteger(state, 2));
   auto count = static_cast<uint32_t>(luaL_checkinteger(state, 3));
 
-  mesh->SetDrawRange(
-      ::Graphics::MeshDrawRange{.Offset = offset, .Count = count});
+  mesh->SetDrawRange(::Graphics::MeshDrawRange{.Offset = offset, .Count = count});
 
   return 0;
 }
@@ -158,8 +154,7 @@ auto wrap_GetDrawRange(lua_State *state) -> int {
   { name = "name", format = "uint32", location = 1 },
 }
 */
-inline auto VertexFormatFromLua(lua_State *state, int index)
-    -> Result<std::vector<::Graphics::VertexComponent>> {
+inline auto VertexFormatFromLua(lua_State *state, int index) -> Result<std::vector<::Graphics::VertexComponent>> {
   luaL_checktype(state, index, LUA_TTABLE);
 
   std::vector<::Graphics::VertexComponent> attributes;
@@ -219,51 +214,43 @@ struct ReadInfo {
   std::function<void(lua_State *, int, std::span<uint8_t>)> read;
 };
 
-const inline auto readF32 = [](lua_State *state, int index,
-                               std::span<uint8_t> data) -> void {
+const inline auto readF32 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<float>(luaL_checknumber(state, index));
   std::memcpy(data.data(), &value, sizeof(float));
 };
 
-const inline auto readU32 = [](lua_State *state, int index,
-                               std::span<uint8_t> data) -> void {
+const inline auto readU32 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<uint32_t>(luaL_checkinteger(state, index));
   std::memcpy(data.data(), &value, sizeof(uint32_t));
 };
 
-const inline auto readI32 = [](lua_State *state, int index,
-                               std::span<uint8_t> data) -> void {
+const inline auto readI32 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<int32_t>(luaL_checkinteger(state, index));
   std::memcpy(data.data(), &value, sizeof(int32_t));
 };
 
-const inline auto readF16 = [](lua_State *state, int index,
-                               std::span<uint8_t> data) -> void {
+const inline auto readF16 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<float>(luaL_checknumber(state, index));
   numeric::float16_t half{value};
   std::memcpy(data.data(), &half, sizeof(numeric::float16_t));
 };
 
-const inline auto readU16 = [](lua_State *state, int index,
-                               std::span<uint8_t> data) -> void {
+const inline auto readU16 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<uint16_t>(luaL_checkinteger(state, index));
   std::memcpy(data.data(), &value, sizeof(uint16_t));
 };
 
-const inline auto readI16 = [](lua_State *state, int index,
-                               std::span<uint8_t> data) -> void {
+const inline auto readI16 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<int16_t>(luaL_checkinteger(state, index));
   std::memcpy(data.data(), &value, sizeof(int16_t));
 };
 
-const inline auto readU8 = [](lua_State *state, int index,
-                              std::span<uint8_t> data) -> void {
+const inline auto readU8 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<uint8_t>(luaL_checkinteger(state, index));
   std::memcpy(data.data(), &value, sizeof(uint8_t));
 };
 
-const inline auto readI8 = [](lua_State *state, int index,
-                              std::span<uint8_t> data) -> void {
+const inline auto readI8 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<int8_t>(luaL_checkinteger(state, index));
   std::memcpy(data.data(), &value, sizeof(int8_t));
 };
@@ -280,32 +267,28 @@ constexpr double SnormMin8 = -128.0;
 constexpr double UnormMax8 = 255.0;
 constexpr double UnormMin8 = 0.0;
 
-const inline auto readSnorm16 = [](lua_State *state, int index,
-                                   std::span<uint8_t> data) -> void {
+const inline auto readSnorm16 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<float>(luaL_checknumber(state, index));
   value = std::clamp(value, -1.0F, 1.0F);
   auto snorm = static_cast<int16_t>(std::round(value * SnormMax16));
   std::memcpy(data.data(), &snorm, sizeof(int16_t));
 };
 
-const inline auto readUnorm16 = [](lua_State *state, int index,
-                                   std::span<uint8_t> data) -> void {
+const inline auto readUnorm16 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<float>(luaL_checknumber(state, index));
   value = std::clamp(value, 0.0F, 1.0F);
   auto unorm = static_cast<uint16_t>(std::round(value * UnormMax16));
   std::memcpy(data.data(), &unorm, sizeof(uint16_t));
 };
 
-const inline auto readSnorm8 = [](lua_State *state, int index,
-                                  std::span<uint8_t> data) -> void {
+const inline auto readSnorm8 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<float>(luaL_checknumber(state, index));
   value = std::clamp(value, -1.0F, 1.0F);
   auto snorm = static_cast<int8_t>(std::round(value * SnormMax8));
   std::memcpy(data.data(), &snorm, sizeof(int8_t));
 };
 
-const inline auto readUnorm8 = [](lua_State *state, int index,
-                                  std::span<uint8_t> data) -> void {
+const inline auto readUnorm8 = [](lua_State *state, int index, std::span<uint8_t> data) -> void {
   auto value = static_cast<float>(luaL_checknumber(state, index));
   value = std::clamp(value, 0.0F, 1.0F);
   auto unorm = static_cast<uint8_t>(std::round(value * UnormMax8));
@@ -365,15 +348,13 @@ const std::unordered_map<VkFormat, ReadInfo> formatReadInfo = {
     {VK_FORMAT_R16_SNORM, {.size = 2, .count = 1, .read = readSnorm16}},
     {VK_FORMAT_R16G16_SNORM, {.size = 2, .count = 2, .read = readSnorm16}},
     {VK_FORMAT_R16G16B16_SNORM, {.size = 2, .count = 3, .read = readSnorm16}},
-    {VK_FORMAT_R16G16B16A16_SNORM,
-     {.size = 2, .count = 4, .read = readSnorm16}},
+    {VK_FORMAT_R16G16B16A16_SNORM, {.size = 2, .count = 4, .read = readSnorm16}},
 
     /// Unorm 16-bit ///
     {VK_FORMAT_R16_UNORM, {.size = 2, .count = 1, .read = readUnorm16}},
     {VK_FORMAT_R16G16_UNORM, {.size = 2, .count = 2, .read = readUnorm16}},
     {VK_FORMAT_R16G16B16_UNORM, {.size = 2, .count = 3, .read = readUnorm16}},
-    {VK_FORMAT_R16G16B16A16_UNORM,
-     {.size = 2, .count = 4, .read = readUnorm16}},
+    {VK_FORMAT_R16G16B16A16_UNORM, {.size = 2, .count = 4, .read = readUnorm16}},
 
     /// Snorm 8-bit ///
     {VK_FORMAT_R8_SNORM, {.size = 1, .count = 1, .read = readSnorm8}},
@@ -392,10 +373,7 @@ const std::unordered_map<VkFormat, ReadInfo> formatReadInfo = {
     // Could be very useful for color packing or other specialized uses
 };
 
-auto inline ReadVertex(lua_State *state, int index,
-                       ::Graphics::VertexFormat &format,
-                       std::span<uint8_t> destination, size_t &writeOffset)
-    -> int {
+auto inline ReadVertex(lua_State *state, int index, ::Graphics::VertexFormat &format, std::span<uint8_t> destination, size_t &writeOffset) -> int {
 
   if (index < 0) {
     index = lua_gettop(state) + index + 1;
@@ -406,8 +384,7 @@ auto inline ReadVertex(lua_State *state, int index,
   for (const auto &attribute : format.GetAttributes()) {
     auto iterator = formatReadInfo.find(attribute.format);
     if (iterator == formatReadInfo.end()) {
-      return luaL_error(state,
-                        "Unsupported vertex attribute format for reading.");
+      return luaL_error(state, "Unsupported vertex attribute format for reading.");
     }
 
     const auto &readInfo = iterator->second;
@@ -427,8 +404,7 @@ auto inline ReadVertex(lua_State *state, int index,
 }
 
 // "triangles" | "strip" | "lines" | "linestrip" | "points"
-inline auto PrimitiveTopologyFromLua(lua_State *state, int index)
-    -> VkPrimitiveTopology {
+inline auto PrimitiveTopologyFromLua(lua_State *state, int index) -> VkPrimitiveTopology {
   const char *topologyStr = luaL_checkstring(state, index);
 
   if (std::strcmp(topologyStr, "triangles") == 0) {
@@ -467,8 +443,7 @@ auto wrap_NewMesh(lua_State *state) -> int {
 
   // Vertex data
   if (lua_type(state, 2) == LUA_TUSERDATA) {
-    auto byteData =
-        LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, 2));
+    auto byteData = LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, 2));
 
     vertexData = byteData->GetDataSpan();
   } else if (lua_type(state, 2) == LUA_TTABLE) {
@@ -490,8 +465,7 @@ auto wrap_NewMesh(lua_State *state) -> int {
 
     for (int i = 0; i < vertexStorage.size() / sizeof(float); ++i) {
       float value = NAN; // NOLINTNEXTLINE
-      std::memcpy(&value, vertexStorage.data() + (i * sizeof(float)),
-                  sizeof(float));
+      std::memcpy(&value, vertexStorage.data() + (i * sizeof(float)), sizeof(float));
     }
   } else {
     return luaL_error(state, "Expected ByteData or table as second argument");
@@ -502,8 +476,7 @@ auto wrap_NewMesh(lua_State *state) -> int {
     topology = PrimitiveTopologyFromLua(state, 3);
   }
 
-  PrintDebug("Creating mesh with {} bytes of vertex data.\n",
-             vertexData.size());
+  PrintDebug("Creating mesh with {} bytes of vertex data.\n", vertexData.size());
 
   ::Graphics::MeshCreationInfo info{
       .vertexFormat = &vertexFormat,

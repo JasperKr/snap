@@ -80,37 +80,23 @@ extern "C" inline auto luaopen_threading(lua_State *state) -> int {
       .enumHelper = nullptr,
   };
 
-  documenter.DocumentCustomMethod(
-      "newThread", "Create a new thread from the given filepath",
-      {Bindings::LuaDocumentingStruct::CreateType(
-           "Path", Bindings::BindingLuaType::String),
-       Bindings::LuaDocumentingStruct::CreateType(
-           "Debugname", Bindings::BindingLuaType::String)},
-      thisType);
+  documenter.DocumentCustomMethod("newThread", "Create a new thread from the given filepath",
+                                  {Bindings::LuaDocumentingStruct::CreateType("Path", Bindings::BindingLuaType::String),
+                                   Bindings::LuaDocumentingStruct::CreateType("Debugname", Bindings::BindingLuaType::String)},
+                                  thisType);
 
-  documenter.DocumentCustomMethod(
-      "newThread", "Create a new thread from the given lua code string",
-      {Bindings::LuaDocumentingStruct::CreateType(
-           "Code", Bindings::BindingLuaType::String),
-       Bindings::LuaDocumentingStruct::CreateType(
-           "Debugname", Bindings::BindingLuaType::String)},
-      thisType);
+  documenter.DocumentCustomMethod("newThread", "Create a new thread from the given lua code string",
+                                  {Bindings::LuaDocumentingStruct::CreateType("Code", Bindings::BindingLuaType::String),
+                                   Bindings::LuaDocumentingStruct::CreateType("Debugname", Bindings::BindingLuaType::String)},
+                                  thisType);
 
-  documenter.DocumentCustomMethod(
-      "start", "Start the thread",
-      {Bindings::LuaDocumentingStruct::CreateType(
-          "...", Bindings::BindingLuaType::ThreadSafe)},
-      {});
+  documenter.DocumentCustomMethod("start", "Start the thread", {Bindings::LuaDocumentingStruct::CreateType("...", Bindings::BindingLuaType::ThreadSafe)}, {});
 
   documenter.DocumentCustomMethod("wait", "Wait for the thread to finish");
-  documenter.DocumentCustomMethod("getStatus",
-                                  "Get the current status of the thread", {},
-                                  threadStatusType);
+  documenter.DocumentCustomMethod("getStatus", "Get the current status of the thread", {}, threadStatusType);
 
-  documenter.DocumentCustomMethod(
-      "getError", "Get the error message if the thread has errored", {},
-      Bindings::LuaDocumentingStruct::CreateType(
-          "ErrorMessage", Bindings::BindingLuaType::String));
+  documenter.DocumentCustomMethod("getError", "Get the error message if the thread has errored", {},
+                                  Bindings::LuaDocumentingStruct::CreateType("ErrorMessage", Bindings::BindingLuaType::String));
 
   documenter.Register();
 

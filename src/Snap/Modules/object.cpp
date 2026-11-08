@@ -14,18 +14,15 @@
 #endif
 
 #ifdef DEBUG_OBJECT_LIFETIMES
-std::mutex RefCountsMutex; // NOLINT
-std::unordered_map<void const *, std::pair<std::atomic<int>, const char *>>
-    RefCounts; // NOLINT
+std::mutex RefCountsMutex;                                                             // NOLINT
+std::unordered_map<void const *, std::pair<std::atomic<int>, const char *>> RefCounts; // NOLINT
 #endif
 
 Object::~Object() {
 
 #ifdef DEBUG_DOUBLE_RELEASE
   if (getReferenceCount() != 0) {
-    PrintFatal(
-        "Object destructor called on object with non-zero reference count: {}",
-        getReferenceCount());
+    PrintFatal("Object destructor called on object with non-zero reference count: {}", getReferenceCount());
 
     void *array[100];
 
@@ -90,8 +87,7 @@ auto Object::release() -> bool {
 
 #ifdef DEBUG_DOUBLE_RELEASE
   if (refcount < 0) {
-    PrintFatal("Object::release() called on object with {} references!",
-               refcount);
+    PrintFatal("Object::release() called on object with {} references!", refcount);
   }
 #endif
 

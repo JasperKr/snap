@@ -5,8 +5,7 @@
 
 namespace Graphics {
 
-auto Flush(const struct GraphicsContext &context,
-           VkCommandBuffer vkCommandBuffer) -> Result<bool>;
+auto Flush(const struct GraphicsContext &context, VkCommandBuffer vkCommandBuffer) -> Result<bool>;
 auto GetTargetSize() -> VkExtent2D;
 auto BeginFrame(const struct GraphicsContext &context) -> Error;
 

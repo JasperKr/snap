@@ -26,8 +26,7 @@ auto ToEuler(Quaternion quaternion) -> EulerAngle {
   float sqz = quaternion.z * quaternion.z;
 
   // Gimbal lock test: sin(pitch) = 2*(w*x - y*z)
-  float sinPitch =
-      2.0F * ((quaternion.w * quaternion.x) - (quaternion.y * quaternion.z));
+  float sinPitch = 2.0F * ((quaternion.w * quaternion.x) - (quaternion.y * quaternion.z));
   EulerAngle result;
 
   if (sinPitch > 0.999F) { // singularity at north pole (pitch = +90°)
@@ -46,12 +45,8 @@ auto ToEuler(Quaternion quaternion) -> EulerAngle {
 
   // General case
   result.pitch = std::asin(sinPitch);
-  result.yaw = std::atan2(
-      2.0F * ((quaternion.x * quaternion.z) + (quaternion.w * quaternion.y)),
-      1.0F - (2.0F * (sqx + sqy)));
-  result.roll = std::atan2(
-      2.0F * ((quaternion.x * quaternion.y) + (quaternion.w * quaternion.z)),
-      1.0F - (2.0F * (sqx + sqz)));
+  result.yaw = std::atan2(2.0F * ((quaternion.x * quaternion.z) + (quaternion.w * quaternion.y)), 1.0F - (2.0F * (sqx + sqy)));
+  result.roll = std::atan2(2.0F * ((quaternion.x * quaternion.y) + (quaternion.w * quaternion.z)), 1.0F - (2.0F * (sqx + sqz)));
 
   return result;
 }
@@ -164,33 +159,28 @@ auto ToQuaternion(Matrix4x4 matrix) -> Quaternion {
 
   matrix = matrix;
 
-  float trace = matrix.At(0, 0) + matrix.At(1, 1) +
-                matrix.At(2, 2); // I removed + 1.0f; see discussion with Ethan
-  if (trace > 0) {               // I changed M_EPSILON to 0
+  float trace = matrix.At(0, 0) + matrix.At(1, 1) + matrix.At(2, 2); // I removed + 1.0f; see discussion with Ethan
+  if (trace > 0) {                                                   // I changed M_EPSILON to 0
     float scale = 0.5F / std::sqrt(trace + 1.0F);
     quat.w = 0.25F / scale;
     quat.x = (matrix.At(1, 2) - matrix.At(2, 1)) * scale;
     quat.y = (matrix.At(2, 0) - matrix.At(0, 2)) * scale;
     quat.z = (matrix.At(0, 1) - matrix.At(1, 0)) * scale;
   } else {
-    if (matrix.At(0, 0) > matrix.At(1, 1) &&
-        matrix.At(0, 0) > matrix.At(2, 2)) {
-      float scale = 2.0F * std::sqrt(1.0F + matrix.At(0, 0) - matrix.At(1, 1) -
-                                     matrix.At(2, 2));
+    if (matrix.At(0, 0) > matrix.At(1, 1) && matrix.At(0, 0) > matrix.At(2, 2)) {
+      float scale = 2.0F * std::sqrt(1.0F + matrix.At(0, 0) - matrix.At(1, 1) - matrix.At(2, 2));
       quat.w = (matrix.At(1, 2) - matrix.At(2, 1)) / scale;
       quat.x = 0.25F * scale;
       quat.y = (matrix.At(1, 0) + matrix.At(0, 1)) / scale;
       quat.z = (matrix.At(2, 0) + matrix.At(0, 2)) / scale;
     } else if (matrix.At(1, 1) > matrix.At(2, 2)) {
-      float scale = 2.0F * std::sqrt(1.0F + matrix.At(1, 1) - matrix.At(0, 0) -
-                                     matrix.At(2, 2));
+      float scale = 2.0F * std::sqrt(1.0F + matrix.At(1, 1) - matrix.At(0, 0) - matrix.At(2, 2));
       quat.w = (matrix.At(2, 0) - matrix.At(0, 2)) / scale;
       quat.x = (matrix.At(1, 0) + matrix.At(0, 1)) / scale;
       quat.y = 0.25F * scale;
       quat.z = (matrix.At(2, 1) + matrix.At(1, 2)) / scale;
     } else {
-      float scale = 2.0F * std::sqrt(1.0F + matrix.At(2, 2) - matrix.At(0, 0) -
-                                     matrix.At(1, 1));
+      float scale = 2.0F * std::sqrt(1.0F + matrix.At(2, 2) - matrix.At(0, 0) - matrix.At(1, 1));
       quat.w = (matrix.At(0, 1) - matrix.At(1, 0)) / scale;
       quat.x = (matrix.At(2, 0) + matrix.At(0, 2)) / scale;
       quat.y = (matrix.At(2, 1) + matrix.At(1, 2)) / scale;
@@ -270,9 +260,7 @@ auto ToMatrix3x3(Quaternion quat) -> Matrix3x3 {
 } // namespace Conversions
 
 // NOLINTNEXTLINE
-thread_local std::mt19937 rng{
-    std::random_device{}() ^
-    SDL_GetTicksNS()}; // Just to be safe, we XOR the ticks as well.
+thread_local std::mt19937 rng{std::random_device{}() ^ SDL_GetTicksNS()}; // Just to be safe, we XOR the ticks as well.
 
 auto Random(int Min, int Max) -> int {
   Min = std::min(Min, Max);
@@ -308,24 +296,18 @@ auto RandomNormalDistribution(float mean, float stddev) -> float {
 auto Noise(float x_channel, uint x_wrap) -> float {
   // remove all but the highest bit of wrap and limit to 256
   x_wrap = (x_wrap & -x_wrap) % 256U;
-  return stb_perlin_noise3(x_channel, 0.0F, 0.0F, static_cast<int>(x_wrap), 0,
-                           0);
+  return stb_perlin_noise3(x_channel, 0.0F, 0.0F, static_cast<int>(x_wrap), 0, 0);
 }
-auto Noise(float x_channel, float y_channel, uint x_wrap, uint y_wrap)
-    -> float {
+auto Noise(float x_channel, float y_channel, uint x_wrap, uint y_wrap) -> float {
   x_wrap = (x_wrap & -x_wrap) % 256U;
   y_wrap = (y_wrap & -y_wrap) % 256U;
-  return stb_perlin_noise3(x_channel, y_channel, 0.0F, static_cast<int>(x_wrap),
-                           static_cast<int>(y_wrap), 0);
+  return stb_perlin_noise3(x_channel, y_channel, 0.0F, static_cast<int>(x_wrap), static_cast<int>(y_wrap), 0);
 }
-auto Noise(float x_channel, float y_channel, float z_channel, uint x_wrap,
-           uint y_wrap, uint z_wrap) -> float {
+auto Noise(float x_channel, float y_channel, float z_channel, uint x_wrap, uint y_wrap, uint z_wrap) -> float {
   x_wrap = (x_wrap & -x_wrap) % 256U;
   y_wrap = (y_wrap & -y_wrap) % 256U;
   z_wrap = (z_wrap & -z_wrap) % 256U;
-  return stb_perlin_noise3(x_channel, y_channel, z_channel,
-                           static_cast<int>(x_wrap), static_cast<int>(y_wrap),
-                           static_cast<int>(z_wrap));
+  return stb_perlin_noise3(x_channel, y_channel, z_channel, static_cast<int>(x_wrap), static_cast<int>(y_wrap), static_cast<int>(z_wrap));
 }
 
 /*
@@ -367,20 +349,12 @@ auto Ceil(Ivec4 vec) -> Ivec4;
 
 auto Abs(float value) -> float { return std::abs(value); }
 auto Abs(Vec2 vec) -> Vec2 { return {std::abs(vec.x), std::abs(vec.y)}; }
-auto Abs(Vec3 vec) -> Vec3 {
-  return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z)};
-}
-auto Abs(Vec4 vec) -> Vec4 {
-  return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z), std::abs(vec.w)};
-}
+auto Abs(Vec3 vec) -> Vec3 { return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z)}; }
+auto Abs(Vec4 vec) -> Vec4 { return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z), std::abs(vec.w)}; }
 
 auto Abs(Ivec2 vec) -> Ivec2 { return {std::abs(vec.x), std::abs(vec.y)}; }
-auto Abs(Ivec3 vec) -> Ivec3 {
-  return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z)};
-}
-auto Abs(Ivec4 vec) -> Ivec4 {
-  return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z), std::abs(vec.w)};
-}
+auto Abs(Ivec3 vec) -> Ivec3 { return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z)}; }
+auto Abs(Ivec4 vec) -> Ivec4 { return {std::abs(vec.x), std::abs(vec.y), std::abs(vec.z), std::abs(vec.w)}; }
 
 auto Abs(Matrix3x3 mat) -> Matrix3x3 {
   Matrix3x3 result;
@@ -404,83 +378,37 @@ auto Abs(Matrix4x4 mat) -> Matrix4x4 {
 
 auto Floor(float value) -> float { return std::floor(value); }
 auto Floor(Vec2 vec) -> Vec2 { return {std::floor(vec.x), std::floor(vec.y)}; }
-auto Floor(Vec3 vec) -> Vec3 {
-  return {std::floor(vec.x), std::floor(vec.y), std::floor(vec.z)};
-}
-auto Floor(Vec4 vec) -> Vec4 {
-  return {std::floor(vec.x), std::floor(vec.y), std::floor(vec.z),
-          std::floor(vec.w)};
-}
+auto Floor(Vec3 vec) -> Vec3 { return {std::floor(vec.x), std::floor(vec.y), std::floor(vec.z)}; }
+auto Floor(Vec4 vec) -> Vec4 { return {std::floor(vec.x), std::floor(vec.y), std::floor(vec.z), std::floor(vec.w)}; }
 
-auto Floor(Uvec2 vec) -> Uvec2 {
-  return {static_cast<uint>(std::floor(vec.x)),
-          static_cast<uint>(std::floor(vec.y))};
-}
-auto Floor(Uvec3 vec) -> Uvec3 {
-  return {static_cast<uint>(std::floor(vec.x)),
-          static_cast<uint>(std::floor(vec.y)),
-          static_cast<uint>(std::floor(vec.z))};
-}
+auto Floor(Uvec2 vec) -> Uvec2 { return {static_cast<uint>(std::floor(vec.x)), static_cast<uint>(std::floor(vec.y))}; }
+auto Floor(Uvec3 vec) -> Uvec3 { return {static_cast<uint>(std::floor(vec.x)), static_cast<uint>(std::floor(vec.y)), static_cast<uint>(std::floor(vec.z))}; }
 auto Floor(Uvec4 vec) -> Uvec4 {
-  return {static_cast<uint>(std::floor(vec.x)),
-          static_cast<uint>(std::floor(vec.y)),
-          static_cast<uint>(std::floor(vec.z)),
+  return {static_cast<uint>(std::floor(vec.x)), static_cast<uint>(std::floor(vec.y)), static_cast<uint>(std::floor(vec.z)),
           static_cast<uint>(std::floor(vec.w))};
 }
 
-auto Floor(Ivec2 vec) -> Ivec2 {
-  return {static_cast<int>(std::floor(vec.x)),
-          static_cast<int>(std::floor(vec.y))};
-}
-auto Floor(Ivec3 vec) -> Ivec3 {
-  return {static_cast<int>(std::floor(vec.x)),
-          static_cast<int>(std::floor(vec.y)),
-          static_cast<int>(std::floor(vec.z))};
-}
+auto Floor(Ivec2 vec) -> Ivec2 { return {static_cast<int>(std::floor(vec.x)), static_cast<int>(std::floor(vec.y))}; }
+auto Floor(Ivec3 vec) -> Ivec3 { return {static_cast<int>(std::floor(vec.x)), static_cast<int>(std::floor(vec.y)), static_cast<int>(std::floor(vec.z))}; }
 auto Floor(Ivec4 vec) -> Ivec4 {
-  return {
-      static_cast<int>(std::floor(vec.x)), static_cast<int>(std::floor(vec.y)),
-      static_cast<int>(std::floor(vec.z)), static_cast<int>(std::floor(vec.w))};
+  return {static_cast<int>(std::floor(vec.x)), static_cast<int>(std::floor(vec.y)), static_cast<int>(std::floor(vec.z)), static_cast<int>(std::floor(vec.w))};
 }
 
 auto Ceil(float value) -> float { return std::ceil(value); }
 auto Ceil(Vec2 vec) -> Vec2 { return {std::ceil(vec.x), std::ceil(vec.y)}; }
-auto Ceil(Vec3 vec) -> Vec3 {
-  return {std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z)};
-}
-auto Ceil(Vec4 vec) -> Vec4 {
-  return {std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z),
-          std::ceil(vec.w)};
-}
+auto Ceil(Vec3 vec) -> Vec3 { return {std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z)}; }
+auto Ceil(Vec4 vec) -> Vec4 { return {std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z), std::ceil(vec.w)}; }
 
-auto Ceil(Uvec2 vec) -> Uvec2 {
-  return {static_cast<uint>(std::ceil(vec.x)),
-          static_cast<uint>(std::ceil(vec.y))};
-}
-auto Ceil(Uvec3 vec) -> Uvec3 {
-  return {static_cast<uint>(std::ceil(vec.x)),
-          static_cast<uint>(std::ceil(vec.y)),
-          static_cast<uint>(std::ceil(vec.z))};
-}
+auto Ceil(Uvec2 vec) -> Uvec2 { return {static_cast<uint>(std::ceil(vec.x)), static_cast<uint>(std::ceil(vec.y))}; }
+auto Ceil(Uvec3 vec) -> Uvec3 { return {static_cast<uint>(std::ceil(vec.x)), static_cast<uint>(std::ceil(vec.y)), static_cast<uint>(std::ceil(vec.z))}; }
 auto Ceil(Uvec4 vec) -> Uvec4 {
-  return {
-      static_cast<uint>(std::ceil(vec.x)), static_cast<uint>(std::ceil(vec.y)),
-      static_cast<uint>(std::ceil(vec.z)), static_cast<uint>(std::ceil(vec.w))};
+  return {static_cast<uint>(std::ceil(vec.x)), static_cast<uint>(std::ceil(vec.y)), static_cast<uint>(std::ceil(vec.z)), static_cast<uint>(std::ceil(vec.w))};
 }
 
-auto Ceil(Ivec2 vec) -> Ivec2 {
-  return {static_cast<int>(std::ceil(vec.x)),
-          static_cast<int>(std::ceil(vec.y))};
-}
-auto Ceil(Ivec3 vec) -> Ivec3 {
-  return {static_cast<int>(std::ceil(vec.x)),
-          static_cast<int>(std::ceil(vec.y)),
-          static_cast<int>(std::ceil(vec.z))};
-}
+auto Ceil(Ivec2 vec) -> Ivec2 { return {static_cast<int>(std::ceil(vec.x)), static_cast<int>(std::ceil(vec.y))}; }
+auto Ceil(Ivec3 vec) -> Ivec3 { return {static_cast<int>(std::ceil(vec.x)), static_cast<int>(std::ceil(vec.y)), static_cast<int>(std::ceil(vec.z))}; }
 auto Ceil(Ivec4 vec) -> Ivec4 {
-  return {
-      static_cast<int>(std::ceil(vec.x)), static_cast<int>(std::ceil(vec.y)),
-      static_cast<int>(std::ceil(vec.z)), static_cast<int>(std::ceil(vec.w))};
+  return {static_cast<int>(std::ceil(vec.x)), static_cast<int>(std::ceil(vec.y)), static_cast<int>(std::ceil(vec.z)), static_cast<int>(std::ceil(vec.w))};
 }
 
 //

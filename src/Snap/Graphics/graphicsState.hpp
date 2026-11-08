@@ -35,10 +35,8 @@ constexpr VkPipelineColorBlendAttachmentState DefaultBlendMode = {
     .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
     .alphaBlendOp = VK_BLEND_OP_ADD,
-    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
+    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
+                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
 };
 
 constexpr VkPipelineColorBlendAttachmentState BlendmodeNone = {
@@ -49,10 +47,8 @@ constexpr VkPipelineColorBlendAttachmentState BlendmodeNone = {
     .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
     .alphaBlendOp = VK_BLEND_OP_ADD,
-    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
+    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
+                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
 };
 
 constexpr VkPipelineColorBlendAttachmentState BlendmodeAdditive = {
@@ -63,10 +59,8 @@ constexpr VkPipelineColorBlendAttachmentState BlendmodeAdditive = {
     .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .alphaBlendOp = VK_BLEND_OP_ADD,
-    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
+    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
+                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
 };
 
 constexpr VkPipelineColorBlendAttachmentState BlendmodeMultiply = {
@@ -77,10 +71,8 @@ constexpr VkPipelineColorBlendAttachmentState BlendmodeMultiply = {
     .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
     .alphaBlendOp = VK_BLEND_OP_ADD,
-    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
+    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
+                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
 };
 
 constexpr VkPipelineColorBlendAttachmentState BlendmodeAlphaPremultiplied = {
@@ -91,10 +83,8 @@ constexpr VkPipelineColorBlendAttachmentState BlendmodeAlphaPremultiplied = {
     .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
     .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
     .alphaBlendOp = VK_BLEND_OP_ADD,
-    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) |
-                      static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
+    .colorWriteMask = static_cast<uint32_t>(VK_COLOR_COMPONENT_R_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_G_BIT) |
+                      static_cast<uint32_t>(VK_COLOR_COMPONENT_B_BIT) | static_cast<uint32_t>(VK_COLOR_COMPONENT_A_BIT),
 };
 
 constexpr uint32_t FRAMES_IN_FLIGHT = 3;
@@ -106,27 +96,18 @@ struct KeyElement {
   KeyElement() = default;
   KeyElement(const char *key) : Key(key) {}             // NOLINT
   KeyElement(std::string_view key) : Key(key.data()) {} // NOLINT
-  explicit KeyElement(std::string_view key, uint64_t index)
-      : Key(key.data()), Index(index) {}
+  explicit KeyElement(std::string_view key, uint64_t index) : Key(key.data()), Index(index) {}
 
   const char *Key = nullptr;
   uint64_t Index = UINT64_MAX;
 
-  [[nodiscard]] auto Matches(std::string_view key) const -> bool {
-    return Key == key;
-  }
+  [[nodiscard]] auto Matches(std::string_view key) const -> bool { return Key == key; }
 
-  [[nodiscard]] auto Matches(const char *key) const -> bool {
-    return Matches(std::string_view{key});
-  }
+  [[nodiscard]] auto Matches(const char *key) const -> bool { return Matches(std::string_view{key}); }
 
-  [[nodiscard]] auto GetIndex() const -> std::optional<uint64_t> {
-    return Index == UINT64_MAX ? std::nullopt : std::optional<uint64_t>{Index};
-  }
+  [[nodiscard]] auto GetIndex() const -> std::optional<uint64_t> { return Index == UINT64_MAX ? std::nullopt : std::optional<uint64_t>{Index}; }
 
-  [[nodiscard]] auto IsIndexingKey() const -> bool {
-    return Index != UINT64_MAX;
-  }
+  [[nodiscard]] auto IsIndexingKey() const -> bool { return Index != UINT64_MAX; }
 
   [[nodiscard]] auto ToString() const -> std::string {
     if (Index != UINT64_MAX) {
@@ -136,10 +117,7 @@ struct KeyElement {
     return Key;
   }
 
-  auto operator==(const KeyElement &other) const -> bool {
-    return std::string_view(Key) == std::string_view(other.Key) &&
-           Index == other.Index;
-  }
+  auto operator==(const KeyElement &other) const -> bool { return std::string_view(Key) == std::string_view(other.Key) && Index == other.Index; }
 };
 
 // While a max limit on resource depth is a bit annoying

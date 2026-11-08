@@ -10,9 +10,7 @@ uniform WTexture2DArray<float4>.Handle Output_Mip_6;
 
 float signNotZero(float x) { return x < 0.0 ? -1.0 : 1.0; }
 
-float2 signNotZero(float2 v) {
-  return float2(signNotZero(v.x), signNotZero(v.y));
-}
+float2 signNotZero(float2 v) { return float2(signNotZero(v.x), signNotZero(v.y)); }
 
 float3 DecodeOctahedron(float2 e) {
   e = e * 2.0 - 1.0;

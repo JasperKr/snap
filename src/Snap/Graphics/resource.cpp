@@ -27,9 +27,8 @@ inline auto CanBeDestroyed( // NOLINTNEXTLINE
 
 auto ProcessReleasedResources(const GraphicsContext &context) -> void {
   if (!GetDeferredDestructionAllowed()) {
-    std::scoped_lock<std::mutex, std::mutex, std::mutex> lock(
-        ReleasedGraphicsMemoryMutex, Graphics::GraphicsContext::mutexes.device,
-        Graphics::GraphicsContext::mutexes.vmaAllocator);
+    std::scoped_lock<std::mutex, std::mutex, std::mutex> lock(ReleasedGraphicsMemoryMutex, Graphics::GraphicsContext::mutexes.device,
+                                                              Graphics::GraphicsContext::mutexes.vmaAllocator);
 
     for (auto &res : ReleasedGraphicsMemory) {
       res.destroy(context, res.userdata);
@@ -41,19 +40,16 @@ auto ProcessReleasedResources(const GraphicsContext &context) -> void {
   }
 
   {
-    std::scoped_lock<std::mutex, std::mutex, std::mutex> lock(
-        Graphics::GraphicsContext::mutexes.device,
-        Graphics::GraphicsContext::mutexes.vmaAllocator,
-        ReleasedGraphicsMemoryMutex);
+    std::scoped_lock<std::mutex, std::mutex, std::mutex> lock(Graphics::GraphicsContext::mutexes.device, Graphics::GraphicsContext::mutexes.vmaAllocator,
+                                                              ReleasedGraphicsMemoryMutex);
 
-    Utils::UnorderedErase(ReleasedGraphicsMemory,
-                          [context](GraphicsMemory &res) -> auto {
-                            if (CanBeDestroyed(res.timelineValue)) {
-                              res.destroy(context, res.userdata);
-                              return true;
-                            }
-                            return false;
-                          });
+    Utils::UnorderedErase(ReleasedGraphicsMemory, [context](GraphicsMemory &res) -> auto {
+      if (CanBeDestroyed(res.timelineValue)) {
+        res.destroy(context, res.userdata);
+        return true;
+      }
+      return false;
+    });
   }
 }
 

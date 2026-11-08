@@ -16,8 +16,7 @@ struct LightProbe {
   auto Render(const Transform &transform) -> Error;
   auto DrawGUI(flecs::entity entity) -> Error;
 
-  auto WriteToBuffer(std::vector<uint8_t> &buffer, size_t offset,
-                     const Transform &transform) const -> void;
+  auto WriteToBuffer(std::vector<uint8_t> &buffer, size_t offset, const Transform &transform) const -> void;
 };
 
 static const Type LightProbeType = Type("LightProbe");
@@ -27,9 +26,7 @@ struct LuaLightProbe : Engine::LuaWrap::LuaECSObject {
 
   static auto Create(lua_State *state) -> int;
   static auto GetType() -> const Type * { return &LightProbeType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &LightProbeType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &LightProbeType; }
 
   static auto Render(lua_State *state) -> int;
 };

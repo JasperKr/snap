@@ -11,8 +11,7 @@ auto AddReferences(const LuaWrap::Data::LuaType &data) -> void {
     if (proxy.object != nullptr) {
       proxy.object->retain();
     }
-  } else if (std::holds_alternative<std::vector<LuaWrap::Data::LuaData>>(
-                 data)) {
+  } else if (std::holds_alternative<std::vector<LuaWrap::Data::LuaData>>(data)) {
     const auto &tableData = std::get<std::vector<LuaWrap::Data::LuaData>>(data);
     for (const auto &entry : tableData) {
       AddReferences(entry.key);
@@ -27,8 +26,7 @@ auto RemoveReferences(const LuaWrap::Data::LuaType &data) -> void {
     if (proxy.object != nullptr) {
       proxy.object->release();
     }
-  } else if (std::holds_alternative<std::vector<LuaWrap::Data::LuaData>>(
-                 data)) {
+  } else if (std::holds_alternative<std::vector<LuaWrap::Data::LuaData>>(data)) {
     const auto &tableData = std::get<std::vector<LuaWrap::Data::LuaData>>(data);
     for (const auto &entry : tableData) {
       RemoveReferences(entry.key);
@@ -96,9 +94,7 @@ auto Channel::GetCount() const -> size_t {
 auto Channel::Demand(double timeout) -> std::optional<LuaWrap::Data::LuaType> {
   std::unique_lock<std::mutex> lock(mutex);
 
-  if (!condition.wait_for(
-          lock, std::chrono::duration<double>(timeout),
-          [this]() -> bool { return !messages.empty() || IsDestroyed(); })) {
+  if (!condition.wait_for(lock, std::chrono::duration<double>(timeout), [this]() -> bool { return !messages.empty() || IsDestroyed(); })) {
     return LuaWrap::Data::LuaType{std::monostate{}};
   }
 
@@ -114,8 +110,7 @@ auto Channel::Demand(double timeout) -> std::optional<LuaWrap::Data::LuaType> {
 auto Channel::Demand() -> std::optional<LuaWrap::Data::LuaType> {
   std::unique_lock<std::mutex> lock(mutex);
 
-  condition.wait(
-      lock, [this]() -> bool { return !messages.empty() || IsDestroyed(); });
+  condition.wait(lock, [this]() -> bool { return !messages.empty() || IsDestroyed(); });
 
   if (IsDestroyed()) {
     return LuaWrap::Data::LuaType{std::monostate{}};

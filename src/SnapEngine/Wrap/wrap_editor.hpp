@@ -30,18 +30,17 @@ static const std::vector<luaL_Reg> EditorLib = {
     {"applyTransform", wrap_ApplyTransform},
 };
 
-static const ::LuaWrap::LuaEnum<TransformAxis> TransformAxisEnum{
-    "TransformAxis",
-    {
-        {"none", TransformAxis::None}, // none
-        {"x", TransformAxis::X},       // x | yz plane
-        {"y", TransformAxis::Y},       // y | xz plane
-        {"z", TransformAxis::Z},       // z | xy plane
-        {"yz", TransformAxis::YZ},     // x | yz plane
-        {"xz", TransformAxis::XZ},     // y | xz plane
-        {"xy", TransformAxis::XY},     // z | xy plane
-        {"xyz", TransformAxis::XYZ},   // free
-    }};
+static const ::LuaWrap::LuaEnum<TransformAxis> TransformAxisEnum{"TransformAxis",
+                                                                 {
+                                                                     {"none", TransformAxis::None}, // none
+                                                                     {"x", TransformAxis::X},       // x | yz plane
+                                                                     {"y", TransformAxis::Y},       // y | xz plane
+                                                                     {"z", TransformAxis::Z},       // z | xy plane
+                                                                     {"yz", TransformAxis::YZ},     // x | yz plane
+                                                                     {"xz", TransformAxis::XZ},     // y | xz plane
+                                                                     {"xy", TransformAxis::XY},     // z | xy plane
+                                                                     {"xyz", TransformAxis::XYZ},   // free
+                                                                 }};
 
 static const std::vector<lua_CFunction> childrenInitFunctions{};
 

@@ -6,7 +6,6 @@
 #include "Graphics/graphics.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include <atomic>
 #include <cassert>

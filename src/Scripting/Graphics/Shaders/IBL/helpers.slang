@@ -90,13 +90,9 @@ public float prefilteredImportanceSampling(float ipdf, float omegaP) {
 
 float signNotZero(float x) { return x < 0.0 ? -1.0 : 1.0; }
 
-float2 signNotZero(float2 v) {
-  return float2(signNotZero(v.x), signNotZero(v.y));
-}
+float2 signNotZero(float2 v) { return float2(signNotZero(v.x), signNotZero(v.y)); }
 
-float3 signNotZero(float3 v) {
-  return float3(signNotZero(v.x), signNotZero(v.y), signNotZero(v.z));
-}
+float3 signNotZero(float3 v) { return float3(signNotZero(v.x), signNotZero(v.y), signNotZero(v.z)); }
 
 bool OctFlipped(float2 r) {
   float t = max(abs(r.x), abs(r.y));
@@ -153,8 +149,7 @@ public float3 DecodeOctahedron(float2 e) {
   return normalize(v);
 }
 
-public float3 textureOct(Sampler2DArray<float3> tex, float3 direction,
-                         int index, float mip) {
+public float3 textureOct(Sampler2DArray<float3> tex, float3 direction, int index, float mip) {
   float2 uv = OctFlip(Oct3To2(direction));
 
 #if CUSTOM_OCT_SAMPLING
@@ -180,25 +175,15 @@ public float3 textureOct(Sampler2DArray<float3> tex, float3 direction,
   int2 coordL = int2(baseL);
   int2 coordU = int2(baseU);
 
-  float3 sumA =
-      lerp(tex.Load(int4(OctWrap(sizeIL, coordL), index, lower)),
-           tex.Load(int4(OctWrap(sizeIL, coordL + int2(1, 0)), index, lower)),
-           fracL.x);
+  float3 sumA = lerp(tex.Load(int4(OctWrap(sizeIL, coordL), index, lower)), tex.Load(int4(OctWrap(sizeIL, coordL + int2(1, 0)), index, lower)), fracL.x);
 
-  float3 sumB =
-      lerp(tex.Load(int4(OctWrap(sizeIL, coordL + int2(0, 1)), index, lower)),
-           tex.Load(int4(OctWrap(sizeIL, coordL + 1), index, lower)), fracL.x);
+  float3 sumB = lerp(tex.Load(int4(OctWrap(sizeIL, coordL + int2(0, 1)), index, lower)), tex.Load(int4(OctWrap(sizeIL, coordL + 1), index, lower)), fracL.x);
 
   float3 sumLower = lerp(sumA, sumB, fracL.y);
 
-  sumA = lerp(
-      tex.Load(int4(OctWrap(sizeIU, coordU), index, lower + 1)),
-      tex.Load(int4(OctWrap(sizeIU, coordU + int2(1, 0)), index, lower + 1)),
-      fracU.x);
+  sumA = lerp(tex.Load(int4(OctWrap(sizeIU, coordU), index, lower + 1)), tex.Load(int4(OctWrap(sizeIU, coordU + int2(1, 0)), index, lower + 1)), fracU.x);
 
-  sumB = lerp(
-      tex.Load(int4(OctWrap(sizeIU, coordU + int2(0, 1)), index, lower + 1)),
-      tex.Load(int4(OctWrap(sizeIU, coordU + 1), index, lower + 1)), fracU.x);
+  sumB = lerp(tex.Load(int4(OctWrap(sizeIU, coordU + int2(0, 1)), index, lower + 1)), tex.Load(int4(OctWrap(sizeIU, coordU + 1), index, lower + 1)), fracU.x);
 
   float3 sumUpper = lerp(sumA, sumB, fracU.y);
 
@@ -235,22 +220,15 @@ public float3 textureOct(Sampler2D<float3> tex, float3 direction, float mip) {
   int2 coordL = int2(baseL);
   int2 coordU = int2(baseU);
 
-  float3 sumA = lerp(
-      tex.Load(int3(OctWrap(sizeIL, coordL), lower)),
-      tex.Load(int3(OctWrap(sizeIL, coordL + int2(1, 0)), lower)), fracL.x);
+  float3 sumA = lerp(tex.Load(int3(OctWrap(sizeIL, coordL), lower)), tex.Load(int3(OctWrap(sizeIL, coordL + int2(1, 0)), lower)), fracL.x);
 
-  float3 sumB =
-      lerp(tex.Load(int3(OctWrap(sizeIL, coordL + int2(0, 1)), lower)),
-           tex.Load(int3(OctWrap(sizeIL, coordL + 1), lower)), fracL.x);
+  float3 sumB = lerp(tex.Load(int3(OctWrap(sizeIL, coordL + int2(0, 1)), lower)), tex.Load(int3(OctWrap(sizeIL, coordL + 1), lower)), fracL.x);
 
   float3 sumLower = lerp(sumA, sumB, fracL.y);
 
-  sumA = lerp(tex.Load(int3(OctWrap(sizeIU, coordU), lower + 1)),
-              tex.Load(int3(OctWrap(sizeIU, coordU + int2(1, 0)), lower + 1)),
-              fracU.x);
+  sumA = lerp(tex.Load(int3(OctWrap(sizeIU, coordU), lower + 1)), tex.Load(int3(OctWrap(sizeIU, coordU + int2(1, 0)), lower + 1)), fracU.x);
 
-  sumB = lerp(tex.Load(int3(OctWrap(sizeIU, coordU + int2(0, 1)), lower + 1)),
-              tex.Load(int3(OctWrap(sizeIU, coordU + 1), lower + 1)), fracU.x);
+  sumB = lerp(tex.Load(int3(OctWrap(sizeIU, coordU + int2(0, 1)), lower + 1)), tex.Load(int3(OctWrap(sizeIU, coordU + 1), lower + 1)), fracU.x);
 
   float3 sumUpper = lerp(sumA, sumB, fracU.y);
 
@@ -261,46 +239,30 @@ public float3 textureOct(Sampler2D<float3> tex, float3 direction, float mip) {
 #endif
 }
 
-public float3 getReflectedVector(const float3 v, const float3 n) {
-  return reflect(-v, n);
-}
+public float3 getReflectedVector(const float3 v, const float3 n) { return reflect(-v, n); }
 
-public float3 prefilteredRadiance(SamplerCube env, const float3 r,
-                                  float perceptualRoughness) {
+public float3 prefilteredRadiance(SamplerCube env, const float3 r, float perceptualRoughness) {
   float lod = perceptualRoughnessToLod(perceptualRoughness);
   return env.SampleLevel(r, lod).rgb;
 }
 
-public float3 prefilteredRadiance(Sampler2DArray<float3> env, const float3 r,
-                                  float perceptualRoughness) {
+public float3 prefilteredRadiance(Sampler2DArray<float3> env, const float3 r, float perceptualRoughness) {
   float lod = perceptualRoughnessToLod(perceptualRoughness);
   return env.SampleLevel(r, lod);
 }
 
-public float3 prefilteredRadiance(Sampler2DArray<float3> env, const float4 r,
-                                  float perceptualRoughness) {
+public float3 prefilteredRadiance(Sampler2DArray<float3> env, const float4 r, float perceptualRoughness) {
   float lod = perceptualRoughnessToLod(perceptualRoughness);
   return textureOct(env, r.xyz, int(r.w), lod);
 }
 
-public float3 prefilteredIrradiance(Sampler2DArray<float3> env,
-                                    const float4 r) {
-  return textureOct(env, r.xyz, int(r.w), 0.0).rgb;
-}
+public float3 prefilteredIrradiance(Sampler2DArray<float3> env, const float4 r) { return textureOct(env, r.xyz, int(r.w), 0.0).rgb; }
 
-public float mipToAnisotropy(int mip) {
-  return lerp(0.95, 0.0, float(mip) / float(VolumetricCubemapMipCount - 1));
-}
+public float mipToAnisotropy(int mip) { return lerp(0.95, 0.0, float(mip) / float(VolumetricCubemapMipCount - 1)); }
 
-public float anisotropyToMip(float anisotropy) {
-  return (1.0 - saturate(anisotropy / 0.95)) *
-         float(VolumetricCubemapMipCount - 1);
-}
+public float anisotropyToMip(float anisotropy) { return (1.0 - saturate(anisotropy / 0.95)) * float(VolumetricCubemapMipCount - 1); }
 
-public float3
-prefilteredVolumetricRadiance(Sampler2DArray<float3> RadianceInput,
-                              const float3 dir, const int index,
-                              float anisotropy) {
+public float3 prefilteredVolumetricRadiance(Sampler2DArray<float3> RadianceInput, const float3 dir, const int index, float anisotropy) {
   float mip = anisotropyToMip(clamp(anisotropy, 0.0, 0.95));
   return textureOct(RadianceInput, dir, index, mip).rgb;
 }

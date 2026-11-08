@@ -28,36 +28,25 @@ struct PrimitiveDrawer {
   static constexpr size_t MaxPrimitiveCount = 1e5;
   static constexpr size_t MaxVertexCount = MaxPrimitiveCount * 3;
 
-  void DrawPrimitive(const std::vector<Math::Vec3> &vertices,
-                     const Math::PackedColor &color);
+  void DrawPrimitive(const std::vector<Math::Vec3> &vertices, const Math::PackedColor &color);
 
-  void DrawPrimitive(const std::vector<Math::Vec3> &vertices,
-                     const std::vector<uint32_t> &indices,
-                     const Math::PackedColor &color);
+  void DrawPrimitive(const std::vector<Math::Vec3> &vertices, const std::vector<uint32_t> &indices, const Math::PackedColor &color);
 
-  void DrawPrimitive(const Math::Vec3 &vertex1, const Math::Vec3 &vertex2,
-                     const Math::Vec3 &vertex3, const Math::PackedColor &color);
+  void DrawPrimitive(const Math::Vec3 &vertex1, const Math::Vec3 &vertex2, const Math::Vec3 &vertex3, const Math::PackedColor &color);
 
-  void OverlayPrimitive(const std::vector<Math::Vec3> &vertices,
-                        const Math::PackedColor &color);
+  void OverlayPrimitive(const std::vector<Math::Vec3> &vertices, const Math::PackedColor &color);
 
-  void OverlayPrimitive(const std::vector<Math::Vec3> &vertices,
-                        const std::vector<uint32_t> &indices,
-                        const Math::PackedColor &color);
+  void OverlayPrimitive(const std::vector<Math::Vec3> &vertices, const std::vector<uint32_t> &indices, const Math::PackedColor &color);
 
-  void OverlayPrimitive(const Math::Vec3 &vertex1, const Math::Vec3 &vertex2,
-                        const Math::Vec3 &vertex3,
-                        const Math::PackedColor &color);
+  void OverlayPrimitive(const Math::Vec3 &vertex1, const Math::Vec3 &vertex2, const Math::Vec3 &vertex3, const Math::PackedColor &color);
 
   auto Initialize(const Graphics::GraphicsContext &context) -> Error;
   auto Deinitialize() -> void;
 
-  auto Render(const Graphics::GraphicsContext &context, Camera &camera)
-      -> Error;
+  auto Render(const Graphics::GraphicsContext &context, Camera &camera) -> Error;
 
 private:
-  auto GenerateMesh(const Graphics::GraphicsContext &context,
-                    std::vector<PrimitiveVertex> &primitives) -> Error;
+  auto GenerateMesh(const Graphics::GraphicsContext &context, std::vector<PrimitiveVertex> &primitives) -> Error;
 
   std::vector<PrimitiveVertex> Overlaid;
   std::vector<PrimitiveVertex> Primitives;

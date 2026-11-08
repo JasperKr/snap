@@ -10,8 +10,7 @@
 
 namespace Wrap::Utils {
 
-inline auto SetData(double luaNumber, uint8_t *dataPtr, VkFormat format)
-    -> Error {
+inline auto SetData(double luaNumber, uint8_t *dataPtr, VkFormat format) -> Error {
   switch (format) {
   // UINT formats
   // 8-bit
@@ -166,8 +165,7 @@ inline auto SetData(double luaNumber, uint8_t *dataPtr, VkFormat format)
   return Error::Success();
 }
 
-inline auto SetData(double luaNumber, uint8_t *dataPtr,
-                    ::Graphics::Reflect::ScalarType format) -> Error {
+inline auto SetData(double luaNumber, uint8_t *dataPtr, ::Graphics::Reflect::ScalarType format) -> Error {
   switch (format) {
   case ::Graphics::Reflect::ScalarType::Float: {
     auto value = static_cast<float>(luaNumber);

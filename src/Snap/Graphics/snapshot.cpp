@@ -23,9 +23,8 @@
 namespace Graphics::Snapshot {
 
 auto GetInternalSnapshot() -> ThreadSnapshot & {
-  thread_local ThreadSnapshot currentSnapshot(
-      std::vector<std::shared_ptr<::Graphics::Snapshot::Event>>{},
-      std::vector<::Graphics::RenderState::State>{}, 0, "", false);
+  thread_local ThreadSnapshot currentSnapshot(std::vector<std::shared_ptr<::Graphics::Snapshot::Event>>{}, std::vector<::Graphics::RenderState::State>{}, 0, "",
+                                              false);
   return currentSnapshot;
 }
 
@@ -44,8 +43,7 @@ auto StartSnapshot() -> void {
 
   currentSnapshot.events.clear();
   currentSnapshot.renderStates.clear();
-  currentSnapshot.threadId =
-      std::hash<std::thread::id>{}(std::this_thread::get_id());
+  currentSnapshot.threadId = std::hash<std::thread::id>{}(std::this_thread::get_id());
   currentSnapshot.threadName = Graphics::ContextDebugname;
   currentSnapshot.active = true;
 }
@@ -74,8 +72,7 @@ inline auto DrawLegendItem(const char *name, ImU32 color) {
   drawList->AddCircleFilled(center, radius, color);
   drawList->AddCircle(center, radius, HexToImU32(0x2d2d2d)); // NOLINT
 
-  ImGui::SetCursorScreenPos(
-      {cursor.x + radius * 2.0F + 4.0F, cursor.y}); // NOLINT
+  ImGui::SetCursorScreenPos({cursor.x + radius * 2.0F + 4.0F, cursor.y}); // NOLINT
   ImGui::Text("%s", name);
 }
 
@@ -158,8 +155,7 @@ auto RenderSnapshot(const ThreadSnapshot &snapshot) -> void {
     static float cameraZoom = 1.0F;
 
     float widthAvailable = ImGui::GetContentRegionAvail().x;
-    float itemSize = widthAvailable /
-                     static_cast<float>(std::max(1UL, snapshot.events.size()));
+    float itemSize = widthAvailable / static_cast<float>(std::max(1UL, snapshot.events.size()));
 
     float yOffset = ImGui::GetCursorPosY();
     float rounding = ImGui::GetStyle().FrameRounding;
@@ -168,8 +164,7 @@ auto RenderSnapshot(const ThreadSnapshot &snapshot) -> void {
 
     Math::Vec2 currentCameraPosition = cameraPosition;
 
-    currentCameraPosition.x -=
-        ImGui::GetMouseDragDelta(ImGuiMouseButton_Right).x / cameraZoom;
+    currentCameraPosition.x -= ImGui::GetMouseDragDelta(ImGuiMouseButton_Right).x / cameraZoom;
 
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
       cameraPosition = currentCameraPosition;
@@ -294,47 +289,33 @@ inline void BooleanFlag(const char *label, bool value,
   }
 }
 
-inline auto DrawRendertargetImGui(const RenderState::RenderTarget &target,
-                                  int index) -> void {
+inline auto DrawRendertargetImGui(const RenderState::RenderTarget &target, int index) -> void {
   auto name = target.texture->GetDebugName();
 
   if (ImGui::TreeNode("Rendertarget", "%s", name.data())) {
-    ImGui::Text(
-        "Format: %s",
-        Format::ImageFormatToString(target.texture->GetFormat()).data());
+    ImGui::Text("Format: %s", Format::ImageFormatToString(target.texture->GetFormat()).data());
 
     auto blend = target.blendMode;
     BooleanFlag("Blend Mode:", blend.blendEnable != 0U);
 
-    auto [isDefault, blendmode, alphamode] =
-        BlendMode::ToStringProperties(blend);
+    auto [isDefault, blendmode, alphamode] = BlendMode::ToStringProperties(blend);
     if (isDefault) {
-      ImGui::Text("Blend Mode: %s, Alpha Mode: %s", blendmode.c_str(),
-                  alphamode.c_str());
-      ImGui::SetItemTooltip(
-          "Blend State:\nSrc-Color=%s\nDst-Color=%s\nColor Op=%s"
-          "\nSrc Alpha=%s\nDst Alpha=%s\nAlpha Op=%s",
-          BlendMode::ToString(blend.srcColorBlendFactor).data(),
-          BlendMode::ToString(blend.dstColorBlendFactor).data(),
-          BlendMode::ToString(blend.colorBlendOp).data(),
-          BlendMode::ToString(blend.srcAlphaBlendFactor).data(),
-          BlendMode::ToString(blend.dstAlphaBlendFactor).data(),
-          BlendMode::ToString(blend.alphaBlendOp).data());
+      ImGui::Text("Blend Mode: %s, Alpha Mode: %s", blendmode.c_str(), alphamode.c_str());
+      ImGui::SetItemTooltip("Blend State:\nSrc-Color=%s\nDst-Color=%s\nColor Op=%s"
+                            "\nSrc Alpha=%s\nDst Alpha=%s\nAlpha Op=%s",
+                            BlendMode::ToString(blend.srcColorBlendFactor).data(), BlendMode::ToString(blend.dstColorBlendFactor).data(),
+                            BlendMode::ToString(blend.colorBlendOp).data(), BlendMode::ToString(blend.srcAlphaBlendFactor).data(),
+                            BlendMode::ToString(blend.dstAlphaBlendFactor).data(), BlendMode::ToString(blend.alphaBlendOp).data());
     } else {
       ImGui::Text("Blend State:\nSrc-Color=%s\nDst-Color=%s\nColor Op=%s"
                   "\nSrc Alpha=%s\nDst Alpha=%s\nAlpha Op=%s",
-                  BlendMode::ToString(blend.srcColorBlendFactor).data(),
-                  BlendMode::ToString(blend.dstColorBlendFactor).data(),
-                  BlendMode::ToString(blend.colorBlendOp).data(),
-                  BlendMode::ToString(blend.srcAlphaBlendFactor).data(),
-                  BlendMode::ToString(blend.dstAlphaBlendFactor).data(),
-                  BlendMode::ToString(blend.alphaBlendOp).data());
+                  BlendMode::ToString(blend.srcColorBlendFactor).data(), BlendMode::ToString(blend.dstColorBlendFactor).data(),
+                  BlendMode::ToString(blend.colorBlendOp).data(), BlendMode::ToString(blend.srcAlphaBlendFactor).data(),
+                  BlendMode::ToString(blend.dstAlphaBlendFactor).data(), BlendMode::ToString(blend.alphaBlendOp).data());
     }
 
-    ImGui::Text(
-        "Clear Value: R=%.2f, G=%.2f, B=%.2f, A=%.2f",
-        target.clearValue.color.float32[0], target.clearValue.color.float32[1],
-        target.clearValue.color.float32[2], target.clearValue.color.float32[3]);
+    ImGui::Text("Clear Value: R=%.2f, G=%.2f, B=%.2f, A=%.2f", target.clearValue.color.float32[0], target.clearValue.color.float32[1],
+                target.clearValue.color.float32[2], target.clearValue.color.float32[3]);
     auto location = target.location;
     if (location == -1) {
       location = index;
@@ -361,8 +342,7 @@ auto GraphicsEvent::DrawStateImGui(ThreadSnapshot const *parent) const -> void {
 
   ImGui::Text("Render State:");
   ImGui::Indent();
-  ImGui::Text("Shader: %s (Module name: %s)", state.shader->name.c_str(),
-              state.shader->moduleName.c_str());
+  ImGui::Text("Shader: %s (Module name: %s)", state.shader->name.c_str(), state.shader->moduleName.c_str());
   DrawShaderStage(state.shader->combinedShaderStages);
   ImGui::Text("Rendertargets:");
   ImGui::Indent();
@@ -456,38 +436,30 @@ auto GraphicsEvent::DrawStateImGui(ThreadSnapshot const *parent) const -> void {
   }
   ImGui::Text("Primitive Topology: %s", topologyStr.c_str());
   if (state.hasViewport) {
-    ImGui::Text("Viewport: x=%.2f, y=%.2f, width=%.2f, height=%.2f",
-                state.viewport.x, state.viewport.y, state.viewport.width,
-                state.viewport.height);
+    ImGui::Text("Viewport: x=%.2f, y=%.2f, width=%.2f, height=%.2f", state.viewport.x, state.viewport.y, state.viewport.width, state.viewport.height);
   } else {
-    if (!state.colorAttachments.empty() &&
-        state.colorAttachments.at(0).texture) {
+    if (!state.colorAttachments.empty() && state.colorAttachments.at(0).texture) {
       auto texture = state.colorAttachments.at(0).texture;
-      ImGui::Text("Viewport: x=0.00, y=0.00, width=%.2u, height=%.2u (Default)",
-                  texture->GetWidth(), texture->GetHeight());
+      ImGui::Text("Viewport: x=0.00, y=0.00, width=%.2u, height=%.2u (Default)", texture->GetWidth(), texture->GetHeight());
     } else {
       ImGui::Text("Viewport: Unknown");
     }
   }
 
   if (state.hasScissor) {
-    ImGui::Text("Scissor: x=%u, y=%u, width=%u, height=%u",
-                state.scissor.offset.x, state.scissor.offset.y,
-                state.scissor.extent.width, state.scissor.extent.height);
+    ImGui::Text("Scissor: x=%u, y=%u, width=%u, height=%u", state.scissor.offset.x, state.scissor.offset.y, state.scissor.extent.width,
+                state.scissor.extent.height);
   } else {
-    if (!state.colorAttachments.empty() &&
-        state.colorAttachments.at(0).texture) {
+    if (!state.colorAttachments.empty() && state.colorAttachments.at(0).texture) {
       auto texture = state.colorAttachments.at(0).texture;
-      ImGui::Text("Scissor: x=0, y=0, width=%u, height=%u (Default)",
-                  texture->GetWidth(), texture->GetHeight());
+      ImGui::Text("Scissor: x=0, y=0, width=%u, height=%u (Default)", texture->GetWidth(), texture->GetHeight());
     } else {
       ImGui::Text("Scissor: Unknown");
     }
   }
 };
 
-auto BufferCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto BufferCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Buffer Handle: %p", bufferHandle);
   ImGui::Text("Memory Handle: %p", memoryHandle);
   ImGui::Text("Size: %lu", size);
@@ -495,14 +467,12 @@ auto BufferCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   ImGui::Text("Properties: %u", properties);
 };
 
-auto BufferDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto BufferDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Buffer Handle: %p", bufferHandle);
   ImGui::Text("Memory Handle: %p", memoryHandle);
 };
 
-auto BufferUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto BufferUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Buffer Handle: %p", bufferHandle);
   ImGui::Text("Memory Handle: %p", memoryHandle);
   ImGui::Text("Offset: %lu", offset);
@@ -510,10 +480,9 @@ auto BufferUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   ImGui::Text("Data Size: %zu bytes", data.size());
 };
 
-inline auto
-DrawComponentData(const std::span<const uint8_t> &data,
-                  const BufferComponent &component, // NOLINTNEXTLINE
-                  VkDeviceSize offset, VkDeviceSize rawOffset) -> void {
+inline auto DrawComponentData(const std::span<const uint8_t> &data,
+                              const BufferComponent &component, // NOLINTNEXTLINE
+                              VkDeviceSize offset, VkDeviceSize rawOffset) -> void {
   auto format = std::get<VkFormat>(component.format);
   auto formatSize = Format::GetSize(format);
 
@@ -540,8 +509,7 @@ DrawComponentData(const std::span<const uint8_t> &data,
       }
 
       if (rowCount > 1) {
-        auto lastRowSpan =
-            Utils::Subspan(span, (rowCount - 1) * formatSize, formatSize);
+        auto lastRowSpan = Utils::Subspan(span, (rowCount - 1) * formatSize, formatSize);
         auto lastRowStr = Format::ToString(format, lastRowSpan.data());
         ImGui::Text("\\ %s /", lastRowStr.c_str());
       }
@@ -570,8 +538,7 @@ DrawComponentData(const std::span<const uint8_t> &data,
   }
 }
 
-inline auto DrawBufferData(const std::span<const uint8_t> &data,
-                           const BufferFormat &format,
+inline auto DrawBufferData(const std::span<const uint8_t> &data, const BufferFormat &format,
                            VkDeviceSize offset, // NOLINTNEXTLINE
                            VkDeviceSize size, VkDeviceSize rawOffset) -> void {
 
@@ -584,8 +551,7 @@ inline auto DrawBufferData(const std::span<const uint8_t> &data,
     auto componentOffset = component.offset + offset;
 
     if (componentOffset >= rawOffset + size) {
-      ImGui::TextColored(ImVec4(1.0F, 0.0F, 0.0F, 1.0F),
-                         "No more data available.");
+      ImGui::TextColored(ImVec4(1.0F, 0.0F, 0.0F, 1.0F), "No more data available.");
       break;
     }
 
@@ -598,15 +564,13 @@ inline auto DrawBufferData(const std::span<const uint8_t> &data,
       auto nestedFormat = std::get<BufferFormat>(component.format);
 
       for (int element = 0; element < component.arraySize; element++) {
-        DrawBufferData(data, nestedFormat, componentOffset,
-                       nestedFormat.GetStride(), rawOffset);
+        DrawBufferData(data, nestedFormat, componentOffset, nestedFormat.GetStride(), rawOffset);
       }
     }
   }
 };
 
-auto StructuredBufferUploadEvent::DrawVariantImGui(
-    ThreadSnapshot const *parent) const -> void {
+auto StructuredBufferUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Buffer Handle: %p", bufferHandle);
   ImGui::Text("Stride: %lu", format.GetStride());
 
@@ -635,14 +599,12 @@ auto StructuredBufferUploadEvent::DrawVariantImGui(
   ImGui::Separator();
 
   if (ImGui::TreeNode("Buffer Data")) {
-    DrawBufferData(uploadEvent.data, format, 0, uploadEvent.size,
-                   uploadEvent.offset);
+    DrawBufferData(uploadEvent.data, format, 0, uploadEvent.size, uploadEvent.offset);
     ImGui::TreePop();
   }
 };
 
-auto BufferCopyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto BufferCopyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Src Buffer Handle: %p", srcBufferHandle);
   ImGui::Text("Dst Buffer Handle: %p", dstBufferHandle);
   ImGui::Text("Src Offset: %lu", srcOffset);
@@ -650,8 +612,7 @@ auto BufferCopyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   ImGui::Text("Size: %lu", size);
 };
 
-auto TextureCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto TextureCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Texture Handle: %p", textureHandle);
   ImGui::Text("Memory Handle: %p", memoryHandle);
   ImGui::Text("Width: %u", width);
@@ -659,20 +620,17 @@ auto TextureCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   ImGui::Text("Depth: %u", depth);
   ImGui::Text("Mip Levels: %u", mipLevels);
   ImGui::Text("Array Layers: %u", arrayLayers);
-  ImGui::Text("Format: %s",
-              Format::ToString(static_cast<VkFormat>(format)).data());
+  ImGui::Text("Format: %s", Format::ToString(static_cast<VkFormat>(format)).data());
   ImGui::Text("Usage: %u", usage);
   ImGui::Text("Properties: %u", properties);
 };
 
-auto TextureDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto TextureDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Texture Handle: %p", textureHandle);
   ImGui::Text("Memory Handle: %p", memoryHandle);
 };
 
-auto TextureUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto TextureUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Texture Handle: %p", textureHandle);
   ImGui::Text("Memory Handle: %p", memoryHandle);
   ImGui::Text("Width: %u", width);
@@ -680,60 +638,38 @@ auto TextureUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   ImGui::Text("Depth: %u", depth);
   ImGui::Text("Mip Level: %u", mipLevel);
   ImGui::Text("Array Layer: %u", arrayLayer);
-  ImGui::Text("Format: %s",
-              Format::ToString(static_cast<VkFormat>(format)).data());
+  ImGui::Text("Format: %s", Format::ToString(static_cast<VkFormat>(format)).data());
   ImGui::Text("Data Size: %zu bytes", dataSize);
 };
 
-auto TextureCopyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto TextureCopyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Src Texture Handle: %p", srcTextureHandle);
   ImGui::Text("Dst Texture Handle: %p", dstTextureHandle);
   ImGui::Text("Src Width: %u", srcWidth);
   ImGui::Text("Src Height: %u", srcHeight);
 };
 
-auto PipelineCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto PipelineCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Pipeline Handle: %p", pipelineHandle);
   ImGui::Text("Pipeline Type: %u", pipelineType);
 };
 
-auto PipelineDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
-  ImGui::Text("Pipeline Handle: %p", pipelineHandle);
-};
+auto PipelineDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void { ImGui::Text("Pipeline Handle: %p", pipelineHandle); };
 
-auto DescriptorSetCreateEvent::DrawVariantImGui(
-    ThreadSnapshot const *parent) const -> void {
-  ImGui::Text("Descriptor Set Handle: %p", descriptorSetHandle);
-};
+auto DescriptorSetCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void { ImGui::Text("Descriptor Set Handle: %p", descriptorSetHandle); };
 
-auto DescriptorSetDestroyEvent::DrawVariantImGui(
-    ThreadSnapshot const *parent) const -> void {
-  ImGui::Text("Descriptor Set Handle: %p", descriptorSetHandle);
-};
+auto DescriptorSetDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void { ImGui::Text("Descriptor Set Handle: %p", descriptorSetHandle); };
 
-auto SamplerCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
-  ImGui::Text("Sampler Handle: %p", samplerHandle);
-};
+auto SamplerCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void { ImGui::Text("Sampler Handle: %p", samplerHandle); };
 
-auto SamplerDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
-  ImGui::Text("Sampler Handle: %p", samplerHandle);
-};
+auto SamplerDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void { ImGui::Text("Sampler Handle: %p", samplerHandle); };
 
-auto ShaderModuleCreateEvent::DrawVariantImGui(
-    ThreadSnapshot const *parent) const -> void {
+auto ShaderModuleCreateEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Shader Module Handle: %p", shaderModuleHandle);
   ImGui::Text("Module Name: %s", moduleName.c_str());
 };
 
-auto ShaderModuleDestroyEvent::DrawVariantImGui(
-    ThreadSnapshot const *parent) const -> void {
-  ImGui::Text("Shader Module Handle: %p", shaderModuleHandle);
-};
+auto ShaderModuleDestroyEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void { ImGui::Text("Shader Module Handle: %p", shaderModuleHandle); };
 
 auto DrawEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Vertex Count: %u", vertexCount);
@@ -744,8 +680,7 @@ auto DrawEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   DrawStateImGui(parent);
 };
 
-auto DrawIndexedEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto DrawIndexedEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Index Count: %u", indexCount);
   ImGui::Text("Instance Count: %u", instanceCount);
   ImGui::Text("First Index: %u", firstIndex);
@@ -755,8 +690,7 @@ auto DrawIndexedEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   DrawStateImGui(parent);
 };
 
-auto DrawIndirectEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto DrawIndirectEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Indirect Buffer Handle: %p", indirectBufferHandle);
   ImGui::Text("Offset: %lu", offset);
   ImGui::Text("Draw Count: %u", drawCount);
@@ -765,8 +699,7 @@ auto DrawIndirectEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   DrawStateImGui(parent);
 };
 
-auto DrawIndexedIndirectEvent::DrawVariantImGui(
-    ThreadSnapshot const *parent) const -> void {
+auto DrawIndexedIndirectEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Indirect Buffer Handle: %p", indirectBufferHandle);
   ImGui::Text("Offset: %lu", offset);
   ImGui::Text("Draw Count: %u", drawCount);
@@ -775,8 +708,7 @@ auto DrawIndexedIndirectEvent::DrawVariantImGui(
   DrawStateImGui(parent);
 };
 
-auto DispatchEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto DispatchEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Group Count X: %u", groupCountX);
   ImGui::Text("Group Count Y: %u", groupCountY);
   ImGui::Text("Group Count Z: %u", groupCountZ);
@@ -784,43 +716,36 @@ auto DispatchEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
   DrawStateImGui(parent);
 };
 
-auto DispatchIndirectEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto DispatchIndirectEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Indirect Buffer Handle: %p", indirectBufferHandle);
   ImGui::Text("Offset: %lu", offset);
 
   DrawStateImGui(parent);
 };
 
-auto SetPipelineEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto SetPipelineEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Pipeline Handle: %p", pipelineHandle);
   ImGui::Text("Pipeline Bind Point: %u", pipelineBindPoint);
 };
 
-auto SetDescriptorSetEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto SetDescriptorSetEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Descriptor Set Handle: %p", descriptorSetHandle);
   ImGui::Text("Set Index: %u", setIndex);
 };
 
-auto SetVertexBufferEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto SetVertexBufferEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Buffer Handle: %p", bufferHandle);
   ImGui::Text("Offset: %lu", offset);
 };
 
-auto SetIndexBufferEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
+auto SetIndexBufferEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
   ImGui::Text("Buffer Handle: %p", bufferHandle);
   ImGui::Text("Offset: %lu", offset);
   ImGui::Text("Index Type: %u", indexType);
 };
 
-auto LayoutTransitionEvent::DrawVariantImGui(ThreadSnapshot const *parent) const
-    -> void {
-  ImGui::Text("Layout: %s -> %s", Image::ImageLayoutToString(srcLayout).data(),
-              Image::ImageLayoutToString(dstLayout).data());
+auto LayoutTransitionEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> void {
+  ImGui::Text("Layout: %s -> %s", Image::ImageLayoutToString(srcLayout).data(), Image::ImageLayoutToString(dstLayout).data());
 
   ImGui::SeparatorText("Source access mask");
   for (const auto &access : Utils::BitMaskRange(srcAccessMask)) {

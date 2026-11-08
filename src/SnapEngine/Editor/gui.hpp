@@ -20,8 +20,7 @@ extern Ref<Graphics::Shader> ImGuiShaderA8;
 extern std::vector<std::vector<unsigned char>> ImGuiFonts;
 // NOLINTEND
 
-inline auto KeyEventToImguiKey(SDL_Keycode keycode, SDL_Scancode scancode)
-    -> ImGuiKey {
+inline auto KeyEventToImguiKey(SDL_Keycode keycode, SDL_Scancode scancode) -> ImGuiKey {
   // Keypad doesn't have individual key values in SDL3
   switch (scancode) {
   case SDL_SCANCODE_KP_0:
@@ -294,16 +293,13 @@ inline auto KeyEventToImguiKey(SDL_Keycode keycode, SDL_Scancode scancode)
   return ImGuiKey_None;
 }
 
-inline auto GetImGuiCursorMap()
-    -> std::unordered_map<ImGuiMouseCursor, Ref<Mouse::MouseCursor>> & {
-  static std::unordered_map<ImGuiMouseCursor, Ref<Mouse::MouseCursor>>
-      imgui_cursor_to_mouse_cursor;
+inline auto GetImGuiCursorMap() -> std::unordered_map<ImGuiMouseCursor, Ref<Mouse::MouseCursor>> & {
+  static std::unordered_map<ImGuiMouseCursor, Ref<Mouse::MouseCursor>> imgui_cursor_to_mouse_cursor;
 
   return imgui_cursor_to_mouse_cursor;
 }
 
-extern std::unordered_map<ImTextureID, Ref<Graphics::Texture>>
-    ImGuiTextures; // NOLINT
+extern std::unordered_map<ImTextureID, Ref<Graphics::Texture>> ImGuiTextures; // NOLINT
 
 auto LoadImGuiCursorMap() -> Error;
 auto ShutdownImGui() -> Error;

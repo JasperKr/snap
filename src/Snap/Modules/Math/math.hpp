@@ -32,8 +32,7 @@ auto Random() -> float;
 
 auto Noise(float x_channel, uint x_wrap) -> float;
 auto Noise(float x_channel, float y_channel, uint x_wrap, uint y_wrap) -> float;
-auto Noise(float x_channel, float y_channel, float z_channel, uint x_wrap,
-           uint y_wrap, uint z_wrap) -> float;
+auto Noise(float x_channel, float y_channel, float z_channel, uint x_wrap, uint y_wrap, uint z_wrap) -> float;
 
 auto Abs(float value) -> float;
 auto Abs(Vec2 vec) -> Vec2;
@@ -68,23 +67,15 @@ auto Ceil(Ivec3 vec) -> Ivec3;
 auto Ceil(Ivec4 vec) -> Ivec4;
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-constexpr auto RadToDeg(float radians) -> float {
-  return radians * (180.0F / std::numbers::pi_v<float>);
-}
+constexpr auto RadToDeg(float radians) -> float { return radians * (180.0F / std::numbers::pi_v<float>); }
 
-constexpr auto DegToRad(float degrees) -> float {
-  return degrees * (std::numbers::pi_v<float> / 180.0F);
-}
+constexpr auto DegToRad(float degrees) -> float { return degrees * (std::numbers::pi_v<float> / 180.0F); }
 
-constexpr auto RadToTurns(float radians) -> float {
-  return radians / (2.0F * std::numbers::pi_v<float>);
-}
+constexpr auto RadToTurns(float radians) -> float { return radians / (2.0F * std::numbers::pi_v<float>); }
 
 constexpr auto DegToTurns(float degrees) -> float { return degrees / 360.0F; }
 
-constexpr auto TurnsToRad(float turns) -> float {
-  return turns * (2.0F * std::numbers::pi_v<float>);
-}
+constexpr auto TurnsToRad(float turns) -> float { return turns * (2.0F * std::numbers::pi_v<float>); }
 
 constexpr auto TurnsToDeg(float turns) -> float { return turns * 360.0F; }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

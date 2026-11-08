@@ -23,9 +23,7 @@ auto SemaphoreManager::GetSemaphoreValue() -> uint64_t {
   return value;
 }
 
-auto SemaphoreManager::GetCompletedSemaphoreValue() const -> uint64_t {
-  return gpuCompletedTimelineValue;
-}
+auto SemaphoreManager::GetCompletedSemaphoreValue() const -> uint64_t { return gpuCompletedTimelineValue; }
 
 auto SemaphoreManager::NewSemaphoreValue() -> uint64_t {
   // Add 1 to allow for easy invalid value check
@@ -43,17 +41,14 @@ auto SemaphoreManager::IsInUse(uint64_t value) -> bool {
   return uncompletedTimelineValues.contains(value);
 }
 
-auto SemaphoreManager::QueueTimelineValues(const std::vector<uint64_t> &values)
-    -> void {
+auto SemaphoreManager::QueueTimelineValues(const std::vector<uint64_t> &values) -> void {
   std::unique_lock lock(timelineSetsMutex);
-  sortedUncompletedTimelineValues.insert(sortedUncompletedTimelineValues.end(),
-                                         values.begin(), values.end());
+  sortedUncompletedTimelineValues.insert(sortedUncompletedTimelineValues.end(), values.begin(), values.end());
 }
 
 // Update the semaphore values before submitting command buffers
 // And returns the latest queued timeline value for signalling with a semaphore
-auto SemaphoreManager::UpdateSemaphoreValues(const GraphicsContext &context)
-    -> Result<uint64_t> {
+auto SemaphoreManager::UpdateSemaphoreValues(const GraphicsContext &context) -> Result<uint64_t> {
   ZoneScoped;
 
   std::lock_guard lock(timelineSetsMutex);
@@ -66,11 +61,9 @@ auto SemaphoreManager::UpdateSemaphoreValues(const GraphicsContext &context)
   sortedUncompletedTimelineValues.clear();
 
   {
-    std::unique_lock<std::mutex> lock(
-        Graphics::GraphicsContext::mutexes.device);
+    std::unique_lock<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
 
-    CHECK_NEW_ERR(vkGetSemaphoreCounterValue(context.device, semaphore,
-                                             &gpuCompletedTimelineValue));
+    CHECK_NEW_ERR(vkGetSemaphoreCounterValue(context.device, semaphore, &gpuCompletedTimelineValue));
   }
 
   // Remove completed timeline values
@@ -110,8 +103,7 @@ auto SemaphoreManager::Initialize(GraphicsContext &context) -> Error {
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkCreateSemaphore(context.device, &semInfo,
-                                    GetAllocationCallbacks(), &semaphore));
+    CHECK_NEW_ERR(vkCreateSemaphore(context.device, &semInfo, GetAllocationCallbacks(), &semaphore));
   }
 
   return Error::Success();

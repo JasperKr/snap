@@ -33,16 +33,11 @@ using TexRef = Ref<Graphics::Texture>;
 const Type materialType = Type("Material");
 
 struct Material : Identifiable {
-  Material(std::string name, Ref<Graphics::Shader> shader, TexRef preview,
-           TexRef albedoTexture, TexRef normalTexture,
-           TexRef metallicRoughnessTexture, TexRef ambientOcclusionTexture,
-           TexRef reflectanceTexture, TexRef emissiveTexture)
-      : name(std::move(name)), shader(std::move(shader)),
-        preview(std::move(preview)), albedoTexture(std::move(albedoTexture)),
-        normalTexture(std::move(normalTexture)),
-        metallicRoughnessTexture(std::move(metallicRoughnessTexture)),
-        ambientOcclusionTexture(std::move(ambientOcclusionTexture)),
-        reflectanceTexture(std::move(reflectanceTexture)),
+  Material(std::string name, Ref<Graphics::Shader> shader, TexRef preview, TexRef albedoTexture, TexRef normalTexture, TexRef metallicRoughnessTexture,
+           TexRef ambientOcclusionTexture, TexRef reflectanceTexture, TexRef emissiveTexture)
+      : name(std::move(name)), shader(std::move(shader)), preview(std::move(preview)), albedoTexture(std::move(albedoTexture)),
+        normalTexture(std::move(normalTexture)), metallicRoughnessTexture(std::move(metallicRoughnessTexture)),
+        ambientOcclusionTexture(std::move(ambientOcclusionTexture)), reflectanceTexture(std::move(reflectanceTexture)),
         emissiveTexture(std::move(emissiveTexture)) {}
 
   Material() = default;
@@ -90,10 +85,8 @@ struct Material : Identifiable {
 
     hasher.Add(shader ? shader->hash() : 0);
     hasher.Add(albedoTexture ? (void *)albedoTexture->view : nullptr);
-    hasher.Add(metallicRoughnessTexture ? (void *)metallicRoughnessTexture->view
-                                        : nullptr);
-    hasher.Add(ambientOcclusionTexture ? (void *)ambientOcclusionTexture->view
-                                       : nullptr);
+    hasher.Add(metallicRoughnessTexture ? (void *)metallicRoughnessTexture->view : nullptr);
+    hasher.Add(ambientOcclusionTexture ? (void *)ambientOcclusionTexture->view : nullptr);
     hasher.Add(reflectanceTexture ? (void *)reflectanceTexture->view : nullptr);
     hasher.Add(emissiveTexture ? (void *)emissiveTexture->view : nullptr);
 
@@ -125,9 +118,7 @@ struct LuaMaterial : LuaWrap::LuaECSObject {
   explicit LuaMaterial(const flecs::entity &entity) : LuaECSObject(entity) {}
 
   static auto GetType() -> const Type * { return &materialType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &materialType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &materialType; }
 
   static auto Create(lua_State *state) -> int;
 

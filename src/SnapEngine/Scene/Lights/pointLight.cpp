@@ -26,8 +26,7 @@ auto PointLight::GetBufferFormat() -> Graphics::BufferFormat & {
   return format;
 }
 
-auto PointLight::Write(std::span<uint8_t> buffer,
-                       flecs::entity lightEntity) const -> Error {
+auto PointLight::Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const -> Error {
   const auto &light = lightEntity.get<Light>();
 
   auto &format = GetBufferFormat();

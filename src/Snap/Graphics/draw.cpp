@@ -30,8 +30,7 @@ struct FormatDefault2D {
   uint32_t color;
 };
 
-auto CreateQuad01Mesh(const Graphics::GraphicsContext &context)
-    -> Result<Ref<Graphics::Mesh>> {
+auto CreateQuad01Mesh(const Graphics::GraphicsContext &context) -> Result<Ref<Graphics::Mesh>> {
   std::vector<FormatDefault2D> vertices{4};
   std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0};
 
@@ -81,9 +80,7 @@ auto CreateQuad01Mesh(const Graphics::GraphicsContext &context)
   });
 
   // NOLINTNEXTLINE; Reinterpret cast is necessary here
-  auto span = std::span<uint8_t>(reinterpret_cast<uint8_t *>(vertices.data()),
-                                 vertexFormat.GetBindings()[0].stride *
-                                     vertices.size());
+  auto span = std::span<uint8_t>(reinterpret_cast<uint8_t *>(vertices.data()), vertexFormat.GetBindings()[0].stride * vertices.size());
 
   assert(sizeof(FormatDefault2D) == vertexFormat.GetBindings()[0].stride);
 
@@ -99,8 +96,7 @@ auto CreateQuad01Mesh(const Graphics::GraphicsContext &context)
   CHECK_ERR(mesh->SetVertices(context, 0, span));
 
   auto indexSpan = std::span<uint8_t>( // NOLINTNEXTLINE
-      reinterpret_cast<uint8_t *>(indices.data()),
-      indices.size() * Graphics::GetIndexFormatSize(VK_INDEX_TYPE_UINT32));
+      reinterpret_cast<uint8_t *>(indices.data()), indices.size() * Graphics::GetIndexFormatSize(VK_INDEX_TYPE_UINT32));
 
   CHECK_ERR(mesh->SetIndices(context, indexSpan, VK_INDEX_TYPE_UINT32));
 
@@ -114,14 +110,12 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
   ZoneScoped;
 
 #ifndef NDEBUG
-  auto count =
-      mesh.GetIndexCount() > 0 ? mesh.GetIndexCount() : mesh.GetVertexCount();
+  auto count = mesh.GetIndexCount() > 0 ? mesh.GetIndexCount() : mesh.GetVertexCount();
 
   switch (mesh.GetTopology()) {
   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
     if (count % 2 != 0) {
-      return Error::Create(
-          "Line List topology requires an even number of vertices.");
+      return Error::Create("Line List topology requires an even number of vertices.");
     }
     break;
   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
@@ -137,8 +131,7 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
     break;
   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
     if (count < 3) {
-      return Error::Create(
-          "Triangle Strip topology requires at least 3 vertices.");
+      return Error::Create("Triangle Strip topology requires at least 3 vertices.");
     }
     break;
   case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
@@ -150,16 +143,14 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
   auto *commandBuffer = GetVirtualCommandBuffer();
 
   if (mesh.GetIndexCount() > 0) {
-    commandBuffer->BindIndexBuffer(
-        {mesh.GetIndexBuffer()->handle, 0, mesh.GetIndexFormat()});
+    commandBuffer->BindIndexBuffer({mesh.GetIndexBuffer()->handle, 0, mesh.GetIndexFormat()});
   } else {
     commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
   }
 
   const auto &bindings = mesh.GetBindingRanges();
   for (const auto &binding : bindings) {
-    commandBuffer->BindVertexBuffers(binding.firstBinding, binding.bindingCount,
-                                     binding.bindings, binding.offsets);
+    commandBuffer->BindVertexBuffers(binding.firstBinding, binding.bindingCount, binding.bindings, binding.offsets);
   }
 
   const auto &vertexFormat = mesh.GetVertexFormat();
@@ -170,38 +161,26 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
   return Error::Success();
 }
 
-inline auto IsHazard(const Ref<Graphics::Texture> &first,
-                     const Ref<Graphics::Texture> &second) {
+inline auto IsHazard(const Ref<Graphics::Texture> &first, const Ref<Graphics::Texture> &second) {
   if (first->imageMemory->image != second->imageMemory->image) {
     return false;
   }
 
   // Check if the two textures overlap in mip levels or array layers
-  auto firstMipRange = std::make_pair(first->subresourceRange.baseMipLevel,
-                                      first->subresourceRange.baseMipLevel +
-                                          first->subresourceRange.levelCount);
-  auto secondMipRange = std::make_pair(second->subresourceRange.baseMipLevel,
-                                       second->subresourceRange.baseMipLevel +
-                                           second->subresourceRange.levelCount);
+  auto firstMipRange = std::make_pair(first->subresourceRange.baseMipLevel, first->subresourceRange.baseMipLevel + first->subresourceRange.levelCount);
+  auto secondMipRange = std::make_pair(second->subresourceRange.baseMipLevel, second->subresourceRange.baseMipLevel + second->subresourceRange.levelCount);
 
-  auto firstLayerRange = std::make_pair(first->subresourceRange.baseArrayLayer,
-                                        first->subresourceRange.baseArrayLayer +
-                                            first->subresourceRange.layerCount);
+  auto firstLayerRange = std::make_pair(first->subresourceRange.baseArrayLayer, first->subresourceRange.baseArrayLayer + first->subresourceRange.layerCount);
   auto secondLayerRange =
-      std::make_pair(second->subresourceRange.baseArrayLayer,
-                     second->subresourceRange.baseArrayLayer +
-                         second->subresourceRange.layerCount);
+      std::make_pair(second->subresourceRange.baseArrayLayer, second->subresourceRange.baseArrayLayer + second->subresourceRange.layerCount);
 
-  bool mipOverlap = firstMipRange.second > secondMipRange.first &&
-                    secondMipRange.second > firstMipRange.first;
-  bool layerOverlap = firstLayerRange.second > secondLayerRange.first &&
-                      secondLayerRange.second > firstLayerRange.first;
+  bool mipOverlap = firstMipRange.second > secondMipRange.first && secondMipRange.second > firstMipRange.first;
+  bool layerOverlap = firstLayerRange.second > secondLayerRange.first && secondLayerRange.second > firstLayerRange.first;
 
   return mipOverlap && layerOverlap;
 }
 
-auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
-    -> Error {
+auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount) -> Error {
   ZoneScoped;
 
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
@@ -211,23 +190,19 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
   {
     ZoneScopedN("Vk Draw");
     RenderState::CurrentStats.drawCalls++;
-    RenderState::CurrentStats.triangleCount +=
-        static_cast<uint64_t>(mesh.GetIndexCount() * instanceCount);
+    RenderState::CurrentStats.triangleCount += static_cast<uint64_t>(mesh.GetIndexCount() * instanceCount);
     RenderState::CurrentStats.instanceCount += instanceCount;
 
     const MeshDrawRange &range = mesh.GetDrawRange();
 
     if (mesh.GetIndexCount() > 0) {
-      CHECK_ERR(commandBuffer->DrawIndexed(range.Count, instanceCount,
-                                           range.Offset, 0, 0));
+      CHECK_ERR(commandBuffer->DrawIndexed(range.Count, instanceCount, range.Offset, 0, 0));
 
 #if Enable_Snapshots
-      CaptureEvent(DrawIndexedEvent(mesh.GetIndexCount(), instanceCount,
-                                    range.Offset, 0, 0));
+      CaptureEvent(DrawIndexedEvent(mesh.GetIndexCount(), instanceCount, range.Offset, 0, 0));
 #endif
     } else {
-      CHECK_ERR(
-          commandBuffer->Draw(range.Count, instanceCount, range.Offset, 0));
+      CHECK_ERR(commandBuffer->Draw(range.Count, instanceCount, range.Offset, 0));
 
 #if Enable_Snapshots
       auto vertexCount = mesh.GetVertexCount();
@@ -256,8 +231,7 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount)
   return Error::Success();
 }
 
-auto Draw(const GraphicsContext &context, const Ref<Texture> &texture,
-          uint32_t instanceCount) -> Error {
+auto Draw(const GraphicsContext &context, const Ref<Texture> &texture, uint32_t instanceCount) -> Error {
   ZoneScoped;
 
   if (!QuadMesh.isValid()) {
@@ -271,8 +245,7 @@ auto Draw(const GraphicsContext &context, const Ref<Texture> &texture,
   return Draw(context, *QuadMesh, instanceCount);
 }
 
-auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups)
-    -> Error {
+auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups) -> Error {
   ZoneScoped;
   auto *commandBuffer = GetVirtualCommandBuffer();
 
@@ -284,8 +257,7 @@ auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups)
     ZoneScopedN("Vk Dispatch");
 
     RenderState::CurrentStats.dispatchCalls++;
-    CHECK_ERR(commandBuffer->Dispatch(threadgroups.x, threadgroups.y,
-                                      threadgroups.z));
+    CHECK_ERR(commandBuffer->Dispatch(threadgroups.x, threadgroups.y, threadgroups.z));
   }
 
 #if Enable_Snapshots
@@ -295,8 +267,7 @@ auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups)
   return Error::Success();
 }
 
-auto DispatchWithin(const GraphicsContext &context, Math::Uvec3 dimensions)
-    -> Error {
+auto DispatchWithin(const GraphicsContext &context, Math::Uvec3 dimensions) -> Error {
   ZoneScoped;
 
   const auto &shader = RenderState::GetUserShader();
@@ -320,9 +291,7 @@ auto DispatchWithin(const GraphicsContext &context, Math::Uvec3 dimensions)
   return Dispatch(context, threadgroups);
 }
 
-auto DispatchIndirect(const GraphicsContext &context,
-                      const Ref<Buffer> &indirectBuffer, VkDeviceSize offset)
-    -> Error {
+auto DispatchIndirect(const GraphicsContext &context, const Ref<Buffer> &indirectBuffer, VkDeviceSize offset) -> Error {
   ZoneScoped;
   auto *commandBuffer = GetVirtualCommandBuffer();
 
@@ -344,8 +313,7 @@ auto DispatchIndirect(const GraphicsContext &context,
   return Error::Success();
 }
 
-auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
-                  const Ref<Buffer> &indirectBuffer,
+auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> &indirectBuffer,
                   VkDeviceSize offset, // NOLINT
                   uint32_t count) -> Error {
   ZoneScoped;
@@ -359,21 +327,17 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
 
   if (offset % 4 != 0) {
-    return Error::Create(
-        "Offset for vkCmdDrawIndirect must be a multiple of 4.");
+    return Error::Create("Offset for vkCmdDrawIndirect must be a multiple of 4.");
   }
 
   RenderState::CurrentStats.drawCalls++;
-  RenderState::CurrentStats.triangleCount +=
-      static_cast<uint64_t>(mesh.GetIndexCount() * count);
+  RenderState::CurrentStats.triangleCount += static_cast<uint64_t>(mesh.GetIndexCount() * count);
   RenderState::CurrentStats.instanceCount += count;
 
-  CHECK_ERR(commandBuffer->DrawIndirect(indirectBuffer->handle, offset, count,
-                                        sizeof(VkDrawIndirectCommand)));
+  CHECK_ERR(commandBuffer->DrawIndirect(indirectBuffer->handle, offset, count, sizeof(VkDrawIndirectCommand)));
 
 #if Enable_Snapshots
-  CaptureEvent(DrawIndirectEvent(indirectBuffer->handle, offset, count,
-                                 sizeof(VkDrawIndirectCommand)));
+  CaptureEvent(DrawIndirectEvent(indirectBuffer->handle, offset, count, sizeof(VkDrawIndirectCommand)));
 #endif
 
   {
@@ -394,8 +358,7 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh,
 
 // Vertex shader generated versions
 
-auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology,
-          uint32_t vertexCount, uint32_t instanceCount) -> Error { // NOLINT
+auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology, uint32_t vertexCount, uint32_t instanceCount) -> Error { // NOLINT
   ZoneScoped;
   auto *commandBuffer = GetVirtualCommandBuffer();
 
@@ -410,8 +373,7 @@ auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology,
   RenderState::SetTopology(topology);
 
   RenderState::CurrentStats.drawCalls++;
-  RenderState::CurrentStats.triangleCount +=
-      static_cast<uint64_t>(vertexCount * instanceCount);
+  RenderState::CurrentStats.triangleCount += static_cast<uint64_t>(vertexCount * instanceCount);
   RenderState::CurrentStats.instanceCount += instanceCount;
 
   CHECK_ERR(commandBuffer->Draw(vertexCount, instanceCount, 0, 0));
@@ -423,8 +385,7 @@ auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology,
   return Error::Success();
 }
 
-auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer,
-          const VkPrimitiveTopology &topology, uint32_t indexCount, // NOLINT
+auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer, const VkPrimitiveTopology &topology, uint32_t indexCount, // NOLINT
           uint32_t instanceCount) -> Error {
   ZoneScoped;
   auto *commandBuffer = GetVirtualCommandBuffer();
@@ -441,14 +402,12 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer,
   {
     std::lock_guard<std::mutex> lock(indexBuffer->mutex);
 
-    commandBuffer->BindIndexBuffer(
-        {indexBuffer->handle, 0, VK_INDEX_TYPE_UINT32});
+    commandBuffer->BindIndexBuffer({indexBuffer->handle, 0, VK_INDEX_TYPE_UINT32});
     indexBuffer->MarkUse();
   }
 
   RenderState::CurrentStats.drawCalls++;
-  RenderState::CurrentStats.triangleCount +=
-      static_cast<uint64_t>(indexCount * instanceCount);
+  RenderState::CurrentStats.triangleCount += static_cast<uint64_t>(indexCount * instanceCount);
   RenderState::CurrentStats.instanceCount += instanceCount;
 
   CHECK_ERR(commandBuffer->DrawIndexed(indexCount, instanceCount, 0, 0, 0));

@@ -220,20 +220,16 @@ auto Accent(const Color &color, float accentStrength) -> Color {
 
   switch (brightness) {
   case Brightness::Bright:
-    accentColor =
-        Desaturate(color, 0.2F * accentStrength) * 0.8F * accentStrength;
+    accentColor = Desaturate(color, 0.2F * accentStrength) * 0.8F * accentStrength;
     break;
   case Brightness::LightGray:
-    accentColor =
-        Desaturate(color, 0.1F * accentStrength) * 0.9F * accentStrength;
+    accentColor = Desaturate(color, 0.1F * accentStrength) * 0.9F * accentStrength;
     break;
   case Brightness::DarkGray:
-    accentColor =
-        Saturate(color, 0.1F * accentStrength) * 1.1F * accentStrength;
+    accentColor = Saturate(color, 0.1F * accentStrength) * 1.1F * accentStrength;
     break;
   case Brightness::Dark:
-    accentColor =
-        Saturate(color, 0.2F * accentStrength) * 1.2F * accentStrength;
+    accentColor = Saturate(color, 0.2F * accentStrength) * 1.2F * accentStrength;
     break;
   default:
     accentColor = color; // Fallback to original color

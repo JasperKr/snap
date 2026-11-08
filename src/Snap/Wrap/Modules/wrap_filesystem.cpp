@@ -21,8 +21,7 @@ auto Wrap_Read(lua_State *state) -> int {
     hasTypeArg = true;
     isBinary = strcmp(luaL_checkstring(state, 1), "binary") == 0;
     if (!isBinary && strcmp(luaL_checkstring(state, 1), "text") != 0) {
-      return luaL_error(state,
-                        "Invalid read type, expected 'binary' or 'text'");
+      return luaL_error(state, "Invalid read type, expected 'binary' or 'text'");
     }
     path = lua_tostring(state, 2);
   } else {
@@ -45,8 +44,7 @@ auto Wrap_Read(lua_State *state) -> int {
     auto result = ::Filesystem::ReadFile(path, readLength);
 
     if (Error::IsError(result)) {
-      return luaL_error(state, "Failed to read file: %s",
-                        result.error().message.c_str());
+      return luaL_error(state, "Failed to read file: %s", result.error().message.c_str());
     }
 
     const auto &data = result.value();
@@ -61,8 +59,7 @@ auto Wrap_Read(lua_State *state) -> int {
   auto result = ::Filesystem::ReadTextFile(path, readLength);
 
   if (Error::IsError(result)) {
-    return luaL_error(state, "Failed to read text file: %s",
-                      result.error().message.c_str());
+    return luaL_error(state, "Failed to read text file: %s", result.error().message.c_str());
   }
 
   lua_pushstring(state, result.value().c_str());
@@ -74,12 +71,9 @@ auto Wrap_Append(lua_State *state) -> int {
   std::string path = luaL_checkstring(state, 1);
 
   if (LuaWrap::IsType<Data::ByteData>(state, 2)) {
-    auto bytedata =
-        LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, 2));
+    auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, 2));
 
-    LUA_CK_ERR(::Filesystem::AppendFile(
-        path,
-        std::span<const uint8_t>(bytedata->GetData(), bytedata->GetSize())));
+    LUA_CK_ERR(::Filesystem::AppendFile(path, std::span<const uint8_t>(bytedata->GetData(), bytedata->GetSize())));
 
     lua_pushboolean(state, 1);
     return 1;
@@ -95,8 +89,7 @@ auto Wrap_Append(lua_State *state) -> int {
     return 1;
   }
 
-  return luaL_error(
-      state, "Invalid data type for append, expected Bytedata or string");
+  return luaL_error(state, "Invalid data type for append, expected Bytedata or string");
 }
 
 // path: string, data: Bytedata | string
@@ -106,9 +99,7 @@ auto Wrap_Write(lua_State *state) -> int {
   if (LuaWrap::IsType<Data::ByteData>(state, 2)) {
     auto bytedata = LuaWrap::ObjectFromLua<Data::ByteData>(state, 2);
 
-    LUA_CK_ERR(::Filesystem::WriteFile(
-        path,
-        std::span<const uint8_t>(bytedata->GetData(), bytedata->GetSize())));
+    LUA_CK_ERR(::Filesystem::WriteFile(path, std::span<const uint8_t>(bytedata->GetData(), bytedata->GetSize())));
 
     lua_pushboolean(state, 1);
     return 1;
@@ -124,8 +115,7 @@ auto Wrap_Write(lua_State *state) -> int {
     return 1;
   }
 
-  return luaL_error(state,
-                    "Invalid data type for write, expected Bytedata or string");
+  return luaL_error(state, "Invalid data type for write, expected Bytedata or string");
 }
 
 // path: string

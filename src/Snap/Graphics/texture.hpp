@@ -33,13 +33,7 @@ enum class TextureType : uint8_t {
   ENUM_MAX = 0xFF,
 };
 
-enum class WrapMode : uint8_t {
-  REPEAT,
-  MIRRORED_REPEAT,
-  CLAMP,
-  CLAMPONE,
-  CLAMPZERO
-};
+enum class WrapMode : uint8_t { REPEAT, MIRRORED_REPEAT, CLAMP, CLAMPONE, CLAMPZERO };
 
 const static Type LuaTextureType = Type("Texture");
 
@@ -61,9 +55,8 @@ enum class TextureMipmapOption : uint8_t {
 };
 
 extern std::unordered_map<std::pair<VkFormat, TextureType>, Ref<struct Texture>,
-                          struct VkFormatTextureTypeHash>
-    DefaultTextureCache;                           // NOLINT
-extern std::shared_mutex DefaultTextureCacheMutex; // NOLINT
+                          struct VkFormatTextureTypeHash> DefaultTextureCache; // NOLINT
+extern std::shared_mutex DefaultTextureCacheMutex;                             // NOLINT
 
 auto UnloadModule() -> void;
 
@@ -113,8 +106,7 @@ struct TextureCreationInfo {
 };
 
 struct ImageState {
-  VkPipelineStageFlagBits2 lastPipelineStage =
-      VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+  VkPipelineStageFlagBits2 lastPipelineStage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
   VkImageLayout currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   TextureUsage lastUsage = TextureUsage::Unknown;
 
@@ -150,24 +142,15 @@ struct ImageMemory : Identifiable {
   static ThreadLocalState<ImageState> ImageStateManager;
   [[nodiscard]] auto GetState() const -> ImageState &;
 
-  auto UseAs(const GraphicsContext &context, TextureUsage newUsage,
-             VkPipelineStageFlags2 stage,
-             VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const
-      -> Error;
+  auto UseAs(const GraphicsContext &context, TextureUsage newUsage, VkPipelineStageFlags2 stage, VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const -> Error;
 
-  auto TransitionLayout(
-      const GraphicsContext &context, VkImageLayout layout,
-      VkPipelineStageFlags2 sourceStage = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |
-                                          VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-      VkPipelineStageFlags2 destinationStage =
-          VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT |
-          VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-      VkAccessFlags2 srcAccessMask = VK_ACCESS_2_NONE, // NOLINT
-      VkAccessFlags2 dstAccessMask = VK_ACCESS_2_NONE,
-      VkImageSubresourceRange range = {
-          .levelCount = VK_REMAINING_MIP_LEVELS,
-          .layerCount = VK_REMAINING_ARRAY_LAYERS}) const -> Error;
+  auto TransitionLayout(const GraphicsContext &context, VkImageLayout layout,
+                        VkPipelineStageFlags2 sourceStage = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                        VkPipelineStageFlags2 destinationStage = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                        VkAccessFlags2 srcAccessMask = VK_ACCESS_2_NONE, // NOLINT
+                        VkAccessFlags2 dstAccessMask = VK_ACCESS_2_NONE,
+                        VkImageSubresourceRange range = {.levelCount = VK_REMAINING_MIP_LEVELS, .layerCount = VK_REMAINING_ARRAY_LAYERS}) const -> Error;
 
   VkExtent3D size{};
 
@@ -178,46 +161,25 @@ struct ImageMemory : Identifiable {
 };
 
 struct Texture : Object, Identifiable {
-  static auto Create(const GraphicsContext &context,
-                     const TextureCreationInfo &info) -> Result<Ref<Texture>>;
-  static auto Create(const GraphicsContext &context, Texture *parentTexture,
-                     VkImageViewType viewType, VkImageSubresourceRange range)
+  static auto Create(const GraphicsContext &context, const TextureCreationInfo &info) -> Result<Ref<Texture>>;
+  static auto Create(const GraphicsContext &context, Texture *parentTexture, VkImageViewType viewType, VkImageSubresourceRange range) -> Result<Ref<Texture>>;
+
+  static auto FromSwapchain(const GraphicsContext &context, VkImage swapchainImage, VkFormat format, uint32_t width, uint32_t height) -> Result<Ref<Texture>>;
+
+  auto CopyTo(GraphicsContext &context, Texture *texture, VkBuffer buffer) -> Error;
+  auto GenerateMipmaps(const GraphicsContext &context, VkCommandBuffer commandBuffer) const -> Error;
+  static auto FromFile(const GraphicsContext &context, const char *path, VkImageUsageFlags usage = 0, TextureMipmapOption mipmaps = {}) -> Result<Ref<Texture>>;
+
+  static auto FromMemory(const GraphicsContext &context, Image::ImageData &imageData, VkImageUsageFlags usage = 0, TextureMipmapOption mipmaps = {})
       -> Result<Ref<Texture>>;
 
-  static auto FromSwapchain(const GraphicsContext &context,
-                            VkImage swapchainImage, VkFormat format,
-                            uint32_t width, uint32_t height)
-      -> Result<Ref<Texture>>;
+  static auto FromMemory(const GraphicsContext &context, const std::vector<Ref<Image::ImageData>> &slices, TextureType type, VkImageUsageFlags usage = 0,
+                         TextureMipmapOption mipmaps = {}) -> Result<Ref<Texture>>;
 
-  auto CopyTo(GraphicsContext &context, Texture *texture, VkBuffer buffer)
-      -> Error;
-  auto GenerateMipmaps(const GraphicsContext &context,
-                       VkCommandBuffer commandBuffer) const -> Error;
-  static auto FromFile(const GraphicsContext &context, const char *path,
-                       VkImageUsageFlags usage = 0,
-                       TextureMipmapOption mipmaps = {})
-      -> Result<Ref<Texture>>;
+  static auto FromMemory(const GraphicsContext &context, const Image::CompressedImageData &compressedData, VkImageUsageFlags usage = 0,
+                         TextureMipmapOption mipmaps = {}) -> Result<Ref<Texture>>;
 
-  static auto
-  FromMemory(const GraphicsContext &context, Image::ImageData &imageData,
-             VkImageUsageFlags usage = 0, TextureMipmapOption mipmaps = {})
-      -> Result<Ref<Texture>>;
-
-  static auto FromMemory(const GraphicsContext &context,
-                         const std::vector<Ref<Image::ImageData>> &slices,
-                         TextureType type, VkImageUsageFlags usage = 0,
-                         TextureMipmapOption mipmaps = {})
-      -> Result<Ref<Texture>>;
-
-  static auto FromMemory(const GraphicsContext &context,
-                         const Image::CompressedImageData &compressedData,
-                         VkImageUsageFlags usage = 0,
-                         TextureMipmapOption mipmaps = {})
-      -> Result<Ref<Texture>>;
-
-  static auto GetDefault(const GraphicsContext &context, VkFormat format,
-                         Graphics::TextureType textureType)
-      -> Result<Ref<Graphics::Texture>>;
+  static auto GetDefault(const GraphicsContext &context, VkFormat format, Graphics::TextureType textureType) -> Result<Ref<Graphics::Texture>>;
 
   std::mutex mutex;
 
@@ -249,35 +211,24 @@ struct Texture : Object, Identifiable {
 
   mutable std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
 
-  auto UseAs(const GraphicsContext &context, TextureUsage newUsage,
-             VkPipelineStageFlags2 stage,
-             VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const
-      -> Error;
+  auto UseAs(const GraphicsContext &context, TextureUsage newUsage, VkPipelineStageFlags2 stage, VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const -> Error;
 
-  auto UseAsAttachment(const GraphicsContext &context,
-                       VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-                       VkAttachmentStoreOp storeOp =
-                           VK_ATTACHMENT_STORE_OP_STORE) const -> Error;
-  auto UseAsSampler(const GraphicsContext &context,
-                    VkPipelineStageFlags2 stage) const -> Error;
+  auto UseAsAttachment(const GraphicsContext &context, VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+                       VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const -> Error;
+  auto UseAsSampler(const GraphicsContext &context, VkPipelineStageFlags2 stage) const -> Error;
   auto UseAsTransferSrc(const GraphicsContext &context) const -> Error;
   auto UseAsTransferDst(const GraphicsContext &context) const -> Error;
-  auto UseAsStorage(const GraphicsContext &context,
-                    VkPipelineStageFlags2 stage) const -> Error;
+  auto UseAsStorage(const GraphicsContext &context, VkPipelineStageFlags2 stage) const -> Error;
   auto UseAsPresentSrc(const GraphicsContext &context) const -> Error;
 
-  [[nodiscard]] auto GetTimestamp() const -> uint64_t {
-    return imageMemory->lastUsedTimestamp;
-  }
+  [[nodiscard]] auto GetTimestamp() const -> uint64_t { return imageMemory->lastUsedTimestamp; }
 
   auto MarkUse() const -> void;
 
-  auto CopyTo(const GraphicsContext &context, Texture &dstTexture,
-              CopyRegion region) -> Error;
+  auto CopyTo(const GraphicsContext &context, Texture &dstTexture, CopyRegion region) -> Error;
 
-  auto CopyTo(const GraphicsContext &context, Buffer &dstBuffer,
-              ToBufferCopyRegion region) -> Error;
+  auto CopyTo(const GraphicsContext &context, Buffer &dstBuffer, ToBufferCopyRegion region) -> Error;
 
   Texture() = default;
   Texture(const Texture &) = delete;
@@ -286,20 +237,14 @@ struct Texture : Object, Identifiable {
   auto operator=(Texture &&) noexcept -> Texture & = delete;
   ~Texture() override;
 
-  auto SetFilter(VkFilter minFilter, VkFilter magFilter,
-                 VkSamplerMipmapMode mipFilter) -> void;
-  [[nodiscard]] auto GetFilter() const
-      -> std::tuple<VkFilter, VkFilter, VkSamplerMipmapMode>;
+  auto SetFilter(VkFilter minFilter, VkFilter magFilter, VkSamplerMipmapMode mipFilter) -> void;
+  [[nodiscard]] auto GetFilter() const -> std::tuple<VkFilter, VkFilter, VkSamplerMipmapMode>;
   auto SetBorderColor(VkBorderColor borderColor) -> void;
   [[nodiscard]] auto GetBorderColor() const -> VkBorderColor;
   auto SetAnisotropy(float anisotropy) -> void;
   [[nodiscard]] auto GetAnisotropy() const -> float;
-  auto SetWrapmode(VkSamplerAddressMode addressModeU,
-                   VkSamplerAddressMode addressModeV,
-                   VkSamplerAddressMode addressModeW) -> void;
-  [[nodiscard]] auto GetWrap() const
-      -> std::tuple<VkSamplerAddressMode, VkSamplerAddressMode,
-                    VkSamplerAddressMode>;
+  auto SetWrapmode(VkSamplerAddressMode addressModeU, VkSamplerAddressMode addressModeV, VkSamplerAddressMode addressModeW) -> void;
+  [[nodiscard]] auto GetWrap() const -> std::tuple<VkSamplerAddressMode, VkSamplerAddressMode, VkSamplerAddressMode>;
   auto SetLodBias(float mipLodBias) -> void;
   [[nodiscard]] auto GetLodBias() const -> float;
   auto SetLodRange(float minLod, float maxLod) -> void;
@@ -318,12 +263,8 @@ struct Texture : Object, Identifiable {
     auto baseDepth = imageMemory->size.depth;
     return baseDepth >> subresourceRange.baseMipLevel;
   };
-  [[nodiscard]] auto GetDimensions() const -> VkExtent2D {
-    return {GetWidth(), GetHeight()};
-  };
-  [[nodiscard]] auto GetDimensions3D() const -> VkExtent3D {
-    return {GetWidth(), GetHeight(), GetDepth()};
-  };
+  [[nodiscard]] auto GetDimensions() const -> VkExtent2D { return {GetWidth(), GetHeight()}; };
+  [[nodiscard]] auto GetDimensions3D() const -> VkExtent3D { return {GetWidth(), GetHeight(), GetDepth()}; };
 
   auto GetSampler(const GraphicsContext &context) -> Result<VkDeviceSize>;
   // Copies data from a 1D/2D/3D region from the provided data to the texture
@@ -331,54 +272,32 @@ struct Texture : Object, Identifiable {
   // sourceOffset is the offset within the data to start copying from
   // target is the offset within the texture to copy to
   // targetSize is the size of the region to copy within the texture
-  auto SetPixels(const GraphicsContext &context,
-                 const std::span<const uint8_t> &data,
+  auto SetPixels(const GraphicsContext &context, const std::span<const uint8_t> &data,
                  uint32_t mipLevel, // NOLINT
                  uint32_t arrayLayer, VkExtent3D sourceSize,
                  VkOffset3D sourceOffset, // NOLINT
                  VkOffset3D target, VkExtent3D targetSize) -> Error;
-  auto SetPixels(const GraphicsContext &context, Image::ImageData &imageData,
-                 uint32_t mipLevel = 0, uint32_t arrayLayer = 0) -> Error;
-  [[nodiscard]] auto GetMipmapCount() const -> size_t {
-    return subresourceRange.levelCount;
-  }
+  auto SetPixels(const GraphicsContext &context, Image::ImageData &imageData, uint32_t mipLevel = 0, uint32_t arrayLayer = 0) -> Error;
+  [[nodiscard]] auto GetMipmapCount() const -> size_t { return subresourceRange.levelCount; }
 
-  [[nodiscard]] auto GetArrayLayerCount() const -> size_t {
-    return subresourceRange.layerCount;
-  }
+  [[nodiscard]] auto GetArrayLayerCount() const -> size_t { return subresourceRange.layerCount; }
 
-  [[nodiscard]] auto GetFormat() const -> VkFormat {
-    return imageMemory->format;
-  }
-  [[nodiscard]] auto SupportsStorage() const -> bool {
-    return (imageMemory->usage & VK_IMAGE_USAGE_STORAGE_BIT) != 0;
-  }
-  [[nodiscard]] auto SupportsSampling() const -> bool {
-    return (imageMemory->usage & VK_IMAGE_USAGE_SAMPLED_BIT) != 0;
-  }
+  [[nodiscard]] auto GetFormat() const -> VkFormat { return imageMemory->format; }
+  [[nodiscard]] auto SupportsStorage() const -> bool { return (imageMemory->usage & VK_IMAGE_USAGE_STORAGE_BIT) != 0; }
+  [[nodiscard]] auto SupportsSampling() const -> bool { return (imageMemory->usage & VK_IMAGE_USAGE_SAMPLED_BIT) != 0; }
   [[nodiscard]] auto SupportsAttachment() const -> bool {
-    return (imageMemory->usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0 ||
-           (imageMemory->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) !=
-               0;
+    return (imageMemory->usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0 || (imageMemory->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
   }
 
-  [[nodiscard]] auto IsDepthTexture() const -> bool {
-    return Image::IsDepthTexture(imageMemory->format);
-  }
+  [[nodiscard]] auto IsDepthTexture() const -> bool { return Image::IsDepthTexture(imageMemory->format); }
 
-  [[nodiscard]] auto IsStencilTexture() const -> bool {
-    return Image::IsStencilTexture(imageMemory->format);
-  }
+  [[nodiscard]] auto IsStencilTexture() const -> bool { return Image::IsStencilTexture(imageMemory->format); }
 
-  [[nodiscard]] auto IsDepthOrStencilTexture() const -> bool {
-    return Image::IsDepthOrStencilTexture(imageMemory->format);
-  }
+  [[nodiscard]] auto IsDepthOrStencilTexture() const -> bool { return Image::IsDepthOrStencilTexture(imageMemory->format); }
 
   static auto GetType() -> Type const * { return &LuaTextureType; }
 
-  [[nodiscard]] auto GetInstanceType() const -> Type const * override {
-    return GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * override { return GetType(); }
 
   [[nodiscard]] auto GetDebugName() const -> std::string_view {
     if (!debugName.empty()) {
@@ -393,13 +312,9 @@ struct Texture : Object, Identifiable {
     // Two textures are considered equal if they reference the same image and view
   }
 
-  auto operator!=(const Texture &other) const -> bool {
-    return !(*this == other);
-  }
+  auto operator!=(const Texture &other) const -> bool { return !(*this == other); }
 
-  [[nodiscard]] auto GetAddress(const GraphicsContext &context,
-                                VkDescriptorType type) const
-      -> Result<VkDeviceSize>;
+  [[nodiscard]] auto GetAddress(const GraphicsContext &context, VkDescriptorType type) const -> Result<VkDeviceSize>;
 };
 
 } // namespace Graphics

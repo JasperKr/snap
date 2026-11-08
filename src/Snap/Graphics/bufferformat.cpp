@@ -18,16 +18,9 @@
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
-BufferFormat::BufferFormat(std::vector<BufferComponent> components,
-                           Standard std)
-    : Components(std::move(components)), std(std) {}
+BufferFormat::BufferFormat(std::vector<BufferComponent> components, Standard std) : Components(std::move(components)), std(std) {}
 
-BufferFormat::BufferFormat(
-    const std::vector<
-        std::pair<std::string, std::variant<const char *, BufferFormat>>>
-        &components,
-    Standard std)
-    : std(std) {
+BufferFormat::BufferFormat(const std::vector<std::pair<std::string, std::variant<const char *, BufferFormat>>> &components, Standard std) : std(std) {
 
   std::vector<BufferComponent> bufferComponents;
   for (const auto &[name, format] : components) {
@@ -53,9 +46,7 @@ BufferFormat::BufferFormat(
       });
     } else {
       PrintWarning("Invalid format for component {}: {}", name,
-                   std::holds_alternative<const char *>(format)
-                       ? std::get<const char *>(format)
-                       : "nested BufferFormat");
+                   std::holds_alternative<const char *>(format) ? std::get<const char *>(format) : "nested BufferFormat");
     }
   }
 
@@ -63,9 +54,7 @@ BufferFormat::BufferFormat(
   FlattenComponentTree();
 }
 
-auto BufferFormat::FindComponent(ResourceKey::const_iterator iterator,
-                                 ResourceKey::const_iterator end,
-                                 uint64_t &arrayOffset) const
+auto BufferFormat::FindComponent(ResourceKey::const_iterator iterator, ResourceKey::const_iterator end, uint64_t &arrayOffset) const
     -> BufferComponent const * {
   if (iterator == end) {
     return nullptr;
@@ -113,8 +102,7 @@ auto BufferFormat::operator==(const BufferFormat &other) const -> bool {
   }
 
   for (size_t i = 0; i < Components.size(); ++i) {
-    if (Components[i].format != other.Components[i].format ||
-        Components[i].name != other.Components[i].name) {
+    if (Components[i].format != other.Components[i].format || Components[i].name != other.Components[i].name) {
       return false;
     }
   }
@@ -227,14 +215,11 @@ auto GetAlignment(VkFormat format) -> Result<size_t> {
   case VK_FORMAT_R8_SINT:
     return 1; // NOLINT
   default:
-    return Error::Unexpectedf("Unsupported format for alignment: {}",
-                              (uint64_t)format);
+    return Error::Unexpectedf("Unsupported format for alignment: {}", (uint64_t)format);
   }
 }
 
-inline auto AlignUp(size_t offset, size_t alignment) -> size_t {
-  return (offset + alignment - 1) & ~(alignment - 1);
-}
+inline auto AlignUp(size_t offset, size_t alignment) -> size_t { return (offset + alignment - 1) & ~(alignment - 1); }
 
 auto BufferFormat::Offset(size_t offset) const -> void {
   for (const auto &component : Components) {
@@ -262,10 +247,7 @@ auto BufferFormat::CalculateStride(Standard std) const -> size_t {
     // Get base alignment of component
     if (std::holds_alternative<VkFormat>(format.format)) {
       auto vulkanFormat = std::get<VkFormat>(format.format);
-      VkFormat alignFormat =
-          format.arraySize == 1
-              ? vulkanFormat
-              : Graphics::Format::GetVec4Variant(vulkanFormat);
+      VkFormat alignFormat = format.arraySize == 1 ? vulkanFormat : Graphics::Format::GetVec4Variant(vulkanFormat);
 
       auto alignResult = GetAlignment(alignFormat);
       if (Error::IsError(alignResult)) {
@@ -285,9 +267,7 @@ auto BufferFormat::CalculateStride(Standard std) const -> size_t {
     // Get allowed alignment based on standard
     switch (std) {
     case Standard::Std140:
-      compAlignment = (format.arraySize == 1)
-                          ? baseAlign
-                          : std::max(baseAlign, 16UL); // NOLINT
+      compAlignment = (format.arraySize == 1) ? baseAlign : std::max(baseAlign, 16UL); // NOLINT
       break;
     case Standard::Std430:
       compAlignment = baseAlign;
@@ -379,8 +359,7 @@ auto BufferFormat::FlattenComponentTree() const -> void {
   return FlatComponents[componentOffset];
 }
 
-[[nodiscard]] auto BufferFormat::ToString(int indentation) const
-    -> std::string {
+[[nodiscard]] auto BufferFormat::ToString(int indentation) const -> std::string {
   auto baseTabs = std::string(indentation * 2UL, ' ');
   std::ostringstream output;
   output << baseTabs << "{\n";
@@ -388,18 +367,14 @@ auto BufferFormat::FlattenComponentTree() const -> void {
 
   for (const auto &component : Components) {
     auto tabs = std::string(indentation * 2UL, ' ');
-    auto arrayStr = component.arraySize == 1
-                        ? ""
-                        : std::format("[{}]", component.arraySize);
+    auto arrayStr = component.arraySize == 1 ? "" : std::format("[{}]", component.arraySize);
     if (std::holds_alternative<VkFormat>(component.format)) {
       auto format = std::get<VkFormat>(component.format);
       auto formatname = Graphics::Format::ToString(format);
-      output << std::format("{}{}: {}{};\n", tabs, component.name, formatname,
-                            arrayStr);
+      output << std::format("{}{}: {}{};\n", tabs, component.name, formatname, arrayStr);
     } else {
       auto format = std::get<Graphics::BufferFormat>(component.format);
-      output << std::format("{}{}\n{}{}", tabs, component.name,
-                            format.ToString(indentation), arrayStr);
+      output << std::format("{}{}\n{}{}", tabs, component.name, format.ToString(indentation), arrayStr);
     }
   }
 
@@ -408,8 +383,7 @@ auto BufferFormat::FlattenComponentTree() const -> void {
   return output.str();
 }
 
-[[nodiscard]] auto BufferFormat::NeedsPadding(Standard std) const
-    -> PaddingResult {
+[[nodiscard]] auto BufferFormat::NeedsPadding(Standard std) const -> PaddingResult {
   size_t offset = 0;
   for (const auto &component : Components) {
     if (component.offset != offset) {

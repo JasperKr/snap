@@ -15,8 +15,7 @@ namespace Engine::Renderer {
 auto LightProbe::Render(const Transform &transform) -> Error {
   auto *ctx = Graphics::GetCurrentGraphicsContext();
 
-  CHECK_ERR(RendererInstance.GetPrefilterManager().PrefilterLightProbe(
-      *ctx, *this, scene, transform));
+  CHECK_ERR(RendererInstance.GetPrefilterManager().PrefilterLightProbe(*ctx, *this, scene, transform));
 
   return {};
 }
@@ -47,8 +46,7 @@ struct LightProbe {
 };
 */
 
-auto LightProbe::WriteToBuffer(std::vector<uint8_t> &buffer, size_t offset,
-                               const Transform &transform) const -> void {
+auto LightProbe::WriteToBuffer(std::vector<uint8_t> &buffer, size_t offset, const Transform &transform) const -> void {
   // NOLINTBEGIN
   auto *ptr = buffer.data() + offset;
 
@@ -97,18 +95,17 @@ auto LuaLightProbe::Render(lua_State *state) -> int {
 }
 
 auto GetLuaLightProbeClass() -> ::LuaWrap::LuaClass {
-  const ::LuaWrap::LuaClass LuaCameraClass = {
-      .Name = "LightProbe",
-      .Type = LuaLightProbe::GetType(),
-      .Methods =
-          {
-              {"render", LuaLightProbe::Render},
-          },
-      .Components = {
-          TransformComponent,
-          DisplayNameComponent,
-          UserdataComponent,
-      }};
+  const ::LuaWrap::LuaClass LuaCameraClass = {.Name = "LightProbe",
+                                              .Type = LuaLightProbe::GetType(),
+                                              .Methods =
+                                                  {
+                                                      {"render", LuaLightProbe::Render},
+                                                  },
+                                              .Components = {
+                                                  TransformComponent,
+                                                  DisplayNameComponent,
+                                                  UserdataComponent,
+                                              }};
 
   return LuaCameraClass;
 }

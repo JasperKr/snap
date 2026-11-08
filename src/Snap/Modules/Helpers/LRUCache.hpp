@@ -6,8 +6,7 @@
 
 // Least Recently Used (LRU) Cache implementation.
 
-template <typename Key, typename Value, typename Hash = std::hash<Key>>
-class LRUCache {
+template <typename Key, typename Value, typename Hash = std::hash<Key>> class LRUCache {
 public:
   using EvictionCallback = std::function<void(const Key &, Value &)>;
 
@@ -17,8 +16,7 @@ public:
   auto operator=(LRUCache &&) -> LRUCache & = default;
   ~LRUCache() = default;
 
-  explicit LRUCache(size_t capacity, EvictionCallback onEvict = {})
-      : m_capacity(capacity), m_onEvict(std::move(onEvict)) {}
+  explicit LRUCache(size_t capacity, EvictionCallback onEvict = {}) : m_capacity(capacity), m_onEvict(std::move(onEvict)) {}
 
   struct Entry {
     Key key;
@@ -31,13 +29,9 @@ private:
   using ListIt = typename std::list<Entry>::iterator;
 
 public:
-  void setEvictionCallback(EvictionCallback onEvict) {
-    m_onEvict = std::move(onEvict);
-  }
+  void setEvictionCallback(EvictionCallback onEvict) { m_onEvict = std::move(onEvict); }
 
-  auto contains(const Key &key) const -> bool {
-    return m_map.find(key) != m_map.end();
-  }
+  auto contains(const Key &key) const -> bool { return m_map.find(key) != m_map.end(); }
 
   auto get(const Key &key) -> Value * {
 
@@ -129,8 +123,7 @@ public:
   auto cend() const -> const_iterator { return m_list.cend(); }
 
 private:
-  void
-  touch(typename std::unordered_map<Key, ListIt, Hash>::iterator iterator) {
+  void touch(typename std::unordered_map<Key, ListIt, Hash>::iterator iterator) {
     // move to front (most recently used)
     m_list.splice(m_list.begin(), m_list, iterator->second);
     iterator->second = m_list.begin();

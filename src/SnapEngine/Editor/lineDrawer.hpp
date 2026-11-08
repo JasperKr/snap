@@ -54,27 +54,21 @@ struct LineDrawer {
   static constexpr size_t MaxLineCount = 1e5;
   static constexpr size_t MaxVertexCount = MaxLineCount * 6;
 
-  void DrawLine(const Math::Vec3 &start, const Math::Vec3 &end,
-                const Math::PackedColor &color, float thickness);
+  void DrawLine(const Math::Vec3 &start, const Math::Vec3 &end, const Math::PackedColor &color, float thickness);
 
-  void OverlayLine(const Math::Vec3 &start, const Math::Vec3 &end,
-                   const Math::PackedColor &color, float thickness);
+  void OverlayLine(const Math::Vec3 &start, const Math::Vec3 &end, const Math::PackedColor &color, float thickness);
 
-  void DrawWireframeBox(const Math::Vec3 &min, const Math::Vec3 &max,
-                        const Math::PackedColor &color, float thickness);
+  void DrawWireframeBox(const Math::Vec3 &min, const Math::Vec3 &max, const Math::PackedColor &color, float thickness);
 
-  void OverlayWireframeBox(const Math::Vec3 &min, const Math::Vec3 &max,
-                           const Math::PackedColor &color, float thickness);
+  void OverlayWireframeBox(const Math::Vec3 &min, const Math::Vec3 &max, const Math::PackedColor &color, float thickness);
 
   auto Initialize(const Graphics::GraphicsContext &context) -> Error;
   auto Deinitialize() -> void;
 
-  auto Render(const Graphics::GraphicsContext &context, Camera &camera)
-      -> Error;
+  auto Render(const Graphics::GraphicsContext &context, Camera &camera) -> Error;
 
 private:
-  auto GenerateMesh(const Graphics::GraphicsContext &context,
-                    std::vector<LineVertex> &lines) -> Error;
+  auto GenerateMesh(const Graphics::GraphicsContext &context, std::vector<LineVertex> &lines) -> Error;
 
   std::vector<LineVertex> OverlayLines;
   std::vector<LineVertex> Lines;

@@ -3,9 +3,7 @@
 
 namespace Graphics {
 
-auto ThreadAllocations::Allocate(void *userData, size_t size, size_t alignment,
-                                 VkSystemAllocationScope allocationScope)
-    -> void * {
+auto ThreadAllocations::Allocate(void *userData, size_t size, size_t alignment, VkSystemAllocationScope allocationScope) -> void * {
   auto *allocations = static_cast<ThreadAllocations *>(userData);
   allocations->stats.totalAllocated += size;
   allocations->stats.currentlyAllocated += size;
@@ -19,10 +17,7 @@ auto ThreadAllocations::Allocate(void *userData, size_t size, size_t alignment,
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-auto ThreadAllocations::Reallocate(void *userData, void *original, size_t size,
-                                   size_t alignment,
-                                   VkSystemAllocationScope allocationScope)
-    -> void * {
+auto ThreadAllocations::Reallocate(void *userData, void *original, size_t size, size_t alignment, VkSystemAllocationScope allocationScope) -> void * {
   auto *allocations = static_cast<ThreadAllocations *>(userData);
 
   if (original == nullptr) {
@@ -69,9 +64,7 @@ auto GetThreadAllocations() -> ThreadAllocations & {
 }
 
 #ifdef ENABLE_VULKAN_ALLOCATOR_TRACKING
-auto GetAllocationCallbacks() -> const VkAllocationCallbacks * {
-  return &GetThreadAllocations().callbacks;
-}
+auto GetAllocationCallbacks() -> const VkAllocationCallbacks * { return &GetThreadAllocations().callbacks; }
 #else
 auto GetAllocationCallbacks() -> const VkAllocationCallbacks * {
   return nullptr; // Use default Vulkan allocator

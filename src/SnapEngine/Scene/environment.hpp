@@ -14,13 +14,10 @@ struct Environment {
 const Type EnvironmentType = Type("Environment");
 
 struct LuaEnvironment : LuaWrap::LuaECSObject {
-  explicit LuaEnvironment(flecs::entity &environment)
-      : LuaWrap::LuaECSObject(environment) {}
+  explicit LuaEnvironment(flecs::entity &environment) : LuaWrap::LuaECSObject(environment) {}
 
   static auto GetType() -> const Type * { return &EnvironmentType; }
-  [[nodiscard]] auto GetInstanceType() const -> const Type * override {
-    return LuaEnvironment::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> const Type * override { return LuaEnvironment::GetType(); }
 
   static auto LoadBinding(lua_State *state) -> int;
 

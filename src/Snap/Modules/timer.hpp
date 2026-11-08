@@ -12,8 +12,7 @@ const double SECONDS_TO_NANO = 1000000000.0;
 const double MILLI_TO_SECONDS = 1.0 / 1000.0;
 const double SECONDS_TO_MILLI = 1000.0;
 
-const uint64_t BufferingTimeNS =
-    static_cast<uint64_t>(DeltaTimeBuffering * SECONDS_TO_NANO);
+const uint64_t BufferingTimeNS = static_cast<uint64_t>(DeltaTimeBuffering * SECONDS_TO_NANO);
 
 struct TimerFrameInfo {
   uint64_t lastTime = 0;

@@ -6,8 +6,7 @@ uniform float threshold;
 
 #include "fullscreen.slang"
 
-[shader("fragment")]
-float4 fragmentMain(float2 texCoord: TEXCOORDS) {
+[shader("fragment")] float4 fragmentMain(float2 texCoord : TEXCOORDS) {
   float3 color = Sanitise(mainScene.SampleLevelZero(texCoord).rgb);
 
   float luminance = Luminance(color);

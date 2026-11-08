@@ -18,8 +18,7 @@ auto ShaderCache::Serialize() const -> std::vector<uint8_t> {
       .dependencyCount = dependencies.size(),
   };
 
-  size_t size = sizeof(header) + header.moduleNameSize + header.spirvSize +
-                header.modtimeCount * sizeof(uint64_t);
+  size_t size = sizeof(header) + header.moduleNameSize + header.spirvSize + header.modtimeCount * sizeof(uint64_t);
 
   for (const auto &dep : dependencies)
     size += sizeof(uint64_t) + dep.size();
@@ -47,8 +46,7 @@ auto ShaderCache::Serialize() const -> std::vector<uint8_t> {
   return data;
 }
 
-auto ShaderCache::Deserialize(const std::span<const uint8_t> &data)
-    -> ShaderCache {
+auto ShaderCache::Deserialize(const std::span<const uint8_t> &data) -> ShaderCache {
   ShaderCache cache;
 
   const uint8_t *input = data.data();
@@ -85,8 +83,7 @@ auto ShaderCache::Deserialize(const std::span<const uint8_t> &data)
 }
 // NOLINTEND
 
-auto ShaderCacheManager::TryLoadModule(const std::string_view &modulename)
-    -> Result<std::optional<ShaderCache>> {
+auto ShaderCacheManager::TryLoadModule(const std::string_view &modulename) -> Result<std::optional<ShaderCache>> {
   auto path = std::format("{}/{}", cachePath, Path::PlainText(modulename));
 
   if (!Filesystem::FileExists(path)) {
@@ -108,8 +105,7 @@ auto ShaderCacheManager::TryLoadModule(const std::string_view &modulename)
 }
 
 auto ShaderCacheManager::SaveModule(const ShaderCache &cache) -> Error {
-  auto path =
-      std::format("{}/{}", cachePath, Path::PlainText(cache.modulename));
+  auto path = std::format("{}/{}", cachePath, Path::PlainText(cache.modulename));
 
   auto serialized = cache.Serialize();
 

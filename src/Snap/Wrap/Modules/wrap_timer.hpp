@@ -14,12 +14,8 @@ auto wrap_Step(lua_State *state) -> int;
 
 // NOLINTNEXTLINE
 static const std::vector<luaL_Reg> TimerLib = {
-    {"getTime", wrap_GetTime},
-    {"getDelta", wrap_GetDelta},
-    {"getAverageDelta", wrap_GetAverageDelta},
-    {"getFPS", wrap_GetFPS},
-    {"sleep", wrap_Sleep},
-    {"step", wrap_Step},
+    {"getTime", wrap_GetTime}, {"getDelta", wrap_GetDelta}, {"getAverageDelta", wrap_GetAverageDelta},
+    {"getFPS", wrap_GetFPS},   {"sleep", wrap_Sleep},       {"step", wrap_Step},
 };
 
 static const std::vector<lua_CFunction> childrenInitFunctions{};

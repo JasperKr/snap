@@ -38,8 +38,7 @@ auto wrap_GetFullscreenDimensions(lua_State *state) -> int {
   SDL_Window *window = ::Window::GetWindowContext()->window;
 
   int displayIndex = static_cast<int>(luaL_checkinteger(state, 1));
-  std::vector<Math::Uvec2> resolutions =
-      ::Window::GetFullscreenDimensions(window, displayIndex);
+  std::vector<Math::Uvec2> resolutions = ::Window::GetFullscreenDimensions(window, displayIndex);
 
   lua_newtable(state);
   for (size_t i = 0; i < resolutions.size(); ++i) {
@@ -98,14 +97,12 @@ auto wrap_SetDimensions(lua_State *state) -> int {
 auto wrap_SetIcon(lua_State *state) -> int {
   SDL_Window *window = ::Window::GetWindowContext()->window;
 
-  Ref<Image::ImageData> icon =
-      *static_cast<Ref<Image::ImageData> *>(lua_touserdata(state, 1));
+  Ref<Image::ImageData> icon = *static_cast<Ref<Image::ImageData> *>(lua_touserdata(state, 1));
   ::Window::SetIcon(window, icon);
   return 0;
 }
 
-inline auto FullscreenModeToString(::Window::FullscreenMode mode) -> const
-    char * {
+inline auto FullscreenModeToString(::Window::FullscreenMode mode) -> const char * {
   switch (mode) {
   case ::Window::FullscreenMode::Windowed:
     return "windowed";
@@ -133,8 +130,7 @@ inline auto VsyncModeToString(::Window::VsyncMode mode) -> const char * {
   }
 }
 
-inline auto StringToFullscreenMode(const char *str)
-    -> Result<::Window::FullscreenMode> {
+inline auto StringToFullscreenMode(const char *str) -> Result<::Window::FullscreenMode> {
   if (std::string(str) == "windowed") {
     return ::Window::FullscreenMode::Windowed;
   }
@@ -165,8 +161,7 @@ inline auto StringToVsyncMode(const char *str) -> Result<::Window::VsyncMode> {
   return Error::Unexpectedf("Invalid vsync mode '{}'", str);
 }
 
-inline auto ColorSpaceToString(::Window::ColorSpace colorSpace) -> const
-    char * {
+inline auto ColorSpaceToString(::Window::ColorSpace colorSpace) -> const char * {
   switch (colorSpace) {
   case ::Window::ColorSpace::GammaCorrect:
     return "gammacorrect";
@@ -179,8 +174,7 @@ inline auto ColorSpaceToString(::Window::ColorSpace colorSpace) -> const
   }
 }
 
-inline auto StringToColorSpace(const char *str)
-    -> Result<::Window::ColorSpace> {
+inline auto StringToColorSpace(const char *str) -> Result<::Window::ColorSpace> {
   if (std::string(str) == "gammacorrect") {
     return ::Window::ColorSpace::GammaCorrect;
   }
@@ -292,8 +286,7 @@ inline auto SettingsFromStack(lua_State *state) -> Result<::Window::Settings> {
 
   lua_getfield(state, 1, "fullscreenMode");
   if (!lua_isnoneornil(state, -1)) {
-    auto fullscreenModeResult =
-        StringToFullscreenMode(luaL_checkstring(state, -1));
+    auto fullscreenModeResult = StringToFullscreenMode(luaL_checkstring(state, -1));
     if (Error::IsError(fullscreenModeResult)) {
       return fullscreenModeResult.error();
     }
@@ -327,8 +320,7 @@ inline auto SettingsFromStack(lua_State *state) -> Result<::Window::Settings> {
 
   lua_getfield(state, 1, "colorspace");
   if (!lua_isnoneornil(state, -1)) {
-    settings.colorSpace =
-        CHECK_RES(StringToColorSpace(luaL_checkstring(state, -1)));
+    settings.colorSpace = CHECK_RES(StringToColorSpace(luaL_checkstring(state, -1)));
   }
   lua_pop(state, 1);
 
@@ -410,11 +402,9 @@ auto wrap_UpdateSettings(lua_State *state) -> int {
 
   lua_getfield(state, 1, "fullscreenMode");
   if (!lua_isnoneornil(state, -1)) {
-    auto fullscreenModeResult =
-        StringToFullscreenMode(luaL_checkstring(state, -1));
+    auto fullscreenModeResult = StringToFullscreenMode(luaL_checkstring(state, -1));
     if (Error::IsError(fullscreenModeResult)) {
-      return luaL_error(state, "%s",
-                        fullscreenModeResult.error().message.c_str());
+      return luaL_error(state, "%s", fullscreenModeResult.error().message.c_str());
     }
     update.fullscreenMode = fullscreenModeResult.value();
   }

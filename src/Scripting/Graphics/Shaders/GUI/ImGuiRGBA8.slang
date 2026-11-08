@@ -27,14 +27,9 @@ struct FragmentInput {
   float4 color : COLOR;
 };
 
-float GammaToLinear(float gamma) {
-  return gamma <= 0.04045 ? gamma / 12.92 : pow((gamma + 0.055) / 1.055, 2.4);
-}
+float GammaToLinear(float gamma) { return gamma <= 0.04045 ? gamma / 12.92 : pow((gamma + 0.055) / 1.055, 2.4); }
 
-float3 GammaToLinear(float3 gamma) {
-  return float3(GammaToLinear(gamma.r), GammaToLinear(gamma.g),
-                GammaToLinear(gamma.b));
-}
+float3 GammaToLinear(float3 gamma) { return float3(GammaToLinear(gamma.r), GammaToLinear(gamma.g), GammaToLinear(gamma.b)); }
 
 [shader("fragment")]
 float4 fragmentMain(FragmentInput input) {

@@ -19,23 +19,16 @@ public struct SphereLight : ILight {
   public float Range;
   public float Radius;
 
-  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel,
-                               const float3 ViewDirection) {
-    return float3(0.0f);
-  }
+  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel, const float3 ViewDirection) { return float3(0.0f); }
 
-  public bool TraceShadow(const float3 WorldPosition, const float3 Normal,
-                          uint2 screenCoords, const uint frameRandomState) {
-    return false;
-  }
+  public bool TraceShadow(const float3 WorldPosition, const float3 Normal, uint2 screenCoords, const uint frameRandomState) { return false; }
 
   public float SampleShadow(int2 screenCoords) {
     if (ShadowBufferIndex < 0) {
       return 1.0f;
     }
 
-    return ShadowVisibilityTexture.Load(
-        int4(screenCoords, 0, ShadowBufferIndex));
+    return ShadowVisibilityTexture.Load(int4(screenCoords, 0, ShadowBufferIndex));
   }
 }
 

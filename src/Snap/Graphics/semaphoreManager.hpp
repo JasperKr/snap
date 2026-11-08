@@ -54,8 +54,7 @@ struct SemaphoreManager {
   // When command buffers are reordered before submission
   auto QueueTimelineValues(const std::vector<uint64_t> &values) -> void;
 
-  auto UpdateSemaphoreValues(const struct GraphicsContext &context)
-      -> Result<uint64_t>;
+  auto UpdateSemaphoreValues(const struct GraphicsContext &context) -> Result<uint64_t>;
   auto Initialize(struct GraphicsContext &context) -> Error;
   auto Deinitialize(struct GraphicsContext &context) -> void;
 };

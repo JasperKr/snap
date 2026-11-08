@@ -24,18 +24,14 @@ extern std::mutex ReleasedGraphicsMemoryMutex;
 
 auto ProcessReleasedResources(const GraphicsContext &context) -> void;
 
-template <typename T>
-auto ScheduleDestruction(
-    const std::function<void(const GraphicsContext &, T &)> &destroy,
-    uint64_t timelineValue, T userdata) -> void {
+template <typename T> auto ScheduleDestruction(const std::function<void(const GraphicsContext &, T &)> &destroy, uint64_t timelineValue, T userdata) -> void {
   std::lock_guard<std::mutex> lock(ReleasedGraphicsMemoryMutex);
 
   auto ptr = std::make_shared<T>(std::move(userdata));
 
   ReleasedGraphicsMemory.emplace_back(GraphicsMemory{
       .timelineValue = timelineValue,
-      .destroy = [destroy](const GraphicsContext &context,
-                           std::shared_ptr<void> &userdata) -> void {
+      .destroy = [destroy](const GraphicsContext &context, std::shared_ptr<void> &userdata) -> void {
         T *data = reinterpret_cast<T *>(userdata.get()); // NOLINT
 
         destroy(context, *data);

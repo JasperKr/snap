@@ -7,8 +7,7 @@
 
 namespace LuaWrap {
 
-template <typename Variant>
-auto PushVariant(lua_State *state, const Variant &value) -> Error {
+template <typename Variant> auto PushVariant(lua_State *state, const Variant &value) -> Error {
   std::visit(
       [&](const auto &value) -> auto {
         using T = std::decay_t<decltype(value)>;
@@ -19,8 +18,7 @@ auto PushVariant(lua_State *state, const Variant &value) -> Error {
   return Error::Success();
 }
 
-template <typename Variant, std::size_t... I>
-inline auto VariantFromLua(lua_State *state, int index) -> Result<Variant> {
+template <typename Variant, std::size_t... I> inline auto VariantFromLua(lua_State *state, int index) -> Result<Variant> {
   using V = Variant;
   auto *proxy = static_cast<Proxy *>(lua_touserdata(state, index));
   if (proxy == nullptr) {
@@ -41,8 +39,7 @@ inline auto VariantFromLua(lua_State *state, int index) -> Result<Variant> {
           }())));
 
   if (!matched) {
-    return Error::Unexpected("No matching type found for proxy at index " +
-                             std::to_string(index));
+    return Error::Unexpected("No matching type found for proxy at index " + std::to_string(index));
   }
 
   return result;

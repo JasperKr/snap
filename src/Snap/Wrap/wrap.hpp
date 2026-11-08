@@ -52,8 +52,7 @@ inline auto SetStackToRegistry(lua_State *state, const char *key) -> void {
 
 auto SetStackToTable(lua_State *state, const char *key) -> void;
 auto PushObject(lua_State *state, const Type *type, Object *object) -> void;
-auto RegisterLuaType(lua_State *state, const Type *type,
-                     const std::vector<luaL_Reg> &functions) -> void;
+auto RegisterLuaType(lua_State *state, const Type *type, const std::vector<luaL_Reg> &functions) -> void;
 auto RegisterLuaType(lua_State *state, const LuaClass &luaClass) -> void;
 auto SetupLuaType(lua_State *state, const Type *type, Object *object) -> void;
 auto LoadStorageTable(lua_State *state, const char *key) -> void;
@@ -90,9 +89,7 @@ inline auto ObjectFromLua(lua_State *state, int index) -> Ref<T> {
     auto proxyTypeName = proxy->type->GetName();
     auto expectedTypeName = T::GetType()->GetName();
 
-    PrintWarning(
-        "FromLuaObject: type mismatch at index {}, expected: {} got: {}", index,
-        expectedTypeName, proxyTypeName);
+    PrintWarning("FromLuaObject: type mismatch at index {}, expected: {} got: {}", index, expectedTypeName, proxyTypeName);
     return Ref<T>(nullptr);
   }
 
@@ -105,8 +102,7 @@ template <typename T>
 inline auto ResultFromLua(lua_State *state, int index) -> Result<T *> {
   // Check if userdata
   if (lua_isuserdata(state, index) == 0) {
-    return Error::Unexpected("Expected userdata at index " +
-                             std::to_string(index));
+    return Error::Unexpected("Expected userdata at index " + std::to_string(index));
   }
 
   // NOLINTNEXTLINE
@@ -116,8 +112,7 @@ inline auto ResultFromLua(lua_State *state, int index) -> Result<T *> {
   }
 
   if (proxy->object == nullptr || proxy->type == nullptr) {
-    return Error::Unexpected("Proxy is invalid at index " +
-                             std::to_string(index));
+    return Error::Unexpected("Proxy is invalid at index " + std::to_string(index));
   }
 
   // Do not compare type addresses, they may differ since the types are
@@ -126,9 +121,7 @@ inline auto ResultFromLua(lua_State *state, int index) -> Result<T *> {
     auto proxyTypeName = proxy->type->GetName();
     auto expectedTypeName = T::GetType()->GetName();
 
-    return Error::Unexpected("Type mismatch at index " + std::to_string(index) +
-                             ", expected: " + expectedTypeName +
-                             " got: " + proxyTypeName);
+    return Error::Unexpected("Type mismatch at index " + std::to_string(index) + ", expected: " + expectedTypeName + " got: " + proxyTypeName);
   }
 
   auto *obj = static_cast<T *>(proxy->object);
@@ -174,8 +167,7 @@ template <typename T> inline auto IsType(lua_State *state, int index) -> bool {
   return proxy->type->GetName() == T::GetType()->GetName();
 }
 
-inline auto SerializeVarargs(lua_State *state, int startIndex)
-    -> Result<std::vector<Data::LuaType>> {
+inline auto SerializeVarargs(lua_State *state, int startIndex) -> Result<std::vector<Data::LuaType>> {
 
   int numArgs = lua_gettop(state) - startIndex + 1;
 
@@ -195,9 +187,7 @@ inline auto SerializeVarargs(lua_State *state, int startIndex)
   return launchArguments;
 }
 
-inline auto PushVarargs(lua_State *state,
-                        const std::vector<Data::LuaType> &launchArguments,
-                        int count) -> Error {
+inline auto PushVarargs(lua_State *state, const std::vector<Data::LuaType> &launchArguments, int count) -> Error {
 
   for (int i = 0; i < count; ++i) {
     const auto &arg = launchArguments[static_cast<size_t>(i)];
@@ -215,8 +205,7 @@ inline auto PushVarargs(lua_State *state,
 
 // No namespace.
 auto luaL_checkscalar(lua_State *state, int index) -> Math::Scalar;
-auto luaL_optscalar(lua_State *state, int index, Math::Scalar defaultValue)
-    -> Math::Scalar;
+auto luaL_optscalar(lua_State *state, int index, Math::Scalar defaultValue) -> Math::Scalar;
 
 template <typename T> struct ObjectTypeNameBase {
   using type = std::remove_cvref_t<T>;
@@ -226,9 +215,7 @@ template <typename T> struct ObjectTypeNameBase<Ref<T>> {
   using type = T;
 };
 
-template <typename T>
-using ObjectTypeNameBaseT =
-    typename ObjectTypeNameBase<std::remove_cvref_t<T>>::type;
+template <typename T> using ObjectTypeNameBaseT = typename ObjectTypeNameBase<std::remove_cvref_t<T>>::type;
 
 template <typename T> constexpr auto ObjectTypeName() -> std::string_view {
   using Base = ObjectTypeNameBaseT<T>;
@@ -242,60 +229,60 @@ template <typename T> constexpr auto ObjectTypeName() -> std::string_view {
 
 // NOLINTBEGIN
 
-#define LUA_CK_NULL(expr)                                                      \
-  ({                                                                           \
-    auto &&_result = (expr);                                                   \
-    [[unlikely]]                                                               \
-    if (_result == nullptr) {                                                  \
-      auto typeName = ObjectTypeName<decltype(_result)>();                     \
-      return luaL_error(state, "Null %s at " #expr, typeName.data());          \
-    }                                                                          \
-    std::move(_result);                                                        \
+#define LUA_CK_NULL(expr)                                                                                                                                      \
+  ({                                                                                                                                                           \
+    auto &&_result = (expr);                                                                                                                                   \
+    [[unlikely]]                                                                                                                                               \
+    if (_result == nullptr) {                                                                                                                                  \
+      auto typeName = ObjectTypeName<decltype(_result)>();                                                                                                     \
+      return luaL_error(state, "Null %s at " #expr, typeName.data());                                                                                          \
+    }                                                                                                                                                          \
+    std::move(_result);                                                                                                                                        \
   })
 
-#define LUA_CK_NULL_MSG(expr, msg)                                             \
-  ({                                                                           \
-    auto &&_result = (expr);                                                   \
-    [[unlikely]]                                                               \
-    if (_result == nullptr) {                                                  \
-      return luaL_error(state, "%s", (msg));                                   \
-    }                                                                          \
-    std::move(_result);                                                        \
+#define LUA_CK_NULL_MSG(expr, msg)                                                                                                                             \
+  ({                                                                                                                                                           \
+    auto &&_result = (expr);                                                                                                                                   \
+    [[unlikely]]                                                                                                                                               \
+    if (_result == nullptr) {                                                                                                                                  \
+      return luaL_error(state, "%s", (msg));                                                                                                                   \
+    }                                                                                                                                                          \
+    std::move(_result);                                                                                                                                        \
   })
 
-#define LUA_CK_ERR(expr)                                                       \
-  {                                                                            \
-    auto _error = std::move(expr);                                             \
-    [[unlikely]]                                                               \
-    if (Error::IsError(_error)) {                                              \
-      return luaL_error(state, "%s", _error.ToString().c_str());               \
-    }                                                                          \
+#define LUA_CK_ERR(expr)                                                                                                                                       \
+  {                                                                                                                                                            \
+    auto _error = std::move(expr);                                                                                                                             \
+    [[unlikely]]                                                                                                                                               \
+    if (Error::IsError(_error)) {                                                                                                                              \
+      return luaL_error(state, "%s", _error.ToString().c_str());                                                                                               \
+    }                                                                                                                                                          \
   }
 
-#define LUA_CK_RES(expr)                                                       \
-  ({                                                                           \
-    auto &&_result = (expr);                                                   \
-    [[unlikely]]                                                               \
-    if (Error::IsError(_result)) {                                             \
-      return luaL_error(state, "%s", _result.error().ToString().c_str());      \
-    }                                                                          \
-    std::move(_result.value());                                                \
+#define LUA_CK_RES(expr)                                                                                                                                       \
+  ({                                                                                                                                                           \
+    auto &&_result = (expr);                                                                                                                                   \
+    [[unlikely]]                                                                                                                                               \
+    if (Error::IsError(_result)) {                                                                                                                             \
+      return luaL_error(state, "%s", _result.error().ToString().c_str());                                                                                      \
+    }                                                                                                                                                          \
+    std::move(_result.value());                                                                                                                                \
   })
 
-#define LUA_ASSERT(expr)                                                       \
-  {                                                                            \
-    [[unlikely]]                                                               \
-    if (!(expr)) {                                                             \
-      return luaL_error(state, "Assertion failed: " #expr);                    \
-    }                                                                          \
+#define LUA_ASSERT(expr)                                                                                                                                       \
+  {                                                                                                                                                            \
+    [[unlikely]]                                                                                                                                               \
+    if (!(expr)) {                                                                                                                                             \
+      return luaL_error(state, "Assertion failed: " #expr);                                                                                                    \
+    }                                                                                                                                                          \
   }
 
-#define LUA_ASSERT_MSG(expr, msg)                                              \
-  {                                                                            \
-    [[unlikely]]                                                               \
-    if (!(expr)) {                                                             \
-      return luaL_error(state, "%s", (msg));                                   \
-    }                                                                          \
+#define LUA_ASSERT_MSG(expr, msg)                                                                                                                              \
+  {                                                                                                                                                            \
+    [[unlikely]]                                                                                                                                               \
+    if (!(expr)) {                                                                                                                                             \
+      return luaL_error(state, "%s", (msg));                                                                                                                   \
+    }                                                                                                                                                          \
   }
 
 // NOLINTEND

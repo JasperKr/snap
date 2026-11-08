@@ -6,8 +6,7 @@
 
 namespace Graphics::VkPipelineHelpers {
 
-inline auto PipelineStage2ToStringInternal(VkPipelineStageFlags2 pipeline)
-    -> std::string_view {
+inline auto PipelineStage2ToStringInternal(VkPipelineStageFlags2 pipeline) -> std::string_view {
   // clang-format off
   switch (pipeline) {
   case VK_PIPELINE_STAGE_2_NONE: return "none";

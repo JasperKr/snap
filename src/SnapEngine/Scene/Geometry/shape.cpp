@@ -42,8 +42,7 @@ auto LuaShape::Create(lua_State *state) -> int {
     lua_pushinteger(state, i);
     lua_gettable(state, 3);
 
-    auto luaLOD =
-        LUA_CK_NULL(::LuaWrap::ObjectFromLua<LuaLevelOfDetail>(state, -1));
+    auto luaLOD = LUA_CK_NULL(::LuaWrap::ObjectFromLua<LuaLevelOfDetail>(state, -1));
     luaLOD->entity.child_of(shapeEntity);
   }
   lua_pop(state, lodCount);

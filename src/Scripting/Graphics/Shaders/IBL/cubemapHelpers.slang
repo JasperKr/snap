@@ -4,8 +4,7 @@ module cubemapHelpers;
 // uv is in the range [-1, 1]
 // id.x is the texel index in the range [0, sum of all texels in all mipmaps)
 // id output is in the range [0, BASE-1] for x and y and z stores the mip level
-public void getTexelInfo(inout int3 id, out int level, out float2 uv,
-                         const int BASE) {
+public void getTexelInfo(inout int3 id, out int level, out float2 uv, const int BASE) {
 
   const int MIP0 = BASE * BASE;
   const int MIP1 = MIP0 + (BASE >> 1) * (BASE >> 1);

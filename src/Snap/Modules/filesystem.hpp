@@ -20,16 +20,12 @@ auto GetConfig() -> Config &;
 auto Init(const std::string &orgDir) -> Error;
 auto SetWriteDirectory(const std::string &path) -> Error;
 auto Deinit() -> Error;
-auto ReadFile(const std::string &path, int64_t readLength = INT64_MAX)
-    -> Result<std::vector<unsigned char>>;
+auto ReadFile(const std::string &path, int64_t readLength = INT64_MAX) -> Result<std::vector<unsigned char>>;
 // Useful for loading binary data into Bytedata objects
 // Instead of stack allocating a vector and copying it over.
-auto ReadFileToBytedata(const std::string &path, int64_t readLength = INT64_MAX)
-    -> Result<Ref<Data::ByteData>>;
-auto ReadTextFile(const std::string &path, int64_t readLength = INT64_MAX)
-    -> Result<std::string>;
-auto AppendFile(const std::string &path, std::span<const uint8_t> data)
-    -> Error;
+auto ReadFileToBytedata(const std::string &path, int64_t readLength = INT64_MAX) -> Result<Ref<Data::ByteData>>;
+auto ReadTextFile(const std::string &path, int64_t readLength = INT64_MAX) -> Result<std::string>;
+auto AppendFile(const std::string &path, std::span<const uint8_t> data) -> Error;
 auto AppendFile(const std::string &path, std::string_view data) -> Error;
 auto WriteFile(const std::string &path, std::span<const uint8_t> data) -> Error;
 auto WriteFile(const std::string &path, std::string_view data) -> Error;
@@ -37,8 +33,7 @@ auto FileExists(const std::string &path) -> bool;
 auto GetFileInfo(const std::string &path) -> PHYSFS_Stat;
 auto AddToSearchPath(const std::string &path, bool appendToPath) -> Error;
 auto RemoveFromSearchPath(const std::string &path) -> Error;
-auto Mount(const std::string &path, const std::string &mountPoint,
-           bool appendToPath) -> Error;
+auto Mount(const std::string &path, const std::string &mountPoint, bool appendToPath) -> Error;
 auto Unmount(const std::string &path) -> Error;
 auto GetRealPath(const std::string &path) -> Result<std::string>;
 auto ListFiles(const std::string &path) -> Result<std::vector<std::string>>;
@@ -74,8 +69,7 @@ auto Directory(const std::string &path) -> std::string;
 auto Join(const std::string &base, const std::string &append) -> std::string;
 auto Sanitize(const std::string &path) -> std::string;
 
-template <typename... Strings>
-auto Join(std::string_view first, const Strings &...rest) -> std::string {
+template <typename... Strings> auto Join(std::string_view first, const Strings &...rest) -> std::string {
   if constexpr (sizeof...(rest) == 0) {
     return Sanitize(std::string(first));
   } else {

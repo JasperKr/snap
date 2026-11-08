@@ -15,10 +15,8 @@
 #include <mutex>
 #include <utility>
 
-extern std::mutex RefCountsMutex; // NOLINT
-extern std::unordered_map<void const *,
-                          std::pair<std::atomic<int>, const char *>>
-    RefCounts; // NOLINT
+extern std::mutex RefCountsMutex;                                                             // NOLINT
+extern std::unordered_map<void const *, std::pair<std::atomic<int>, const char *>> RefCounts; // NOLINT
 
 #endif
 
@@ -28,9 +26,7 @@ struct Identifiable {
 public:
   [[nodiscard]] auto getID() const -> ObjectID;
 
-  auto operator==(const Identifiable &other) const -> bool {
-    return id == other.id;
-  }
+  auto operator==(const Identifiable &other) const -> bool { return id == other.id; }
 
 private:
   static inline std::atomic<ObjectID> globalIDCounter{0};
@@ -120,9 +116,7 @@ public:
   }
 
   // move
-  Ref(Ref &&reference) noexcept : ptr(reference.ptr) {
-    reference.ptr = nullptr;
-  }
+  Ref(Ref &&reference) noexcept : ptr(reference.ptr) { reference.ptr = nullptr; }
 
   auto operator=(Ref &&reference) noexcept -> Ref & {
     if (this != &reference) {
@@ -182,15 +176,12 @@ public:
 
   template <typename... Args> static auto Make(Args &&...args) -> Ref<T> {
 #ifdef DEBUG_OBJECT_LIFETIMES
-    static_assert(
-        std::derived_from<T, Object>,
-        "Ref<T>::Make can only be used with types derived from Object");
+    static_assert(std::derived_from<T, Object>, "Ref<T>::Make can only be used with types derived from Object");
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     auto *object = new T(std::forward<Args>(args)...);
     {
       std::lock_guard<std::mutex> lock(RefCountsMutex);
-      RefCounts.emplace(object,
-                        std::make_pair(0, T::GetType()->GetName().c_str()));
+      RefCounts.emplace(object, std::make_pair(0, T::GetType()->GetName().c_str()));
     }
     return Ref<T>(object);
 #else
@@ -199,16 +190,10 @@ public:
   }
 
   [[nodiscard]] static auto GetType() -> Type const * { return T::GetType(); }
-  [[nodiscard]] auto GetInstanceType() const -> Type const * {
-    return T::GetType();
-  }
+  [[nodiscard]] auto GetInstanceType() const -> Type const * { return T::GetType(); }
 
-  auto operator==(Ref<T> const &other) const -> bool {
-    return ptr == other.ptr;
-  }
-  auto operator!=(Ref<T> const &other) const -> bool {
-    return ptr != other.ptr;
-  }
+  auto operator==(Ref<T> const &other) const -> bool { return ptr == other.ptr; }
+  auto operator!=(Ref<T> const &other) const -> bool { return ptr != other.ptr; }
 
   explicit operator bool() const { return ptr != nullptr; }
 

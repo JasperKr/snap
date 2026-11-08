@@ -6,8 +6,7 @@
 namespace Engine {
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Frustum::IntersectsAABB(const Math::Vec3 &min, const Math::Vec3 &max,
-                             bool precise) const -> bool {
+auto Frustum::IntersectsAABB(const Math::Vec3 &min, const Math::Vec3 &max, bool precise) const -> bool {
   for (int i = 0; i < PlaneCount; i++) {
     int out = 0;
     auto plane = GetPlane(i);
@@ -43,9 +42,7 @@ auto Frustum::IntersectsAABB(const Math::Vec3 &min, const Math::Vec3 &max,
   return true;
 }
 
-auto Frustum::FromMatrices(const Math::Matrix4x4 &viewProjectionMatrix,
-                           const Math::Matrix4x4 &inverseViewProjectionMatrix)
-    -> Frustum {
+auto Frustum::FromMatrices(const Math::Matrix4x4 &viewProjectionMatrix, const Math::Matrix4x4 &inverseViewProjectionMatrix) -> Frustum {
   Frustum frustum;
 
   thread_local std::array<Math::Vec4, CornerCount> ndc_corners = {

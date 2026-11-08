@@ -26,9 +26,7 @@ struct LightProbe {
   float innerRadius;
 };
 
-float sdSphere(float3 center, float radius, float3 point) {
-  return distance(center, point) - radius;
-}
+float sdSphere(float3 center, float radius, float3 point) { return distance(center, point) - radius; }
 
 struct LightProbeSampleInfo {
   float3 radiance;
@@ -45,9 +43,7 @@ uniform Sampler2DArray<float3>.Handle SpecularTextures;
 uniform Sampler2DArray<float3>.Handle IrradianceTextures;
 uniform Sampler2D<float2>.Handle AmbientOcclusionTexture;
 
-LightProbeSampleInfo SampleLightProbe(int probeIndex, float3 worldPosition,
-                                      float3 normal, float3 reflectedRay,
-                                      float perceptualRoughness) {
+LightProbeSampleInfo SampleLightProbe(int probeIndex, float3 worldPosition, float3 normal, float3 reflectedRay, float perceptualRoughness) {
   float influence = 1.0;
   LightProbe probe = Probes[probeIndex];
 
@@ -55,35 +51,28 @@ LightProbeSampleInfo SampleLightProbe(int probeIndex, float3 worldPosition,
   if (signedDistMax > 0.0)
     return LightProbeSampleInfo(float3(0.0), float3(0.0), 0.0);
 
-  float signedDistMin =
-      sdSphere(probe.position, probe.innerRadius, worldPosition);
+  float signedDistMin = sdSphere(probe.position, probe.innerRadius, worldPosition);
   if (signedDistMin > 0.0) {
-    influence =
-        1.0 - saturate(signedDistMin / (probe.radius - probe.innerRadius));
+    influence = 1.0 - saturate(signedDistMin / (probe.radius - probe.innerRadius));
   }
 
   if (influence <= 0.0)
     return LightProbeSampleInfo(float3(0.0), float3(0.0), 0.0);
 
-  float3 reflected = prefilteredRadiance(
-      SpecularTextures, float4(reflectedRay, probe.index), perceptualRoughness);
-  float3 irradiance =
-      prefilteredIrradiance(IrradianceTextures, float4(normal, probe.index));
+  float3 reflected = prefilteredRadiance(SpecularTextures, float4(reflectedRay, probe.index), perceptualRoughness);
+  float3 irradiance = prefilteredIrradiance(IrradianceTextures, float4(normal, probe.index));
 
   return LightProbeSampleInfo(reflected, irradiance, influence);
 }
 
-LightProbeSampleInfo SampleLightProbes(float3 worldPosition, float3 normal,
-                                       float3 reflectedRay,
-                                       float perceptualRoughness) {
+LightProbeSampleInfo SampleLightProbes(float3 worldPosition, float3 normal, float3 reflectedRay, float perceptualRoughness) {
   LightProbeSampleInfo totalInfo;
   totalInfo.radiance = float3(0.0);
   totalInfo.irradiance = float3(0.0);
   totalInfo.influence = 0.0;
 
   for (int i = 0; i < LightProbeCount; i++) {
-    LightProbeSampleInfo info = SampleLightProbe(
-        i, worldPosition, normal, reflectedRay, perceptualRoughness);
+    LightProbeSampleInfo info = SampleLightProbe(i, worldPosition, normal, reflectedRay, perceptualRoughness);
 
     totalInfo.radiance += info.radiance * info.influence;
     totalInfo.irradiance += info.irradiance * info.influence;
@@ -110,8 +99,7 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
   float3 normal = normalize(NormalTexture.Sample(VertexCoords).xyz * 2.0 - 1.0);
 
   // metallic, perceptual roughness, reflectance, stencil
-  MaterialChannel material =
-      MaterialChannel(MaterialTexture.Sample(VertexCoords));
+  MaterialChannel material = MaterialChannel(MaterialTexture.Sample(VertexCoords));
   float3 albedo = AlbedoTexture.Sample(VertexCoords).rgb;
 
   float3 viewDir = normalize(worldPosition - CameraData[0].Position);
@@ -123,8 +111,7 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
 
   float3 reflectedRay = reflect(viewDir, normal);
 
-  LightProbeSampleInfo probeInfo = SampleLightProbes(
-      worldPosition, normal, reflectedRay, material.perceptualRoughness);
+  LightProbeSampleInfo probeInfo = SampleLightProbes(worldPosition, normal, reflectedRay, material.perceptualRoughness);
 
   if (probeInfo.influence >= 1.0) {
     probeInfo.radiance /= probeInfo.influence;
@@ -133,13 +120,10 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
   {
     float skyboxInfluence = 1.0 - probeInfo.influence;
 
-    float3 reflected =
-        prefilteredRadiance(SpecularTextures, float4(reflectedRay, 0.0),
-                            material.perceptualRoughness);
+    float3 reflected = prefilteredRadiance(SpecularTextures, float4(reflectedRay, 0.0), material.perceptualRoughness);
     probeInfo.radiance = reflected * skyboxInfluence + probeInfo.radiance;
 
-    float3 irradiance =
-        prefilteredIrradiance(IrradianceTextures, float4(normal, 0.0));
+    float3 irradiance = prefilteredIrradiance(IrradianceTextures, float4(normal, 0.0));
 
     probeInfo.irradiance += irradiance * skyboxInfluence;
   }
@@ -148,9 +132,7 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
 
   if (!SpecularEnabled || false) {
     probeInfo.radiance *= 0.0;
-    probeInfo.irradiance *=
-        (1.0 - E) *
-        albedo; // since we turn off specular, fully metallic objects will be black
+    probeInfo.irradiance *= (1.0 - E) * albedo; // since we turn off specular, fully metallic objects will be black
     // to solve this, we multiply by albedo instead of diffuse
   } else {
     probeInfo.radiance *= E;

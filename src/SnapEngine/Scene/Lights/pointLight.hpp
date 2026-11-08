@@ -21,8 +21,7 @@ struct PointLight {
 
   static auto GetBufferFormat() -> Graphics::BufferFormat &;
 
-  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const
-      -> Error;
+  auto Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const -> Error;
 
   // -1 if no free index is available
   static auto GetFreeBufferIndex() -> int32_t {
@@ -41,9 +40,7 @@ struct LuaPointLight : LuaWrap::LuaECSObject {
 
   static auto Create(lua_State *state) -> int;
   static auto GetType() -> const Type * { return &pointLightType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &pointLightType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &pointLightType; }
 };
 
 extern const ::LuaWrap::LuaClass PointLightClass;

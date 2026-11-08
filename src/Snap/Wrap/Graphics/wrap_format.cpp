@@ -8,8 +8,7 @@
 #include <lua.hpp>
 
 namespace Wrap::Graphics {
-auto ComponentFromLua(lua_State *state, int index)
-    -> Result<::Graphics::BufferComponent> {
+auto ComponentFromLua(lua_State *state, int index) -> Result<::Graphics::BufferComponent> {
 
   auto component = ::Graphics::BufferComponent();
 
@@ -49,12 +48,10 @@ auto ComponentFromLua(lua_State *state, int index)
   auto luatypename = std::string(luaL_typename(state, -1));
 
   lua_pop(state, 1);
-  return Error::Unexpectedf("Buffer format: Expected string or table, got {}",
-                            luatypename);
+  return Error::Unexpectedf("Buffer format: Expected string or table, got {}", luatypename);
 }
 
-auto FormatFromLua(lua_State *state, int index, ::Graphics::Standard standard)
-    -> Result<::Graphics::BufferFormat> {
+auto FormatFromLua(lua_State *state, int index, ::Graphics::Standard standard) -> Result<::Graphics::BufferFormat> {
   std::vector<::Graphics::BufferComponent> components;
 
   for (int i = 0; i < lua_objlen(state, index); i++) {
@@ -68,20 +65,16 @@ auto FormatFromLua(lua_State *state, int index, ::Graphics::Standard standard)
   return ::Graphics::BufferFormat(components, standard);
 }
 
-auto SimpleFormatFromLua(lua_State *state, int index,
-                         ::Graphics::Standard standard)
-    -> Result<::Graphics::BufferFormat> {
+auto SimpleFormatFromLua(lua_State *state, int index, ::Graphics::Standard standard) -> Result<::Graphics::BufferFormat> {
   std::vector<::Graphics::BufferComponent> components;
 
   if (lua_type(state, index) == LUA_TSTRING) {
     const auto &str = luaL_checkstring(state, index);
     auto format = ::Graphics::Format::FromString(str);
-    components.emplace_back(
-        ::Graphics::BufferComponent{.name = "Default", .format = format});
+    components.emplace_back(::Graphics::BufferComponent{.name = "Default", .format = format});
   } else {
     auto luatypename = std::string(luaL_typename(state, index));
-    return Error::Unexpectedf("Buffer format: Expected string, got {}",
-                              luatypename);
+    return Error::Unexpectedf("Buffer format: Expected string, got {}", luatypename);
   }
 
   return ::Graphics::BufferFormat(components, standard);

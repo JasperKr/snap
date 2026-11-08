@@ -4,8 +4,7 @@ import constants;
 uniform float4 plane;
 uniform float4 color;
 
-float RayPlaneIntersection(float3 rayOrigin, float3 rayDirection,
-                           float4 plane) {
+float RayPlaneIntersection(float3 rayOrigin, float3 rayDirection, float4 plane) {
   float3 planeNormal = plane.xyz;
   float planeDistance = plane.w;
 
@@ -15,9 +14,7 @@ float RayPlaneIntersection(float3 rayOrigin, float3 rayDirection,
   }
 
   float t = -(dot(planeNormal, rayOrigin) + planeDistance) / denominator;
-  return t >= 0.0
-             ? t
-             : -1.0; // Return -1 if the intersection is behind the ray origin
+  return t >= 0.0 ? t : -1.0; // Return -1 if the intersection is behind the ray origin
 }
 
 #include "fullscreen.slang"

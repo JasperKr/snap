@@ -25,8 +25,7 @@ struct FragmentOutput {
   float2 motion : SV_Target1;
 };
 
-[shader("fragment")]
-FragmentOutput fragmentMain(float2 tex_coord: TEXCOORDS) {
+[shader("fragment")] FragmentOutput fragmentMain(float2 tex_coord : TEXCOORDS) {
   float depth = DepthTexture.SampleLevelZero(tex_coord).r;
   if (depth != DepthFarPlane) {
     discard;

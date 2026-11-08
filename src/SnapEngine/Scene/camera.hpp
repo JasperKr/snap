@@ -258,6 +258,7 @@ private:
   int VisibleProbeCount = 0;
 
   bool projectionDirty = true;
+  bool firstFrameAfterResize = false;
 
   auto ConfigureRendertargets() -> void;
 

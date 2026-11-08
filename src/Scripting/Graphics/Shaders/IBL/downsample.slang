@@ -87,9 +87,7 @@ float calcWeight(float u, float v) {
   return val * sqrt(val);
 }
 
-float3 Sample(float3 dir) {
-  return Sanitise(tex_hi_res.SampleLevelZero(dir).xyz);
-}
+float3 Sample(float3 dir) { return Sanitise(tex_hi_res.SampleLevelZero(dir).xyz); }
 
 [shader("compute")]
 [numthreads(8, 8, 1)]

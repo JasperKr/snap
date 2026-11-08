@@ -7,8 +7,7 @@ namespace Image {
 
 // Returns total texel count for ALL mip levels, for ONE layer only.
 // Caller must multiply by arrayLayers or 6 for cubemaps if needed.
-constexpr auto GetTexelCount(const VkExtent2D &extent, uint32_t mipmapCount)
-    -> uint64_t {
+constexpr auto GetTexelCount(const VkExtent2D &extent, uint32_t mipmapCount) -> uint64_t {
   uint64_t totalTexels = 0;
   for (uint64_t mip = 0; mip < mipmapCount; mip++) {
     uint64_t mipWidth = (std::max)(1U, extent.width >> mip);
@@ -22,8 +21,7 @@ constexpr auto GetTexelCount(const VkExtent2D &extent, uint32_t mipmapCount)
 
 // Returns total texel count for ALL mip levels, for ONE layer only.
 // Caller must multiply by arrayLayers or 6 for cubemaps if needed.
-constexpr auto GetTexelCount(const VkExtent3D &extent, uint32_t mipmapCount)
-    -> uint64_t {
+constexpr auto GetTexelCount(const VkExtent3D &extent, uint32_t mipmapCount) -> uint64_t {
   uint64_t totalTexels = 0;
   for (uint64_t mip = 0; mip < mipmapCount; mip++) {
     uint64_t mipWidth = (std::max)(1U, extent.width >> mip);
@@ -57,14 +55,9 @@ constexpr auto GetMipmapCount(VkExtent3D extent) -> uint32_t {
   return mipLevels;
 }
 
-constexpr auto GetMipmapCount(uint32_t width, uint32_t height) -> uint32_t {
-  return GetMipmapCount(VkExtent2D{width, height});
-}
+constexpr auto GetMipmapCount(uint32_t width, uint32_t height) -> uint32_t { return GetMipmapCount(VkExtent2D{width, height}); }
 
-constexpr auto GetMipmapCount(uint32_t width, uint32_t height, uint32_t depth)
-    -> uint32_t {
-  return GetMipmapCount(VkExtent3D{width, height, depth});
-}
+constexpr auto GetMipmapCount(uint32_t width, uint32_t height, uint32_t depth) -> uint32_t { return GetMipmapCount(VkExtent3D{width, height, depth}); }
 
 auto IsDepthTexture(VkFormat format) -> bool;
 

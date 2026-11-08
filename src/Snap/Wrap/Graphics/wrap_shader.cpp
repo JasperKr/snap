@@ -39,8 +39,7 @@ auto wrap_NewShader(lua_State *state) -> int {
     }
   }
 
-  auto shader = LUA_CK_RES(
-      ::Graphics::Shader::Create(*ctx, std::string(name), shaderDebugName));
+  auto shader = LUA_CK_RES(::Graphics::Shader::Create(*ctx, std::string(name), shaderDebugName));
 
   LuaWrap::PushObject(state, type, shader.get());
 
@@ -49,47 +48,36 @@ auto wrap_NewShader(lua_State *state) -> int {
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto wrap_Send(lua_State *state) -> int {
-  auto shader =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
+  auto shader = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
   auto key = LUA_CK_RES(ResourceKeyFromSingleLuaObject(state, 2));
-  const ::Graphics::GraphicsContext &context =
-      *::Graphics::GetCurrentGraphicsContext();
+  const ::Graphics::GraphicsContext &context = *::Graphics::GetCurrentGraphicsContext();
 
   // Base index of 1; + 1 for shader object; + 1 for key part
   auto valueOffset = 3;
 
   if (LuaWrap::IsType<::Graphics::Texture>(state, valueOffset)) {
-    auto texture = LUA_CK_NULL(
-        LuaWrap::ObjectFromLua<::Graphics::Texture>(state, valueOffset));
+    auto texture = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Texture>(state, valueOffset));
 
-    auto usage = GraphicsResourceUsageEnumHelper.FromLua(
-        state, valueOffset + 1, GraphicsResourceUsage::Sampled);
+    auto usage = GraphicsResourceUsageEnumHelper.FromLua(state, valueOffset + 1, GraphicsResourceUsage::Sampled);
 
     LUA_ASSERT(usage != GraphicsResourceUsage::Uniform);
 
     if (usage == GraphicsResourceUsage::Sampled) {
-      LUA_CK_ERR(
-          shader->Send(context, key, ::Graphics::SampledTexture{texture}));
+      LUA_CK_ERR(shader->Send(context, key, ::Graphics::SampledTexture{texture}));
     } else {
-      LUA_CK_ERR(shader->Send(
-          context, key, ::Graphics::StorageTexture(texture, (uint64_t)usage)));
+      LUA_CK_ERR(shader->Send(context, key, ::Graphics::StorageTexture(texture, (uint64_t)usage)));
     }
 
-  } else if (LuaWrap::IsType<::Graphics::StructuredBuffer>(state,
-                                                           valueOffset)) {
-    auto buffer =
-        LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(
-            state, valueOffset));
-    auto usage = GraphicsResourceUsageEnumHelper.FromLua(
-        state, valueOffset + 1, GraphicsResourceUsage::Uniform);
+  } else if (LuaWrap::IsType<::Graphics::StructuredBuffer>(state, valueOffset)) {
+    auto buffer = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::StructuredBuffer>(state, valueOffset));
+    auto usage = GraphicsResourceUsageEnumHelper.FromLua(state, valueOffset + 1, GraphicsResourceUsage::Uniform);
 
     LUA_ASSERT(usage != GraphicsResourceUsage::Sampled);
 
     if (usage == GraphicsResourceUsage::Uniform) {
       LUA_CK_ERR(shader->Send(context, key, ::Graphics::UniformBuffer{buffer}));
     } else {
-      LUA_CK_ERR(shader->Send(
-          context, key, ::Graphics::StorageBuffer(buffer, (uint64_t)usage)));
+      LUA_CK_ERR(shader->Send(context, key, ::Graphics::StorageBuffer(buffer, (uint64_t)usage)));
     }
   } else if (lua_type(state, valueOffset) == LUA_TNUMBER) {
     auto varargsCount = lua_gettop(state) - valueOffset + 1;
@@ -99,14 +87,10 @@ auto wrap_Send(lua_State *state) -> int {
 
     const auto *uniformInfo = shader->GetUniform(key);
     if (uniformInfo == nullptr) {
-      return luaL_error(state, "Uniform `%s` not found.",
-                        ResourceKeyToString(key).c_str());
+      return luaL_error(state, "Uniform `%s` not found.", ResourceKeyToString(key).c_str());
     }
-    if (!(uniformInfo->IsScalar() || uniformInfo->IsVector() ||
-          uniformInfo->IsMatrix())) {
-      return luaL_error(
-          state, "Unable to send uniform `%s`: expected %s, got number",
-          ResourceKeyToString(key).c_str(), uniformInfo->GetTypename().data());
+    if (!(uniformInfo->IsScalar() || uniformInfo->IsVector() || uniformInfo->IsMatrix())) {
+      return luaL_error(state, "Unable to send uniform `%s`: expected %s, got number", ResourceKeyToString(key).c_str(), uniformInfo->GetTypename().data());
     }
 
     ScalarType scalarType{};
@@ -119,22 +103,16 @@ auto wrap_Send(lua_State *state) -> int {
       scalarType = ScalarType::Float;
     }
 
-    LUA_ASSERT_MSG(
-        scalarType != ScalarType::Unknown,
-        std::format("Unable to send uniform `{}`: unknown scalar type",
-                    ResourceKeyToString(key))
-            .c_str());
+    LUA_ASSERT_MSG(scalarType != ScalarType::Unknown, std::format("Unable to send uniform `{}`: unknown scalar type", ResourceKeyToString(key)).c_str());
 
     for (int i = 0; i < varargsCount; ++i) {
-      LUA_CK_ERR(
-          Wrap::Utils::SetData(lua_tonumber(state, valueOffset + i),
-                               data.data() + (i * sizeof(uint32_t)), // NOLINT
-                               scalarType));
+      LUA_CK_ERR(Wrap::Utils::SetData(lua_tonumber(state, valueOffset + i),
+                                      data.data() + (i * sizeof(uint32_t)), // NOLINT
+                                      scalarType));
     }
 
     auto span = std::span<uint8_t>( // NOLINTNEXTLINE reinterpret cast
-        reinterpret_cast<uint8_t *>(data.data()),
-        sizeof(uint32_t) * static_cast<size_t>(varargsCount));
+        reinterpret_cast<uint8_t *>(data.data()), sizeof(uint32_t) * static_cast<size_t>(varargsCount));
 
     LUA_CK_ERR(shader->Send(key, span));
   } else if (lua_type(state, valueOffset) == LUA_TTABLE) {
@@ -144,8 +122,7 @@ auto wrap_Send(lua_State *state) -> int {
 
     const auto *info = shader->GetUniform(key);
     if (info == nullptr) {
-      return luaL_error(state, "Uniform `%s` not found.",
-                        ResourceKeyToString(key).c_str());
+      return luaL_error(state, "Uniform `%s` not found.", ResourceKeyToString(key).c_str());
     }
 
     for (uint64_t i = 0; i < tableLength; ++i) {
@@ -162,23 +139,18 @@ auto wrap_Send(lua_State *state) -> int {
         return luaL_error(state,
                           "Unable to send uniform `%s`: expected vector, "
                           "matrix, or scalar, got %s",
-                          ResourceKeyToString(key).c_str(),
-                          luaL_typename(state, -1));
+                          ResourceKeyToString(key).c_str(), luaL_typename(state, -1));
       }
 
       switch (scalarType) {
       case ScalarType::Unknown:
-        return luaL_error(state,
-                          "Unable to send uniform `%s`: unknown scalar type",
-                          ResourceKeyToString(key).c_str());
+        return luaL_error(state, "Unable to send uniform `%s`: unknown scalar type", ResourceKeyToString(key).c_str());
       case ScalarType::Float:
-        data.emplace_back(std::bit_cast<uint32_t>(
-            static_cast<float>(lua_tonumber(state, -1)))); // NOLINT
+        data.emplace_back(std::bit_cast<uint32_t>(static_cast<float>(lua_tonumber(state, -1)))); // NOLINT
         break;
       case ScalarType::Int:
       case ScalarType::UInt:
-        data.emplace_back(
-            static_cast<uint32_t>(lua_tointeger(state, -1))); // NOLINT
+        data.emplace_back(static_cast<uint32_t>(lua_tointeger(state, -1))); // NOLINT
         break;
       case ScalarType::Bool:
         data.emplace_back(lua_toboolean(state, -1));
@@ -189,23 +161,18 @@ auto wrap_Send(lua_State *state) -> int {
     }
 
     auto span = std::span<uint8_t>( // NOLINTNEXTLINE reinterpret cast
-        reinterpret_cast<uint8_t *>(data.data()),
-        sizeof(uint32_t) * static_cast<size_t>(tableLength));
+        reinterpret_cast<uint8_t *>(data.data()), sizeof(uint32_t) * static_cast<size_t>(tableLength));
 
     LUA_CK_ERR(shader->Send(key, span));
   } else if (LuaWrap::IsType<Data::ByteData>(state, valueOffset)) {
-    auto byteData =
-        LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, valueOffset));
+    auto byteData = LUA_CK_NULL(LuaWrap::ObjectFromLua<Data::ByteData>(state, valueOffset));
     auto span = byteData->GetDataSpan();
 
     LUA_CK_ERR(shader->Send(key, span));
   } else {
-    const auto *resourceInfo =
-        LUA_CK_NULL_MSG(shader->GetUniform(key), "Uniform not found");
+    const auto *resourceInfo = LUA_CK_NULL_MSG(shader->GetUniform(key), "Uniform not found");
 
-    return luaL_error(state, "Unable to send uniform `%s`: expected %s, got %s",
-                      ResourceKeyToString(key).c_str(),
-                      resourceInfo->GetTypename().data(),
+    return luaL_error(state, "Unable to send uniform `%s`: expected %s, got %s", ResourceKeyToString(key).c_str(), resourceInfo->GetTypename().data(),
                       luaL_typename(state, valueOffset));
   }
 
@@ -213,8 +180,7 @@ auto wrap_Send(lua_State *state) -> int {
 }
 
 auto wrap_HasUniform(lua_State *state) -> int {
-  auto shader =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
+  auto shader = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
 
   auto key = LUA_CK_RES(ResourceKeyFromSingleLuaObject(state, 2));
 
@@ -223,14 +189,12 @@ auto wrap_HasUniform(lua_State *state) -> int {
   return 1;
 }
 auto wrap_GetUniforms(lua_State *state) -> int {
-  auto shader =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
+  auto shader = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
 
   return 0;
 }
 auto wrap_GetThreadgroupSize(lua_State *state) -> int {
-  auto shader =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
+  auto shader = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
 
   auto threadgroupSize = LUA_CK_RES(shader->GetThreadgroupSize());
 
@@ -241,8 +205,7 @@ auto wrap_GetThreadgroupSize(lua_State *state) -> int {
 }
 
 auto wrap_GetWaveSize(lua_State *state) -> int {
-  auto shader =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
+  auto shader = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Graphics::Shader>(state, 1));
 
   auto waveSize = shader->GetWaveSize();
 

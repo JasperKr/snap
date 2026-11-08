@@ -136,25 +136,19 @@ inline auto ToString(VkAttachmentLoadOp loadOp) -> std::string_view {
 }
 
 inline auto ToString(VkViewport viewport) -> std::string {
-  return std::format("size: {}x{}, offset: ({}, {})", viewport.width,
-                     viewport.height, viewport.x, viewport.y);
+  return std::format("size: {}x{}, offset: ({}, {})", viewport.width, viewport.height, viewport.x, viewport.y);
 }
 
 inline auto ToString(VkRect2D rect) -> std::string {
-  return std::format("size: {}x{}, offset: ({}, {})", rect.extent.width,
-                     rect.extent.height, rect.offset.x, rect.offset.y);
+  return std::format("size: {}x{}, offset: ({}, {})", rect.extent.width, rect.extent.height, rect.offset.x, rect.offset.y);
 }
 
-inline auto ToString(VkClearValue clearValue, bool isDepthStencil)
-    -> std::string {
+inline auto ToString(VkClearValue clearValue, bool isDepthStencil) -> std::string {
   if (!isDepthStencil) {
-    return std::format("[{}, {}, {}, {}]", clearValue.color.float32[0],
-                       clearValue.color.float32[1], clearValue.color.float32[2],
-                       clearValue.color.float32[3]);
+    return std::format("[{}, {}, {}, {}]", clearValue.color.float32[0], clearValue.color.float32[1], clearValue.color.float32[2], clearValue.color.float32[3]);
   }
 
-  return std::format("depth: {}, stencil: {}", clearValue.depthStencil.depth,
-                     clearValue.depthStencil.stencil);
+  return std::format("depth: {}, stencil: {}", clearValue.depthStencil.depth, clearValue.depthStencil.stencil);
 }
 
 auto VirtualRenderState::ToString() const -> std::string {
@@ -169,8 +163,7 @@ auto VirtualRenderState::ToString() const -> std::string {
   // stream << "Viewport: " << ::Graphics::ToString(viewport) << "\n";
   // stream << "Scissor: " << ::Graphics::ToString(scissor) << "\n";
   stream << "Shader: " << shader->name << "\n";
-  stream << "Primitive topology: " << ::Graphics::ToString(primitiveTopology)
-         << "\n";
+  stream << "Primitive topology: " << ::Graphics::ToString(primitiveTopology) << "\n";
   stream << "Bind point: " << ::Graphics::ToString(bindPoint) << "\n";
   stream << std::format("Color attachments (#{}): \n", colorAttachments.size());
 
@@ -179,8 +172,7 @@ auto VirtualRenderState::ToString() const -> std::string {
     stream << "\tLocation: " << attachment.location << "\n";
     stream << "\tLoad Op: " << ::Graphics::ToString(attachment.loadOp) << "\n";
     stream << "\t" << BlendMode::ToString(attachment.blendMode) << "\n";
-    stream << "\tClear color: "
-           << ::Graphics::ToString(attachment.clearValue, false) << "\n";
+    stream << "\tClear color: " << ::Graphics::ToString(attachment.clearValue, false) << "\n";
     stream << "}" << (attachment != colorAttachments.back() ? ",\n" : "\n");
   }
 
@@ -193,16 +185,14 @@ auto VirtualRenderState::ToString() const -> std::string {
     stream << "\tLocation: " << attachment.location << "\n";
     stream << "\tLoad Op: " << ::Graphics::ToString(attachment.loadOp) << "\n";
     stream << "\t" << BlendMode::ToString(attachment.blendMode) << "\n";
-    stream << "\tClear: " << ::Graphics::ToString(attachment.clearValue, false)
-           << "\n";
+    stream << "\tClear: " << ::Graphics::ToString(attachment.clearValue, false) << "\n";
     stream << "}\n";
   }
 
   return stream.str();
 }
 
-auto VirtualRenderState::operator==(const RenderState::State &other) const
-    -> bool {
+auto VirtualRenderState::operator==(const RenderState::State &other) const -> bool {
   if (colorAttachments != other.colorAttachments) {
     return false;
   }
@@ -211,9 +201,7 @@ auto VirtualRenderState::operator==(const RenderState::State &other) const
     return false;
   }
 
-  if (stencilTestEnable != other.stencilTestEnable ||
-      polygonMode != other.polygonMode ||
-      primitiveTopology != other.primitiveTopology ||
+  if (stencilTestEnable != other.stencilTestEnable || polygonMode != other.polygonMode || primitiveTopology != other.primitiveTopology ||
       bindPoint != other.bindPoint) {
     return false;
   }

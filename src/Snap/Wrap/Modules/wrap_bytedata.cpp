@@ -7,10 +7,8 @@
 
 namespace Wrap::Data {
 
-template <typename T>
-constexpr auto SetIntFromLuaData(lua_State *state) -> int {
-  auto bytedata =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
+template <typename T> constexpr auto SetIntFromLuaData(lua_State *state) -> int {
+  auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
 
   auto span = bytedata->GetDataSpan<uint8_t>();
   auto offset = 0L;
@@ -30,10 +28,8 @@ constexpr auto SetIntFromLuaData(lua_State *state) -> int {
   return 0;
 }
 
-template <typename T>
-constexpr auto SetFloatFromLuaData(lua_State *state) -> int {
-  auto bytedata =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
+template <typename T> constexpr auto SetFloatFromLuaData(lua_State *state) -> int {
+  auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
 
   auto span = bytedata->GetDataSpan<uint8_t>();
   auto offset = 0L;
@@ -73,8 +69,7 @@ constexpr auto SetFloatFromLuaData(lua_State *state) -> int {
 }
 
 template <typename T> constexpr auto GetIntToLuaData(lua_State *state) -> int {
-  auto bytedata =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
+  auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
 
   auto span = bytedata->GetDataSpan<uint8_t>();
   auto offset = 0L;
@@ -107,10 +102,8 @@ template <typename T> constexpr auto GetIntToLuaData(lua_State *state) -> int {
   return static_cast<int>(count);
 }
 
-template <typename T>
-constexpr auto GetFloatToLuaData(lua_State *state) -> int {
-  auto bytedata =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
+template <typename T> constexpr auto GetFloatToLuaData(lua_State *state) -> int {
+  auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
 
   auto span = bytedata->GetDataSpan<uint8_t>();
   auto offset = 0L;
@@ -144,68 +137,34 @@ constexpr auto GetFloatToLuaData(lua_State *state) -> int {
 
 // value, offset
 // or table, offset
-auto wrap_SetUInt32(lua_State *state) -> int {
-  return SetIntFromLuaData<uint32_t>(state);
-}
-auto wrap_SetInt32(lua_State *state) -> int {
-  return SetIntFromLuaData<int32_t>(state);
-}
-auto wrap_SetUInt16(lua_State *state) -> int {
-  return SetIntFromLuaData<uint16_t>(state);
-}
-auto wrap_SetInt16(lua_State *state) -> int {
-  return SetIntFromLuaData<int16_t>(state);
-}
-auto wrap_SetUInt8(lua_State *state) -> int {
-  return SetIntFromLuaData<uint8_t>(state);
-}
-auto wrap_SetInt8(lua_State *state) -> int {
-  return SetIntFromLuaData<int8_t>(state);
-}
+auto wrap_SetUInt32(lua_State *state) -> int { return SetIntFromLuaData<uint32_t>(state); }
+auto wrap_SetInt32(lua_State *state) -> int { return SetIntFromLuaData<int32_t>(state); }
+auto wrap_SetUInt16(lua_State *state) -> int { return SetIntFromLuaData<uint16_t>(state); }
+auto wrap_SetInt16(lua_State *state) -> int { return SetIntFromLuaData<int16_t>(state); }
+auto wrap_SetUInt8(lua_State *state) -> int { return SetIntFromLuaData<uint8_t>(state); }
+auto wrap_SetInt8(lua_State *state) -> int { return SetIntFromLuaData<int8_t>(state); }
 
-auto wrap_SetFloat(lua_State *state) -> int {
-  return SetFloatFromLuaData<float>(state);
-}
-auto wrap_SetHalf(lua_State *state) -> int {
-  return SetFloatFromLuaData<numeric::float16_t>(state);
-}
+auto wrap_SetFloat(lua_State *state) -> int { return SetFloatFromLuaData<float>(state); }
+auto wrap_SetHalf(lua_State *state) -> int { return SetFloatFromLuaData<numeric::float16_t>(state); }
 
-auto wrap_GetUInt32(lua_State *state) -> int {
-  return GetIntToLuaData<uint32_t>(state);
-}
-auto wrap_GetInt32(lua_State *state) -> int {
-  return GetIntToLuaData<int32_t>(state);
-}
-auto wrap_GetUInt16(lua_State *state) -> int {
-  return GetIntToLuaData<uint16_t>(state);
-}
-auto wrap_GetInt16(lua_State *state) -> int {
-  return GetIntToLuaData<int16_t>(state);
-}
-auto wrap_GetUInt8(lua_State *state) -> int {
-  return GetIntToLuaData<uint8_t>(state);
-}
-auto wrap_GetInt8(lua_State *state) -> int {
-  return GetIntToLuaData<int8_t>(state);
-}
+auto wrap_GetUInt32(lua_State *state) -> int { return GetIntToLuaData<uint32_t>(state); }
+auto wrap_GetInt32(lua_State *state) -> int { return GetIntToLuaData<int32_t>(state); }
+auto wrap_GetUInt16(lua_State *state) -> int { return GetIntToLuaData<uint16_t>(state); }
+auto wrap_GetInt16(lua_State *state) -> int { return GetIntToLuaData<int16_t>(state); }
+auto wrap_GetUInt8(lua_State *state) -> int { return GetIntToLuaData<uint8_t>(state); }
+auto wrap_GetInt8(lua_State *state) -> int { return GetIntToLuaData<int8_t>(state); }
 
-auto wrap_GetFloat(lua_State *state) -> int {
-  return GetFloatToLuaData<float>(state);
-}
-auto wrap_GetHalf(lua_State *state) -> int {
-  return GetFloatToLuaData<numeric::float16_t>(state);
-}
+auto wrap_GetFloat(lua_State *state) -> int { return GetFloatToLuaData<float>(state); }
+auto wrap_GetHalf(lua_State *state) -> int { return GetFloatToLuaData<numeric::float16_t>(state); }
 
 auto wrap_GetSize(lua_State *state) -> int {
-  auto bytedata =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
+  auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
 
   lua_pushinteger(state, static_cast<lua_Integer>(bytedata->GetSize()));
   return 1;
 }
 auto wrap_GetPointer(lua_State *state) -> int {
-  auto bytedata =
-      LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
+  auto bytedata = LUA_CK_NULL(LuaWrap::ObjectFromLua<::Data::ByteData>(state, 1));
 
   lua_pushlightuserdata(state, static_cast<void *>(bytedata->GetData()));
   return 1;

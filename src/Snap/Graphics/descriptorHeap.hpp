@@ -69,22 +69,18 @@ struct MemoryRange {
     return Error::Unexpected("Unexpected error joining memory ranges.");
   }
 
-  auto operator<(VkDeviceSize address) const noexcept -> bool {
-    return start < address;
-  }
+  auto operator<(VkDeviceSize address) const noexcept -> bool { return start < address; }
 };
 
 struct MemoryManager {
   // Gup Geep Gip Gap???
   std::vector<MemoryRange> memoryGapRanges;
 
-  void Deallocate(VkDeviceSize address, VkDeviceSize size,
-                  VkDeviceSize &cursor) {
+  void Deallocate(VkDeviceSize address, VkDeviceSize size, VkDeviceSize &cursor) {
     auto end = address + size;
 
     // Find the first element that doesn't return true with less on end
-    auto iter = std::ranges::lower_bound(
-        memoryGapRanges, address, std::ranges::less{}, &MemoryRange::end);
+    auto iter = std::ranges::lower_bound(memoryGapRanges, address, std::ranges::less{}, &MemoryRange::end);
 
     // If the end of that last range is our address, we can combine.
     if (iter != memoryGapRanges.end() && iter->end == address) {
@@ -100,8 +96,7 @@ struct MemoryManager {
       // We couldn't append to the end of any range
 
       // Find the first element that doesn't return true with less on start
-      iter = std::ranges::lower_bound(memoryGapRanges, address,
-                                      std::ranges::less{}, &MemoryRange::start);
+      iter = std::ranges::lower_bound(memoryGapRanges, address, std::ranges::less{}, &MemoryRange::start);
 
       // If that last range starts at our range end, then we resize it.
       if (iter != memoryGapRanges.end() && iter->start == end) {
@@ -118,8 +113,7 @@ struct MemoryManager {
     }
   }
 
-  auto TryAllocateFromGap(VkDeviceSize size)
-      -> Result<std::optional<VkDeviceSize>> {
+  auto TryAllocateFromGap(VkDeviceSize size) -> Result<std::optional<VkDeviceSize>> {
     if (memoryGapRanges.empty()) {
       return std::nullopt;
     }
@@ -166,18 +160,11 @@ struct DescriptorHeapManager {
   Math::StackVector<VkDeviceSize, 4> InvalidBufferOffsets;
   Math::StackVector<VkDeviceSize, 4> InvalidSamplerOffsets;
 
-  auto AllocateResource(const struct GraphicsContext &context,
-                        const Buffer *buffer, VkDescriptorType type,
-                        uint32_t offset, uint32_t size) -> Result<VkDeviceSize>;
-  auto AllocateResource(const GraphicsContext &context,
-                        VkAccelerationStructureKHR accelerationStructure)
+  auto AllocateResource(const struct GraphicsContext &context, const Buffer *buffer, VkDescriptorType type, uint32_t offset, uint32_t size)
       -> Result<VkDeviceSize>;
-  auto AllocateResource(const struct GraphicsContext &context,
-                        const Texture *texture, VkDescriptorType type)
-      -> Result<VkDeviceSize>;
-  auto AllocateSampler(const struct GraphicsContext &context,
-                       VkSamplerCreateInfo samplerCreateInfo)
-      -> Result<VkDeviceSize>;
+  auto AllocateResource(const GraphicsContext &context, VkAccelerationStructureKHR accelerationStructure) -> Result<VkDeviceSize>;
+  auto AllocateResource(const struct GraphicsContext &context, const Texture *texture, VkDescriptorType type) -> Result<VkDeviceSize>;
+  auto AllocateSampler(const struct GraphicsContext &context, VkSamplerCreateInfo samplerCreateInfo) -> Result<VkDeviceSize>;
 
   auto FreeImageResourceIndex(VkDeviceSize resourcePtr) -> void;
   auto FreeBufferResourceIndex(VkDeviceSize resourcePtr) -> void;
@@ -203,9 +190,8 @@ private:
   auto AllocateResource(bool isImage) -> Result<VkDeviceSize>;
   auto AllocateSampler() -> Result<VkDeviceSize>;
 
-  auto AllocateResource(const GraphicsContext &context,
-                        VkDeviceAddress deviceAddress, VkDescriptorType type,
-                        uint32_t offset, uint32_t size) -> Result<VkDeviceSize>;
+  auto AllocateResource(const GraphicsContext &context, VkDeviceAddress deviceAddress, VkDescriptorType type, uint32_t offset, uint32_t size)
+      -> Result<VkDeviceSize>;
 };
 
 } // namespace Graphics

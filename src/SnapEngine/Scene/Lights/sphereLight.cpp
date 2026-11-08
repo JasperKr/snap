@@ -32,15 +32,13 @@ auto SphereLight::GetBufferFormat() -> Graphics::BufferFormat & {
   return format;
 }
 
-auto SphereLight::Write(std::span<uint8_t> buffer,
-                        flecs::entity lightEntity) const -> Error {
+auto SphereLight::Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const -> Error {
   const auto &light = lightEntity.get<Light>();
 
   auto &format = GetBufferFormat();
   auto offset = light.BufferIndex * format.GetStride();
 
-  ERR_ASSERT_MSG(offset + format.GetStride() <= buffer.size(),
-                 "Writing light data out of bounds.");
+  ERR_ASSERT_MSG(offset + format.GetStride() <= buffer.size(), "Writing light data out of bounds.");
 
   auto newOffset = light.Write(buffer, offset);
 

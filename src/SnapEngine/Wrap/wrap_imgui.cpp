@@ -61,30 +61,19 @@ auto EndFrame(lua_State *state) -> int {
 }
 
 const Graphics::VertexFormat format{{
-    Graphics::VertexComponent{.name = "Position",
-                              .location = 0,
-                              .binding = 0,
-                              .format = VK_FORMAT_R32G32_SFLOAT},
-    Graphics::VertexComponent{.name = "UV",
-                              .location = 1,
-                              .binding = 0,
-                              .format = VK_FORMAT_R32G32_SFLOAT},
-    Graphics::VertexComponent{.name = "Color",
-                              .location = 2,
-                              .binding = 0,
-                              .format = VK_FORMAT_R8G8B8A8_UNORM},
+    Graphics::VertexComponent{.name = "Position", .location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT},
+    Graphics::VertexComponent{.name = "UV", .location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT},
+    Graphics::VertexComponent{.name = "Color", .location = 2, .binding = 0, .format = VK_FORMAT_R8G8B8A8_UNORM},
 }};
 
 inline auto ChangeMouseState(ImGuiIO &inout) -> Error {
-  if ((static_cast<uint32_t>(inout.ConfigFlags) &
-       ImGuiConfigFlags_NoMouseCursorChange) == 0) {
+  if ((static_cast<uint32_t>(inout.ConfigFlags) & ImGuiConfigFlags_NoMouseCursorChange) == 0) {
     auto imgui_cursor = ImGui::GetMouseCursor();
     if (imgui_cursor == ImGuiMouseCursor_None || inout.MouseDrawCursor) {
       Mouse::SetVisible(false);
     } else {
       Mouse::SetVisible(true);
-      const auto &imgui_cursor_to_mouse_cursor =
-          Engine::Gui::GetImGuiCursorMap();
+      const auto &imgui_cursor_to_mouse_cursor = Engine::Gui::GetImGuiCursorMap();
 
       const auto &iterator = imgui_cursor_to_mouse_cursor.find(imgui_cursor);
       if (iterator != imgui_cursor_to_mouse_cursor.end()) {
@@ -97,8 +86,7 @@ inline auto ChangeMouseState(ImGuiIO &inout) -> Error {
           return setResult;
         }
       } else {
-        return Error::Create("Unmapped ImGui mouse cursor type: " +
-                             std::to_string(static_cast<int>(imgui_cursor)));
+        return Error::Create("Unmapped ImGui mouse cursor type: " + std::to_string(static_cast<int>(imgui_cursor)));
       }
     }
   }
@@ -106,16 +94,11 @@ inline auto ChangeMouseState(ImGuiIO &inout) -> Error {
   return Error::Success();
 }
 
-inline auto
-HandleImguiCreateTextureEvent(const Graphics::GraphicsContext &context,
-                              ImTextureData *tex) -> Error {
+inline auto HandleImguiCreateTextureEvent(const Graphics::GraphicsContext &context, ImTextureData *tex) -> Error {
   Graphics::TextureCreationInfo createInfo{
-      .size = VkExtent3D{static_cast<uint32_t>(tex->Width),
-                         static_cast<uint32_t>(tex->Height), 1},
-      .format = tex->BytesPerPixel == 1 ? VK_FORMAT_R8_UNORM
-                                        : Graphics::DefaultPixelFormat,
-      .usage = static_cast<uint32_t>(VK_IMAGE_USAGE_SAMPLED_BIT) |
-               static_cast<uint32_t>(VK_IMAGE_USAGE_TRANSFER_DST_BIT),
+      .size = VkExtent3D{static_cast<uint32_t>(tex->Width), static_cast<uint32_t>(tex->Height), 1},
+      .format = tex->BytesPerPixel == 1 ? VK_FORMAT_R8_UNORM : Graphics::DefaultPixelFormat,
+      .usage = static_cast<uint32_t>(VK_IMAGE_USAGE_SAMPLED_BIT) | static_cast<uint32_t>(VK_IMAGE_USAGE_TRANSFER_DST_BIT),
       .mipmapCount = 1,
       .debugName = "Imgui Texture",
       .textureType = ::Graphics::TextureType::DEFAULT,
@@ -132,26 +115,20 @@ HandleImguiCreateTextureEvent(const Graphics::GraphicsContext &context,
   tex->SetTexID( // NOLINTNEXTLINE reinterpret-cast
       reinterpret_cast<ImTextureID>(texture.get()));
 
-  texture->SetFilter(VK_FILTER_LINEAR, VK_FILTER_LINEAR,
-                     VK_SAMPLER_MIPMAP_MODE_LINEAR);
+  texture->SetFilter(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR);
 
   Engine::Gui::ImGuiTextures.emplace(tex->GetTexID(), texture);
 
-  auto pixelSpan = std::span<uint8_t>(
-      tex->Pixels,
-      static_cast<size_t>(tex->Width * tex->Height * tex->BytesPerPixel));
+  auto pixelSpan = std::span<uint8_t>(tex->Pixels, static_cast<size_t>(tex->Width * tex->Height * tex->BytesPerPixel));
 
-  auto imagedataResult = Image::ImageData::Create(
-      createInfo.size,
-      tex->BytesPerPixel == 1 ? VK_FORMAT_R8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
+  auto imagedataResult = Image::ImageData::Create(createInfo.size, tex->BytesPerPixel == 1 ? VK_FORMAT_R8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
 
   if (Error::IsError(imagedataResult)) {
     return imagedataResult.error();
   }
 
   auto imagedata = imagedataResult.value();
-  std::memcpy(imagedata->GetDataPtr(), pixelSpan.data(),
-              pixelSpan.size_bytes());
+  std::memcpy(imagedata->GetDataPtr(), pixelSpan.data(), pixelSpan.size_bytes());
 
   auto setPixelsResult = texture->SetPixels(context, *imagedata);
 
@@ -183,13 +160,9 @@ inline auto HandleImguiDestroyTextureEvent(ImTextureData *tex) -> Error {
   return Error::Success();
 }
 
-inline auto
-HandleImguiUpdateTextureEvent(const Graphics::GraphicsContext &context,
-                              ImTextureData *tex) -> Error {
+inline auto HandleImguiUpdateTextureEvent(const Graphics::GraphicsContext &context, ImTextureData *tex) -> Error {
   auto *pixels = static_cast<uint8_t *>(tex->GetPixels());
-  auto pixelSpan =
-      std::span<uint8_t>(pixels, static_cast<size_t>(tex->Width * tex->Height *
-                                                     tex->BytesPerPixel));
+  auto pixelSpan = std::span<uint8_t>(pixels, static_cast<size_t>(tex->Width * tex->Height * tex->BytesPerPixel));
 
   auto *texture = // NOLINTNEXTLINE reinterpret-cast
       reinterpret_cast<Graphics::Texture *>(tex->GetTexID());
@@ -212,11 +185,8 @@ HandleImguiUpdateTextureEvent(const Graphics::GraphicsContext &context,
     VkOffset3D sourceOffset = destOffset;
 
     // Use the update data from the current pixels
-    auto updateResult =
-        texture->SetPixels(context, pixelSpan, 0, 0,
-                           {static_cast<uint32_t>(tex->Width),
-                            static_cast<uint32_t>(tex->Height), 1},
-                           sourceOffset, destOffset, destSize);
+    auto updateResult = texture->SetPixels(context, pixelSpan, 0, 0, {static_cast<uint32_t>(tex->Width), static_cast<uint32_t>(tex->Height), 1}, sourceOffset,
+                                           destOffset, destSize);
 
     if (Error::IsError(updateResult)) {
       return updateResult;
@@ -230,9 +200,7 @@ HandleImguiUpdateTextureEvent(const Graphics::GraphicsContext &context,
 
 std::vector<TemporaryCommandList> TemporaryCommandLists; // NOLINT
 
-inline auto SetupTemporaryCommandLists(ImDrawData *drawData,
-                                       const Graphics::GraphicsContext &context)
-    -> Error {
+inline auto SetupTemporaryCommandLists(ImDrawData *drawData, const Graphics::GraphicsContext &context) -> Error {
 
   TemporaryCommandLists.reserve(drawData->CmdListsCount);
   if (TemporaryCommandLists.size() < drawData->CmdListsCount) {
@@ -261,45 +229,35 @@ inline auto SetupTemporaryCommandLists(ImDrawData *drawData,
           .debugName = "Imgui UI Mesh",
       };
 
-      temporaryCommandList.Mesh =
-          CHECK_RES(Graphics::Mesh::Create(context, info));
+      temporaryCommandList.Mesh = CHECK_RES(Graphics::Mesh::Create(context, info));
     }
 
-    auto vertexSpan =
-        std::span<ImDrawVert>(commandList->VtxBuffer.Data,
-                              static_cast<size_t>(commandList->VtxBuffer.Size));
+    auto vertexSpan = std::span<ImDrawVert>(commandList->VtxBuffer.Data, static_cast<size_t>(commandList->VtxBuffer.Size));
 
     auto rawVertexSpan = std::span<uint8_t>(
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        reinterpret_cast<uint8_t *>(vertexSpan.data()),
-        vertexSpan.size_bytes());
+        reinterpret_cast<uint8_t *>(vertexSpan.data()), vertexSpan.size_bytes());
 
-    CHECK_ERR(
-        temporaryCommandList.Mesh->SetVertices(context, 0, rawVertexSpan, 0));
+    CHECK_ERR(temporaryCommandList.Mesh->SetVertices(context, 0, rawVertexSpan, 0));
 
     auto indexSpan = std::span<uint8_t>( // NOLINTNEXTLINE
-        reinterpret_cast<uint8_t *>(commandList->IdxBuffer.Data),
-        static_cast<size_t>(commandList->IdxBuffer.size_in_bytes()));
+        reinterpret_cast<uint8_t *>(commandList->IdxBuffer.Data), static_cast<size_t>(commandList->IdxBuffer.size_in_bytes()));
 
-    CHECK_ERR(temporaryCommandList.Mesh->SetIndices(context, indexSpan,
-                                                    VK_INDEX_TYPE_UINT16));
+    CHECK_ERR(temporaryCommandList.Mesh->SetIndices(context, indexSpan, VK_INDEX_TYPE_UINT16));
   }
 
   return Error::Success();
 }
 
-inline auto DrawTemporaryCommandLists(const Graphics::GraphicsContext &context,
-                                      ImDrawData *drawData) -> Error {
+inline auto DrawTemporaryCommandLists(const Graphics::GraphicsContext &context, ImDrawData *drawData) -> Error {
 
   Graphics::RenderState::SetShader(Engine::Gui::ImGuiShaderRGBA8);
   const auto &viewport = Graphics::RenderState::GetClippedViewport();
 
-  auto translationMatrix = Math::Matrix4x4::TranslationMatrix(
-      {-viewport.width / 2.0F,          // NOLINT
-       -viewport.height / 2.0F, 0.0F}); // NOLINT
+  auto translationMatrix = Math::Matrix4x4::TranslationMatrix({-viewport.width / 2.0F,          // NOLINT
+                                                               -viewport.height / 2.0F, 0.0F}); // NOLINT
 
-  Math::Matrix4x4 projectionMatrix = Math::Matrix4x4::Orthographic(
-      viewport.width, viewport.height, 0.0F, 1.0F);
+  Math::Matrix4x4 projectionMatrix = Math::Matrix4x4::Orthographic(viewport.width, viewport.height, 0.0F, 1.0F);
 
   auto viewProjectionMatrix = translationMatrix * projectionMatrix;
 
@@ -319,10 +277,8 @@ inline auto DrawTemporaryCommandLists(const Graphics::GraphicsContext &context,
                 .y = static_cast<int32_t>(pcmd.ClipRect.y),
             },
             .extent{
-                .width =
-                    static_cast<uint32_t>(pcmd.ClipRect.z - pcmd.ClipRect.x),
-                .height =
-                    static_cast<uint32_t>(pcmd.ClipRect.w - pcmd.ClipRect.y),
+                .width = static_cast<uint32_t>(pcmd.ClipRect.z - pcmd.ClipRect.x),
+                .height = static_cast<uint32_t>(pcmd.ClipRect.w - pcmd.ClipRect.y),
             },
         };
         Graphics::RenderState::SetScissor(&scissorRect);
@@ -331,12 +287,9 @@ inline auto DrawTemporaryCommandLists(const Graphics::GraphicsContext &context,
             CHECK_NULL(reinterpret_cast<Graphics::Texture *>(pcmd.GetTexID()));
 
         auto texRef = Ref<Graphics::Texture>(texture);
-        CHECK_ERR(Engine::Gui::ImGuiShaderRGBA8->Send(context, "MainTexture",
-                                                      texRef));
+        CHECK_ERR(Engine::Gui::ImGuiShaderRGBA8->Send(context, "MainTexture", texRef));
 
-        CHECK_ERR(Graphics::UniformWriter::Send(Engine::Gui::ImGuiShaderRGBA8,
-                                                "ProjectionMatrix",
-                                                viewProjectionMatrix));
+        CHECK_ERR(Graphics::UniformWriter::Send(Engine::Gui::ImGuiShaderRGBA8, "ProjectionMatrix", viewProjectionMatrix));
 
         temporaryCommandList.Mesh->SetDrawRange({
             .Offset = static_cast<uint32_t>(pcmd.IdxOffset),
@@ -438,8 +391,7 @@ auto KeyPressed(lua_State *state) -> int {
   auto keycodeMap = Keyboard::StringToKeycodeMap;
   auto iterator = keycodeMap.find(key);
   if (iterator == keycodeMap.end()) {
-    return luaL_error(state,
-                      "Unknown key string passed to ImGui KeyPressed: %s", key);
+    return luaL_error(state, "Unknown key string passed to ImGui KeyPressed: %s", key);
   }
 
   auto keycode = static_cast<SDL_Keycode>(iterator->second);
@@ -447,8 +399,7 @@ auto KeyPressed(lua_State *state) -> int {
   auto scanecodeMap = Keyboard::StringToScancodeMap;
   auto scancodeIterator = scanecodeMap.find(key);
   if (scancodeIterator == scanecodeMap.end()) {
-    return luaL_error(state,
-                      "Unknown key string passed to ImGui KeyPressed: %s", key);
+    return luaL_error(state, "Unknown key string passed to ImGui KeyPressed: %s", key);
   }
 
   auto scancode = static_cast<SDL_Scancode>(scancodeIterator->second);
@@ -468,8 +419,7 @@ auto KeyReleased(lua_State *state) -> int {
   auto keycodeMap = Keyboard::StringToKeycodeMap;
   auto iterator = keycodeMap.find(key);
   if (iterator == keycodeMap.end()) {
-    return luaL_error(
-        state, "Unknown key string passed to ImGui KeyReleased: %s", key);
+    return luaL_error(state, "Unknown key string passed to ImGui KeyReleased: %s", key);
   }
 
   auto keycode = static_cast<SDL_Keycode>(iterator->second);
@@ -477,8 +427,7 @@ auto KeyReleased(lua_State *state) -> int {
   auto scanecodeMap = Keyboard::StringToScancodeMap;
   auto scancodeIterator = scanecodeMap.find(key);
   if (scancodeIterator == scanecodeMap.end()) {
-    return luaL_error(
-        state, "Unknown key string passed to ImGui KeyReleased: %s", key);
+    return luaL_error(state, "Unknown key string passed to ImGui KeyReleased: %s", key);
   }
 
   auto scancode = static_cast<SDL_Scancode>(scancodeIterator->second);
@@ -515,8 +464,7 @@ auto MouseWheelMoved(lua_State *state) -> int {
 auto Shutdown(lua_State *state) -> int {
   auto shutdownResult = Engine::Gui::ShutdownImGui();
   if (Error::IsError(shutdownResult)) {
-    return luaL_error(state, "Failed to shutdown ImGui: %s",
-                      shutdownResult.message.c_str());
+    return luaL_error(state, "Failed to shutdown ImGui: %s", shutdownResult.message.c_str());
   }
 
   TemporaryCommandLists.clear();
@@ -540,8 +488,7 @@ auto GetImguiFontAtlasPtr(lua_State *state) -> int {
   return 1;
 }
 
-inline auto stringToUIStyle(const char *styleStr)
-    -> Result<Engine::Style::UIStyles> {
+inline auto stringToUIStyle(const char *styleStr) -> Result<Engine::Style::UIStyles> {
   if (strcmp(styleStr, "blueish") == 0) {
     return Engine::Style::UIStyles::Blueish;
   }
@@ -558,14 +505,12 @@ auto wrap_ApplyDefaultStyle(lua_State *state) -> int {
   const char *styleStr = luaL_optstring(state, 1, "blueish");
   auto styleResult = stringToUIStyle(styleStr);
   if (Error::IsError(styleResult)) {
-    return luaL_error(state, "Failed to apply default style: %s",
-                      styleResult.error().message.c_str());
+    return luaL_error(state, "Failed to apply default style: %s", styleResult.error().message.c_str());
   }
 
   auto applyResult = ApplyDefaultStyle(styleResult.value());
   if (Error::IsError(applyResult)) {
-    return luaL_error(state, "Failed to apply default style: %s",
-                      applyResult.message.c_str());
+    return luaL_error(state, "Failed to apply default style: %s", applyResult.message.c_str());
   }
 
   return 0;

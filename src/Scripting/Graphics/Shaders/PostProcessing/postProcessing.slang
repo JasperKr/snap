@@ -2,15 +2,12 @@
 float3 agxDefaultContrastApprox(float3 x) {
   float3 x2 = x * x;
   float3 x4 = x2 * x2;
-  return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x +
-         0.4298 * x2 + 0.1191 * x - 0.00232;
+  return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
 }
 
 float3 agx(float3 val) {
-  static const float3x3 agx_mat =
-      float3x3(0.842479062253094, 0.0423282422610123, 0.0423756549057051,
-               0.0784335999999992, 0.878468636469772, 0.0784336,
-               0.0792237451477643, 0.0791661274605434, 0.879142973793104);
+  static const float3x3 agx_mat = float3x3(0.842479062253094, 0.0423282422610123, 0.0423756549057051, 0.0784335999999992, 0.878468636469772, 0.0784336,
+                                           0.0792237451477643, 0.0791661274605434, 0.879142973793104);
   static const float minEv = -12.47393;
   static const float maxEv = 4.026069;
 
@@ -27,10 +24,8 @@ float3 agx(float3 val) {
   return val;
 }
 
-static const float3x3 inv_agx_mat =
-    float3x3(1.1968790051202, -0.052896851757456, -0.052971635514444,
-             -0.098020881140137, 1.1519031299042, -0.098043450117124,
-             -0.09902974407972, -0.098961176844843, 1.1510736726412);
+static const float3x3 inv_agx_mat = float3x3(1.1968790051202, -0.052896851757456, -0.052971635514444, -0.098020881140137, 1.1519031299042, -0.098043450117124,
+                                             -0.09902974407972, -0.098961176844843, 1.1510736726412);
 float3 inv_agx(float3 val) {
   // Input transform
   val = mul(val, inv_agx_mat);
@@ -97,13 +92,9 @@ float3 whiteBalance(float3 In, float Temperature, float Tint) {
 
   float3 balance = float3(w1.x / w2.x, w1.y / w2.y, w1.z / w2.z);
 
-  float3x3 LIN_2_LMS_MAT = { 3.90405e-1, 5.49941e-1, 8.92632e-3,
-                             7.08416e-2, 9.63172e-1, 1.35775e-3,
-                             2.31082e-2, 1.28021e-1, 9.36245e-1 };
+  float3x3 LIN_2_LMS_MAT = {3.90405e-1, 5.49941e-1, 8.92632e-3, 7.08416e-2, 9.63172e-1, 1.35775e-3, 2.31082e-2, 1.28021e-1, 9.36245e-1};
 
-  float3x3 LMS_2_LIN_MAT = { 2.85847e+0,  -1.62879e+0, -2.48910e-2,
-                             -2.10182e-1, 1.15820e+0,  3.24281e-4,
-                             -4.18120e-2, -1.18169e-1, 1.06867e+0 };
+  float3x3 LMS_2_LIN_MAT = {2.85847e+0, -1.62879e+0, -2.48910e-2, -2.10182e-1, 1.15820e+0, 3.24281e-4, -4.18120e-2, -1.18169e-1, 1.06867e+0};
 
   float3 lms = mul(In, LIN_2_LMS_MAT);
   lms *= balance;
@@ -146,8 +137,7 @@ import utils;
 
 #include "fullscreen.slang"
 
-[shader("fragment")]
-float4 fragmentMain(FragmentInput input) {
+[shader("fragment")] float4 fragmentMain(FragmentInput input) {
   float3 incomingLight = Sanitise(IncomingLight.Sample(input.tex_coord).rgb);
   incomingLight *= Exposure;
 

@@ -60,8 +60,7 @@ auto DrawEntity(const flecs::entity &entity) -> bool {
 
   ImGui::PushID(static_cast<int>(entity.id()));
 
-  ImGuiTreeNodeFlags nodeFlags =
-      ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+  ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 
   if (Editor::SelectedEntity == entity) {
     // NOLINTNEXTLINE
@@ -78,20 +77,17 @@ auto DrawEntity(const flecs::entity &entity) -> bool {
   return node;
 }
 
-inline auto fuzzyMatch(const std::string_view &pattern,
-                       const std::string_view &str) -> bool {
+inline auto fuzzyMatch(const std::string_view &pattern, const std::string_view &str) -> bool {
   size_t index = 0;
   for (char character : str) {
-    if (index < pattern.size() &&
-        tolower(character) == tolower(pattern[index])) {
+    if (index < pattern.size() && tolower(character) == tolower(pattern[index])) {
       ++index;
     }
   }
   return index == pattern.size();
 }
 
-inline auto matchesRecursive(const flecs::entity &entity,
-                             const std::string_view &filter) -> MatchType {
+inline auto matchesRecursive(const flecs::entity &entity, const std::string_view &filter) -> MatchType {
   if (filter.empty()) {
     return MatchType::This; // If filter is empty, match all entities
   }
@@ -114,8 +110,7 @@ inline auto matchesRecursive(const flecs::entity &entity,
   return matches;
 }
 
-auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter)
-    -> void {
+auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter) -> void {
 
   auto match = matchesRecursive(entity, filter);
   if (match == MatchType::None) {
@@ -142,16 +137,13 @@ auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter)
 
   if (drawChildren) {
     ImGui::Indent();
-    entity.children([&](flecs::entity child) -> void {
-      DrawEntityHierarchy(child, filter);
-    });
+    entity.children([&](flecs::entity child) -> void { DrawEntityHierarchy(child, filter); });
     ImGui::Unindent();
     ImGui::TreePop();
   }
 }
 
-inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene)
-    -> void {
+inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> void {
   if (!Editor::SelectedEntity.is_valid()) {
     return;
   }
@@ -190,9 +182,7 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene)
       ImGui::Separator();
       ImGui::PushID(static_cast<int>(componentEntity.id()));
       auto name = std::format("Component: {}", componentName.data());
-      if (ImGui::TreeNodeEx(name.c_str(), iter->second.defaultOpen
-                                              ? ImGuiTreeNodeFlags_DefaultOpen
-                                              : 0)) {
+      if (ImGui::TreeNodeEx(name.c_str(), iter->second.defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
         iter->second.func(Editor::SelectedEntity);
         ImGui::TreePop();
       }
@@ -207,9 +197,7 @@ inline auto DrawTree(flecs::entity parent) -> void {
   auto *worldBounds = parent.try_get_mut<WorldBounds>();
 
   if (worldBounds != nullptr) {
-    Renderer::RendererInstance.GetLineDrawer().OverlayWireframeBox(
-        worldBounds->Bounds.Min, worldBounds->Bounds.Max,
-        {0.7F, 0.7F, 0.7F, 1.0F}, 2.0F);
+    Renderer::RendererInstance.GetLineDrawer().OverlayWireframeBox(worldBounds->Bounds.Min, worldBounds->Bounds.Max, {0.7F, 0.7F, 0.7F, 1.0F}, 2.0F);
   }
 
   parent.children([&](flecs::entity child) -> void { DrawTree(child); });
@@ -226,16 +214,14 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   if (pickReadbackResult != std::nullopt) {
     auto pickResult = pickReadbackResult.value();
 
-    scene->world.each<Geometry>(
-        [&](flecs::entity entity, const Geometry &geometry) -> void {
-          if (geometry.hasTlasIndex &&
-              geometry.tlasIndex == pickResult.InstanceID) {
-            Editor::SelectedEntity = entity;
-            Editor::SelectedEntities = {Editor::SelectedEntity};
+    scene->world.each<Geometry>([&](flecs::entity entity, const Geometry &geometry) -> void {
+      if (geometry.hasTlasIndex && geometry.tlasIndex == pickResult.InstanceID) {
+        Editor::SelectedEntity = entity;
+        Editor::SelectedEntities = {Editor::SelectedEntity};
 
-            Editor::MoveInfo.UpdatedTransformAxis = true;
-          }
-        });
+        Editor::MoveInfo.UpdatedTransformAxis = true;
+      }
+    });
   }
 
   Editor::MoveInfo.Transforms.clear();
@@ -265,10 +251,8 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
 
   auto availableHeight = ImGui::GetContentRegionAvail().y;
 
-  if (ImGui::BeginChild(
-          "Entity Hierarchy",
-          ImVec2(0, availableHeight * hierarchyHeightRatio), // NOLINT
-          ImGuiChildFlags_Borders)) {
+  if (ImGui::BeginChild("Entity Hierarchy", ImVec2(0, availableHeight * hierarchyHeightRatio), // NOLINT
+                        ImGuiChildFlags_Borders)) {
 
     scene->world.entity(0).children([&](flecs::entity entity) -> void {
       DrawEntityHierarchy(entity, std::string_view(buf)); // NOLINT
@@ -284,9 +268,7 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
         continue;
       }
 
-      Renderer::RendererInstance.GetLineDrawer().OverlayWireframeBox(
-          worldBounds->Bounds.Min, worldBounds->Bounds.Max,
-          {0.7F, 0.7F, 0.7F, 1.0F}, 2.0F);
+      Renderer::RendererInstance.GetLineDrawer().OverlayWireframeBox(worldBounds->Bounds.Min, worldBounds->Bounds.Max, {0.7F, 0.7F, 0.7F, 1.0F}, 2.0F);
 
       if (DrawBoundsRecursively) {
         DrawTree(entity);
@@ -301,20 +283,17 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
     return {};
   }
 
-  ImGui::InvisibleButton(" ", ImVec2(ImGui::GetContentRegionAvail().x,
-                                     ImGui::GetTextLineHeightWithSpacing()));
+  ImGui::InvisibleButton(" ", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeightWithSpacing()));
 
   if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
     hierarchyHeightRatio += ImGui::GetIO().MouseDelta.y / availableHeight;
-    hierarchyHeightRatio =
-        std::clamp(hierarchyHeightRatio, 0.1F, 0.9F); // NOLINT
+    hierarchyHeightRatio = std::clamp(hierarchyHeightRatio, 0.1F, 0.9F); // NOLINT
   }
 
   bool stylePushed = false;
 
   if (ImGui::IsItemHovered()) {
-    ImGui::PushStyleColor(ImGuiCol_Separator,
-                          ImGui::GetStyle().Colors[ImGuiCol_SeparatorHovered]);
+    ImGui::PushStyleColor(ImGuiCol_Separator, ImGui::GetStyle().Colors[ImGuiCol_SeparatorHovered]);
     stylePushed = true;
   }
   ImGui::SetCursorPos(cursorPos);
@@ -325,8 +304,7 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
     ImGui::PopStyleColor();
   }
 
-  if (ImGui::BeginChild("Selected Entity", ImVec2(0, 0),
-                        ImGuiChildFlags_Borders)) {
+  if (ImGui::BeginChild("Selected Entity", ImVec2(0, 0), ImGuiChildFlags_Borders)) {
     DrawEntityEditor(Editor::SelectedEntity, scene);
   }
   ImGui::EndChild();
@@ -335,19 +313,15 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   return {};
 }
 
-auto Editor::PickEntity(const Graphics::GraphicsContext &context,
-                        Math::Vec2 mousePos) -> Error {
+auto Editor::PickEntity(const Graphics::GraphicsContext &context, Math::Vec2 mousePos) -> Error {
 
-  auto shader =
-      CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(
-          Renderer::ShaderKey::ObjectPicker));
+  auto shader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::ObjectPicker));
 
   auto &tlas = Renderer::RendererInstance.GetSceneTLAS();
 
   Graphics::BufferCreationInfo info{
       .size = sizeof(uint32_t) * 4,
-      .usage =
-          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       .stagingBuffer = true,
       .persistentMapping = true,
       .debugName = "Entity Pick Buffer",
@@ -358,10 +332,8 @@ auto Editor::PickEntity(const Graphics::GraphicsContext &context,
   const auto &camera = Editor::EditorCamera.get<Camera>();
 
   CHECK_ERR(shader->Send(context, {"SceneBVH"}, tlas));
-  CHECK_ERR(shader->Send(context, {"CameraData"},
-                         {camera.GetBuffer(), Graphics::StorageBuffer::read}));
-  CHECK_ERR(shader->Send(context, {"TraceResults"},
-                         {pickBuffer, Graphics::StorageBuffer::write}));
+  CHECK_ERR(shader->Send(context, {"CameraData"}, {camera.GetBuffer(), Graphics::StorageBuffer::read}));
+  CHECK_ERR(shader->Send(context, {"TraceResults"}, {pickBuffer, Graphics::StorageBuffer::write}));
 
   CHECK_ERR(Graphics::UniformWriter::Send(shader, {"uv"}, mousePos));
 
@@ -428,8 +400,7 @@ auto Editor::PopEntityPickResult() -> Result<std::optional<PickEntityResult>> {
   return pickedEntity;
 }
 
-auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay)
-    -> Math::Vec3 {
+auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> Math::Vec3 {
   Math::Vec3 OriginToCamera = (currentRay.Origin - moveData.Origin).Normalize();
 
   switch (moveData.Axis) {
@@ -532,8 +503,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay)
     return translation;
   }
   case TransformAxis::XYZ: {
-    Math::Vec3 originalPoint =
-        moveData.OriginalRay.PointAt(moveData.OriginalDistance);
+    Math::Vec3 originalPoint = moveData.OriginalRay.PointAt(moveData.OriginalDistance);
     Math::Vec3 currentPoint = moveData.OriginalRay.PointAt(moveData.Distance);
     Math::Vec3 translation = currentPoint - originalPoint;
     return translation;
@@ -543,8 +513,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay)
   return {};
 }
 
-auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
-    -> Math::Quaternion {
+auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay) -> Math::Quaternion {
   switch (moveData.Axis) {
   case TransformAxis::None:
   case TransformAxis::XYZ:
@@ -552,13 +521,11 @@ auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
   case TransformAxis::X:
   case TransformAxis::YZ: { // Rotate around X axis
     Math::Vec3 axis = Math::Vec3(1.0F, 0.0F, 0.0F);
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(
-        Math::Plane(moveData.Origin, axis));
+    auto intersection = moveData.OriginalRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
     if (!intersection.has_value()) {
       return {};
     }
-    auto intersection2 =
-        currentRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
+    auto intersection2 = currentRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
     if (!intersection2.has_value()) {
       return {};
     }
@@ -567,8 +534,7 @@ auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
     Math::Vec3 currentPoint = intersection2.value() - moveData.Origin;
     Math::Vec2 original2D(originalPoint.y, originalPoint.z);
     Math::Vec2 current2D(currentPoint.y, currentPoint.z);
-    float angle = std::atan2(current2D.y, current2D.x) -
-                  std::atan2(original2D.y, original2D.x);
+    float angle = std::atan2(current2D.y, current2D.x) - std::atan2(original2D.y, original2D.x);
     Math::EulerAngle eulerAngle(angle, 0.0F, 0.0F);
     Math::Quaternion rotation = Math::Conversions::ToQuaternion(eulerAngle);
 
@@ -577,13 +543,11 @@ auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
   case TransformAxis::Y:
   case TransformAxis::XZ: { // Rotate around Y axis
     Math::Vec3 axis = Math::Vec3(0.0F, 1.0F, 0.0F);
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(
-        Math::Plane(moveData.Origin, axis));
+    auto intersection = moveData.OriginalRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
     if (!intersection.has_value()) {
       return {};
     }
-    auto intersection2 =
-        currentRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
+    auto intersection2 = currentRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
     if (!intersection2.has_value()) {
       return {};
     }
@@ -592,8 +556,7 @@ auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
     Math::Vec3 currentPoint = intersection2.value() - moveData.Origin;
     Math::Vec2 original2D(originalPoint.x, originalPoint.z);
     Math::Vec2 current2D(currentPoint.x, currentPoint.z);
-    float angle = std::atan2(current2D.y, current2D.x) -
-                  std::atan2(original2D.y, original2D.x);
+    float angle = std::atan2(current2D.y, current2D.x) - std::atan2(original2D.y, original2D.x);
     Math::EulerAngle eulerAngle(0.0F, angle, 0.0F);
     Math::Quaternion rotation = Math::Conversions::ToQuaternion(eulerAngle);
 
@@ -602,13 +565,11 @@ auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
   case TransformAxis::Z:
   case TransformAxis::XY: { // Rotate around Z axis
     Math::Vec3 axis = Math::Vec3(0.0F, 0.0F, 1.0F);
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(
-        Math::Plane(moveData.Origin, axis));
+    auto intersection = moveData.OriginalRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
     if (!intersection.has_value()) {
       return {};
     }
-    auto intersection2 =
-        currentRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
+    auto intersection2 = currentRay.IntersectPlane2Way(Math::Plane(moveData.Origin, axis));
     if (!intersection2.has_value()) {
       return {};
     }
@@ -617,8 +578,7 @@ auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
     Math::Vec3 currentPoint = intersection2.value() - moveData.Origin;
     Math::Vec2 original2D(originalPoint.x, originalPoint.y);
     Math::Vec2 current2D(currentPoint.x, currentPoint.y);
-    float angle = std::atan2(current2D.y, current2D.x) -
-                  std::atan2(original2D.y, original2D.x);
+    float angle = std::atan2(current2D.y, current2D.x) - std::atan2(original2D.y, original2D.x);
     Math::EulerAngle eulerAngle(0.0F, 0.0F, angle);
     Math::Quaternion rotation = Math::Conversions::ToQuaternion(eulerAngle);
 
@@ -628,10 +588,8 @@ auto GizmoRotation(const MoveData &moveData, const Math::Ray &currentRay)
 }
 
 auto GizmoScale(const MoveData &moveData) -> Math::Vec3 {
-  Math::Vec2 mouseDelta =
-      moveData.CurrentMousePosition - moveData.StartMousePosition;
-  auto size =
-      Window::GetDimensions(Graphics::GetCurrentGraphicsContext()->sdlWindow);
+  Math::Vec2 mouseDelta = moveData.CurrentMousePosition - moveData.StartMousePosition;
+  auto size = Window::GetDimensions(Graphics::GetCurrentGraphicsContext()->sdlWindow);
   mouseDelta.x /= float(size.x);
   mouseDelta.y /= float(size.y);
 
@@ -680,8 +638,7 @@ void TransformGizmo(MoveData &moveData, const Math::Ray &currentRay) {
   }
   case TransformMode::Rotate: {
     Math::Quaternion rotation = GizmoRotation(moveData, currentRay);
-    Math::Quaternion newRotation =
-        rotation * moveData.CurrentRotation.Inverse();
+    Math::Quaternion newRotation = rotation * moveData.CurrentRotation.Inverse();
 
     for (auto *transform : moveData.Transforms) {
       transform->ApplyRotation(newRotation);
@@ -727,10 +684,8 @@ auto MoveData::Update() -> void {
     return;
   }
 
-  Math::Ray currentRay(
-      Editor::EditorCamera.get<Transform>().GetPosition(),
-      Editor::EditorCamera.get<CameraMatrices>().InverseProject_Rotation(
-          Math::Vec3{CurrentMousePosition, 0.0F}));
+  Math::Ray currentRay(Editor::EditorCamera.get<Transform>().GetPosition(),
+                       Editor::EditorCamera.get<CameraMatrices>().InverseProject_Rotation(Math::Vec3{CurrentMousePosition, 0.0F}));
 
   TransformGizmo(*this, currentRay);
 }
@@ -781,9 +736,8 @@ auto Editor::SetTransformAxis(TransformAxis axis) -> void {
 
 auto Editor::FinalizeTransform() -> void { Editor::MoveInfo.Apply(); }
 
-inline auto DrawArrow(const Math::Vec3 &origin, const Math::Vec3 &direction,
-                      float length, float headLength, float headWidth,
-                      const Math::PackedColor &color, float thickness) -> void {
+inline auto DrawArrow(const Math::Vec3 &origin, const Math::Vec3 &direction, float length, float headLength, float headWidth, const Math::PackedColor &color,
+                      float thickness) -> void {
   auto &lineDrawer = Renderer::RendererInstance.GetLineDrawer();
   auto &primDrawer = Renderer::RendererInstance.GetPrimitiveDrawer();
 
@@ -819,8 +773,7 @@ auto Editor::DrawGizmo() -> void {
   const auto &camera = EditorCamera.get<Camera>();
   const auto &matrices = EditorCamera.get<CameraMatrices>();
 
-  auto scale =
-      (MoveInfo.Origin - matrices.GetPosition()).Length() * 0.1F; // NOLINT
+  auto scale = (MoveInfo.Origin - matrices.GetPosition()).Length() * 0.1F; // NOLINT
   auto &lineDrawer = Renderer::RendererInstance.GetLineDrawer();
   const auto thickness = 4.0F;
   auto originToCamera = (matrices.GetPosition() - MoveInfo.Origin).Normalize();
@@ -830,18 +783,12 @@ auto Editor::DrawGizmo() -> void {
   auto arrowHeadWidth = scale * 0.1F;  // NOLINT
 
   // X axis
-  DrawArrow(MoveInfo.Origin, Math::Vec3{1.0F, 0.0F, 0.0F}, arrowLength,
-            arrowHeadLength, arrowHeadWidth,
-            Math::PackedColor{1.0F, 0.0F, 0.0F, 1.0F}, thickness);
+  DrawArrow(MoveInfo.Origin, Math::Vec3{1.0F, 0.0F, 0.0F}, arrowLength, arrowHeadLength, arrowHeadWidth, Math::PackedColor{1.0F, 0.0F, 0.0F, 1.0F}, thickness);
 
   // Y axis
-  DrawArrow(MoveInfo.Origin, Math::Vec3{0.0F, 1.0F, 0.0F}, arrowLength,
-            arrowHeadLength, arrowHeadWidth,
-            Math::PackedColor{0.0F, 1.0F, 0.0F, 1.0F}, thickness);
+  DrawArrow(MoveInfo.Origin, Math::Vec3{0.0F, 1.0F, 0.0F}, arrowLength, arrowHeadLength, arrowHeadWidth, Math::PackedColor{0.0F, 1.0F, 0.0F, 1.0F}, thickness);
 
   // Z axis
-  DrawArrow(MoveInfo.Origin, Math::Vec3{0.0F, 0.0F, 1.0F}, arrowLength,
-            arrowHeadLength, arrowHeadWidth,
-            Math::PackedColor{0.0F, 0.0F, 1.0F, 1.0F}, thickness);
+  DrawArrow(MoveInfo.Origin, Math::Vec3{0.0F, 0.0F, 1.0F}, arrowLength, arrowHeadLength, arrowHeadWidth, Math::PackedColor{0.0F, 0.0F, 1.0F, 1.0F}, thickness);
 }
 } // namespace Engine

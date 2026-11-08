@@ -6,8 +6,7 @@ namespace Engine::Renderer {
 auto wrap_NewMaterial(lua_State *state) -> int { return 0; }
 
 auto wrap_Initialize(lua_State *state) -> int {
-  LUA_CK_ERR(
-      RendererInstance.Initialize(*Graphics::GetCurrentGraphicsContext()));
+  LUA_CK_ERR(RendererInstance.Initialize(*Graphics::GetCurrentGraphicsContext()));
 
   return 0;
 }

@@ -18,4 +18,3 @@ public enum AlphaMode {
 };
 
 public uniform StructuredBuffer<MaterialData>.Handle MaterialBuffer;
-

@@ -23,14 +23,9 @@ auto wrap_Release(lua_State *state) -> int;
 
 // NOLINTNEXTLINE
 static const std::vector<luaL_Reg> MeshLib = {
-    {"setVertices", wrap_SetVertices},
-    {"setIndices", wrap_SetIndices},
-    {"setVertexBuffer", wrap_SetVertexBuffer},
-    {"setIndexBuffer", wrap_SetIndexBuffer},
-    {"getVertexCount", wrap_GetVertexCount},
-    {"getIndexCount", wrap_GetIndexCount},
-    {"setDrawRange", wrap_SetDrawRange},
-    {"getDrawRange", wrap_GetDrawRange},
+    {"setVertices", wrap_SetVertices},       {"setIndices", wrap_SetIndices},         {"setVertexBuffer", wrap_SetVertexBuffer},
+    {"setIndexBuffer", wrap_SetIndexBuffer}, {"getVertexCount", wrap_GetVertexCount}, {"getIndexCount", wrap_GetIndexCount},
+    {"setDrawRange", wrap_SetDrawRange},     {"getDrawRange", wrap_GetDrawRange},
 
 };
 

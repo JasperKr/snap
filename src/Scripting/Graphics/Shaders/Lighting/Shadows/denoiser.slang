@@ -50,8 +50,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
   }
 
   float previousDepth = PreviousDepthTexture.SampleLevelZero(sampleCoord.xy).x;
-  float3 previousWorldPosition =
-      CameraData[1].GetWorldPosition(sampleCoord.xy, previousDepth);
+  float3 previousWorldPosition = CameraData[1].GetWorldPosition(sampleCoord.xy, previousDepth);
 
   float influence = 1.0F / 20.0F;
 
@@ -74,9 +73,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
 
       count++;
 
-      float neighbourShadow =
-          1.0 - float(RayHitTexture.SampleLevelZero(neighbourCoord) &
-                      (1 << id.z) != 0);
+      float neighbourShadow = 1.0 - float(RayHitTexture.SampleLevelZero(neighbourCoord) & (1 << id.z) != 0);
 
       sum += neighbourShadow;
     }
@@ -90,8 +87,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
   float currentShadow = PreviousOutputTexture.SampleLevelZero(sampleCoord);
 
   // If the new shadow value is outside the neighbourhood range, clamp it to the range
-  currentShadow =
-      clamp(currentShadow, mean - gamma * sigma, mean + gamma * sigma);
+  currentShadow = clamp(currentShadow, mean - gamma * sigma, mean + gamma * sigma);
 
   float newShadow = lerp(currentShadow, inShadow ? 0.0 : 1.0, influence);
 

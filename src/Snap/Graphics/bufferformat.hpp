@@ -25,13 +25,8 @@ enum class Standard : uint8_t {
 };
 
 struct BufferFormat {
-  explicit BufferFormat(std::vector<BufferComponent> components,
-                        Standard std = Standard::Std430);
-  explicit BufferFormat(
-      const std::vector<
-          std::pair<std::string, std::variant<const char *, BufferFormat>>>
-          &components,
-      Standard std = Standard::Std430);
+  explicit BufferFormat(std::vector<BufferComponent> components, Standard std = Standard::Std430);
+  explicit BufferFormat(const std::vector<std::pair<std::string, std::variant<const char *, BufferFormat>>> &components, Standard std = Standard::Std430);
 
   BufferFormat() = default;
   BufferFormat(const BufferFormat &other) = default;
@@ -54,10 +49,8 @@ private:
     return !invalid;
   }
 
-  [[nodiscard]] auto
-  FindComponent(Graphics::ResourceKey::const_iterator iterator,
-                Graphics::ResourceKey::const_iterator end,
-                uint64_t &arrayOffset) const -> BufferComponent const *;
+  [[nodiscard]] auto FindComponent(Graphics::ResourceKey::const_iterator iterator, Graphics::ResourceKey::const_iterator end, uint64_t &arrayOffset) const
+      -> BufferComponent const *;
 
 public:
   [[nodiscard]] auto GetVkComponents() const -> const std::vector<VkFormat> & {
@@ -68,10 +61,7 @@ public:
     return FlatComponents;
   }
 
-  [[nodiscard]] auto GetComponents() const
-      -> const std::vector<BufferComponent> & {
-    return Components;
-  }
+  [[nodiscard]] auto GetComponents() const -> const std::vector<BufferComponent> & { return Components; }
 
   // Get the calculated stride of the format
   [[nodiscard]] auto GetStride() const -> size_t {
@@ -84,9 +74,7 @@ public:
 
   auto operator==(const BufferFormat &other) const -> bool;
 
-  auto operator!=(const BufferFormat &other) const -> bool {
-    return !(*this == other);
-  }
+  auto operator!=(const BufferFormat &other) const -> bool { return !(*this == other); }
 
   [[nodiscard]] auto GetHash() const -> size_t;
 
@@ -124,8 +112,7 @@ private:
 
 struct BufferComponent {
   std::string name;
-  mutable uint32_t
-      offset; // Offset is mutable because it is calculated after the fact
+  mutable uint32_t offset; // Offset is mutable because it is calculated after the fact
   BufferTreeComponent format;
   size_t arraySize = 1;
   bool isMatrix;
@@ -149,9 +136,7 @@ struct BufferComponent {
 };
 
 struct BufferFormatHash {
-  auto operator()(const BufferFormat &format) const noexcept -> size_t {
-    return format.GetHash();
-  }
+  auto operator()(const BufferFormat &format) const noexcept -> size_t { return format.GetHash(); }
 };
 
 // Get the size of a format

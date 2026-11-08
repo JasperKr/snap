@@ -19,20 +19,15 @@ public struct DirectionalLight : ILight {
   public float4 GetRotation() { return Rotation; }
   public float3 GetColor() { return Color; }
   public float GetIntensity() { return Intensity; }
-  public float3 GetForward() {
-    return Rotate(float3(0.0f, 0.0f, 1.0f), Rotation);
-  }
+  public float3 GetForward() { return Rotate(float3(0.0f, 0.0f, 1.0f), Rotation); }
 
-  public float3 GetIntensityAt(float3 WorldPosition, Pixel pixel,
-                               float3 ViewDirection) {
+  public float3 GetIntensityAt(float3 WorldPosition, Pixel pixel, float3 ViewDirection) {
     const float3 WorldForward = GetForward();
 
     float NdotL = saturate(dot(pixel.Normal, WorldForward));
     float3 Diffuse = ComputeDiffuseColor(pixel.Albedo, pixel.Metallic);
 
-    float3 brdf = SampleBRDF(ViewDirection, WorldForward, pixel.NoV,
-                             pixel.Normal, pixel.Roughness, pixel.Fresnel0,
-                             Diffuse, NdotL, pixel.LambdaV);
+    float3 brdf = SampleBRDF(ViewDirection, WorldForward, pixel.NoV, pixel.Normal, pixel.Roughness, pixel.Fresnel0, Diffuse, NdotL, pixel.LambdaV);
 
     return (Color * Intensity) * brdf;
   }
@@ -42,12 +37,10 @@ public struct DirectionalLight : ILight {
       return 1.0f;
     }
 
-    return ShadowVisibilityTexture.Load(
-        int4(screenCoords, 0, ShadowBufferIndex));
+    return ShadowVisibilityTexture.Load(int4(screenCoords, 0, ShadowBufferIndex));
   }
 
-  public bool TraceShadow(float3 WorldPosition, float3 Normal,
-                          uint2 screenCoords, uint frameRandomState) {
+  public bool TraceShadow(float3 WorldPosition, float3 Normal, uint2 screenCoords, uint frameRandomState) {
     const float3 WorldForward = GetForward();
     const float3 WorldUp = Rotate(float3(0.0f, 1.0f, 0.0f), Rotation);
 
@@ -67,8 +60,7 @@ public struct DirectionalLight : ILight {
     randomDirection *= TanSunAngularRadius;
     float3 right = normalize(cross(WorldForward, WorldUp));
 
-    float3 sampleDirection = normalize(
-        WorldForward + randomDirection.x * right + randomDirection.y * WorldUp);
+    float3 sampleDirection = normalize(WorldForward + randomDirection.x * right + randomDirection.y * WorldUp);
 
     RayDesc ray;
     ray.Origin = WorldPosition + Normal * 1e-2f;

@@ -5,8 +5,7 @@
 
 namespace Graphics::VkAccessHelpers {
 
-inline auto AccessFlags2ToStringInternal(VkAccessFlags2 flag)
-    -> std::string_view {
+inline auto AccessFlags2ToStringInternal(VkAccessFlags2 flag) -> std::string_view {
   // clang-format off
   switch (flag) {
   case VK_ACCESS_2_NONE: { return "None"; }

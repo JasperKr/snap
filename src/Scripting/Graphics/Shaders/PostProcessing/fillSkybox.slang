@@ -23,10 +23,8 @@ float2 GetERPUvs(float3 rayDirection) {
   return uv;
 }
 
-[shader("fragment")]
-float4 fragmentMain(FragmentInput input) {
-  float3 rayDirection = GetRayDirection(
-      input.tex_coord, CameraData[0].InverseRotationProjectionMatrix);
+[shader("fragment")] float4 fragmentMain(FragmentInput input) {
+  float3 rayDirection = GetRayDirection(input.tex_coord, CameraData[0].InverseRotationProjectionMatrix);
 
 #if defined(CUBE_MAP)
   return SkyboxTexture.Sample(rayDirection);

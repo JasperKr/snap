@@ -22,14 +22,10 @@ struct Geometry {
 struct LuaGeometry : LuaWrap::LuaECSObject {
   explicit LuaGeometry(const flecs::entity &entity) : LuaECSObject(entity) {}
 
-  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaGeometry> {
-    return Ref<LuaGeometry>::Make(entity);
-  }
+  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaGeometry> { return Ref<LuaGeometry>::Make(entity); }
 
   static auto GetType() -> const Type * { return &geometryType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &geometryType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &geometryType; }
 
   static auto GetMesh(lua_State *state) -> int;
   static auto Create(lua_State *state) -> int;

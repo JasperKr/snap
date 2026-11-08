@@ -9,9 +9,7 @@
 
 namespace Engine {
 
-auto LevelOfDetail::DrawGUI(flecs::entity entity) const -> void {
-  ImGui::Text("Transition Threshold: %.2f", TransitionThreshold);
-}
+auto LevelOfDetail::DrawGUI(flecs::entity entity) const -> void { ImGui::Text("Transition Threshold: %.2f", TransitionThreshold); }
 
 auto LuaLevelOfDetail::GetTransitionThreshold(lua_State *state) -> int {
   auto *entity = ::LuaWrap::EntityFromLua(state, 1);
@@ -40,8 +38,7 @@ auto LuaLevelOfDetail::SetTransitionThreshold(lua_State *state) -> int {
     return luaL_error(state, "LevelOfDetail component not found");
   }
 
-  levelOfDetail->TransitionThreshold =
-      static_cast<float>(luaL_checknumber(state, 2));
+  levelOfDetail->TransitionThreshold = static_cast<float>(luaL_checknumber(state, 2));
   return 0;
 }
 
@@ -64,13 +61,12 @@ auto LuaLevelOfDetail::GetMeshes(lua_State *state) -> int {
   }
 
   int index = 1;
-  levelOfDetail.entity().children<Graphics::Mesh>(
-      [&](const flecs::entity &child) -> void {
-        lua_pushinteger(state, index++);
-        auto mesh = child.get_ref<Graphics::Mesh>();
-        ::LuaWrap::PushObject(state, Graphics::Mesh::GetType(), mesh.get());
-        lua_settable(state, -3);
-      });
+  levelOfDetail.entity().children<Graphics::Mesh>([&](const flecs::entity &child) -> void {
+    lua_pushinteger(state, index++);
+    auto mesh = child.get_ref<Graphics::Mesh>();
+    ::LuaWrap::PushObject(state, Graphics::Mesh::GetType(), mesh.get());
+    lua_settable(state, -3);
+  });
 
   return 1;
 }
@@ -107,8 +103,7 @@ auto LuaLevelOfDetail::Create(lua_State *state) -> int {
 
   auto transitionThreshold = static_cast<float>(luaL_optnumber(state, 3, 0.0F));
 
-  auto lodEntity = LevelOfDetail::CreateLevelOfDetail(scene->world, name,
-                                                      transitionThreshold);
+  auto lodEntity = LevelOfDetail::CreateLevelOfDetail(scene->world, name, transitionThreshold);
   auto entity = LuaLevelOfDetail::FromEntity(lodEntity);
   ::LuaWrap::PushObject(state, LuaLevelOfDetail::GetType(), entity.get());
   return 1;
@@ -168,10 +163,8 @@ const ::LuaWrap::LuaClass LevelOfDetailClass = {
     .Type = LuaLevelOfDetail::GetType(),
     .Methods =
         {
-            {"getTransitionThreshold",
-             LuaLevelOfDetail::GetTransitionThreshold},
-            {"setTransitionThreshold",
-             LuaLevelOfDetail::SetTransitionThreshold},
+            {"getTransitionThreshold", LuaLevelOfDetail::GetTransitionThreshold},
+            {"setTransitionThreshold", LuaLevelOfDetail::SetTransitionThreshold},
             {"getMeshes", LuaLevelOfDetail::GetMeshes},
             {"addGeometry", LuaLevelOfDetail::AddGeometry},
             {"removeGeometry", LuaLevelOfDetail::RemoveGeometry},

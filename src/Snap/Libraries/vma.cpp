@@ -16,11 +16,11 @@
 // #ifndef NDEBUG
 // formatted with %s etc, we cannot PrintLibrary directly since it uses std::format
 // We must first format the string ourselves
-#define VMA_DEBUG_LOG_FORMAT(format, ...)                                      \
-  do {                                                                         \
-    char buf[256];                                                             \
-    std::snprintf(buf, sizeof(buf), format, __VA_ARGS__);                      \
-    PrintLibrary(std::string("VMA: ") + buf);                                  \
+#define VMA_DEBUG_LOG_FORMAT(format, ...)                                                                                                                      \
+  do {                                                                                                                                                         \
+    char buf[256];                                                                                                                                             \
+    std::snprintf(buf, sizeof(buf), format, __VA_ARGS__);                                                                                                      \
+    PrintLibrary(std::string("VMA: ") + buf);                                                                                                                  \
   } while (0)
 // #endif
 

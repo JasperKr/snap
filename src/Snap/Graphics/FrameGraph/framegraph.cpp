@@ -35,9 +35,7 @@
 
 namespace Graphics {
 
-auto FrameGraph::Submit(const GraphicsContext &context,
-                        std::vector<VirtualCommandBuffer *> &newCommandBuffers)
-    -> Error {
+auto FrameGraph::Submit(const GraphicsContext &context, std::vector<VirtualCommandBuffer *> &newCommandBuffers) -> Error {
 
   uint16_t idx = 1UL;
 
@@ -61,9 +59,7 @@ auto FrameGraph::GetCommand(CommandIDPair identifier) -> Command & {
   return commandBuffers.at(idx - 1)->commandStorage.at(identifier.first);
 }
 
-auto FrameGraph::GetCommand(CommandID identifier) -> Command & {
-  return GetCommand(commandIndices.at(identifier));
-}
+auto FrameGraph::GetCommand(CommandID identifier) -> Command & { return GetCommand(commandIndices.at(identifier)); }
 
 auto FrameGraph::MapResourceUsages() -> Error {
   ZoneScoped;
@@ -72,8 +68,7 @@ auto FrameGraph::MapResourceUsages() -> Error {
     ZoneScopedN("Map writes");
 
     for (const auto command : commandIndices) {
-      const auto *boundState =
-          get_if_derived<BoundResources>(GetCommand(command).data);
+      const auto *boundState = get_if_derived<BoundResources>(GetCommand(command).data);
 
       if (boundState == nullptr) {
         continue;
@@ -88,17 +83,13 @@ auto FrameGraph::MapResourceUsages() -> Error {
   {
     ZoneScopedN("Erase irrelevant data");
     Utils::ParallelFor(commandIndices, [this](CommandIDPair command) -> void {
-      auto *boundState =
-          get_if_derived<BoundResources>(GetCommand(command).data);
+      auto *boundState = get_if_derived<BoundResources>(GetCommand(command).data);
 
       if (boundState == nullptr) {
         return;
       }
 
-      Utils::UnorderedErase(
-          boundState->reads, [this](const VulkanResource &resource) -> bool {
-            return !resourcesWritesInFrame.contains(resource.Ptr());
-          });
+      Utils::UnorderedErase(boundState->reads, [this](const VulkanResource &resource) -> bool { return !resourcesWritesInFrame.contains(resource.Ptr()); });
     });
   }
 
@@ -109,8 +100,7 @@ auto FrameGraph::MapResourceUsages() -> Error {
 // reduced parent edges. Commands older than `floor` are never expanded: any
 // path between two candidate parents only passes through commands younger than
 // the oldest candidate, so cutting there does not change the outcome.
-auto FrameGraph::MarkAncestors(CommandIndex from, CommandIndex floor,
-                               uint32_t stamp) -> void {
+auto FrameGraph::MarkAncestors(CommandIndex from, CommandIndex floor, uint32_t stamp) -> void {
   ancestorStack.clear();
   ancestorStack.emplace_back(from);
 
@@ -135,9 +125,7 @@ auto FrameGraph::MarkAncestors(CommandIndex from, CommandIndex floor,
 //   A -> B -> C
 //   D ------> C
 // keeps both B -> C and D -> C, but drops A -> C.
-auto FrameGraph::ReduceParents(CommandIndex idx,
-                               const std::vector<CommandIndex> &candidates)
-    -> void {
+auto FrameGraph::ReduceParents(CommandIndex idx, const std::vector<CommandIndex> &candidates) -> void {
   auto &parents = commandParents[idx];
   parents.clear();
 
@@ -191,9 +179,7 @@ auto FrameGraph::PreCompile() -> Error {
 
     FrontierKey(const VulkanResource &key) : key(key) {} // NOLINT
 
-    auto operator==(const FrontierKey &other) const noexcept -> bool {
-      return key.Overlaps(other.key);
-    }
+    auto operator==(const FrontierKey &other) const noexcept -> bool { return key.Overlaps(other.key); }
   };
 
   struct FrontierKeyHash {
@@ -202,10 +188,7 @@ auto FrameGraph::PreCompile() -> Error {
     }
   };
 
-  std::unordered_map<FrontierKey,
-                     std::vector<std::pair<VulkanResource, Frontier>>,
-                     FrontierKeyHash>
-      frontiers;
+  std::unordered_map<FrontierKey, std::vector<std::pair<VulkanResource, Frontier>>, FrontierKeyHash> frontiers;
   static std::vector<CommandIndex> candidates;
 
   for (const CommandID commandID : commands) {
@@ -282,8 +265,7 @@ auto FrameGraph::PreCompile() -> Error {
         break;
       }
       if (!found) {
-        bucket.emplace_back(
-            resource, Frontier{.lastWrite = command.id, .readsSinceWrite = {}});
+        bucket.emplace_back(resource, Frontier{.lastWrite = command.id, .readsSinceWrite = {}});
       }
     }
 
@@ -302,9 +284,7 @@ auto FrameGraph::PreCompile() -> Error {
       }
 
       if (!found) {
-        bucket.emplace_back(resource,
-                            Frontier{.lastWrite = InvalidCommandID,
-                                     .readsSinceWrite = {command.id}});
+        bucket.emplace_back(resource, Frontier{.lastWrite = InvalidCommandID, .readsSinceWrite = {command.id}});
       }
     }
   }
@@ -346,8 +326,7 @@ auto FrameGraph::BuildGraph() -> Error {
     for (const CommandID parentID : commandParents[command.id]) {
       const auto &parent = GetCommand(parentID);
 
-      if (parent.GetType() != CommandType::vkCmdPipelineBarrier2 &&
-          command.GetType() != CommandType::vkCmdPipelineBarrier2) {
+      if (parent.GetType() != CommandType::vkCmdPipelineBarrier2 && command.GetType() != CommandType::vkCmdPipelineBarrier2) {
         dependencies.emplace((uint32_t(parentID) << UINT16_WIDTH) | command.id);
       }
     }
@@ -368,13 +347,8 @@ auto FrameGraph::BuildGraph() -> Error {
 auto MemoryBarrierToString(const VkMemoryBarrier2 &barrier) -> std::string {
   std::stringstream stream{};
 
-  stream << VkAccessHelpers::AccessFlags2ToString(barrier.srcAccessMask)
-         << " at "
-         << VkPipelineHelpers::PipelineStage2ToString(barrier.srcStageMask)
-         << " -> "
-         << VkAccessHelpers::AccessFlags2ToString(barrier.dstAccessMask)
-         << " at "
-         << VkPipelineHelpers::PipelineStage2ToString(barrier.dstStageMask);
+  stream << VkAccessHelpers::AccessFlags2ToString(barrier.srcAccessMask) << " at " << VkPipelineHelpers::PipelineStage2ToString(barrier.srcStageMask) << " -> "
+         << VkAccessHelpers::AccessFlags2ToString(barrier.dstAccessMask) << " at " << VkPipelineHelpers::PipelineStage2ToString(barrier.dstStageMask);
 
   return stream.str();
 }
@@ -432,14 +406,10 @@ auto FrameGraph::DebugOutput() -> Error {
           }
         }
 
-        stream << std::format("{} [label=\"{}: {}\nR: {}\nW: {}\"];\n",
-                              command.id, command.level,
-                              CommandTypeEnumHelper.ToString(command.GetType()),
+        stream << std::format("{} [label=\"{}: {}\nR: {}\nW: {}\"];\n", command.id, command.level, CommandTypeEnumHelper.ToString(command.GetType()),
                               readStr.str(), writeStr.str());
       } else {
-        stream << std::format(
-            "{} [label=\"{}: {}\"];\n", command.id, command.level,
-            CommandTypeEnumHelper.ToString(command.GetType()));
+        stream << std::format("{} [label=\"{}: {}\"];\n", command.id, command.level, CommandTypeEnumHelper.ToString(command.GetType()));
       }
     }
 
@@ -451,8 +421,7 @@ auto FrameGraph::DebugOutput() -> Error {
       barriers << MemoryBarrierToString(barrier) << "\n";
     }
 
-    stream << std::format("shape=note,\nlabel=\"{} Barriers\"\n",
-                          barriers.str());
+    stream << std::format("shape=note,\nlabel=\"{} Barriers\"\n", barriers.str());
     stream << "];\n}\n";
   }
 
@@ -460,11 +429,8 @@ auto FrameGraph::DebugOutput() -> Error {
     uint32_t parent = (dependency >> UINT16_WIDTH) & UINT16_MAX;
     uint32_t child = dependency & UINT16_MAX;
 
-    ERR_ASSERT_MSG(
-        GetCommand(child).level > GetCommand(parent).level,
-        std::format(
-            "child: {} with parent: {}, child level {} <= parent level {}",
-            child, parent, GetCommand(child).level, GetCommand(parent).level));
+    ERR_ASSERT_MSG(GetCommand(child).level > GetCommand(parent).level, std::format("child: {} with parent: {}, child level {} <= parent level {}", child,
+                                                                                   parent, GetCommand(child).level, GetCommand(parent).level));
 
     stream << "\"" << parent << "\" -> \"" << child << "\";\n";
   }
@@ -486,12 +452,8 @@ auto FrameGraph::DebugOutput() -> Error {
 // Commands at 5 may cause a hazard, but 11 not if we added a barrier there beforehand.
 // The barrier mask can be used with bitwise and to check if some bit is not yet synced.
 // Returns the unsynced access bits as a 64x64 matrix, as access rows pipeline column
-auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
-                          VkAccessFlags2 lastWriteAccess,
-                          VkPipelineStageFlags2 lastWritePipeline,
-                          VkAccessFlags2 dstAccess,
-                          VkPipelineStageFlags2 dstPipeline)
-    -> std::array<VkPipelineStageFlags2, UINT64_WIDTH> {
+auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end, VkAccessFlags2 lastWriteAccess, VkPipelineStageFlags2 lastWritePipeline,
+                          VkAccessFlags2 dstAccess, VkPipelineStageFlags2 dstPipeline) -> std::array<VkPipelineStageFlags2, UINT64_WIDTH> {
 
   // It is illegal to use frame graphs in other threads, and so we can keep this static
   static std::array<VkPipelineStageFlags2, UINT64_WIDTH> maskBits{};
@@ -517,8 +479,7 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
         return maskBits;
       }
 
-      const VkPipelineStageFlags2 sharedPipelines =
-          barrier.dstStageMask & dstPipeline;
+      const VkPipelineStageFlags2 sharedPipelines = barrier.dstStageMask & dstPipeline;
 
       for (const uint32_t bitIndex : Utils::BitIndexRange(sharedPipelines)) {
         // If this stage bit is active in this sync and we still need it
@@ -547,8 +508,7 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end,
   return maskBits;
 }
 
-inline auto ResourceListToString(const std::vector<void *> &resources)
-    -> std::string {
+inline auto ResourceListToString(const std::vector<void *> &resources) -> std::string {
   std::stringstream str;
 
   for (const auto *resource : resources) {
@@ -561,10 +521,8 @@ inline auto ResourceListToString(const std::vector<void *> &resources)
   return str.str();
 }
 
-auto FrameGraph::GetRequiredBarriers(
-    CommandID commandID, const VulkanResource &resource,
-    VkAccessFlags2 accesses, VkPipelineStageFlags2 pipelines,
-    std::vector<VkMemoryBarrier2> &memoryBarriers) -> void {
+auto FrameGraph::GetRequiredBarriers(CommandID commandID, const VulkanResource &resource, VkAccessFlags2 accesses, VkPipelineStageFlags2 pipelines,
+                                     std::vector<VkMemoryBarrier2> &memoryBarriers) -> void {
   const auto &command = GetCommand(commandID);
 
   if (command.level == 0) {
@@ -601,14 +559,12 @@ auto FrameGraph::GetRequiredBarriers(
 
     // SyncMask returns all accesses per pipeline not yet synced
     // For the pipelines we ask about
-    const auto &mask = SyncMask(parent.level, command.level, srcAccess,
-                                srcStage, accesses, pipelines);
+    const auto &mask = SyncMask(parent.level, command.level, srcAccess, srcStage, accesses, pipelines);
 
     for (const auto bit : Utils::BitIndexRange(pipelines)) {
       const VkPipelineStageFlags2 unsyncedAccesses = mask.at(bit);
 
-      if (unsyncedAccesses == 0ULL ||
-          !VkAccessHelpers::IsWriteAccess(unsyncedAccesses | srcAccess)) {
+      if (unsyncedAccesses == 0ULL || !VkAccessHelpers::IsWriteAccess(unsyncedAccesses | srcAccess)) {
         continue;
       }
 
@@ -638,8 +594,7 @@ inline auto MergeBarriers(std::vector<VkMemoryBarrier2> &barriers) {
   for (const auto &barrier : barriers) {
     bool combined = false;
     for (auto &other : newBarriers) {
-      if (other.srcStageMask == barrier.srcStageMask &&
-          other.dstStageMask == barrier.dstStageMask) {
+      if (other.srcStageMask == barrier.srcStageMask && other.dstStageMask == barrier.dstStageMask) {
         other.srcAccessMask |= barrier.srcAccessMask;
         other.dstAccessMask |= barrier.dstAccessMask;
 
@@ -662,24 +617,21 @@ auto FrameGraph::InsertBarriers() -> Error {
   {
     ZoneScopedN("Filter user barriers");
     for (auto &level : graph) {
-      Utils::UnorderedErase(
-          level.commands, [&](const CommandIndex commandIndex) -> bool {
-            const CommandID commandID = commands.at(commandIndex);
-            const auto &command = GetCommand(commandID);
+      Utils::UnorderedErase(level.commands, [&](const CommandIndex commandIndex) -> bool {
+        const CommandID commandID = commands.at(commandIndex);
+        const auto &command = GetCommand(commandID);
 
-            if (command.GetType() == CommandType::vkCmdPipelineBarrier2) {
-              level.userBarriers.emplace_back(commandIndex);
+        if (command.GetType() == CommandType::vkCmdPipelineBarrier2) {
+          level.userBarriers.emplace_back(commandIndex);
 
-              return true;
-            }
-            return false;
-          });
+          return true;
+        }
+        return false;
+      });
     }
   }
 
-  const auto addBarriers = [this](const std::vector<VulkanResource> &resources,
-                                  const CommandID commandID,
-                                  Graphics::Level &level) -> void {
+  const auto addBarriers = [this](const std::vector<VulkanResource> &resources, const CommandID commandID, Graphics::Level &level) -> void {
     for (const auto &resource : resources) {
       if (!resourcesWritesInFrame.contains(resource.Ptr())) {
         continue;
@@ -700,8 +652,7 @@ auto FrameGraph::InsertBarriers() -> Error {
 
       const auto [accesses, pipelines] = iter->second;
 
-      GetRequiredBarriers(commandID, resource, accesses, pipelines,
-                          level.barriers);
+      GetRequiredBarriers(commandID, resource, accesses, pipelines, level.barriers);
     }
   };
 
@@ -746,9 +697,8 @@ auto FrameGraph::BuildReadyState() -> Error {
         continue;
       }
 
-      const bool parentsReady = std::all_of(
-          commandParents[command.id].begin(), commandParents[command.id].end(),
-          [&](CommandID parent) -> auto { return scheduled[parent]; });
+      const bool parentsReady =
+          std::all_of(commandParents[command.id].begin(), commandParents[command.id].end(), [&](CommandID parent) -> auto { return scheduled[parent]; });
 
       if (parentsReady) {
         batch.emplace_back(command.id);
@@ -780,10 +730,7 @@ auto FrameGraph::BuildReadyState() -> Error {
         }
 
         // All parents have been scheduled
-        const bool parentsReady =
-            std::ranges::all_of(parentsOfChild, [&](CommandID parent) -> auto {
-              return scheduled[parent];
-            });
+        const bool parentsReady = std::ranges::all_of(parentsOfChild, [&](CommandID parent) -> auto { return scheduled[parent]; });
 
         if (parentsReady) {
           nextReady[commandID].emplace_back(command.id);
@@ -797,8 +744,7 @@ auto FrameGraph::BuildReadyState() -> Error {
   return {};
 }
 
-inline auto ComparePipelineCompatability(const VirtualRenderState &state,
-                                         const VirtualRenderState &other) {
+inline auto ComparePipelineCompatability(const VirtualRenderState &state, const VirtualRenderState &other) {
   if (state.colorAttachments != other.colorAttachments) {
     return false;
   }
@@ -820,8 +766,7 @@ inline auto ComparePipelineCompatability(const VirtualRenderState &state,
   return true;
 }
 
-auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
-    -> uint32_t {
+auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID) -> uint32_t {
   const auto &parent = GetCommand(commands.at(parentID));
   const auto &child = GetCommand(commands.at(childID));
 
@@ -854,8 +799,7 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
     } else { // Child is not rendering
       cost += EndRenderingCost;
     }
-  } else if (child.GetType() ==
-             CommandType::renderPass) { // Child is rendering but parent isn't
+  } else if (child.GetType() == CommandType::renderPass) { // Child is rendering but parent isn't
     const auto &childVirtualState = std::get<RenderPass>(child.data).state;
     if (childVirtualState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
       cost += StartRenderingCost;
@@ -868,8 +812,7 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID)
 }
 
 // returns a list of commands, with the best pick last
-auto FrameGraph::PickNextCommands(CommandIndex parent)
-    -> std::vector<CommandIndex> {
+auto FrameGraph::PickNextCommands(CommandIndex parent) -> std::vector<CommandIndex> {
   ZoneScoped;
 
   const auto &children = nextReady.at(parent);
@@ -896,12 +839,10 @@ auto FrameGraph::PickNextCommands(CommandIndex parent)
 
   std::vector<CommandIndex> sortedChildren{children};
 
-  std::ranges::sort(
-      sortedChildren,
-      [](const CommandIndex &first, const CommandIndex &second) -> bool {
-        // A(3) > B(2) -> A, B. We want highest score first, so A > B
-        return scores.at(first) > scores.at(second);
-      });
+  std::ranges::sort(sortedChildren, [](const CommandIndex &first, const CommandIndex &second) -> bool {
+    // A(3) > B(2) -> A, B. We want highest score first, so A > B
+    return scores.at(first) > scores.at(second);
+  });
 
   return sortedChildren;
 }
@@ -948,10 +889,7 @@ auto FrameGraph::Reorder() -> Result<std::vector<CommandIndex> *> {
       continue;
     }
 
-    Utils::UnorderedErase(nextCommands,
-                          [&](const CommandIndex commandID) -> bool {
-                            return visited.contains(commandID);
-                          });
+    Utils::UnorderedErase(nextCommands, [&](const CommandIndex commandID) -> bool { return visited.contains(commandID); });
 
     commandsStack.append_range(nextCommands);
   }
@@ -988,8 +926,7 @@ auto FrameGraph::GetCommandLevel(CommandIndex commandID) -> CommandLevel {
   return command.level;
 }
 
-auto FrameGraph::UpdateLevels(const std::vector<CommandIndex> &reordered)
-    -> Error {
+auto FrameGraph::UpdateLevels(const std::vector<CommandIndex> &reordered) -> Error {
   ZoneScoped;
 
   for (auto commandID : commands) {
@@ -1041,10 +978,8 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
         continue;
       }
 
-      Utils::DeDuplicate(bound->reads, std::less<VulkanResource>{},
-                         &VulkanResource::operator==);
-      Utils::DeDuplicate(bound->writes, std::less<VulkanResource>{},
-                         &VulkanResource::operator==);
+      Utils::DeDuplicate(bound->reads, std::less<VulkanResource>{}, &VulkanResource::operator==);
+      Utils::DeDuplicate(bound->writes, std::less<VulkanResource>{}, &VulkanResource::operator==);
     }
   }
 
@@ -1077,10 +1012,7 @@ auto FrameGraph::Compile(const GraphicsContext &context) -> Error {
   return {};
 }
 
-auto FrameGraph::WriteCommand(const Command &command,
-                              const GraphicsContext &context,
-                              const RenderPass *parent,
-                              VkCommandBuffer cmdBuffer) -> Error {
+auto FrameGraph::WriteCommand(const Command &command, const GraphicsContext &context, const RenderPass *parent, VkCommandBuffer cmdBuffer) -> Error {
   const auto *callable = get_if_derived<Callable>(command.data);
 
   assert(callable != nullptr);
@@ -1101,8 +1033,7 @@ auto FrameGraph::WriteCommand(const Command &command,
   return {};
 }
 
-auto FrameGraph::Write(const GraphicsContext &context,
-                       VkCommandBuffer cmdBuffer) -> Error {
+auto FrameGraph::Write(const GraphicsContext &context, VkCommandBuffer cmdBuffer) -> Error {
   ZoneScoped;
 
   GetThreadContext().workingCommandBuffer = cmdBuffer;
@@ -1176,11 +1107,9 @@ auto FrameGraph::Write(const GraphicsContext &context,
 
         for (const CommandID childCommandID : renderPass.commands) {
           // Here we create an ID pointing to the render pass's cmd buffer + child ID
-          const auto &childCommand =
-              GetCommand(CommandIDPair(childCommandID, ParentCmdBufferID));
+          const auto &childCommand = GetCommand(CommandIDPair(childCommandID, ParentCmdBufferID));
 
-          CHECK_ERR(
-              WriteCommand(childCommand, context, &renderPass, cmdBuffer));
+          CHECK_ERR(WriteCommand(childCommand, context, &renderPass, cmdBuffer));
         }
       } else {
         ERR_ASSERT(!GetRequiresRendering(command.GetType()));

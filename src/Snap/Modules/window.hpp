@@ -16,8 +16,7 @@ auto Hide(SDL_Window *window) -> void;
 auto GetDisplayCount(SDL_Window *window) -> int;
 auto GetDisplayName(SDL_Window *window, int displayIndex) -> std::string;
 auto IsFullscreen(SDL_Window *window) -> bool;
-auto GetFullscreenDimensions(SDL_Window *window, int displayIndex)
-    -> std::vector<Math::Uvec2>;
+auto GetFullscreenDimensions(SDL_Window *window, int displayIndex) -> std::vector<Math::Uvec2>;
 auto SetFullscreen(SDL_Window *window, bool fullscreen) -> void;
 auto GetWidth(SDL_Window *window) -> int;
 auto GetHeight(SDL_Window *window) -> int;
@@ -110,8 +109,7 @@ struct WindowContext {
 
 auto GetSettings(WindowContext &wcontext) -> Settings;
 auto SetSettings(WindowContext &wcontext, const Settings &settings) -> void;
-auto UpdateSettings(WindowContext &wcontext, const SettingsUpdate &update)
-    -> void;
+auto UpdateSettings(WindowContext &wcontext, const SettingsUpdate &update) -> void;
 
 auto SetColorSpace(WindowContext &window, ColorSpace colorSpace) -> void;
 auto GetColorSpace(WindowContext &window) -> ColorSpace;

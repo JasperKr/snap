@@ -42,15 +42,13 @@ void computeMain(uint2 id: SV_DispatchThreadID) {
 
   float visibility = RayHitTexture.Load(int3(id, 0));
 
-  if (any(sampleCoord.xy < texelSize * 0.5) ||
-      any(sampleCoord.xy >= 1.0 - texelSize * 0.5)) {
+  if (any(sampleCoord.xy < texelSize * 0.5) || any(sampleCoord.xy >= 1.0 - texelSize * 0.5)) {
     OutputTexture.Store(id, float2(visibility, 0.0));
     return;
   }
 
   float previousDepth = PreviousDepthTexture.SampleLevelZero(sampleCoord);
-  float3 previousWorldPosition =
-      CameraData[1].GetWorldPosition(sampleCoord, previousDepth);
+  float3 previousWorldPosition = CameraData[1].GetWorldPosition(sampleCoord, previousDepth);
 
   float rejection = 0.0F;
 
@@ -67,8 +65,7 @@ void computeMain(uint2 id: SV_DispatchThreadID) {
     [unroll]
     for (int y = -1; y <= 1; ++y) {
       float2 neighbourCoord = sampleCoord + float2(x, y) * pixelSize;
-      if (any(neighbourCoord < pixelSize * 0.5) ||
-          any(neighbourCoord >= 1.0 - pixelSize * 0.5)) {
+      if (any(neighbourCoord < pixelSize * 0.5) || any(neighbourCoord >= 1.0 - pixelSize * 0.5)) {
         continue;
       }
 

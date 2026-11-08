@@ -18,10 +18,7 @@ struct RendertargetKey {
   int location;
   int layer;
 
-  auto operator==(const RendertargetKey &other) const -> bool {
-    return textureID == other.textureID && location == other.location &&
-           layer == other.layer;
-  }
+  auto operator==(const RendertargetKey &other) const -> bool { return textureID == other.textureID && location == other.location && layer == other.layer; }
 };
 
 struct StateKey {
@@ -35,11 +32,8 @@ struct StateKey {
   VkPrimitiveTopology primitiveTopology;
 
   explicit StateKey(const VirtualRenderState &state)
-      : hasDepthStencilAttachment(state.hasDepthStencilAttachment),
-        shaderModuleID(state.shader->getID()), bindPoint(state.bindPoint),
-        stencilTestEnable(state.stencilTestEnable),
-        polygonMode(state.polygonMode),
-        primitiveTopology(state.primitiveTopology) {
+      : hasDepthStencilAttachment(state.hasDepthStencilAttachment), shaderModuleID(state.shader->getID()), bindPoint(state.bindPoint),
+        stencilTestEnable(state.stencilTestEnable), polygonMode(state.polygonMode), primitiveTopology(state.primitiveTopology) {
 
     colorAttachments.fill({.textureID = 0, .location = -1, .layer = -1});
     depthStencilTextureID = {.textureID = 0, .location = -1};
@@ -61,18 +55,13 @@ struct StateKey {
   }
 
   auto operator==(const StateKey &other) const -> bool {
-    if (hasDepthStencilAttachment != other.hasDepthStencilAttachment ||
-        shaderModuleID != other.shaderModuleID ||
-        bindPoint != other.bindPoint ||
-        stencilTestEnable != other.stencilTestEnable ||
-        polygonMode != other.polygonMode ||
-        primitiveTopology != other.primitiveTopology ||
+    if (hasDepthStencilAttachment != other.hasDepthStencilAttachment || shaderModuleID != other.shaderModuleID || bindPoint != other.bindPoint ||
+        stencilTestEnable != other.stencilTestEnable || polygonMode != other.polygonMode || primitiveTopology != other.primitiveTopology ||
         colorAttachments != other.colorAttachments) {
       return false;
     }
 
-    if (hasDepthStencilAttachment &&
-        !(depthStencilTextureID == other.depthStencilTextureID)) {
+    if (hasDepthStencilAttachment && !(depthStencilTextureID == other.depthStencilTextureID)) {
       return false;
     }
 

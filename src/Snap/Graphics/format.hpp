@@ -154,8 +154,7 @@ constexpr auto IsCompressedFormat(VkFormat format) -> bool {
   }
 }
 
-constexpr auto GetSize(VkFormat format, uint32_t width, uint32_t height)
-    -> uint64_t {
+constexpr auto GetSize(VkFormat format, uint32_t width, uint32_t height) -> uint64_t {
   if (IsCompressedFormat(format)) {
     auto blockSize = GetSize(format);
     auto blockWidth = (width + 3) / 4;

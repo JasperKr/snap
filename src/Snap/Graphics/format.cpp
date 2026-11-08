@@ -527,14 +527,10 @@ auto FromString(const std::string &format) -> VkFormat {
 
 auto StringToArraySize(const std::string &format) -> size_t {
   static const std::unordered_map<std::string, size_t> FormatToArraySize = {
-      {"floatmat2", 2},   {"floatmat2x2", 2}, {"floatmat3", 3},
-      {"floatmat3x3", 3}, {"floatmat4", 4},   {"floatmat4x4", 4},
-      {"halfmat2", 2},    {"halfmat2x2", 2},  {"halfmat3", 3},
-      {"halfmat3x3", 3},  {"halfmat4", 4},    {"halfmat4x4", 4},
-      {"floatmat2x3", 3}, {"floatmat3x2", 2}, {"floatmat2x4", 4},
-      {"floatmat4x2", 2}, {"floatmat3x4", 4}, {"floatmat4x3", 3},
-      {"halfmat2x3", 3},  {"halfmat3x2", 2},  {"halfmat2x4", 4},
-      {"halfmat4x2", 2},  {"halfmat3x4", 4},  {"halfmat4x3", 3},
+      {"floatmat2", 2},   {"floatmat2x2", 2}, {"floatmat3", 3},   {"floatmat3x3", 3}, {"floatmat4", 4},   {"floatmat4x4", 4},
+      {"halfmat2", 2},    {"halfmat2x2", 2},  {"halfmat3", 3},    {"halfmat3x3", 3},  {"halfmat4", 4},    {"halfmat4x4", 4},
+      {"floatmat2x3", 3}, {"floatmat3x2", 2}, {"floatmat2x4", 4}, {"floatmat4x2", 2}, {"floatmat3x4", 4}, {"floatmat4x3", 3},
+      {"halfmat2x3", 3},  {"halfmat3x2", 2},  {"halfmat2x4", 4},  {"halfmat4x2", 2},  {"halfmat3x4", 4},  {"halfmat4x3", 3},
   };
   auto iter = FormatToArraySize.find(format);
   if (iter != FormatToArraySize.end()) {
@@ -726,19 +722,11 @@ auto BaseTypeToString(VkFormat format, uint8_t const *data) -> std::string {
   case VK_FORMAT_R8_UNORM:
     return std::to_string(static_cast<float>(*data) / UINT_NORM_MAX);
   case VK_FORMAT_R16_UNORM:
-    return std::to_string(
-        static_cast<float>(*reinterpret_cast<uint16_t const *>(data)) /
-        USHORT_NORM_MAX);
+    return std::to_string(static_cast<float>(*reinterpret_cast<uint16_t const *>(data)) / USHORT_NORM_MAX);
   case VK_FORMAT_R8_SNORM:
-    return std::to_string(
-        std::max(static_cast<float>(*reinterpret_cast<int8_t const *>(data)) /
-                     SINT_NORM_MAX,
-                 SINT_NORM_MIN));
+    return std::to_string(std::max(static_cast<float>(*reinterpret_cast<int8_t const *>(data)) / SINT_NORM_MAX, SINT_NORM_MIN));
   case VK_FORMAT_R16_SNORM:
-    return std::to_string(
-        std::max(static_cast<float>(*reinterpret_cast<int16_t const *>(data)) /
-                     SHORT_NORM_MAX,
-                 SHORT_NORM_MIN));
+    return std::to_string(std::max(static_cast<float>(*reinterpret_cast<int16_t const *>(data)) / SHORT_NORM_MAX, SHORT_NORM_MIN));
   default:
     return "unknown";
   }

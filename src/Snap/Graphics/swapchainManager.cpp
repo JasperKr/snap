@@ -56,21 +56,16 @@ constexpr std::array<std::array<PM, 6>, 4> PreferencePerPresentMode = {{
     },
 }};
 
-inline auto FindPresentMode(Window::WindowContext &wcontext,
-                            GraphicsContext &context)
-    -> Result<VkPresentModeKHR> {
+inline auto FindPresentMode(Window::WindowContext &wcontext, GraphicsContext &context) -> Result<VkPresentModeKHR> {
   uint32_t presentModeCount = 0;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(
-      context.physicalDevice, context.surface, &presentModeCount, nullptr);
+  vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice, context.surface, &presentModeCount, nullptr);
 
   if (presentModeCount == 0) {
     return Error::Unexpected("No present modes found for surface.", -1);
   }
 
   std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-  vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice,
-                                            context.surface, &presentModeCount,
-                                            presentModes.data());
+  vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice, context.surface, &presentModeCount, presentModes.data());
 
   auto Preferred = VK_PRESENT_MODE_MAX_ENUM_KHR;
 
@@ -101,14 +96,9 @@ inline auto FindPresentMode(Window::WindowContext &wcontext,
   return Error::Unexpected("No suitable present mode found for surface.", -2);
 }
 
-inline auto
-FindHDRColorSpaceSupport(const GraphicsContext &context,
-                         const std::vector<VkSurfaceFormatKHR> &formats)
-    -> Result<VkSurfaceFormatKHR> {
-  constexpr std::array<VkFormat, 2> AllowedFormats = {
-      VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_FORMAT_A2R10G10B10_UNORM_PACK32};
-  constexpr std::array<VkColorSpaceKHR, 2> AllowedColorSpaces = {
-      VK_COLOR_SPACE_HDR10_HLG_EXT, VK_COLOR_SPACE_HDR10_ST2084_EXT};
+inline auto FindHDRColorSpaceSupport(const GraphicsContext &context, const std::vector<VkSurfaceFormatKHR> &formats) -> Result<VkSurfaceFormatKHR> {
+  constexpr std::array<VkFormat, 2> AllowedFormats = {VK_FORMAT_A2B10G10R10_UNORM_PACK32, VK_FORMAT_A2R10G10B10_UNORM_PACK32};
+  constexpr std::array<VkColorSpaceKHR, 2> AllowedColorSpaces = {VK_COLOR_SPACE_HDR10_HLG_EXT, VK_COLOR_SPACE_HDR10_ST2084_EXT};
 
   constexpr std::array Preferred = {
       VK_FORMAT_A2B10G10R10_UNORM_PACK32,
@@ -119,8 +109,7 @@ FindHDRColorSpaceSupport(const GraphicsContext &context,
   for (VkFormat preferredFormat : Preferred) {
     for (VkColorSpaceKHR colorspace : AllowedColorSpaces) {
       for (const auto &format : formats) {
-        if (format.format == preferredFormat &&
-            format.colorSpace == colorspace) {
+        if (format.format == preferredFormat && format.colorSpace == colorspace) {
           return format;
         }
       }
@@ -130,12 +119,8 @@ FindHDRColorSpaceSupport(const GraphicsContext &context,
   return Error::Unexpected("No suitable HDR surface format found", -1);
 }
 
-inline auto
-FindSRGBColorSpaceSupport(const GraphicsContext &context,
-                          const std::vector<VkSurfaceFormatKHR> &formats)
-    -> Result<VkSurfaceFormatKHR> {
-  constexpr std::array<VkFormat, 2> AllowedFormats = {VK_FORMAT_R8G8B8A8_SRGB,
-                                                      VK_FORMAT_B8G8R8A8_SRGB};
+inline auto FindSRGBColorSpaceSupport(const GraphicsContext &context, const std::vector<VkSurfaceFormatKHR> &formats) -> Result<VkSurfaceFormatKHR> {
+  constexpr std::array<VkFormat, 2> AllowedFormats = {VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB};
 
   for (const auto &format : formats) {
     if (format.colorSpace != VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -152,12 +137,8 @@ FindSRGBColorSpaceSupport(const GraphicsContext &context,
   return Error::Unexpected("No suitable sRGB surface format found", -1);
 }
 
-inline auto
-FindLinearColorSpaceSupport(const GraphicsContext &context,
-                            const std::vector<VkSurfaceFormatKHR> &formats)
-    -> Result<VkSurfaceFormatKHR> {
-  constexpr std::array<VkFormat, 2> AllowedFormats = {VK_FORMAT_R8G8B8A8_UNORM,
-                                                      VK_FORMAT_B8G8R8A8_UNORM};
+inline auto FindLinearColorSpaceSupport(const GraphicsContext &context, const std::vector<VkSurfaceFormatKHR> &formats) -> Result<VkSurfaceFormatKHR> {
+  constexpr std::array<VkFormat, 2> AllowedFormats = {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM};
 
   for (const auto &format : formats) {
     if (format.colorSpace != VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -174,22 +155,18 @@ FindLinearColorSpaceSupport(const GraphicsContext &context,
   return Error::Unexpected("No suitable linear surface format found", -1);
 }
 
-inline auto FindSurfaceFormat(Window::ColorSpace colorspace,
-                              GraphicsContext &context)
-    -> Result<VkSurfaceFormatKHR> {
+inline auto FindSurfaceFormat(Window::ColorSpace colorspace, GraphicsContext &context) -> Result<VkSurfaceFormatKHR> {
   // Surface format finding code here
 
   uint32_t formatCount = 0;
 
-  vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice, context.surface,
-                                       &formatCount, nullptr);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice, context.surface, &formatCount, nullptr);
   if (formatCount == 0) {
     return Error::Unexpected("No surface formats found", -1);
   }
 
   std::vector<VkSurfaceFormatKHR> formats(formatCount);
-  vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice, context.surface,
-                                       &formatCount, formats.data());
+  vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice, context.surface, &formatCount, formats.data());
 
   switch (colorspace) {
   case Window::ColorSpace::GammaCorrect:
@@ -199,8 +176,7 @@ inline auto FindSurfaceFormat(Window::ColorSpace colorspace,
   case Window::ColorSpace::HDR: {
     auto result = FindHDRColorSpaceSupport(context, formats);
     if (Error::IsError(result)) {
-      PrintWarning(
-          "HDR color space requested but not supported. Falling back to sRGB.");
+      PrintWarning("HDR color space requested but not supported. Falling back to sRGB.");
       return FindSRGBColorSpaceSupport(context, formats);
     }
 
@@ -215,10 +191,8 @@ inline auto GetSwapchainTextures(GraphicsContext &context) -> Error {
   context.swapchainInfo.textures.resize(context.swapchainInfo.imageCount);
 
   for (uint32_t i = 0; i < context.swapchainInfo.imageCount; i++) {
-    auto texture = CHECK_RES(Graphics::Texture::FromSwapchain(
-        context, context.swapchainInfo.images[i], context.swapchainInfo.format,
-        context.swapchainInfo.extent.width,
-        context.swapchainInfo.extent.height));
+    auto texture = CHECK_RES(Graphics::Texture::FromSwapchain(context, context.swapchainInfo.images[i], context.swapchainInfo.format,
+                                                              context.swapchainInfo.extent.width, context.swapchainInfo.extent.height));
 
     context.swapchainInfo.textures.at(i) = texture;
   }
@@ -226,9 +200,7 @@ inline auto GetSwapchainTextures(GraphicsContext &context) -> Error {
   return Error::Success();
 }
 
-auto SwapchainManager::Initialize(GraphicsContext &context,
-                                  Window::WindowContext &windowContext)
-    -> Result<SwapchainManager> {
+auto SwapchainManager::Initialize(GraphicsContext &context, Window::WindowContext &windowContext) -> Result<SwapchainManager> {
   SwapchainManager manager;
 
   CHECK_ERR(manager.CreateVkSwapchain(context, windowContext));
@@ -244,8 +216,7 @@ auto SwapchainManager::Initialize(GraphicsContext &context,
 auto SwapchainManager::Deinitialize(GraphicsContext &context) -> void {
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    vkDestroySwapchainKHR(context.device, currentSwapchain,
-                          GetAllocationCallbacks());
+    vkDestroySwapchainKHR(context.device, currentSwapchain, GetAllocationCallbacks());
   }
 
   {
@@ -266,9 +237,7 @@ auto SwapchainManager::Deinitialize(GraphicsContext &context) -> void {
   context.swapchainInfo.textures.clear();
 }
 
-auto SwapchainManager::RecreateSwapchain(GraphicsContext &context,
-                                         Window::WindowContext &wcontext)
-    -> Error {
+auto SwapchainManager::RecreateSwapchain(GraphicsContext &context, Window::WindowContext &wcontext) -> Error {
   ZoneScoped;
 
   OldSwapchain oldSwapchain{
@@ -290,47 +259,34 @@ auto SwapchainManager::RecreateSwapchain(GraphicsContext &context,
   return Error::Success();
 }
 
-auto SwapchainManager::CleanupOldSwapchains(GraphicsContext &context,
-                                            uint64_t currentFrame) -> void {
-  Utils::UnorderedErase(
-      oldSwapchains,
-      [&context, &currentFrame](OldSwapchain &oldSwapchain) -> bool {
-        auto swapchainImageCount = oldSwapchain.textures.size();
-        if (currentFrame - oldSwapchain.lastFrameUsed > swapchainImageCount) {
-          oldSwapchain.textures.clear();
+auto SwapchainManager::CleanupOldSwapchains(GraphicsContext &context, uint64_t currentFrame) -> void {
+  Utils::UnorderedErase(oldSwapchains, [&context, &currentFrame](OldSwapchain &oldSwapchain) -> bool {
+    auto swapchainImageCount = oldSwapchain.textures.size();
+    if (currentFrame - oldSwapchain.lastFrameUsed > swapchainImageCount) {
+      oldSwapchain.textures.clear();
 
-          std::lock_guard<std::mutex> lock(
-              Graphics::GraphicsContext::mutexes.device);
-          vkDestroySwapchainKHR(context.device, oldSwapchain.swapchain,
-                                GetAllocationCallbacks());
-          oldSwapchain.swapchain = VK_NULL_HANDLE;
+      std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
+      vkDestroySwapchainKHR(context.device, oldSwapchain.swapchain, GetAllocationCallbacks());
+      oldSwapchain.swapchain = VK_NULL_HANDLE;
 
-          for (const auto &semaphore : oldSwapchain.imageReady) {
-            vkDestroySemaphore(context.device, semaphore,
-                               GetAllocationCallbacks());
-          }
+      for (const auto &semaphore : oldSwapchain.imageReady) {
+        vkDestroySemaphore(context.device, semaphore, GetAllocationCallbacks());
+      }
 
-          oldSwapchain.imageReady.clear();
+      oldSwapchain.imageReady.clear();
 
-          return true;
-        }
+      return true;
+    }
 
-        return false;
-      });
+    return false;
+  });
 }
 
-auto SwapchainManager::GetCurrentSwapchain() -> VkSwapchainKHR {
-  return currentSwapchain;
-}
+auto SwapchainManager::GetCurrentSwapchain() -> VkSwapchainKHR { return currentSwapchain; }
 
-auto SwapchainManager::GetCurrentSwapchainTexture(
-    const GraphicsContext &context) -> Ref<Texture> {
-  return currentTextures.at(context.swapchainImageIndex);
-}
+auto SwapchainManager::GetCurrentSwapchainTexture(const GraphicsContext &context) -> Ref<Texture> { return currentTextures.at(context.swapchainImageIndex); }
 
-auto SwapchainManager::NewFrame(GraphicsContext &context,
-                                Window::WindowContext &windowContext,
-                                uint64_t currentFrame) -> Error {
+auto SwapchainManager::NewFrame(GraphicsContext &context, Window::WindowContext &windowContext, uint64_t currentFrame) -> Error {
   ZoneScoped;
 
   if (isDirty) {
@@ -373,40 +329,31 @@ inline auto CreateFences(GraphicsContext &context) -> Error {
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
     for (int i = 0; i < context.swapchainInfo.imageCount; i++) {
-      CHECK_NEW_ERR(vkCreateSemaphore(context.device, &semaphoreInfo,
-                                      GetAllocationCallbacks(),
-                                      &context.renderFinished.at(i)));
+      CHECK_NEW_ERR(vkCreateSemaphore(context.device, &semaphoreInfo, GetAllocationCallbacks(), &context.renderFinished.at(i)));
     }
   }
 
   return Error::Success();
 }
 
-auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context,
-                                         Window::WindowContext &windowContext)
-    -> Error {
+auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context, Window::WindowContext &windowContext) -> Error {
   ZoneScoped;
 
-  context.surfaceInfo.presentMode =
-      CHECK_RES(FindPresentMode(windowContext, context));
+  context.surfaceInfo.presentMode = CHECK_RES(FindPresentMode(windowContext, context));
 
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-      context.physicalDevice, context.surface, &surfaceCapabilities);
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physicalDevice, context.surface, &surfaceCapabilities);
 
-  context.surfaceInfo.format =
-      CHECK_RES(FindSurfaceFormat(windowContext.colorSpace, context));
+  context.surfaceInfo.format = CHECK_RES(FindSurfaceFormat(windowContext.colorSpace, context));
   context.surfaceInfo.capabilities = surfaceCapabilities;
 
   VkSwapchainCreateInfoKHR swapchainInfo = {};
   swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   swapchainInfo.surface = context.surface;
 
-  swapchainInfo.minImageCount =
-      std::max(surfaceCapabilities.minImageCount, SWAPCHAIN_IMAGE_COUNT);
+  swapchainInfo.minImageCount = std::max(surfaceCapabilities.minImageCount, SWAPCHAIN_IMAGE_COUNT);
 
-  if (surfaceCapabilities.maxImageCount > 0 &&
-      swapchainInfo.minImageCount > surfaceCapabilities.maxImageCount) {
+  if (surfaceCapabilities.maxImageCount > 0 && swapchainInfo.minImageCount > surfaceCapabilities.maxImageCount) {
     swapchainInfo.minImageCount = surfaceCapabilities.maxImageCount;
   }
 
@@ -432,9 +379,7 @@ auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context,
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkCreateSwapchainKHR(context.device, &swapchainInfo,
-                                       GetAllocationCallbacks(),
-                                       &newSwapchain));
+    CHECK_NEW_ERR(vkCreateSwapchainKHR(context.device, &swapchainInfo, GetAllocationCallbacks(), &newSwapchain));
   }
 
   currentSwapchain = newSwapchain;
@@ -446,12 +391,8 @@ auto SwapchainManager::CreateVkSwapchain(GraphicsContext &context,
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkGetSwapchainImagesKHR(context.device, currentSwapchain,
-                                          &context.swapchainInfo.imageCount,
-                                          nullptr));
-    CHECK_NEW_ERR(vkGetSwapchainImagesKHR(context.device, currentSwapchain,
-                                          &context.swapchainInfo.imageCount,
-                                          context.swapchainInfo.images.data()));
+    CHECK_NEW_ERR(vkGetSwapchainImagesKHR(context.device, currentSwapchain, &context.swapchainInfo.imageCount, nullptr));
+    CHECK_NEW_ERR(vkGetSwapchainImagesKHR(context.device, currentSwapchain, &context.swapchainInfo.imageCount, context.swapchainInfo.images.data()));
   }
 
   context.swapchainInfo.images.resize(context.swapchainInfo.imageCount);

@@ -20,19 +20,15 @@ struct Color {
   constexpr Color() : r(0), g(0), b(0), a(1) {}
 
   // NOLINTNEXTLINE
-  constexpr Color(float red, float green, float blue, float alpha = 1.0F)
-      : r(red), g(green), b(blue), a(alpha) {}
+  constexpr Color(float red, float green, float blue, float alpha = 1.0F) : r(red), g(green), b(blue), a(alpha) {}
 
   // NOLINTNEXTLINE
   constexpr Color(double red, double green, double blue, double alpha = 1.0)
-      : r(static_cast<float>(red)), g(static_cast<float>(green)),
-        b(static_cast<float>(blue)), a(static_cast<float>(alpha)) {}
+      : r(static_cast<float>(red)), g(static_cast<float>(green)), b(static_cast<float>(blue)), a(static_cast<float>(alpha)) {}
 
   // NOLINTNEXTLINE
   constexpr Color(int red, int green, int blue, int alpha = 255)
-      : r(static_cast<float>(red) / uint8_max_as_float),
-        g(static_cast<float>(green) / uint8_max_as_float),
-        b(static_cast<float>(blue) / uint8_max_as_float),
+      : r(static_cast<float>(red) / uint8_max_as_float), g(static_cast<float>(green) / uint8_max_as_float), b(static_cast<float>(blue) / uint8_max_as_float),
         a(static_cast<float>(alpha) / uint8_max_as_float) {}
 
   auto Ptr() -> float * { return &r; }
@@ -62,9 +58,7 @@ struct Color {
     auto blue = static_cast<float>(b) * uint8_max_as_float;
     auto alpha = static_cast<float>(a) * uint8_max_as_float;
 
-    return (static_cast<uint32_t>(red) << RedShift) |
-           (static_cast<uint32_t>(green) << GreenShift) |
-           (static_cast<uint32_t>(blue) << BlueShift) |
+    return (static_cast<uint32_t>(red) << RedShift) | (static_cast<uint32_t>(green) << GreenShift) | (static_cast<uint32_t>(blue) << BlueShift) |
            static_cast<uint32_t>(alpha);
   }
 
@@ -80,8 +74,7 @@ struct Color {
       // NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
     };
 
-    return {GammaCorrectChannel(r), GammaCorrectChannel(g),
-            GammaCorrectChannel(b), a};
+    return {GammaCorrectChannel(r), GammaCorrectChannel(g), GammaCorrectChannel(b), a};
   };
 
   [[nodiscard]] auto ToLinear() const -> Color {
@@ -99,47 +92,27 @@ struct Color {
     return {LinearizeChannel(r), LinearizeChannel(g), LinearizeChannel(b), a};
   };
 
-  auto operator==(const Color &other) const -> bool {
-    return r == other.r && g == other.g && b == other.b && a == other.a;
-  }
+  auto operator==(const Color &other) const -> bool { return r == other.r && g == other.g && b == other.b && a == other.a; }
 
-  auto operator!=(const Color &other) const -> bool {
-    return !(*this == other);
-  }
+  auto operator!=(const Color &other) const -> bool { return !(*this == other); }
 
-  auto operator*(float scalar) const -> Color {
-    return {r * scalar, g * scalar, b * scalar, a * scalar};
-  }
+  auto operator*(float scalar) const -> Color { return {r * scalar, g * scalar, b * scalar, a * scalar}; }
 
-  auto operator*(const Color &other) const -> Color {
-    return {r * other.r, g * other.g, b * other.b, a * other.a};
-  }
+  auto operator*(const Color &other) const -> Color { return {r * other.r, g * other.g, b * other.b, a * other.a}; }
 
-  auto operator+(const Color &other) const -> Color {
-    return {r + other.r, g + other.g, b + other.b, a + other.a};
-  }
+  auto operator+(const Color &other) const -> Color { return {r + other.r, g + other.g, b + other.b, a + other.a}; }
 
-  auto operator-(const Color &other) const -> Color {
-    return {r - other.r, g - other.g, b - other.b, a - other.a};
-  }
+  auto operator-(const Color &other) const -> Color { return {r - other.r, g - other.g, b - other.b, a - other.a}; }
 
   [[nodiscard]] auto Luminance() const -> float {
     // Perceived brightness calculation using the Rec. 709 formula NOLINTNEXTLINE
     return (r * 0.2126F) + (g * 0.7152F) + (b * 0.0722F);
   }
 
-  auto operator<(const Color &other) const -> bool {
-    return Luminance() < other.Luminance();
-  }
-  auto operator>(const Color &other) const -> bool {
-    return Luminance() > other.Luminance();
-  }
-  auto operator<=(const Color &other) const -> bool {
-    return Luminance() <= other.Luminance();
-  }
-  auto operator>=(const Color &other) const -> bool {
-    return Luminance() >= other.Luminance();
-  }
+  auto operator<(const Color &other) const -> bool { return Luminance() < other.Luminance(); }
+  auto operator>(const Color &other) const -> bool { return Luminance() > other.Luminance(); }
+  auto operator<=(const Color &other) const -> bool { return Luminance() <= other.Luminance(); }
+  auto operator>=(const Color &other) const -> bool { return Luminance() >= other.Luminance(); }
 
   auto operator*(float scalar) -> Color & {
     r *= scalar;
@@ -327,8 +300,7 @@ struct Color {
     float randomSaturation = Math::Random(0.25F, 0.75F); // NOLINT
     float randomValue = Math::Random(0.2F, 0.75F);       // NOLINT
 
-    Color randomColor =
-        Color::FromHSV({randomHue, randomSaturation, randomValue, 1.0F});
+    Color randomColor = Color::FromHSV({randomHue, randomSaturation, randomValue, 1.0F});
     colorCache[seed] = randomColor;
 
     return randomColor;

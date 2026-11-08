@@ -38,9 +38,7 @@ struct VirtualState {
 };
 
 struct VirtualStateHash {
-  auto operator()(const VirtualState &state) const -> uint64_t {
-    return state.GetHash();
-  };
+  auto operator()(const VirtualState &state) const -> uint64_t { return state.GetHash(); };
 };
 
 struct VirtualRenderState {
@@ -51,15 +49,13 @@ struct VirtualRenderState {
 
   std::string currentDebugMarker;
   std::optional<Color> currentDebugMarkerColor;
-  Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS>
-      colorBlendEquations;
+  Math::StackVector<VkColorBlendEquationEXT, MAX_COLOR_ATTACHMENTS> colorBlendEquations;
 
   Ref<Shader> shader;
   VkPrimitiveTopology primitiveTopology = VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 
   VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_MAX_ENUM;
-  Math::StackVector<RenderState::RenderTarget, MAX_COLOR_ATTACHMENTS>
-      colorAttachments;
+  Math::StackVector<RenderState::RenderTarget, MAX_COLOR_ATTACHMENTS> colorAttachments;
   RenderState::RenderTarget depthStencilAttachment;
   bool hasDepthStencilAttachment = false;
 
@@ -77,9 +73,7 @@ struct VirtualRenderState {
       return false;
     }
 
-    if (stencilTestEnable != other.stencilTestEnable ||
-        polygonMode != other.polygonMode ||
-        primitiveTopology != other.primitiveTopology ||
+    if (stencilTestEnable != other.stencilTestEnable || polygonMode != other.polygonMode || primitiveTopology != other.primitiveTopology ||
         bindPoint != other.bindPoint) {
       return false;
     }
@@ -103,9 +97,7 @@ struct VirtualRenderState {
 };
 
 struct VirtualRenderStateHash {
-  auto operator()(const VirtualRenderState &state) const -> uint64_t {
-    return state.GetHash();
-  };
+  auto operator()(const VirtualRenderState &state) const -> uint64_t { return state.GetHash(); };
 };
 
 } // namespace Graphics

@@ -128,106 +128,61 @@ multiply,
 replace
 */
 
-auto ToString(VkBlendFactor srcColorBlendFactor,
-              VkBlendFactor dstColorBlendFactor, VkBlendOp colorBlendOp,
-              VkBlendFactor srcAlphaBlendFactor,
-              VkBlendFactor dstAlphaBlendFactor, VkBlendOp alphaBlendOp)
-    -> std::tuple<bool, std::string, std::string> {
+auto ToString(VkBlendFactor srcColorBlendFactor, VkBlendFactor dstColorBlendFactor, VkBlendOp colorBlendOp, VkBlendFactor srcAlphaBlendFactor,
+              VkBlendFactor dstAlphaBlendFactor, VkBlendOp alphaBlendOp) -> std::tuple<bool, std::string, std::string> {
 
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE && dstColorBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "alpha", "premultiplied"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE && dstColorBlendFactor == VK_BLEND_FACTOR_ONE && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "add", "premultiplied"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      colorBlendOp == VK_BLEND_OP_SUBTRACT &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      alphaBlendOp == VK_BLEND_OP_SUBTRACT) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE && dstColorBlendFactor == VK_BLEND_FACTOR_ONE && colorBlendOp == VK_BLEND_OP_SUBTRACT &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE && alphaBlendOp == VK_BLEND_OP_SUBTRACT) {
     return {true, "subtract", "premultiplied"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_DST_COLOR &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_DST_ALPHA &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_DST_COLOR && dstColorBlendFactor == VK_BLEND_FACTOR_ZERO && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_DST_ALPHA && dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "multiply", "premultiplied"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE && dstColorBlendFactor == VK_BLEND_FACTOR_ZERO && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "replace", "premultiplied"};
   }
 
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_SRC_ALPHA &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_SRC_ALPHA && dstColorBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "alpha", "alphamultiply"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE && dstColorBlendFactor == VK_BLEND_FACTOR_ONE && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "add", "alphamultiply"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      colorBlendOp == VK_BLEND_OP_SUBTRACT &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      alphaBlendOp == VK_BLEND_OP_SUBTRACT) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE && dstColorBlendFactor == VK_BLEND_FACTOR_ONE && colorBlendOp == VK_BLEND_OP_SUBTRACT &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ONE && alphaBlendOp == VK_BLEND_OP_SUBTRACT) {
     return {true, "subtract", "alphamultiply"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_DST_COLOR &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_DST_ALPHA &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_DST_COLOR && dstColorBlendFactor == VK_BLEND_FACTOR_ZERO && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_DST_ALPHA && dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "multiply", "alphamultiply"};
   }
-  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstColorBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      colorBlendOp == VK_BLEND_OP_ADD &&
-      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE &&
-      dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO &&
-      alphaBlendOp == VK_BLEND_OP_ADD) {
+  if (srcColorBlendFactor == VK_BLEND_FACTOR_ONE && dstColorBlendFactor == VK_BLEND_FACTOR_ZERO && colorBlendOp == VK_BLEND_OP_ADD &&
+      srcAlphaBlendFactor == VK_BLEND_FACTOR_ONE && dstAlphaBlendFactor == VK_BLEND_FACTOR_ZERO && alphaBlendOp == VK_BLEND_OP_ADD) {
     return {true, "replace", "alphamultiply"};
   }
 
   return {false, "", ""};
 }
 
-auto ToStringProperties(VkPipelineColorBlendAttachmentState state)
-    -> std::tuple<bool, std::string, std::string> {
+auto ToStringProperties(VkPipelineColorBlendAttachmentState state) -> std::tuple<bool, std::string, std::string> {
   if (state.blendEnable == VK_FALSE) {
     return {true, "none", ""};
   }
 
-  return ToString(state.srcColorBlendFactor, state.dstColorBlendFactor,
-                  state.colorBlendOp, state.srcAlphaBlendFactor,
-                  state.dstAlphaBlendFactor, state.alphaBlendOp);
+  return ToString(state.srcColorBlendFactor, state.dstColorBlendFactor, state.colorBlendOp, state.srcAlphaBlendFactor, state.dstAlphaBlendFactor,
+                  state.alphaBlendOp);
 }
 
 auto ToString(VkPipelineColorBlendAttachmentState state) -> std::string {
@@ -235,9 +190,8 @@ auto ToString(VkPipelineColorBlendAttachmentState state) -> std::string {
     return "Blend mode: none";
   }
 
-  const auto &[simple, blendmode, alphamode] = ToString(
-      state.srcColorBlendFactor, state.dstColorBlendFactor, state.colorBlendOp,
-      state.srcAlphaBlendFactor, state.dstAlphaBlendFactor, state.alphaBlendOp);
+  const auto &[simple, blendmode, alphamode] = ToString(state.srcColorBlendFactor, state.dstColorBlendFactor, state.colorBlendOp, state.srcAlphaBlendFactor,
+                                                        state.dstAlphaBlendFactor, state.alphaBlendOp);
 
   if (simple) {
     return std::format("Blend Mode: {}, Alpha Mode: {}", blendmode, alphamode);
@@ -245,12 +199,8 @@ auto ToString(VkPipelineColorBlendAttachmentState state) -> std::string {
 
   return std::format("Blend State:\nSrc-Color={}\nDst-Color={}\nColor Op={}"
                      "\nSrc Alpha={}\nDst Alpha={}\nAlpha Op={}",
-                     BlendMode::ToString(state.srcColorBlendFactor),
-                     BlendMode::ToString(state.dstColorBlendFactor),
-                     BlendMode::ToString(state.colorBlendOp),
-                     BlendMode::ToString(state.srcAlphaBlendFactor),
-                     BlendMode::ToString(state.dstAlphaBlendFactor),
-                     BlendMode::ToString(state.alphaBlendOp));
+                     BlendMode::ToString(state.srcColorBlendFactor), BlendMode::ToString(state.dstColorBlendFactor), BlendMode::ToString(state.colorBlendOp),
+                     BlendMode::ToString(state.srcAlphaBlendFactor), BlendMode::ToString(state.dstAlphaBlendFactor), BlendMode::ToString(state.alphaBlendOp));
 }
 
 } // namespace Graphics::BlendMode

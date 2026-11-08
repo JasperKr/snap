@@ -74,15 +74,13 @@ float3 calculateIrradiance(const float3 normal) {
       float cosTheta = cos(theta);
 
       // tangent space to world
-      float3 sampleVec = right * (sinTheta * cosPhi) +
-                         up * (sinTheta * sinPhi) + normal * cosTheta;
+      float3 sampleVec = right * (sinTheta * cosPhi) + up * (sinTheta * sinPhi) + normal * cosTheta;
 
       sampleVec = normalize(sampleVec);
 
       float2 uv = Oct3To2(sampleVec) * 0.5 + 0.5;
 
-      irradiance += RadianceInput.SampleLevel(float3(uv, Slice), 4.0).rgb *
-                    cosTheta * sinTheta;
+      irradiance += RadianceInput.SampleLevel(float3(uv, Slice), 4.0).rgb * cosTheta * sinTheta;
 
       nrSamples++;
     }

@@ -20,23 +20,16 @@ struct ImageSubresource {
   ImageSubresource() = default;
   ImageSubresource(const Ref<Texture> &texture);
   ImageSubresource(const Texture *texture);
-  ImageSubresource(VkImage image, uint16_t layerStart, uint16_t layerCount,
-                   uint16_t mipStart, uint16_t mipCount)
-      : image(image), layerCount(layerCount), layerStart(layerStart),
-        mipCount(mipCount), mipStart(mipStart) {}
+  ImageSubresource(VkImage image, uint16_t layerStart, uint16_t layerCount, uint16_t mipStart, uint16_t mipCount)
+      : image(image), layerCount(layerCount), layerStart(layerStart), mipCount(mipCount), mipStart(mipStart) {}
   ImageSubresource(VkImage image, VkImageSubresourceRange range)
-      : image(image), layerCount(range.layerCount),
-        layerStart(range.baseArrayLayer), mipCount(range.levelCount),
-        mipStart(range.baseMipLevel) {}
+      : image(image), layerCount(range.layerCount), layerStart(range.baseArrayLayer), mipCount(range.levelCount), mipStart(range.baseMipLevel) {}
 
   [[nodiscard]] auto Overlaps(const ImageSubresource &other) const -> bool {
     assert(mipCount != 0);
     assert(other.mipCount != 0);
-    return image == other.image &&
-           layerStart < (other.layerStart + other.layerCount) &&
-           other.layerStart < (layerStart + layerCount) &&
-           mipStart < (other.mipStart + other.mipCount) &&
-           other.mipStart < (mipStart + mipCount);
+    return image == other.image && layerStart < (other.layerStart + other.layerCount) && other.layerStart < (layerStart + layerCount) &&
+           mipStart < (other.mipStart + other.mipCount) && other.mipStart < (mipStart + mipCount);
   }
 };
 
@@ -59,15 +52,12 @@ struct VulkanResource {
 
   uint64_t hash;
 
-  VulkanResource(const ImageSubresource &image)
-      : type(ResourceType::Image), image(image), hash(Hash()) {}
+  VulkanResource(const ImageSubresource &image) : type(ResourceType::Image), image(image), hash(Hash()) {}
 
-  VulkanResource(VkBuffer buffer)
-      : type(ResourceType::Buffer), buffer(buffer), hash(Hash()) {}
+  VulkanResource(VkBuffer buffer) : type(ResourceType::Buffer), buffer(buffer), hash(Hash()) {}
 
   VulkanResource(VkAccelerationStructureKHR accelerationStructure)
-      : type(ResourceType::AccelerationStructure),
-        accelerationStructure(accelerationStructure), hash(Hash()) {}
+      : type(ResourceType::AccelerationStructure), accelerationStructure(accelerationStructure), hash(Hash()) {}
 
   [[nodiscard]] auto Hash() const -> uint64_t {
     Hash::Hasher hasher{};
@@ -120,11 +110,8 @@ struct VulkanResource {
 
     switch (type) {
     case ResourceType::Image:
-      return std::tie(image.image, image.layerStart, image.layerCount,
-                      image.mipStart, image.mipCount) <
-             std::tie(other.image.image, other.image.layerStart,
-                      other.image.layerCount, other.image.mipStart,
-                      other.image.mipCount);
+      return std::tie(image.image, image.layerStart, image.layerCount, image.mipStart, image.mipCount) <
+             std::tie(other.image.image, other.image.layerStart, other.image.layerCount, other.image.mipStart, other.image.mipCount);
     case ResourceType::Buffer:
       return buffer < other.buffer;
     case ResourceType::AccelerationStructure:
@@ -135,8 +122,7 @@ struct VulkanResource {
   [[nodiscard]] auto ToString() const -> std::string {
     switch (type) {
     case ResourceType::AccelerationStructure:
-      return std::format("Acceleration structure {}",
-                         (void *)accelerationStructure);
+      return std::format("Acceleration structure {}", (void *)accelerationStructure);
     case ResourceType::Buffer:
       return std::format("Buffer {}", (void *)buffer);
     case ResourceType::Image:
@@ -155,11 +141,8 @@ struct VulkanResource {
     case ResourceType::Buffer:
       return buffer == other.buffer;
     case ResourceType::Image:
-      return image.image == other.image.image &&
-             image.layerStart == other.image.layerStart &&
-             image.layerCount == other.image.layerCount &&
-             image.mipStart == other.image.mipStart &&
-             image.mipCount == other.image.mipCount;
+      return image.image == other.image.image && image.layerStart == other.image.layerStart && image.layerCount == other.image.layerCount &&
+             image.mipStart == other.image.mipStart && image.mipCount == other.image.mipCount;
     }
   }
 
@@ -217,10 +200,7 @@ struct BoundResource {
     return resource.Overlaps(other);
   }
 
-  auto operator==(const BoundResource &other) const -> bool {
-    return resource == other.resource && access == other.access &&
-           pipelines == other.pipelines;
-  }
+  auto operator==(const BoundResource &other) const -> bool { return resource == other.resource && access == other.access && pipelines == other.pipelines; }
 };
 
 // NOLINTEND(hicpp-explicit-conversions)

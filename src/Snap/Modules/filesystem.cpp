@@ -16,20 +16,14 @@ constexpr int PHYSFS_ERR_ERROR = 0;
 std::atomic<bool> FilesystemInitialized{false}; // NOLINT
 
 inline auto CheckIsInitialized() -> Error {
-  return FilesystemInitialized.load(std::memory_order_relaxed)
-             ? Error::Success()
-             : Error::Create("Filesystem uninitialized");
+  return FilesystemInitialized.load(std::memory_order_relaxed) ? Error::Success() : Error::Create("Filesystem uninitialized");
 }
 
-inline auto GetErrorString() -> const char * {
-  return PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode());
-}
+inline auto GetErrorString() -> const char * { return PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()); }
 inline auto GetErrorCode() -> uint32_t { return PHYSFS_getLastErrorCode(); }
 
 inline auto GetError() -> Error {
-  return Error::Create(
-      std::format("Filesystem error occurred: {}", GetErrorString()),
-      static_cast<ErrorCode>(GetErrorCode()));
+  return Error::Create(std::format("Filesystem error occurred: {}", GetErrorString()), static_cast<ErrorCode>(GetErrorCode()));
 }
 
 auto GetConfig() -> Config & {
@@ -39,8 +33,7 @@ auto GetConfig() -> Config & {
 
 auto Init(const std::string &orgDir) -> Error {
   if (PHYSFS_isInit() != 0) {
-    return Error::Createf("Filesystem already initialized: {}",
-                          GetErrorString());
+    return Error::Createf("Filesystem already initialized: {}", GetErrorString());
   }
 
   if (PHYSFS_init(orgDir.c_str()) == 0) {
@@ -60,8 +53,7 @@ auto SetWriteDirectory(const std::string &path) -> Error {
   }
 
   if (PHYSFS_setWriteDir(path.c_str()) == 0) {
-    return Error::Createf("Failed to set write directory: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to set write directory: {}", GetErrorString());
   }
 
   return Error::Success();
@@ -79,8 +71,7 @@ auto Deinit() -> Error {
   return Error::Success();
 }
 
-auto ReadFile(const std::string &path, int64_t readLength)
-    -> Result<std::vector<unsigned char>> {
+auto ReadFile(const std::string &path, int64_t readLength) -> Result<std::vector<unsigned char>> {
   CHECK_ERR(CheckIsInitialized());
 
   PHYSFS_File *file = PHYSFS_openRead(path.c_str());
@@ -129,8 +120,7 @@ auto ReadFile(const std::string &path, int64_t readLength)
 
 // Useful for loading binary data into Bytedata objects
 // Instead of stack allocating a vector and copying it over.
-auto ReadFileToBytedata(const std::string &path, int64_t readLength)
-    -> Result<Ref<Data::ByteData>> {
+auto ReadFileToBytedata(const std::string &path, int64_t readLength) -> Result<Ref<Data::ByteData>> {
   CHECK_ERR(CheckIsInitialized());
 
   PHYSFS_File *file = PHYSFS_openRead(path.c_str());
@@ -178,8 +168,7 @@ auto ReadFileToBytedata(const std::string &path, int64_t readLength)
   return data;
 }
 
-auto ReadTextFile(const std::string &path, int64_t readLength)
-    -> Result<std::string> {
+auto ReadTextFile(const std::string &path, int64_t readLength) -> Result<std::string> {
   CHECK_ERR(CheckIsInitialized());
 
   PHYSFS_File *file = PHYSFS_openRead(path.c_str());
@@ -226,14 +215,12 @@ auto ReadTextFile(const std::string &path, int64_t readLength)
   return data;
 }
 
-auto AppendFile(const std::string &path, std::span<const uint8_t> data)
-    -> Error {
+auto AppendFile(const std::string &path, std::span<const uint8_t> data) -> Error {
   CHECK_ERR(CheckIsInitialized());
 
   PHYSFS_File *file = PHYSFS_openAppend(path.c_str());
   if (file == nullptr) {
-    return Error::Createf("Failed to open file for appending: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to open file for appending: {}", GetErrorString());
   }
 
   PHYSFS_sint64 written = PHYSFS_writeBytes(file, data.data(), data.size());
@@ -244,8 +231,7 @@ auto AppendFile(const std::string &path, std::span<const uint8_t> data)
   }
 
   if (written < 0 || written != data.size()) {
-    return Error::Createf("Failed to write all data to file: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to write all data to file: {}", GetErrorString());
   }
 
   return Error::Success();
@@ -256,8 +242,7 @@ auto AppendFile(const std::string &path, std::string_view data) -> Error {
 
   PHYSFS_File *file = PHYSFS_openAppend(path.c_str());
   if (file == nullptr) {
-    return Error::Createf("Failed to open file for appending: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to open file for appending: {}", GetErrorString());
   }
 
   PHYSFS_sint64 written = PHYSFS_writeBytes(file, data.data(), data.size());
@@ -268,21 +253,18 @@ auto AppendFile(const std::string &path, std::string_view data) -> Error {
   }
 
   if (written < 0 || written != data.size()) {
-    return Error::Createf("Failed to write all data to file: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to write all data to file: {}", GetErrorString());
   }
 
   return Error::Success();
 }
 
-auto WriteFile(const std::string &path, std::span<const uint8_t> data)
-    -> Error {
+auto WriteFile(const std::string &path, std::span<const uint8_t> data) -> Error {
   CHECK_ERR(CheckIsInitialized());
 
   PHYSFS_File *file = PHYSFS_openWrite(path.c_str());
   if (file == nullptr) {
-    return Error::Createf("Failed to open file '{}' for writing: {}", path,
-                          GetErrorString());
+    return Error::Createf("Failed to open file '{}' for writing: {}", path, GetErrorString());
   }
 
   PHYSFS_sint64 written = PHYSFS_writeBytes(file, data.data(), data.size());
@@ -293,8 +275,7 @@ auto WriteFile(const std::string &path, std::span<const uint8_t> data)
   }
 
   if (written < 0 || written != data.size()) {
-    return Error::Createf("Failed to write all data to file: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to write all data to file: {}", GetErrorString());
   }
 
   return Error::Success();
@@ -305,8 +286,7 @@ auto WriteFile(const std::string &path, std::string_view data) -> Error {
 
   PHYSFS_File *file = PHYSFS_openWrite(path.c_str());
   if (file == nullptr) {
-    return Error::Createf("Failed to open file for writing: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to open file for writing: {}", GetErrorString());
   }
 
   PHYSFS_sint64 written = PHYSFS_writeBytes(file, data.data(), data.size());
@@ -317,8 +297,7 @@ auto WriteFile(const std::string &path, std::string_view data) -> Error {
   }
 
   if (written < 0 || written != data.size()) {
-    return Error::Createf("Failed to write all data to file: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to write all data to file: {}", GetErrorString());
   }
 
   return Error::Success();
@@ -345,8 +324,7 @@ auto RemoveFromSearchPath(const std::string &path) -> Error {
   CHECK_ERR(CheckIsInitialized());
 
   if (PHYSFS_unmount(path.c_str()) == 0) {
-    return Error::Createf("Failed to remove path from search path: {}",
-                          GetErrorString());
+    return Error::Createf("Failed to remove path from search path: {}", GetErrorString());
   }
   return Error::Success();
 }
@@ -386,12 +364,10 @@ Error Mount(std::string path, const char *mountPoint, bool appendToPath);
 Error Unmount(std::string path);
 */
 
-auto Mount(const std::string &path, const std::string &mountPoint,
-           bool appendToPath) -> Error {
+auto Mount(const std::string &path, const std::string &mountPoint, bool appendToPath) -> Error {
   CHECK_ERR(CheckIsInitialized());
 
-  if (PHYSFS_mount(path.c_str(), mountPoint.c_str(), appendToPath ? 1 : 0) ==
-      0) {
+  if (PHYSFS_mount(path.c_str(), mountPoint.c_str(), appendToPath ? 1 : 0) == 0) {
     return Error::Createf("Failed to mount path: {}", GetErrorString());
   }
   return Error::Success();
@@ -432,8 +408,7 @@ auto GetSaveDirectory() -> std::string {
   static std::string identity;
 
   if (identity.empty()) {
-    identity =
-        std::string(PHYSFS_getPrefDir("snap", GetConfig().identity.c_str()));
+    identity = std::string(PHYSFS_getPrefDir("snap", GetConfig().identity.c_str()));
   }
 
   return identity;
@@ -457,8 +432,7 @@ auto GetSourceBaseDirectory() -> std::string {
 
 auto CreateDirectory(const std::string &path) -> Error {
   if (PHYSFS_mkdir(path.c_str()) == 0) {
-    return Error::Createf("Failed to create directory '{}': {}", path,
-                          GetErrorString());
+    return Error::Createf("Failed to create directory '{}': {}", path, GetErrorString());
   }
   return Error::Success();
 }
@@ -570,9 +544,7 @@ auto Sanitize(const std::string &path) -> std::string {
   return sanitized;
 }
 
-inline auto Join(std::string_view str) -> std::string {
-  return Sanitize(std::string(str));
-}
+inline auto Join(std::string_view str) -> std::string { return Sanitize(std::string(str)); }
 
 auto Join(const std::string &base, const std::string &append) -> std::string {
   if (base.empty()) {
@@ -608,9 +580,7 @@ auto Join(const std::vector<std::string> &paths) -> std::string {
   return result;
 }
 
-auto Join(const char *base, const char *append) -> std::string {
-  return Join(std::string(base), std::string(append));
-}
+auto Join(const char *base, const char *append) -> std::string { return Join(std::string(base), std::string(append)); }
 
 // test/my.file.txt -> test_my_file_txt
 auto PlainText(const std::string_view &filename) -> std::string {
@@ -618,8 +588,7 @@ auto PlainText(const std::string_view &filename) -> std::string {
   result.reserve(filename.size());
 
   for (unsigned char character : filename) {
-    result +=
-        (std::isalnum(character) != 0) ? static_cast<char>(character) : '_';
+    result += (std::isalnum(character) != 0) ? static_cast<char>(character) : '_';
   }
 
   return result;

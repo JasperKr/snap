@@ -43,21 +43,13 @@ template <typename T> constexpr auto GetBindingLuaType() {
     return BindingLuaType::Number;
   } else if constexpr (std::is_same_v<T, bool>) {
     return BindingLuaType::Boolean;
-  } else if constexpr (std::is_same_v<T, std::string> ||
-                       std::is_same_v<T, const char *> ||
-                       std::is_same_v<T, std::basic_string<char>>) {
+  } else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, const char *> || std::is_same_v<T, std::basic_string<char>>) {
     return BindingLuaType::String;
-  } else if constexpr (std::is_same_v<T, Math::Vec2> ||
-                       std::is_same_v<T, Math::Uvec2> ||
-                       std::is_same_v<T, Math::Ivec2>) {
+  } else if constexpr (std::is_same_v<T, Math::Vec2> || std::is_same_v<T, Math::Uvec2> || std::is_same_v<T, Math::Ivec2>) {
     return BindingLuaType::Vec2;
-  } else if constexpr (std::is_same_v<T, Math::Vec3> ||
-                       std::is_same_v<T, Math::Uvec3> ||
-                       std::is_same_v<T, Math::Ivec3>) {
+  } else if constexpr (std::is_same_v<T, Math::Vec3> || std::is_same_v<T, Math::Uvec3> || std::is_same_v<T, Math::Ivec3>) {
     return BindingLuaType::Vec3;
-  } else if constexpr (std::is_same_v<T, Math::Vec4> ||
-                       std::is_same_v<T, Math::Uvec4> ||
-                       std::is_same_v<T, Math::Ivec4>) {
+  } else if constexpr (std::is_same_v<T, Math::Vec4> || std::is_same_v<T, Math::Uvec4> || std::is_same_v<T, Math::Ivec4>) {
     return BindingLuaType::Vec4;
   } else if constexpr (std::is_same_v<T, Math::Quaternion>) {
     return BindingLuaType::Quaternion;
@@ -170,23 +162,19 @@ inline auto LowercaseFirstChar(const std::string &str) -> std::string {
   return result;
 }
 
-inline auto GetLuaTypes(const std::vector<TypeInfo> &methods)
-    -> std::vector<std::pair<std::string, std::string>> {
+inline auto GetLuaTypes(const std::vector<TypeInfo> &methods) -> std::vector<std::pair<std::string, std::string>> {
   std::vector<std::pair<std::string, std::string>> types;
 
   for (const auto &typeinfo : methods) {
     const auto &camelCaseName = LowercaseFirstChar(typeinfo.name);
 
     if (typeinfo.isEnum) {
-      types.emplace_back(std::string("snap.") + typeinfo.enumHelper->name,
-                         camelCaseName);
+      types.emplace_back(std::string("snap.") + typeinfo.enumHelper->name, camelCaseName);
       continue;
     }
 
-    if (typeinfo.luaType == BindingLuaType::Userdata &&
-        (typeinfo.type != nullptr)) {
-      types.emplace_back(std::string("snap.") + typeinfo.type->GetName(),
-                         camelCaseName);
+    if (typeinfo.luaType == BindingLuaType::Userdata && (typeinfo.type != nullptr)) {
+      types.emplace_back(std::string("snap.") + typeinfo.type->GetName(), camelCaseName);
       continue;
     }
 
@@ -200,8 +188,7 @@ inline auto GetLuaTypes(const std::vector<TypeInfo> &methods)
       types.emplace_back("number", camelCaseName + "_x");
       types.emplace_back("number", camelCaseName + "_y");
       types.emplace_back("number", camelCaseName + "_z");
-    } else if (typeinfo.luaType == BindingLuaType::Vec4 ||
-               typeinfo.luaType == BindingLuaType::Quaternion) {
+    } else if (typeinfo.luaType == BindingLuaType::Vec4 || typeinfo.luaType == BindingLuaType::Quaternion) {
       types.emplace_back("number", camelCaseName + "_x");
       types.emplace_back("number", camelCaseName + "_y");
       types.emplace_back("number", camelCaseName + "_z");
@@ -216,8 +203,7 @@ inline auto GetLuaTypes(const std::vector<TypeInfo> &methods)
   return types;
 }
 
-inline auto Replace(const std::string &src, char from,
-                    const std::string &toReplace) -> std::string {
+inline auto Replace(const std::string &src, char from, const std::string &toReplace) -> std::string {
   std::string result;
   size_t start = 0;
   size_t pos = 0;
@@ -229,8 +215,7 @@ inline auto Replace(const std::string &src, char from,
   return result;
 }
 
-inline void EmitLuaStruct(std::ostream &out, const std::string &classname,
-                          const std::vector<MethodInfo> &members) {
+inline void EmitLuaStruct(std::ostream &out, const std::string &classname, const std::vector<MethodInfo> &members) {
 
   out << "---@meta\n";
   out << "-- This file is auto-generated. Do not edit directly.\n";
@@ -255,8 +240,7 @@ inline void EmitLuaStruct(std::ostream &out, const std::string &classname,
       const auto &typeName = type.first;
       const auto &paramName = type.second;
 
-      out << (paramName.empty() ? "param" : paramName) << " "
-          << (typeName.empty() ? "any" : typeName) << "\n";
+      out << (paramName.empty() ? "param" : paramName) << " " << (typeName.empty() ? "any" : typeName) << "\n";
     }
 
     out << "---@return ";
@@ -270,8 +254,7 @@ inline void EmitLuaStruct(std::ostream &out, const std::string &classname,
         const auto &typeName = returnTypes[index].first;
         const auto &paramName = returnTypes[index].second;
 
-        out << (typeName.empty() ? "any" : typeName) << " "
-            << (paramName.empty() ? "Unknown" : paramName) << "\n";
+        out << (typeName.empty() ? "any" : typeName) << " " << (paramName.empty() ? "Unknown" : paramName) << "\n";
       }
 
       if (returnTypes.empty()) {
@@ -295,8 +278,7 @@ inline void EmitLuaStruct(std::ostream &out, const std::string &classname,
   }
 }
 
-inline void EmitLuaEnums(std::ostream &out,
-                         const std::vector<LuaWrap::LuaEnumBase> &enums) {
+inline void EmitLuaEnums(std::ostream &out, const std::vector<LuaWrap::LuaEnumBase> &enums) {
   out << "---@meta\n";
   out << "-- This file is auto-generated. Do not edit directly.\n";
   out << "-- See reflectBindings.hpp or the lua_stub_gen target.\n\n";
@@ -324,8 +306,7 @@ inline void EmitLuaEnums(std::ostream &out,
   }
 }
 
-inline auto EmitLuaAliases(std::ostream &out, const std::vector<Alias> &aliases)
-    -> void {
+inline auto EmitLuaAliases(std::ostream &out, const std::vector<Alias> &aliases) -> void {
   out << "---@meta\n";
   out << "-- This file is auto-generated. Do not edit directly.\n";
   out << "-- See reflectBindings.hpp or the lua_stub_gen target.\n\n";
@@ -341,8 +322,7 @@ inline auto EmitLuaAliases(std::ostream &out, const std::vector<Alias> &aliases)
 
       if (type.isEnum) {
         out << "snap." << type.enumHelper->name;
-      } else if (type.luaType == BindingLuaType::Userdata &&
-                 (type.type != nullptr)) {
+      } else if (type.luaType == BindingLuaType::Userdata && (type.type != nullptr)) {
         out << "snap." << type.type->GetName();
       } else {
         out << LuaTypeName(type.luaType);

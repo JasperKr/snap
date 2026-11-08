@@ -20,8 +20,7 @@ static inline auto ReadNumberFromTable(lua_State *state,
   return value;
 }
 
-static inline auto ColorFromLuaState(lua_State *state, ColorFormat format,
-                                     int startIndex) -> Color {
+static inline auto ColorFromLuaState(lua_State *state, ColorFormat format, int startIndex) -> Color {
 
   if (startIndex < 0) {
     startIndex = lua_gettop(state) + startIndex + 1;

@@ -23,9 +23,7 @@ struct LuaShape : LuaWrap::LuaECSObject {
   static auto GetType() -> const Type * { return &shapeType; }
   auto GetInstanceType() const -> const Type * override { return &shapeType; }
 
-  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaShape> {
-    return Ref<LuaShape>::Make(entity);
-  }
+  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaShape> { return Ref<LuaShape>::Make(entity); }
 
   static auto GetName(lua_State *state) -> int;
   static auto SetName(lua_State *state) -> int;

@@ -19,24 +19,14 @@ struct CameraMatrices {
   Math::Matrix4x4 InverseRotationProjectionMatrix;
   Math::Vec2 Jitter;
 
-  [[nodiscard]] auto GetForward() const -> Math::Vec3 {
-    return Math::Vec3{-ViewMatrix.At(2, 0), -ViewMatrix.At(2, 1),
-                      -ViewMatrix.At(2, 2)};
-  }
+  [[nodiscard]] auto GetForward() const -> Math::Vec3 { return Math::Vec3{-ViewMatrix.At(2, 0), -ViewMatrix.At(2, 1), -ViewMatrix.At(2, 2)}; }
 
-  [[nodiscard]] auto GetUp() const -> Math::Vec3 {
-    return Math::Vec3{ViewMatrix.At(1, 0), ViewMatrix.At(1, 1),
-                      ViewMatrix.At(1, 2)};
-  }
+  [[nodiscard]] auto GetUp() const -> Math::Vec3 { return Math::Vec3{ViewMatrix.At(1, 0), ViewMatrix.At(1, 1), ViewMatrix.At(1, 2)}; }
 
-  [[nodiscard]] auto GetRight() const -> Math::Vec3 {
-    return Math::Vec3{ViewMatrix.At(0, 0), ViewMatrix.At(0, 1),
-                      ViewMatrix.At(0, 2)};
-  }
+  [[nodiscard]] auto GetRight() const -> Math::Vec3 { return Math::Vec3{ViewMatrix.At(0, 0), ViewMatrix.At(0, 1), ViewMatrix.At(0, 2)}; }
 
   [[nodiscard]] auto GetPosition() const -> Math::Vec3 {
-    return Math::Vec3{InverseViewMatrix.At(3, 0), InverseViewMatrix.At(3, 1),
-                      InverseViewMatrix.At(3, 2)};
+    return Math::Vec3{InverseViewMatrix.At(3, 0), InverseViewMatrix.At(3, 1), InverseViewMatrix.At(3, 2)};
   }
 
   [[nodiscard]] auto Project(Math::Vec3 position) const -> Math::Vec3 {
@@ -55,8 +45,7 @@ struct CameraMatrices {
     return Math::Vec3(world);
   }
 
-  [[nodiscard]] auto InverseProject_Rotation(Math::Vec3 uvs) const
-      -> Math::Vec3 {
+  [[nodiscard]] auto InverseProject_Rotation(Math::Vec3 uvs) const -> Math::Vec3 {
     uvs *= 2.0F;
     uvs -= 1.0F;
     Math::Vec4 world = InverseRotationProjectionMatrix * Math::Vec4(uvs, 1.0F);
@@ -71,18 +60,12 @@ struct CameraMatrices {
 const Type cameraMatricesType = Type("CameraMatrices");
 
 struct LuaCameraMatrices : LuaWrap::LuaECSObject {
-  explicit LuaCameraMatrices(const flecs::entity &entity)
-      : LuaECSObject(entity) {}
+  explicit LuaCameraMatrices(const flecs::entity &entity) : LuaECSObject(entity) {}
 
   static auto GetType() -> const Type * { return &cameraMatricesType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &cameraMatricesType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &cameraMatricesType; }
 
-  static auto FromEntity(const flecs::entity &entity)
-      -> Ref<LuaCameraMatrices> {
-    return Ref<LuaCameraMatrices>::Make(entity);
-  }
+  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaCameraMatrices> { return Ref<LuaCameraMatrices>::Make(entity); }
 
   static auto GetRotationMatrix(lua_State *state) -> int;
   static auto GetInverseRotationMatrix(lua_State *state) -> int;

@@ -123,9 +123,7 @@ static const std::vector<luaL_Reg> GraphicsLib = {
 // TODO: Replace manual enum stuff in wrap_graphics with ::LuaWrap::LuaEnum
 
 const static std::vector<lua_CFunction> childrenInitFunctions = {
-    Texture::luaopen_texture,   Mesh::luaopen_mesh,
-    Shader::luaopen_shader,     Buffer::luaopen_buffer,
-    Snapshot::luaopen_snapshot,
+    Texture::luaopen_texture, Mesh::luaopen_mesh, Shader::luaopen_shader, Buffer::luaopen_buffer, Snapshot::luaopen_snapshot,
 };
 
 extern "C" inline auto luaopen_graphics(lua_State *state) -> int {
@@ -136,8 +134,7 @@ extern "C" inline auto luaopen_graphics(lua_State *state) -> int {
 
   };
 
-  LuaWrap::RegisterLuaType(
-      state, ::Graphics::Threading::RenderThreadInfo::GetType(), {});
+  LuaWrap::RegisterLuaType(state, ::Graphics::Threading::RenderThreadInfo::GetType(), {});
 
   RegisterLuaModule(state, module);
   return 1;

@@ -64,14 +64,9 @@ public float3 RandomDirection(inout uint state) {
   return float3(r * c, r * s, z);
 }
 
-public float2 RandomValue2D(inout uint state) {
-  return float2(RandomValueNorm(state), RandomValueNorm(state));
-}
+public float2 RandomValue2D(inout uint state) { return float2(RandomValueNorm(state), RandomValueNorm(state)); }
 
-public float3 RandomValue3D(inout uint state) {
-  return float3(RandomValueNorm(state), RandomValueNorm(state),
-                RandomValueNorm(state));
-}
+public float3 RandomValue3D(inout uint state) { return float3(RandomValueNorm(state), RandomValueNorm(state), RandomValueNorm(state)); }
 
 public float3 RandomHemisphereDirection(float3 normal, uint state) {
   float3 dir = RandomDirection(state);

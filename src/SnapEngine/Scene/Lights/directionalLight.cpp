@@ -27,8 +27,7 @@ auto DirectionalLight::GetBufferFormat() -> Graphics::BufferFormat & {
 }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-auto DirectionalLight::Write(std::span<uint8_t> buffer,
-                             flecs::entity lightEntity) const -> Error {
+auto DirectionalLight::Write(std::span<uint8_t> buffer, flecs::entity lightEntity) const -> Error {
   const auto &light = lightEntity.get<Light>();
   auto &format = GetBufferFormat();
 
@@ -139,14 +138,12 @@ auto LuaDirectionalLight::Create(lua_State *state) -> int {
   light.BufferIndex = DirectionalLight::GetFreeBufferIndex();
   light.ShadowBufferIndex = 0;
 
-  LUA_ASSERT(light.BufferIndex >= 0 &&
-             light.BufferIndex < static_cast<int>(MaxDirectionalLights));
+  LUA_ASSERT(light.BufferIndex >= 0 && light.BufferIndex < static_cast<int>(MaxDirectionalLights));
 
   Renderer::RendererInstance.GetSceneLightBuffers().DirectionalLightCount++;
 
   auto luaDirectionalLight = Ref<LuaDirectionalLight>::Make(entity);
-  ::LuaWrap::PushObject(state, LuaDirectionalLight::GetType(),
-                        luaDirectionalLight.get());
+  ::LuaWrap::PushObject(state, LuaDirectionalLight::GetType(), luaDirectionalLight.get());
 
   return 1;
 }

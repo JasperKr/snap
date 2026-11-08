@@ -22,8 +22,7 @@ float RectangleSolidAngle(half3 V0, half3 V1, half3 V2, half3 V3) {
   return (g0 + g1 + g2 + g3) - (2.0 * PI);
 }
 
-float3 RayPlaneIntersect(float3 rayOrigin, float3 rayDirection,
-                         float3 planePoint, float3 planeNormal) {
+float3 RayPlaneIntersect(float3 rayOrigin, float3 rayDirection, float3 planePoint, float3 planeNormal) {
   float denom = dot(rayDirection, planeNormal);
 
   if (abs(denom) < 1e-6) {
@@ -75,8 +74,7 @@ public struct RectangleLight : ILight {
 
   public half3 GetUph() { return half3(GetUp()); }
 
-  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel,
-                               const float3 ViewDirection) {
+  public float3 GetIntensityAt(const float3 WorldPosition, const Pixel pixel, const float3 ViewDirection) {
     half2 halfSize = half2(Size) * 0.5h;
     half3 forward = GetForwardh();
     half3 right = GetRighth();
@@ -94,25 +92,21 @@ public struct RectangleLight : ILight {
 
     pixelToCenter = normalize(pixelToCenter);
 
-    float NoL =
-        solidAngle * 0.2f *
-        (saturate(dot(v0, pixel.Normal)) + saturate(dot(v1, pixel.Normal)) +
-         saturate(dot(v2, pixel.Normal)) + saturate(dot(v3, pixel.Normal)) +
-         saturate(dot(pixelToCenter, pixel.Normal)));
+    float NoL = solidAngle * 0.2f *
+                (saturate(dot(v0, pixel.Normal)) + saturate(dot(v1, pixel.Normal)) + saturate(dot(v2, pixel.Normal)) + saturate(dot(v3, pixel.Normal)) +
+                 saturate(dot(pixelToCenter, pixel.Normal)));
 
     return Radiance * NoL;
   }
 
-  public bool TraceShadow(const float3 WorldPosition, const float3 Normal,
-                          uint2 screenCoords, const uint frameRandomState) {
+  public bool TraceShadow(const float3 WorldPosition, const float3 Normal, uint2 screenCoords, const uint frameRandomState) {
     screenCoords += uint2(frameRandomState, frameRandomState * 84313U);
 
     float rnd0 = BlueNoiseTexture.Load(int3(screenCoords % 128, 0)).r;
     screenCoords += uint2(frameRandomState * 3913U, frameRandomState);
     float rnd1 = BlueNoiseTexture.Load(int3(screenCoords % 128, 0)).r;
 
-    float3 position =
-        GetRight() * (rnd0 - 0.5f) * Size.x + GetUp() * (rnd1 - 0.5f) * Size.y;
+    float3 position = GetRight() * (rnd0 - 0.5f) * Size.x + GetUp() * (rnd1 - 0.5f) * Size.y;
 
     float3 sampleDirection = normalize(position - WorldPosition);
 
@@ -130,8 +124,7 @@ public struct RectangleLight : ILight {
       return 1.0f;
     }
 
-    return ShadowVisibilityTexture.Load(
-        int4(screenCoords, 0, ShadowBufferIndex));
+    return ShadowVisibilityTexture.Load(int4(screenCoords, 0, ShadowBufferIndex));
   }
 }
 

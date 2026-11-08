@@ -66,14 +66,9 @@ inline auto CleanupTracebackLine(const std::string &line) -> std::string {
 
   if (SnapPos != std::string::npos) {
     auto inFunctionPos = SnapPos + splitKeyword.length();
-    auto inFunctionCount =
-        sanitizedLine.length() - inFunctionPos - 1; // -1 for newline
-    inFunction =
-        sanitizedLine.substr(SnapPos + splitKeyword.length(), inFunctionCount);
-    sanitizedLine = sanitizedLine.substr(0, SnapPos)
-                        .append("in function \'")
-                        .append(inFunction)
-                        .append("\'\n");
+    auto inFunctionCount = sanitizedLine.length() - inFunctionPos - 1; // -1 for newline
+    inFunction = sanitizedLine.substr(SnapPos + splitKeyword.length(), inFunctionCount);
+    sanitizedLine = sanitizedLine.substr(0, SnapPos).append("in function \'").append(inFunction).append("\'\n");
   }
 
   // Sanitize paths by removing everything before src/
@@ -87,14 +82,10 @@ inline auto CleanupTracebackLine(const std::string &line) -> std::string {
   if (linePos != std::string::npos) {
     size_t endLinePos = sanitizedLine.find(')', linePos);
     if (endLinePos != std::string::npos) {
-      std::string lineNumber =
-          sanitizedLine.substr(linePos + 1, endLinePos - linePos - 1);
+      std::string lineNumber = sanitizedLine.substr(linePos + 1, endLinePos - linePos - 1);
 
       auto stringAfterLineNumber = sanitizedLine.substr(endLinePos + 1);
-      sanitizedLine = sanitizedLine.substr(0, linePos)
-                          .append(":")
-                          .append(lineNumber)
-                          .append(stringAfterLineNumber);
+      sanitizedLine = sanitizedLine.substr(0, linePos).append(":").append(lineNumber).append(stringAfterLineNumber);
     }
   }
 
@@ -102,8 +93,7 @@ inline auto CleanupTracebackLine(const std::string &line) -> std::string {
   if (!source.empty()) {
     size_t sourcePos = sanitizedLine.find(source);
     if (sourcePos != std::string::npos) {
-      sanitizedLine = sanitizedLine.substr(0, sourcePos) +
-                      sanitizedLine.substr(sourcePos + source.length());
+      sanitizedLine = sanitizedLine.substr(0, sourcePos) + sanitizedLine.substr(sourcePos + source.length());
     }
   }
 
@@ -118,8 +108,7 @@ static auto Demangle(const char *name) -> std::string {
   return result;
 }
 
-static void callback(void * /*unused*/, uintptr_t _pc, const char *filename,
-                     int lineno, const char *function) {
+static void callback(void * /*unused*/, uintptr_t _pc, const char *filename, int lineno, const char *function) {
   std::println("{}:{} {}", filename, lineno, function);
 }
 
@@ -129,9 +118,7 @@ static auto is_noisy(const char *file) -> bool {
   }
 
   std::string_view name(file);
-  return name.find("bits/") != std::string_view::npos ||
-         name.find("include/c++") != std::string_view::npos ||
-         name.find("__") != std::string_view::npos;
+  return name.find("bits/") != std::string_view::npos || name.find("include/c++") != std::string_view::npos || name.find("__") != std::string_view::npos;
 };
 
 [[gnu::cold]] // NOLINTNEXTLINE
@@ -144,8 +131,7 @@ auto GetStackTrace(ErrorLevel level) -> std::string {
   const int MaxSymbolLength = 256;
   std::array<void *, MaxStackDepth> stack = {};
 
-  unsigned short frames =
-      CaptureStackBackTrace(2 + level, MaxStackDepth, stack.data(), nullptr);
+  unsigned short frames = CaptureStackBackTrace(2 + level, MaxStackDepth, stack.data(), nullptr);
   std::string trace;
   HANDLE process = GetCurrentProcess();
 
@@ -162,16 +148,14 @@ auto GetStackTrace(ErrorLevel level) -> std::string {
       trace += symbol->Name; // NOLINT
       trace += "\n";
     } else {
-      trace += std::to_string(i) + ": [symbol lookup failed] - " +
-               std::to_string(address) + "\n";
+      trace += std::to_string(i) + ": [symbol lookup failed] - " + std::to_string(address) + "\n";
     }
   }
 
   return trace;
 #elif defined(__linux__) || defined(__APPLE__) && defined(__MACH__)
 
-  static backtrace_state *state =
-      backtrace_create_state("/proc/self/exe", 0, nullptr, nullptr);
+  static backtrace_state *state = backtrace_create_state("/proc/self/exe", 0, nullptr, nullptr);
 
   struct TraceCtx {
     std::string *out;
@@ -199,14 +183,12 @@ auto GetStackTrace(ErrorLevel level) -> std::string {
 
     backtrace_pcinfo(
         state, ip,
-        [](void *data, uintptr_t, const char *filename, int lineno,
-           const char *function) {
+        [](void *data, uintptr_t, const char *filename, int lineno, const char *function) {
           if (is_noisy(filename)) {
             return 0; // Skip noisy frames
           }
 
-          std::string demangledFunction =
-              Demangle(function == nullptr ? "??" : function);
+          std::string demangledFunction = Demangle(function == nullptr ? "??" : function);
 
           // May be namespace::namespace::struct::function(namespace::namespace param)
           // We want to remove the parameters and just keep the function name
@@ -215,13 +197,8 @@ auto GetStackTrace(ErrorLevel level) -> std::string {
             demangledFunction = demangledFunction.substr(0, parenPos);
           }
 
-          std::string line =
-              "\t" +
-              ColorText(std::string(filename == nullptr ? "??" : filename) +
-                            ":" + std::to_string(lineno),
-                        ConsoleColor::Cyan) +
-              " in function " +
-              ColorText(demangledFunction, ConsoleColor::Green) + "\n";
+          std::string line = "\t" + ColorText(std::string(filename == nullptr ? "??" : filename) + ":" + std::to_string(lineno), ConsoleColor::Cyan) +
+                             " in function " + ColorText(demangledFunction, ConsoleColor::Green) + "\n";
 
           auto *ctx = static_cast<TraceCtx *>(data);
 
@@ -229,15 +206,12 @@ auto GetStackTrace(ErrorLevel level) -> std::string {
           if (!source.empty()) {
             size_t sourcePos = line.find(source);
             if (sourcePos != std::string::npos) {
-              line = line.substr(0, sourcePos) +
-                     line.substr(sourcePos + source.length());
+              line = line.substr(0, sourcePos) + line.substr(sourcePos + source.length());
             }
           }
 
-          constexpr std::array<const char *, 11> blacklisted = {
-              "expected.hpp", "error.hpp", "error.cpp", "thread.cpp",
-              "thread.hpp",   "loop.cpp",  "loop.hpp",  "wrap.cpp",
-              "wrap.hpp",     "main.cpp",  "main.hpp"};
+          constexpr std::array<const char *, 11> blacklisted = {"expected.hpp", "error.hpp", "error.cpp", "thread.cpp", "thread.hpp", "loop.cpp",
+                                                                "loop.hpp",     "wrap.cpp",  "wrap.hpp",  "main.cpp",   "main.hpp"};
 
           for (const auto &blacklistedFile : blacklisted) {
             size_t blacklistedPos = line.find(blacklistedFile);
@@ -259,8 +233,7 @@ auto GetStackTrace(ErrorLevel level) -> std::string {
 #endif
 #else
   std::string trace;
-  std::stacktrace stacktrace =
-      std::stacktrace::current(2 + level, MaxStackDepth);
+  std::stacktrace stacktrace = std::stacktrace::current(2 + level, MaxStackDepth);
   trace = std::to_string(stacktrace);
 
   std::string keyword = "!main";
@@ -434,8 +407,7 @@ auto Error::SetupTraceback() -> void {
 #endif
 }
 
-auto Error::Create(const std::string &message, ErrorCode code, ErrorLevel level)
-    -> Error {
+auto Error::Create(const std::string &message, ErrorCode code, ErrorLevel level) -> Error {
 
   if (code >= 0) {
     return Error(message, "", code);
@@ -450,15 +422,9 @@ auto Error::Create(const std::string &message, ErrorCode code, ErrorLevel level)
   return err;
 }
 
-auto Error::Create(const std::string_view &message, ErrorCode code,
-                   ErrorLevel level) -> Error {
-  return Create(std::string(message), code, level);
-}
+auto Error::Create(const std::string_view &message, ErrorCode code, ErrorLevel level) -> Error { return Create(std::string(message), code, level); }
 
-auto Error::Create(const char *message, ErrorCode code, ErrorLevel level)
-    -> Error {
-  return Create(std::string(message), code, level);
-}
+auto Error::Create(const char *message, ErrorCode code, ErrorLevel level) -> Error { return Create(std::string(message), code, level); }
 
 auto Error::Success() -> Error {
   static const Error success = Error();
@@ -467,13 +433,9 @@ auto Error::Success() -> Error {
 
 auto Error::IsError(const Error &error) -> bool { return error.code < 0; }
 [[nodiscard]] auto Error::IsError() const -> bool { return code < 0; }
-auto Error::IsError(const tl::expected<void, Error> &expected) -> bool {
-  return !expected.has_value();
-}
+auto Error::IsError(const tl::expected<void, Error> &expected) -> bool { return !expected.has_value(); }
 
-auto Error::IsError(const SlangResult result) -> bool {
-  return SLANG_FAILED(result);
-}
+auto Error::IsError(const SlangResult result) -> bool { return SLANG_FAILED(result); }
 auto Error::IsSuccess(const Error &error) -> bool { return error.code >= 0; }
 [[nodiscard]] auto Error::IsSuccess() const -> bool { return code >= 0; }
 
@@ -493,8 +455,7 @@ auto Error::Create(SlangResult result, ErrorLevel level) -> Error {
 
   auto len = strlen(slang::getLastInternalErrorMessage());
   if (len > 0) {
-    return Create(slang::getLastInternalErrorMessage(),
-                  static_cast<ErrorCode>(result), level + 1);
+    return Create(slang::getLastInternalErrorMessage(), static_cast<ErrorCode>(result), level + 1);
   }
 
   /*
@@ -524,8 +485,7 @@ auto Error::Create(SlangResult result, ErrorLevel level) -> Error {
   // Check if the result is in the predefined map
   auto errStrIterator = SlangResultToStringMap.find(result);
   if (errStrIterator != SlangResultToStringMap.end()) {
-    return Create(errStrIterator->second, static_cast<ErrorCode>(result),
-                  level + 1);
+    return Create(errStrIterator->second, static_cast<ErrorCode>(result), level + 1);
   }
 
   auto errorBit = (static_cast<ErrorLevel>(result) >> 31U) & 0x1U; // NOLINT
@@ -533,32 +493,21 @@ auto Error::Create(SlangResult result, ErrorLevel level) -> Error {
   auto codeBits = SLANG_GET_RESULT_CODE(result);                   // NOLINT
 
   std::ostringstream oss;
-  oss << "SlangResult Error - Severity: "
-      << (errorBit == 1U ? "Error" : "Success")
-      << ", Facility: " << facilityBits << ", Code: " << codeBits;
+  oss << "SlangResult Error - Severity: " << (errorBit == 1U ? "Error" : "Success") << ", Facility: " << facilityBits << ", Code: " << codeBits;
   return Create(oss.str(), static_cast<ErrorCode>(result), level + 1);
 }
 
-auto Error::Create(Slang::ComPtr<slang::IBlob> &diagnosticsBlob,
-                   ErrorLevel level) -> Error {
+auto Error::Create(Slang::ComPtr<slang::IBlob> &diagnosticsBlob, ErrorLevel level) -> Error {
   if (diagnosticsBlob.readRef() == nullptr) {
     return Success();
   }
 
   // NOLINTNEXTLINE
-  return Create((const char *)diagnosticsBlob->getBufferPointer(), -1,
-                level + 1);
+  return Create((const char *)diagnosticsBlob->getBufferPointer(), -1, level + 1);
 }
 
-auto Error::Unexpected(const std::string &message, ErrorCode code)
-    -> tl::unexpected<Error> {
-  return tl::unexpected<Error>(Create(message, code, 1));
-}
+auto Error::Unexpected(const std::string &message, ErrorCode code) -> tl::unexpected<Error> { return tl::unexpected<Error>(Create(message, code, 1)); }
 
-auto Error::Unexpected(VkResult result) -> tl::unexpected<Error> {
-  return tl::unexpected<Error>(Create(result));
-}
+auto Error::Unexpected(VkResult result) -> tl::unexpected<Error> { return tl::unexpected<Error>(Create(result)); }
 
-[[nodiscard]] auto Error::AsUnexpected() const -> tl::unexpected<Error> {
-  return tl::unexpected<Error>(*this);
-};
+[[nodiscard]] auto Error::AsUnexpected() const -> tl::unexpected<Error> { return tl::unexpected<Error>(*this); };

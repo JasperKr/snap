@@ -22,8 +22,7 @@ inline auto SetIdentity(lua_State *state) -> int {
   return 0;
 }
 
-inline auto StringToExtensionRequirement(const char *str)
-    -> Result<Graphics::ExtensionRequirement> {
+inline auto StringToExtensionRequirement(const char *str) -> Result<Graphics::ExtensionRequirement> {
   if (std::string(str) == "disabled") {
     return Graphics::ExtensionRequirement::Disabled;
   }
@@ -37,26 +36,23 @@ inline auto StringToExtensionRequirement(const char *str)
   return Error::Unexpectedf("Invalid extension requirement '{}'", str);
 }
 
-const LuaWrap::LuaEnum<Graphics::ExtensionRequirement> ExtensionRequirementEnum(
-    "ExtensionRequirement",
-    {
-        {"disabled", Graphics::ExtensionRequirement::Disabled},
-        {"optional", Graphics::ExtensionRequirement::Optional},
-        {"required", Graphics::ExtensionRequirement::Required},
-    });
+const LuaWrap::LuaEnum<Graphics::ExtensionRequirement> ExtensionRequirementEnum("ExtensionRequirement",
+                                                                                {
+                                                                                    {"disabled", Graphics::ExtensionRequirement::Disabled},
+                                                                                    {"optional", Graphics::ExtensionRequirement::Optional},
+                                                                                    {"required", Graphics::ExtensionRequirement::Required},
+                                                                                });
 
 inline auto SetGraphicsSettings(lua_State *state) -> int {
   lua_getfield(state, 1, "hardwareRaytracing");
   if (!lua_isnoneornil(state, -1)) {
-    globalConfig.deviceSettings.hardwareRaytracing =
-        LUA_CK_RES(ExtensionRequirementEnum.FromLua(state, -1));
+    globalConfig.deviceSettings.hardwareRaytracing = LUA_CK_RES(ExtensionRequirementEnum.FromLua(state, -1));
   }
   lua_pop(state, 1);
 
   lua_getfield(state, 1, "inlineRaytracing");
   if (!lua_isnoneornil(state, -1)) {
-    globalConfig.deviceSettings.inlineRaytracing =
-        LUA_CK_RES(ExtensionRequirementEnum.FromLua(state, -1));
+    globalConfig.deviceSettings.inlineRaytracing = LUA_CK_RES(ExtensionRequirementEnum.FromLua(state, -1));
   }
   lua_pop(state, 1);
 
@@ -68,8 +64,7 @@ inline auto SetGraphicsSettings(lua_State *state) -> int {
 
     lua_pushnil(state);
     while (lua_next(state, -2) != 0) {
-      if (lua_type(state, -2) != LUA_TSTRING ||
-          lua_type(state, -1) != LUA_TSTRING) {
+      if (lua_type(state, -2) != LUA_TSTRING || lua_type(state, -1) != LUA_TSTRING) {
         return luaL_error(state, "requiredExtensions must be a table "
                                  "with string keys and values");
       }
@@ -79,18 +74,16 @@ inline auto SetGraphicsSettings(lua_State *state) -> int {
 
       auto extRequirementResult = StringToExtensionRequirement(extReq);
       if (Error::IsError(extRequirementResult)) {
-        return luaL_error(state, "%s",
-                          extRequirementResult.error().message.c_str());
+        return luaL_error(state, "%s", extRequirementResult.error().message.c_str());
       }
 
       extRequirement = extRequirementResult.value();
-      globalConfig.deviceSettings.requiredExtensions.emplace_back(
-          Graphics::Extension{
-              .name = extName,
-              // Instance-level extensions are not supported by lua configuration.
-              .type = Graphics::ExtensionType::Device,
-              .requirement = extRequirement,
-          });
+      globalConfig.deviceSettings.requiredExtensions.emplace_back(Graphics::Extension{
+          .name = extName,
+          // Instance-level extensions are not supported by lua configuration.
+          .type = Graphics::ExtensionType::Device,
+          .requirement = extRequirement,
+      });
     }
   }
   lua_pop(state, 1);
@@ -170,8 +163,7 @@ inline auto RemoveFunctions(lua_State *state) -> void {
   lua_pop(state, 1); // pop snap table
 }
 
-auto Configure(lua_State *state, const std::string &sourceDirectory)
-    -> Result<ApplicationConfig> {
+auto Configure(lua_State *state, const std::string &sourceDirectory) -> Result<ApplicationConfig> {
 
   LuaWrap::SetStackToTable(state, "snap"); // [snap]
 
@@ -216,9 +208,7 @@ auto Configure(lua_State *state, const std::string &sourceDirectory)
   if (luaL_dostring(state, luaScript.c_str()) != LUA_OK) {
     const char *errorMsg = lua_tostring(state, -1);
     lua_pop(state, 1); // Pop error message
-    return Error::Unexpected(
-        std::string("Lua error: ") +
-        ((errorMsg != nullptr) ? errorMsg : "Unknown error"));
+    return Error::Unexpected(std::string("Lua error: ") + ((errorMsg != nullptr) ? errorMsg : "Unknown error"));
   }
 
   // Stack is clean here

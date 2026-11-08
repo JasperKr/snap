@@ -87,11 +87,9 @@ float4 fragmentMain(FragmentInput input) {
 
   float3 albedo = texColor.rgb * matData.albedoFactor.rgb;
 
-  float2 metallicRoughness =
-      MetallicRoughnessTexture.Sample(input.tex_coord).bg;
+  float2 metallicRoughness = MetallicRoughnessTexture.Sample(input.tex_coord).bg;
 
-  float3 normalMap =
-      normalize(NormalTexture.Sample(input.tex_coord).xyz * 2.0f - 1.0f);
+  float3 normalMap = normalize(NormalTexture.Sample(input.tex_coord).xyz * 2.0f - 1.0f);
 
   float3 bitangent = cross(normal, tangent.xyz) * tangent.w;
   float3x3 TBN = float3x3(tangent.xyz, bitangent, normal);
@@ -128,8 +126,7 @@ float4 fragmentMain(FragmentInput input) {
     direct += light.GetIntensityAt(input.WorldPosition, pixel, viewDir);
   }
 
-  float3 E =
-      prefilteredDFG(pixel.PerceptualRoughness, pixel.Fresnel0, pixel.NoV);
+  float3 E = prefilteredDFG(pixel.PerceptualRoughness, pixel.Fresnel0, pixel.NoV);
   float3 diffuse = ComputeDiffuseColor(pixel.Albedo, pixel.Metallic);
 
   float3 irradiance = float3(0.5, 0.5, 0.5); // Some ambient lighting

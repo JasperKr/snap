@@ -30,8 +30,7 @@ struct BoundingBox {
     Max = Math::Vec3(std::numeric_limits<float>::lowest());
   }
 
-  auto Construct(const Transform &transform, const BoundingBox &localBounds)
-      -> void;
+  auto Construct(const Transform &transform, const BoundingBox &localBounds) -> void;
 
   auto DrawGUI(flecs::entity entity) const -> void;
 };
@@ -42,13 +41,9 @@ struct LuaBoundingBox : LuaWrap::LuaECSObject {
   explicit LuaBoundingBox(const flecs::entity &entity) : LuaECSObject(entity) {}
 
   static auto GetType() -> const Type * { return &boundingBoxType; }
-  auto GetInstanceType() const -> const Type * override {
-    return &boundingBoxType;
-  }
+  auto GetInstanceType() const -> const Type * override { return &boundingBoxType; }
 
-  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaBoundingBox> {
-    return Ref<LuaBoundingBox>::Make(entity);
-  }
+  static auto FromEntity(const flecs::entity &entity) -> Ref<LuaBoundingBox> { return Ref<LuaBoundingBox>::Make(entity); }
 
   static auto GetMin(lua_State *state) -> int;
   static auto SetMin(lua_State *state) -> int;
