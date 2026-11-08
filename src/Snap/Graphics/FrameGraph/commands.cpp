@@ -162,36 +162,43 @@ auto DrawState::Initialize(CommandType type) -> Error {
   depthTestEnable = RenderState::TopOfStack->depthTestEnable;
   depthCompareOp = RenderState::TopOfStack->depthCompareOp;
 
-  boundImages.clear();
-  boundBuffers.clear();
-  boundASs.clear();
+  // boundImages.clear();
+  // boundBuffers.clear();
+  // boundASs.clear();
+
+  boundImages.resize(shaderState.userBoundTextures.size());
+  boundBuffers.resize(shaderState.userBoundBuffers.size());
+  boundASs.resize(shaderState.userBoundAccelerationStructures.size());
 
 #ifndef NDEBUG
   debugMarkerStack = RenderState::TopOfStack->debugMarkerStack;
 #endif
 
+  int index = 0;
   for (const auto &texture : shaderState.userBoundTextures) {
-    boundImages.emplace_back(BoundResource{
+    boundImages.at(index++) = BoundResource{
         .resource = ImageSubresource{texture.second.resource},
         .access = texture.second.access,
         .pipelines = pipelines,
-    });
+    };
   }
 
+  index = 0;
   for (const auto &buffer : shaderState.userBoundBuffers) {
-    boundBuffers.emplace_back(BoundResource{
+    boundBuffers.at(index++) = BoundResource{
         .resource = buffer.second.resource->handle,
         .access = buffer.second.access,
         .pipelines = pipelines,
-    });
+    };
   }
 
+  index = 0;
   for (const auto &accelerationStructure : shaderState.userBoundAccelerationStructures) {
-    boundASs.emplace_back(BoundResource{
+    boundASs.at(index++) = BoundResource{
         .resource = accelerationStructure.second.resource->GetAccelerationStructure(),
         .access = accelerationStructure.second.access,
         .pipelines = pipelines,
-    });
+    };
   }
 
   VirtualState &currentState = GetVirtualCommandBuffer()->currentState;

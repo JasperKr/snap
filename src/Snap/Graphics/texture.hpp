@@ -18,6 +18,7 @@
 #include "vulkan/vulkan_core.h"
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -209,7 +210,7 @@ struct Texture : Object, Identifiable {
 
   std::shared_ptr<ImageMemory> imageMemory;
 
-  mutable std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+  mutable std::unordered_map<VkDescriptorType, VkDeviceSize> addresses;
 
   auto UseAs(const GraphicsContext &context, TextureUsage newUsage, VkPipelineStageFlags2 stage, VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
              VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE) const -> Error;

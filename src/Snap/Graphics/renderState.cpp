@@ -386,18 +386,30 @@ auto GetUserShader() -> Ref<Shader> {
 
 auto GetShader() -> Ref<Shader> { return TopOfStack->shader; }
 
+auto GetTargetSize() -> VkExtent2D {
+  if (TopOfStack->colorAttachments.size() > 0) {
+    return {
+        std::max(TopOfStack->colorAttachments.at(0).texture->GetWidth(), 1U),
+        std::max(TopOfStack->colorAttachments.at(0).texture->GetHeight(), 1U),
+    };
+  }
+
+  if (TopOfStack->hasDepthStencilAttachment) {
+    return {
+        std::max(TopOfStack->depthStencilAttachment.texture->GetWidth(), 1U),
+        std::max(TopOfStack->depthStencilAttachment.texture->GetHeight(), 1U),
+    };
+  }
+
+  // No attachments, return zero size
+  return {0, 0};
+}
+
 auto GetScissor() -> VkRect2D {
   if (!TopOfStack->hasScissor) {
     VkRect2D scissor = {};
-    auto viewport = GetMaximumAllowedViewport();
     scissor.offset = {.x = 0, .y = 0};
-    scissor.extent = {
-        .width = static_cast<uint32_t>(viewport.width),
-        .height = static_cast<uint32_t>(viewport.height),
-    };
-
-    scissor.extent.width = std::max(scissor.extent.width, 1U);
-    scissor.extent.height = std::max(scissor.extent.height, 1U);
+    scissor.extent = GetTargetSize();
 
     return scissor;
   }
@@ -412,49 +424,24 @@ auto GetScissor() -> VkRect2D {
   };
 }
 
-auto GetTargetSize() -> VkExtent2D {
-  if (TopOfStack->colorAttachments.size() > 0) {
-    return {
-        TopOfStack->colorAttachments.at(0).texture->GetWidth(),
-        TopOfStack->colorAttachments.at(0).texture->GetHeight(),
-    };
-  }
-
-  if (TopOfStack->hasDepthStencilAttachment) {
-    return {
-        TopOfStack->depthStencilAttachment.texture->GetWidth(),
-        TopOfStack->depthStencilAttachment.texture->GetHeight(),
-    };
-  }
-
-  // No attachments, return zero size
-  return {0, 0};
-}
-
 auto GetMaximumAllowedViewport() -> VkViewport {
-  auto viewport = TopOfStack->viewport;
-
   auto size = GetTargetSize();
 
-  viewport.width = static_cast<float>(size.width);
-  viewport.height = static_cast<float>(size.height);
-
-  viewport.width = (std::max)(viewport.width, 1.0F);
-  viewport.height = (std::max)(viewport.height, 1.0F);
-
-  viewport.minDepth = 0.0F;
-  viewport.maxDepth = 1.0F;
+  VkViewport viewport{
+      .width = static_cast<float>(size.width),
+      .height = static_cast<float>(size.height),
+      .minDepth = 0.0F,
+      .maxDepth = 1.0F,
+  };
 
   return viewport;
 }
 
 auto GetViewport() -> VkViewport {
-
   if (!TopOfStack->hasViewport) {
     return GetMaximumAllowedViewport();
   }
 
-  // return TopOfStack->viewport;
   return {
       .x = TopOfStack->viewport.x,
       .y = TopOfStack->viewport.y,

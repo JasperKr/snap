@@ -1279,7 +1279,7 @@ Texture::~Texture() {
 
   struct Info {
     VkImageView view;
-    std::vector<std::pair<VkDeviceSize, VkDescriptorType>> addresses;
+    std::unordered_map<VkDescriptorType, VkDeviceSize> addresses;
   };
 
   ScheduleDestruction<Info>(
@@ -1287,13 +1287,13 @@ Texture::~Texture() {
         vkDestroyImageView(context.device, info.view, GetAllocationCallbacks());
 
         for (const auto addressPair : info.addresses) {
-          DescriptorHeapManager::GetInstance().FreeImageResourceIndex(addressPair.first);
+          DescriptorHeapManager::GetInstance().FreeImageResourceIndex(addressPair.second);
         }
       },
       imageMemory->lastUsedTimestamp,
       {
           .view = view,
-          .addresses = std::move(addresses),
+          .addresses = addresses,
       });
 }
 
@@ -1409,15 +1409,15 @@ auto Texture::GenerateMipmaps(const GraphicsContext &context, VkCommandBuffer co
 auto Texture::GetAddress(const GraphicsContext &context, VkDescriptorType type) const -> Result<VkDeviceSize> {
   ZoneScoped;
 
-  for (const auto &addressPair : addresses) {
-    if (addressPair.second == type) {
-      return addressPair.first;
-    }
+  auto iter = addresses.find(type);
+  [[likely]]
+  if (iter != addresses.end()) {
+    return iter->second;
   }
 
   VkDeviceSize address = CHECK_RES(DescriptorHeapManager::GetInstance().AllocateResource(context, this, type));
+  addresses.emplace(type, address);
 
-  addresses.emplace_back(address, type);
   return address;
 }
 
