@@ -16,6 +16,7 @@ static constexpr size_t RendertargetLifetime = 32; // 32 frames.
 struct RendertargetDescriptor {
   Math::Uvec2 size{};
   bool requiresMipmaps = false;
+  bool persistent = false;
 
   // -1 means auto-calculate based on size and requiresMipmaps
   int32_t mipmapCount = -1;
@@ -43,17 +44,11 @@ struct RendertargetDescriptorHash {
 };
 
 struct RenderTargetManager {
-  auto GetRendertarget(const struct ::Graphics::GraphicsContext &context,
-                       const RendertargetDescriptor &descriptor)
-      -> Result<Ref<::Graphics::Texture>>;
+  auto GetRendertarget(const struct ::Graphics::GraphicsContext &context, const RendertargetDescriptor &descriptor) -> Result<Ref<::Graphics::Texture>>;
   auto ReleaseRendertarget(const Ref<::Graphics::Texture> &texture) -> Error;
-  auto
-  ReleaseRendertargets(const std::vector<Ref<::Graphics::Texture>> &textures)
-      -> Error;
+  auto ReleaseRendertargets(const std::vector<Ref<::Graphics::Texture>> &textures) -> Error;
 
-  [[nodiscard]] auto GetRendertargetCount() const -> size_t {
-    return Rendertargets.size();
-  }
+  [[nodiscard]] auto GetRendertargetCount() const -> size_t { return Rendertargets.size(); }
   auto Update() -> void;
 
   auto Deinitialize() -> void;
@@ -68,9 +63,7 @@ private:
 
   std::vector<RendertargetEntry> Rendertargets;
 
-  static auto ReconfigureTexture(const RendertargetDescriptor &descriptor,
-                                 const Ref<::Graphics::Texture> &texture)
-      -> void;
+  static auto ReconfigureTexture(const RendertargetDescriptor &descriptor, const Ref<::Graphics::Texture> &texture) -> void;
 
   auto Cleanup(bool evictAll = false) -> void;
 };

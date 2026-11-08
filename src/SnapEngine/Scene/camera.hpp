@@ -3,6 +3,7 @@
 #include "Graphics/Buffers/structured.hpp"
 #include "Graphics/bufferformat.hpp"
 #include "Graphics/graphicsContext.hpp"
+#include "Graphics/texture.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
@@ -174,31 +175,6 @@ struct Camera {
     Ref<Graphics::Texture> PreviousAmbientOcclusion;
     Ref<Graphics::Texture> AmbientOcclusionSamples;
     Ref<Graphics::Texture> VolumetricLighting;
-
-    void Reset() {
-      Depth = nullptr;
-      PreviousDepth = nullptr;
-      Normal = nullptr;
-      Albedo = nullptr;
-      Material = nullptr;
-      Emissive = nullptr;
-      Motion = nullptr;
-      IncomingLight = nullptr;
-      TAA = nullptr;
-      PreviousTAA = nullptr;
-      DirectLighting = nullptr;
-      Irradiance = nullptr;
-      PostProcessed = nullptr;
-      BloomFinal = nullptr;
-      BloomDownsampleChain = nullptr;
-      ShadowVisibility = nullptr;
-      PreviousShadowVisibility = nullptr;
-      ShadowHitFlags = nullptr;
-      AmbientOcclusion = nullptr;
-      PreviousAmbientOcclusion = nullptr;
-      AmbientOcclusionSamples = nullptr;
-      VolumetricLighting = nullptr;
-    }
   };
 
   struct PersistentTextureSettings {
@@ -218,6 +194,7 @@ struct Camera {
     bool BloomFinal = false;
     bool BloomDownsampleChain = false;
     bool ShadowVisibility = false;
+    bool PreviousShadowVisibility = false;
     bool ShadowHitFlags = false;
     bool AmbientOcclusion = false;
     bool PreviousAmbientOcclusion = false;

@@ -7,6 +7,7 @@
 #include "Modules/Math/vector.hpp"
 #include "Modules/color.hpp"
 #include "Modules/compressedImageData.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/filesystem.hpp"
 #include "Modules/imageData.hpp"
@@ -1152,6 +1153,8 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context, flecs::world *wor
       .vertexData = deinterleavedSpans,
       .debugName = std::string(info.Name),
   };
+
+  PrintInfo("Loading GLTF mesh: {}", info.Name);
 
   auto mesh = CHECK_RES(Graphics::Mesh::Create(context, meshCreationInfo));
 

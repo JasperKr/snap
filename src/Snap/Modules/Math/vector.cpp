@@ -404,12 +404,8 @@ static constexpr float Epsilon = 1e-6F;
 ///// Vec2 /////
 
 /// Addition ///
-auto Vec2::operator+(const Vec2 &other) const -> Vec2 {
-  return {x + other.x, y + other.y};
-}
-auto Vec2::operator+(float scalar) const -> Vec2 {
-  return {x + scalar, y + scalar};
-}
+auto Vec2::operator+(const Vec2 &other) const -> Vec2 { return {x + other.x, y + other.y}; }
+auto Vec2::operator+(float scalar) const -> Vec2 { return {x + scalar, y + scalar}; }
 auto Vec2::operator+=(const Vec2 &other) -> Vec2 & {
   x += other.x;
   y += other.y;
@@ -422,12 +418,8 @@ auto Vec2::operator+=(float scalar) -> Vec2 & {
 }
 
 /// Subtraction ///
-auto Vec2::operator-(const Vec2 &other) const -> Vec2 {
-  return {x - other.x, y - other.y};
-}
-auto Vec2::operator-(float scalar) const -> Vec2 {
-  return {x - scalar, y - scalar};
-}
+auto Vec2::operator-(const Vec2 &other) const -> Vec2 { return {x - other.x, y - other.y}; }
+auto Vec2::operator-(float scalar) const -> Vec2 { return {x - scalar, y - scalar}; }
 auto Vec2::operator-=(const Vec2 &other) -> Vec2 & {
   x -= other.x;
   y -= other.y;
@@ -441,12 +433,8 @@ auto Vec2::operator-=(float scalar) -> Vec2 & {
 auto Vec2::operator-() const -> Vec2 { return {-x, -y}; }
 
 /// Multiplication ///
-auto Vec2::operator*(float scalar) const -> Vec2 {
-  return {x * scalar, y * scalar};
-}
-auto Vec2::operator*(const Vec2 &other) const -> Vec2 {
-  return {x * other.x, y * other.y};
-}
+auto Vec2::operator*(float scalar) const -> Vec2 { return {x * scalar, y * scalar}; }
+auto Vec2::operator*(const Vec2 &other) const -> Vec2 { return {x * other.x, y * other.y}; }
 auto Vec2::operator*=(float scalar) -> Vec2 & {
   x *= scalar;
   y *= scalar;
@@ -459,12 +447,8 @@ auto Vec2::operator*=(const Vec2 &other) -> Vec2 & {
 }
 
 /// Division ///
-auto Vec2::operator/(float scalar) const -> Vec2 {
-  return {x / scalar, y / scalar};
-}
-auto Vec2::operator/(const Vec2 &other) const -> Vec2 {
-  return {x / other.x, y / other.y};
-}
+auto Vec2::operator/(float scalar) const -> Vec2 { return {x / scalar, y / scalar}; }
+auto Vec2::operator/(const Vec2 &other) const -> Vec2 { return {x / other.x, y / other.y}; }
 auto Vec2::operator/=(float scalar) -> Vec2 & {
   x /= scalar;
   y /= scalar;
@@ -476,21 +460,12 @@ auto Vec2::operator/=(const Vec2 &other) -> Vec2 & {
   return *this;
 }
 
-auto Vec2::operator==(const Vec2 &other) const -> bool {
-  return x == other.x && y == other.y;
-}
-auto Vec2::operator!=(const Vec2 &other) const -> bool {
-  return !(*this == other);
-}
+auto Vec2::operator==(const Vec2 &other) const -> bool { return x == other.x && y == other.y; }
+auto Vec2::operator!=(const Vec2 &other) const -> bool { return !(*this == other); }
 auto Vec2::Length() const -> float { return std::sqrt((x * x) + (y * y)); }
 auto Vec2::LengthSqr() const -> float { return (x * x) + (y * y); }
-auto Vec2::Distance(const Vec2 &other) const -> float {
-  return std::sqrt(((x - other.x) * (x - other.x)) +
-                   ((y - other.y) * (y - other.y)));
-}
-auto Vec2::DistanceSqr(const Vec2 &other) const -> float {
-  return ((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y));
-}
+auto Vec2::Distance(const Vec2 &other) const -> float { return std::sqrt(((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y))); }
+auto Vec2::DistanceSqr(const Vec2 &other) const -> float { return ((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)); }
 auto Vec2::Inverse() const -> Vec2 { return {1.0F / x, 1.0F / y}; }
 auto Vec2::Normalize() const -> Vec2 {
   float len = Length();
@@ -499,48 +474,26 @@ auto Vec2::Normalize() const -> Vec2 {
   }
   return {x / len, y / len};
 }
-auto Vec2::Dot(const Vec2 &other) const -> float {
-  return (x * other.x) + (y * other.y);
-}
-auto Vec2::Cross(const Vec2 &other) const -> Vec2 {
-  return {(x * other.y) - (y * other.x), (y * other.x) - (x * other.y)};
-}
-auto Vec2::Max(const Vec2 &other) const -> Vec2 {
-  return {std::fmax(x, other.x), std::fmax(y, other.y)};
-}
-auto Vec2::Max(float scalar) const -> Vec2 {
-  return {std::fmax(x, scalar), std::fmax(y, scalar)};
-}
-auto Vec2::Min(const Vec2 &other) const -> Vec2 {
-  return {std::fmin(x, other.x), std::fmin(y, other.y)};
-}
-auto Vec2::Min(float scalar) const -> Vec2 {
-  return {std::fmin(x, scalar), std::fmin(y, scalar)};
-}
+auto Vec2::Dot(const Vec2 &other) const -> float { return (x * other.x) + (y * other.y); }
+auto Vec2::Cross(const Vec2 &other) const -> Vec2 { return {(x * other.y) - (y * other.x), (y * other.x) - (x * other.y)}; }
+auto Vec2::Max(const Vec2 &other) const -> Vec2 { return {std::fmax(x, other.x), std::fmax(y, other.y)}; }
+auto Vec2::Max(float scalar) const -> Vec2 { return {std::fmax(x, scalar), std::fmax(y, scalar)}; }
+auto Vec2::Min(const Vec2 &other) const -> Vec2 { return {std::fmin(x, other.x), std::fmin(y, other.y)}; }
+auto Vec2::Min(float scalar) const -> Vec2 { return {std::fmin(x, scalar), std::fmin(y, scalar)}; }
 Vec2::Vec2(const Vec3 &vec3) : x(vec3.x), y(vec3.y) {}
 Vec2::Vec2(const Vec4 &vec4) : x(vec4.x), y(vec4.y) {}
-Vec2::Vec2(const Ivec2 &vec2)
-    : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)) {}
-Vec2::Vec2(const Ivec3 &vec3)
-    : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)) {}
-Vec2::Vec2(const Ivec4 &vec4)
-    : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)) {}
-Vec2::Vec2(const Uvec2 &vec2)
-    : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)) {}
-Vec2::Vec2(const Uvec3 &vec3)
-    : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)) {}
-Vec2::Vec2(const Uvec4 &vec4)
-    : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)) {}
+Vec2::Vec2(const Ivec2 &vec2) : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)) {}
+Vec2::Vec2(const Ivec3 &vec3) : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)) {}
+Vec2::Vec2(const Ivec4 &vec4) : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)) {}
+Vec2::Vec2(const Uvec2 &vec2) : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)) {}
+Vec2::Vec2(const Uvec3 &vec3) : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)) {}
+Vec2::Vec2(const Uvec4 &vec4) : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)) {}
 
 ///// Vec3 /////
 
 /// Addition ///
-auto Vec3::operator+(const Vec3 &other) const -> Vec3 {
-  return {x + other.x, y + other.y, z + other.z};
-}
-auto Vec3::operator+(float scalar) const -> Vec3 {
-  return {x + scalar, y + scalar, z + scalar};
-}
+auto Vec3::operator+(const Vec3 &other) const -> Vec3 { return {x + other.x, y + other.y, z + other.z}; }
+auto Vec3::operator+(float scalar) const -> Vec3 { return {x + scalar, y + scalar, z + scalar}; }
 auto Vec3::operator+=(const Vec3 &other) -> Vec3 & {
   x += other.x;
   y += other.y;
@@ -555,12 +508,8 @@ auto Vec3::operator+=(float scalar) -> Vec3 & {
 }
 
 /// Subtraction ///
-auto Vec3::operator-(const Vec3 &other) const -> Vec3 {
-  return {x - other.x, y - other.y, z - other.z};
-}
-auto Vec3::operator-(float scalar) const -> Vec3 {
-  return {x - scalar, y - scalar, z - scalar};
-}
+auto Vec3::operator-(const Vec3 &other) const -> Vec3 { return {x - other.x, y - other.y, z - other.z}; }
+auto Vec3::operator-(float scalar) const -> Vec3 { return {x - scalar, y - scalar, z - scalar}; }
 auto Vec3::operator-=(const Vec3 &other) -> Vec3 & {
   x -= other.x;
   y -= other.y;
@@ -576,12 +525,8 @@ auto Vec3::operator-=(float scalar) -> Vec3 & {
 auto Vec3::operator-() const -> Vec3 { return {-x, -y, -z}; }
 
 /// Multiplication ///
-auto Vec3::operator*(float scalar) const -> Vec3 {
-  return {x * scalar, y * scalar, z * scalar};
-}
-auto Vec3::operator*(const Vec3 &other) const -> Vec3 {
-  return {x * other.x, y * other.y, z * other.z};
-}
+auto Vec3::operator*(float scalar) const -> Vec3 { return {x * scalar, y * scalar, z * scalar}; }
+auto Vec3::operator*(const Vec3 &other) const -> Vec3 { return {x * other.x, y * other.y, z * other.z}; }
 auto Vec3::operator*=(float scalar) -> Vec3 & {
   x *= scalar;
   y *= scalar;
@@ -596,12 +541,8 @@ auto Vec3::operator*=(const Vec3 &other) -> Vec3 & {
 }
 
 /// Division ///
-auto Vec3::operator/(float scalar) const -> Vec3 {
-  return {x / scalar, y / scalar, z / scalar};
-}
-auto Vec3::operator/(const Vec3 &other) const -> Vec3 {
-  return {x / other.x, y / other.y, z / other.z};
-}
+auto Vec3::operator/(float scalar) const -> Vec3 { return {x / scalar, y / scalar, z / scalar}; }
+auto Vec3::operator/(const Vec3 &other) const -> Vec3 { return {x / other.x, y / other.y, z / other.z}; }
 auto Vec3::operator/=(float scalar) -> Vec3 & {
   x /= scalar;
   y /= scalar;
@@ -615,24 +556,15 @@ auto Vec3::operator/=(const Vec3 &other) -> Vec3 & {
   return *this;
 }
 
-auto Vec3::operator==(const Vec3 &other) const -> bool {
-  return x == other.x && y == other.y && z == other.z;
-}
-auto Vec3::operator!=(const Vec3 &other) const -> bool {
-  return !(*this == other);
-}
-auto Vec3::Length() const -> float {
-  return std::sqrt((x * x) + (y * y) + (z * z));
-}
+auto Vec3::operator==(const Vec3 &other) const -> bool { return x == other.x && y == other.y && z == other.z; }
+auto Vec3::operator!=(const Vec3 &other) const -> bool { return !(*this == other); }
+auto Vec3::Length() const -> float { return std::sqrt((x * x) + (y * y) + (z * z)); }
 auto Vec3::LengthSqr() const -> float { return (x * x) + (y * y) + (z * z); }
 auto Vec3::Distance(const Vec3 &other) const -> float {
-  return std::sqrt(((x - other.x) * (x - other.x)) +
-                   ((y - other.y) * (y - other.y)) +
-                   ((z - other.z) * (z - other.z)));
+  return std::sqrt(((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)) + ((z - other.z) * (z - other.z)));
 }
 auto Vec3::DistanceSqr(const Vec3 &other) const -> float {
-  return ((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)) +
-         ((z - other.z) * (z - other.z));
+  return ((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)) + ((z - other.z) * (z - other.z));
 }
 auto Vec3::Inverse() const -> Vec3 { return {1.0F / x, 1.0F / y, 1.0F / z}; }
 auto Vec3::Normalize() const -> Vec3 {
@@ -642,43 +574,20 @@ auto Vec3::Normalize() const -> Vec3 {
   }
   return {x / len, y / len, z / len};
 }
-auto Vec3::Dot(const Vec3 &other) const -> float {
-  return (x * other.x) + (y * other.y) + (z * other.z);
-}
-auto Vec3::Cross(const Vec3 &other) const -> Vec3 {
-  return {(y * other.z) - (z * other.y), (z * other.x) - (x * other.z),
-          (x * other.y) - (y * other.x)};
-}
-auto Vec3::Max(const Vec3 &other) const -> Vec3 {
-  return {std::fmax(x, other.x), std::fmax(y, other.y), std::fmax(z, other.z)};
-}
-auto Vec3::Max(float scalar) const -> Vec3 {
-  return {std::fmax(x, scalar), std::fmax(y, scalar), std::fmax(z, scalar)};
-}
-auto Vec3::Min(const Vec3 &other) const -> Vec3 {
-  return {std::fmin(x, other.x), std::fmin(y, other.y), std::fmin(z, other.z)};
-}
-auto Vec3::Min(float scalar) const -> Vec3 {
-  return {std::fmin(x, scalar), std::fmin(y, scalar), std::fmin(z, scalar)};
-}
+auto Vec3::Dot(const Vec3 &other) const -> float { return (x * other.x) + (y * other.y) + (z * other.z); }
+auto Vec3::Cross(const Vec3 &other) const -> Vec3 { return {(y * other.z) - (z * other.y), (z * other.x) - (x * other.z), (x * other.y) - (y * other.x)}; }
+auto Vec3::Max(const Vec3 &other) const -> Vec3 { return {std::fmax(x, other.x), std::fmax(y, other.y), std::fmax(z, other.z)}; }
+auto Vec3::Max(float scalar) const -> Vec3 { return {std::fmax(x, scalar), std::fmax(y, scalar), std::fmax(z, scalar)}; }
+auto Vec3::Min(const Vec3 &other) const -> Vec3 { return {std::fmin(x, other.x), std::fmin(y, other.y), std::fmin(z, other.z)}; }
+auto Vec3::Min(float scalar) const -> Vec3 { return {std::fmin(x, scalar), std::fmin(y, scalar), std::fmin(z, scalar)}; }
 Vec3::Vec3(const Vec2 &vec2, float z_val) : x(vec2.x), y(vec2.y), z(z_val) {}
 Vec3::Vec3(const Vec4 &vec4) : x(vec4.x), y(vec4.y), z(vec4.z) {}
-Vec3::Vec3(const Ivec2 &vec2, float z_val)
-    : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val) {}
-Vec3::Vec3(const Ivec3 &vec3)
-    : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)),
-      z(static_cast<float>(vec3.z)) {}
-Vec3::Vec3(const Ivec4 &vec4)
-    : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)),
-      z(static_cast<float>(vec4.z)) {}
-Vec3::Vec3(const Uvec2 &vec2, float z_val)
-    : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val) {}
-Vec3::Vec3(const Uvec3 &vec3)
-    : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)),
-      z(static_cast<float>(vec3.z)) {}
-Vec3::Vec3(const Uvec4 &vec4)
-    : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)),
-      z(static_cast<float>(vec4.z)) {}
+Vec3::Vec3(const Ivec2 &vec2, float z_val) : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val) {}
+Vec3::Vec3(const Ivec3 &vec3) : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)), z(static_cast<float>(vec3.z)) {}
+Vec3::Vec3(const Ivec4 &vec4) : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)), z(static_cast<float>(vec4.z)) {}
+Vec3::Vec3(const Uvec2 &vec2, float z_val) : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val) {}
+Vec3::Vec3(const Uvec3 &vec3) : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)), z(static_cast<float>(vec3.z)) {}
+Vec3::Vec3(const Uvec4 &vec4) : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)), z(static_cast<float>(vec4.z)) {}
 Vec3::Vec3(const Vec4 &&vec4) : x(vec4.x), y(vec4.y), z(vec4.z) {}
 
 [[nodiscard]] auto Vec3::GetTangent() const -> Vec3 {
@@ -692,12 +601,8 @@ Vec3::Vec3(const Vec4 &&vec4) : x(vec4.x), y(vec4.y), z(vec4.z) {}
 ///// Vec4 /////
 
 /// Addition ///
-auto Vec4::operator+(const Vec4 &other) const -> Vec4 {
-  return {x + other.x, y + other.y, z + other.z, w + other.w};
-}
-auto Vec4::operator+(float scalar) const -> Vec4 {
-  return {x + scalar, y + scalar, z + scalar, w + scalar};
-}
+auto Vec4::operator+(const Vec4 &other) const -> Vec4 { return {x + other.x, y + other.y, z + other.z, w + other.w}; }
+auto Vec4::operator+(float scalar) const -> Vec4 { return {x + scalar, y + scalar, z + scalar, w + scalar}; }
 auto Vec4::operator+=(const Vec4 &other) -> Vec4 & {
   x += other.x;
   y += other.y;
@@ -714,12 +619,8 @@ auto Vec4::operator+=(float scalar) -> Vec4 & {
 }
 
 /// Subtraction ///
-auto Vec4::operator-(const Vec4 &other) const -> Vec4 {
-  return {x - other.x, y - other.y, z - other.z, w - other.w};
-}
-auto Vec4::operator-(float scalar) const -> Vec4 {
-  return {x - scalar, y - scalar, z - scalar, w - scalar};
-}
+auto Vec4::operator-(const Vec4 &other) const -> Vec4 { return {x - other.x, y - other.y, z - other.z, w - other.w}; }
+auto Vec4::operator-(float scalar) const -> Vec4 { return {x - scalar, y - scalar, z - scalar, w - scalar}; }
 auto Vec4::operator-=(const Vec4 &other) -> Vec4 & {
   x -= other.x;
   y -= other.y;
@@ -737,12 +638,8 @@ auto Vec4::operator-=(float scalar) -> Vec4 & {
 auto Vec4::operator-() const -> Vec4 { return {-x, -y, -z, -w}; }
 
 /// Multiplication ///
-auto Vec4::operator*(float scalar) const -> Vec4 {
-  return {x * scalar, y * scalar, z * scalar, w * scalar};
-}
-auto Vec4::operator*(const Vec4 &other) const -> Vec4 {
-  return {x * other.x, y * other.y, z * other.z, w * other.w};
-}
+auto Vec4::operator*(float scalar) const -> Vec4 { return {x * scalar, y * scalar, z * scalar, w * scalar}; }
+auto Vec4::operator*(const Vec4 &other) const -> Vec4 { return {x * other.x, y * other.y, z * other.z, w * other.w}; }
 auto Vec4::operator*=(float scalar) -> Vec4 & {
   x *= scalar;
   y *= scalar;
@@ -759,12 +656,8 @@ auto Vec4::operator*=(const Vec4 &other) -> Vec4 & {
 }
 
 /// Division ///
-auto Vec4::operator/(float scalar) const -> Vec4 {
-  return {x / scalar, y / scalar, z / scalar, w / scalar};
-}
-auto Vec4::operator/(const Vec4 &other) const -> Vec4 {
-  return {x / other.x, y / other.y, z / other.z, w / other.w};
-}
+auto Vec4::operator/(float scalar) const -> Vec4 { return {x / scalar, y / scalar, z / scalar, w / scalar}; }
+auto Vec4::operator/(const Vec4 &other) const -> Vec4 { return {x / other.x, y / other.y, z / other.z, w / other.w}; }
 auto Vec4::operator/=(float scalar) -> Vec4 & {
   x /= scalar;
   y /= scalar;
@@ -780,31 +673,18 @@ auto Vec4::operator/=(const Vec4 &other) -> Vec4 & {
   return *this;
 }
 
-auto Vec4::operator==(const Vec4 &other) const -> bool {
-  return x == other.x && y == other.y && z == other.z && w == other.w;
-}
-auto Vec4::operator!=(const Vec4 &other) const -> bool {
-  return !(*this == other);
-}
-auto Vec4::Length() const -> float {
-  return std::sqrt((x * x) + (y * y) + (z * z) + (w * w));
-}
-auto Vec4::LengthSqr() const -> float {
-  return (x * x) + (y * y) + (z * z) + (w * w);
-}
+auto Vec4::operator==(const Vec4 &other) const -> bool { return x == other.x && y == other.y && z == other.z && w == other.w; }
+auto Vec4::operator!=(const Vec4 &other) const -> bool { return !(*this == other); }
+auto Vec4::Length() const -> float { return std::sqrt((x * x) + (y * y) + (z * z) + (w * w)); }
+auto Vec4::LengthSqr() const -> float { return (x * x) + (y * y) + (z * z) + (w * w); }
 auto Vec4::Distance(const Vec4 &other) const -> float {
-  return std::sqrt(
-      ((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)) +
-      ((z - other.z) * (z - other.z)) + ((w - other.w) * (w - other.w)));
+  return std::sqrt(((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)) + ((z - other.z) * (z - other.z)) + ((w - other.w) * (w - other.w)));
 }
 auto Vec4::DistanceSqr(const Vec4 &other) const -> float {
-  return ((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)) +
-         ((z - other.z) * (z - other.z)) + ((w - other.w) * (w - other.w));
+  return ((x - other.x) * (x - other.x)) + ((y - other.y) * (y - other.y)) + ((z - other.z) * (z - other.z)) + ((w - other.w) * (w - other.w));
 }
 
-auto Vec4::Inverse() const -> Vec4 {
-  return {1.0F / x, 1.0F / y, 1.0F / z, 1.0F / w};
-}
+auto Vec4::Inverse() const -> Vec4 { return {1.0F / x, 1.0F / y, 1.0F / z, 1.0F / w}; }
 auto Vec4::Normalize() const -> Vec4 {
   float len = Length();
   if (len <= Epsilon) {
@@ -812,64 +692,27 @@ auto Vec4::Normalize() const -> Vec4 {
   }
   return {x / len, y / len, z / len, w / len};
 }
-auto Vec4::Cross(const Vec4 &other) const -> Vec3 {
-  return {(y * other.z) - (z * other.y), (z * other.x) - (x * other.z),
-          (x * other.y) - (y * other.x)};
-}
-auto Vec4::Dot(const Vec4 &other) const -> float {
-  return (x * other.x) + (y * other.y) + (z * other.z) + (w * other.w);
-}
-auto Vec4::Dot(const Vec3 &other) const -> float {
-  return (x * other.x) + (y * other.y) + (z * other.z);
-}
-auto Vec4::Max(const Vec4 &other) const -> Vec4 {
-  return {std::fmax(x, other.x), std::fmax(y, other.y), std::fmax(z, other.z),
-          std::fmax(w, other.w)};
-}
-auto Vec4::Max(float scalar) const -> Vec4 {
-  return {std::fmax(x, scalar), std::fmax(y, scalar), std::fmax(z, scalar),
-          std::fmax(w, scalar)};
-}
-auto Vec4::Min(const Vec4 &other) const -> Vec4 {
-  return {std::fmin(x, other.x), std::fmin(y, other.y), std::fmin(z, other.z),
-          std::fmin(w, other.w)};
-}
-auto Vec4::Min(float scalar) const -> Vec4 {
-  return {std::fmin(x, scalar), std::fmin(y, scalar), std::fmin(z, scalar),
-          std::fmin(w, scalar)};
-}
-Vec4::Vec4(const Vec2 &vec2, float z_val, float w_val)
-    : x(vec2.x), y(vec2.y), z(z_val), w(w_val) {}
-Vec4::Vec4(const Vec3 &vec3, float w_val)
-    : x(vec3.x), y(vec3.y), z(vec3.z), w(w_val) {}
-Vec4::Vec4(const Ivec2 &vec2, float z_val, float w_val)
-    : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val),
-      w(w_val) {}
-Vec4::Vec4(const Ivec3 &vec3, float w_val)
-    : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)),
-      z(static_cast<float>(vec3.z)), w(w_val) {}
-Vec4::Vec4(const Ivec4 &vec4)
-    : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)),
-      z(static_cast<float>(vec4.z)), w(static_cast<float>(vec4.w)) {}
-Vec4::Vec4(const Uvec2 &vec2, float z_val, float w_val)
-    : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val),
-      w(w_val) {}
-Vec4::Vec4(const Uvec3 &vec3, float w_val)
-    : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)),
-      z(static_cast<float>(vec3.z)), w(w_val) {}
-Vec4::Vec4(const Uvec4 &vec4)
-    : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)),
-      z(static_cast<float>(vec4.z)), w(static_cast<float>(vec4.w)) {}
+auto Vec4::Cross(const Vec4 &other) const -> Vec3 { return {(y * other.z) - (z * other.y), (z * other.x) - (x * other.z), (x * other.y) - (y * other.x)}; }
+auto Vec4::Dot(const Vec4 &other) const -> float { return (x * other.x) + (y * other.y) + (z * other.z) + (w * other.w); }
+auto Vec4::Dot(const Vec3 &other) const -> float { return (x * other.x) + (y * other.y) + (z * other.z); }
+auto Vec4::Max(const Vec4 &other) const -> Vec4 { return {std::fmax(x, other.x), std::fmax(y, other.y), std::fmax(z, other.z), std::fmax(w, other.w)}; }
+auto Vec4::Max(float scalar) const -> Vec4 { return {std::fmax(x, scalar), std::fmax(y, scalar), std::fmax(z, scalar), std::fmax(w, scalar)}; }
+auto Vec4::Min(const Vec4 &other) const -> Vec4 { return {std::fmin(x, other.x), std::fmin(y, other.y), std::fmin(z, other.z), std::fmin(w, other.w)}; }
+auto Vec4::Min(float scalar) const -> Vec4 { return {std::fmin(x, scalar), std::fmin(y, scalar), std::fmin(z, scalar), std::fmin(w, scalar)}; }
+Vec4::Vec4(const Vec2 &vec2, float z_val, float w_val) : x(vec2.x), y(vec2.y), z(z_val), w(w_val) {}
+Vec4::Vec4(const Vec3 &vec3, float w_val) : x(vec3.x), y(vec3.y), z(vec3.z), w(w_val) {}
+Vec4::Vec4(const Ivec2 &vec2, float z_val, float w_val) : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val), w(w_val) {}
+Vec4::Vec4(const Ivec3 &vec3, float w_val) : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)), z(static_cast<float>(vec3.z)), w(w_val) {}
+Vec4::Vec4(const Ivec4 &vec4) : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)), z(static_cast<float>(vec4.z)), w(static_cast<float>(vec4.w)) {}
+Vec4::Vec4(const Uvec2 &vec2, float z_val, float w_val) : x(static_cast<float>(vec2.x)), y(static_cast<float>(vec2.y)), z(z_val), w(w_val) {}
+Vec4::Vec4(const Uvec3 &vec3, float w_val) : x(static_cast<float>(vec3.x)), y(static_cast<float>(vec3.y)), z(static_cast<float>(vec3.z)), w(w_val) {}
+Vec4::Vec4(const Uvec4 &vec4) : x(static_cast<float>(vec4.x)), y(static_cast<float>(vec4.y)), z(static_cast<float>(vec4.z)), w(static_cast<float>(vec4.w)) {}
 
 ///// Uvec2 /////
 
 /// Addition ///
-auto Uvec2::operator+(const Uvec2 &other) const -> Uvec2 {
-  return {x + other.x, y + other.y};
-}
-auto Uvec2::operator+(uint32_t scalar) const -> Uvec2 {
-  return {x + scalar, y + scalar};
-}
+auto Uvec2::operator+(const Uvec2 &other) const -> Uvec2 { return {x + other.x, y + other.y}; }
+auto Uvec2::operator+(uint32_t scalar) const -> Uvec2 { return {x + scalar, y + scalar}; }
 auto Uvec2::operator+=(const Uvec2 &other) -> Uvec2 & {
   x += other.x;
   y += other.y;
@@ -882,12 +725,8 @@ auto Uvec2::operator+=(uint32_t scalar) -> Uvec2 & {
 }
 
 /// Subtraction ///
-auto Uvec2::operator-(const Uvec2 &other) const -> Uvec2 {
-  return {x - other.x, y - other.y};
-}
-auto Uvec2::operator-(uint32_t scalar) const -> Uvec2 {
-  return {x - scalar, y - scalar};
-}
+auto Uvec2::operator-(const Uvec2 &other) const -> Uvec2 { return {x - other.x, y - other.y}; }
+auto Uvec2::operator-(uint32_t scalar) const -> Uvec2 { return {x - scalar, y - scalar}; }
 auto Uvec2::operator-=(const Uvec2 &other) -> Uvec2 & {
   x -= other.x;
   y -= other.y;
@@ -900,12 +739,8 @@ auto Uvec2::operator-=(uint32_t scalar) -> Uvec2 & {
 }
 
 /// Multiplication ///
-auto Uvec2::operator*(uint32_t scalar) const -> Uvec2 {
-  return {x * scalar, y * scalar};
-}
-auto Uvec2::operator*(const Uvec2 &other) const -> Uvec2 {
-  return {x * other.x, y * other.y};
-}
+auto Uvec2::operator*(uint32_t scalar) const -> Uvec2 { return {x * scalar, y * scalar}; }
+auto Uvec2::operator*(const Uvec2 &other) const -> Uvec2 { return {x * other.x, y * other.y}; }
 auto Uvec2::operator*=(uint32_t scalar) -> Uvec2 & {
   x *= scalar;
   y *= scalar;
@@ -918,12 +753,8 @@ auto Uvec2::operator*=(const Uvec2 &other) -> Uvec2 & {
 }
 
 /// Division ///
-auto Uvec2::operator/(uint32_t scalar) const -> Uvec2 {
-  return {x / scalar, y / scalar};
-}
-auto Uvec2::operator/(const Uvec2 &other) const -> Uvec2 {
-  return {x / other.x, y / other.y};
-}
+auto Uvec2::operator/(uint32_t scalar) const -> Uvec2 { return {x / scalar, y / scalar}; }
+auto Uvec2::operator/(const Uvec2 &other) const -> Uvec2 { return {x / other.x, y / other.y}; }
 auto Uvec2::operator/=(uint32_t scalar) -> Uvec2 & {
   x /= scalar;
   y /= scalar;
@@ -935,30 +766,33 @@ auto Uvec2::operator/=(const Uvec2 &other) -> Uvec2 & {
   return *this;
 }
 
-auto Uvec2::operator==(const Uvec2 &other) const -> bool {
-  return x == other.x && y == other.y;
+/// Modulo ///
+auto Uvec2::operator%(uint32_t scalar) const -> Uvec2 { return {x % scalar, y % scalar}; }
+auto Uvec2::operator%(const Uvec2 &other) const -> Uvec2 { return {x % other.x, y % other.y}; }
+auto Uvec2::operator%=(uint32_t scalar) -> Uvec2 & {
+  x %= scalar;
+  y %= scalar;
+  return *this;
 }
-auto Uvec2::operator!=(const Uvec2 &other) const -> bool {
-  return !(*this == other);
+auto Uvec2::operator%=(const Uvec2 &other) -> Uvec2 & {
+  x %= other.x;
+  y %= other.y;
+  return *this;
 }
+
+auto Uvec2::operator==(const Uvec2 &other) const -> bool { return x == other.x && y == other.y; }
+auto Uvec2::operator!=(const Uvec2 &other) const -> bool { return !(*this == other); }
 Uvec2::Uvec2(const Uvec3 &vec3) : x(vec3.x), y(vec3.y) {}
 Uvec2::Uvec2(const Uvec4 &vec4) : x(vec4.x), y(vec4.y) {}
-Uvec2::Uvec2(const Ivec2 &vec2)
-    : x(static_cast<uint32_t>(vec2.x)), y(static_cast<uint32_t>(vec2.y)) {}
-Uvec2::Uvec2(const Ivec3 &vec3)
-    : x(static_cast<uint32_t>(vec3.x)), y(static_cast<uint32_t>(vec3.y)) {}
-Uvec2::Uvec2(const Ivec4 &vec4)
-    : x(static_cast<uint32_t>(vec4.x)), y(static_cast<uint32_t>(vec4.y)) {}
+Uvec2::Uvec2(const Ivec2 &vec2) : x(static_cast<uint32_t>(vec2.x)), y(static_cast<uint32_t>(vec2.y)) {}
+Uvec2::Uvec2(const Ivec3 &vec3) : x(static_cast<uint32_t>(vec3.x)), y(static_cast<uint32_t>(vec3.y)) {}
+Uvec2::Uvec2(const Ivec4 &vec4) : x(static_cast<uint32_t>(vec4.x)), y(static_cast<uint32_t>(vec4.y)) {}
 
 ///// Uvec3 /////
 
 /// Addition ///
-auto Uvec3::operator+(const Uvec3 &other) const -> Uvec3 {
-  return {x + other.x, y + other.y, z + other.z};
-}
-auto Uvec3::operator+(uint32_t scalar) const -> Uvec3 {
-  return {x + scalar, y + scalar, z + scalar};
-}
+auto Uvec3::operator+(const Uvec3 &other) const -> Uvec3 { return {x + other.x, y + other.y, z + other.z}; }
+auto Uvec3::operator+(uint32_t scalar) const -> Uvec3 { return {x + scalar, y + scalar, z + scalar}; }
 auto Uvec3::operator+=(const Uvec3 &other) -> Uvec3 & {
   x += other.x;
   y += other.y;
@@ -973,12 +807,8 @@ auto Uvec3::operator+=(uint32_t scalar) -> Uvec3 & {
 }
 
 /// Subtraction ///
-auto Uvec3::operator-(const Uvec3 &other) const -> Uvec3 {
-  return {x - other.x, y - other.y, z - other.z};
-}
-auto Uvec3::operator-(uint32_t scalar) const -> Uvec3 {
-  return {x - scalar, y - scalar, z - scalar};
-}
+auto Uvec3::operator-(const Uvec3 &other) const -> Uvec3 { return {x - other.x, y - other.y, z - other.z}; }
+auto Uvec3::operator-(uint32_t scalar) const -> Uvec3 { return {x - scalar, y - scalar, z - scalar}; }
 auto Uvec3::operator-=(const Uvec3 &other) -> Uvec3 & {
   x -= other.x;
   y -= other.y;
@@ -993,12 +823,8 @@ auto Uvec3::operator-=(uint32_t scalar) -> Uvec3 & {
 }
 
 /// Multiplication ///
-auto Uvec3::operator*(uint32_t scalar) const -> Uvec3 {
-  return {x * scalar, y * scalar, z * scalar};
-}
-auto Uvec3::operator*(const Uvec3 &other) const -> Uvec3 {
-  return {x * other.x, y * other.y, z * other.z};
-}
+auto Uvec3::operator*(uint32_t scalar) const -> Uvec3 { return {x * scalar, y * scalar, z * scalar}; }
+auto Uvec3::operator*(const Uvec3 &other) const -> Uvec3 { return {x * other.x, y * other.y, z * other.z}; }
 auto Uvec3::operator*=(uint32_t scalar) -> Uvec3 & {
   x *= scalar;
   y *= scalar;
@@ -1013,12 +839,8 @@ auto Uvec3::operator*=(const Uvec3 &other) -> Uvec3 & {
 }
 
 /// Division ///
-auto Uvec3::operator/(uint32_t scalar) const -> Uvec3 {
-  return {x / scalar, y / scalar, z / scalar};
-}
-auto Uvec3::operator/(const Uvec3 &other) const -> Uvec3 {
-  return {x / other.x, y / other.y, z / other.z};
-}
+auto Uvec3::operator/(uint32_t scalar) const -> Uvec3 { return {x / scalar, y / scalar, z / scalar}; }
+auto Uvec3::operator/(const Uvec3 &other) const -> Uvec3 { return {x / other.x, y / other.y, z / other.z}; }
 auto Uvec3::operator/=(uint32_t scalar) -> Uvec3 & {
   x /= scalar;
   y /= scalar;
@@ -1032,34 +854,19 @@ auto Uvec3::operator/=(const Uvec3 &other) -> Uvec3 & {
   return *this;
 }
 
-auto Uvec3::operator==(const Uvec3 &other) const -> bool {
-  return x == other.x && y == other.y && z == other.z;
-}
-auto Uvec3::operator!=(const Uvec3 &other) const -> bool {
-  return !(*this == other);
-}
-Uvec3::Uvec3(const Uvec2 &vec2, uint32_t z_val)
-    : x(vec2.x), y(vec2.y), z(z_val) {}
+auto Uvec3::operator==(const Uvec3 &other) const -> bool { return x == other.x && y == other.y && z == other.z; }
+auto Uvec3::operator!=(const Uvec3 &other) const -> bool { return !(*this == other); }
+Uvec3::Uvec3(const Uvec2 &vec2, uint32_t z_val) : x(vec2.x), y(vec2.y), z(z_val) {}
 Uvec3::Uvec3(const Uvec4 &vec4) : x(vec4.x), y(vec4.y), z(vec4.z) {}
-Uvec3::Uvec3(const Ivec2 &vec2, uint32_t z_val)
-    : x(static_cast<uint32_t>(vec2.x)), y(static_cast<uint32_t>(vec2.y)),
-      z(z_val) {}
-Uvec3::Uvec3(const Ivec3 &vec3)
-    : x(static_cast<uint32_t>(vec3.x)), y(static_cast<uint32_t>(vec3.y)),
-      z(static_cast<uint32_t>(vec3.z)) {}
-Uvec3::Uvec3(const Ivec4 &vec4)
-    : x(static_cast<uint32_t>(vec4.x)), y(static_cast<uint32_t>(vec4.y)),
-      z(static_cast<uint32_t>(vec4.z)) {}
+Uvec3::Uvec3(const Ivec2 &vec2, uint32_t z_val) : x(static_cast<uint32_t>(vec2.x)), y(static_cast<uint32_t>(vec2.y)), z(z_val) {}
+Uvec3::Uvec3(const Ivec3 &vec3) : x(static_cast<uint32_t>(vec3.x)), y(static_cast<uint32_t>(vec3.y)), z(static_cast<uint32_t>(vec3.z)) {}
+Uvec3::Uvec3(const Ivec4 &vec4) : x(static_cast<uint32_t>(vec4.x)), y(static_cast<uint32_t>(vec4.y)), z(static_cast<uint32_t>(vec4.z)) {}
 
 ///// Uvec4 /////
 
 /// Addition ///
-auto Uvec4::operator+(const Uvec4 &other) const -> Uvec4 {
-  return {x + other.x, y + other.y, z + other.z, w + other.w};
-}
-auto Uvec4::operator+(uint32_t scalar) const -> Uvec4 {
-  return {x + scalar, y + scalar, z + scalar, w + scalar};
-}
+auto Uvec4::operator+(const Uvec4 &other) const -> Uvec4 { return {x + other.x, y + other.y, z + other.z, w + other.w}; }
+auto Uvec4::operator+(uint32_t scalar) const -> Uvec4 { return {x + scalar, y + scalar, z + scalar, w + scalar}; }
 auto Uvec4::operator+=(const Uvec4 &other) -> Uvec4 & {
   x += other.x;
   y += other.y;
@@ -1076,12 +883,8 @@ auto Uvec4::operator+=(uint32_t scalar) -> Uvec4 & {
 }
 
 /// Subtraction ///
-auto Uvec4::operator-(const Uvec4 &other) const -> Uvec4 {
-  return {x - other.x, y - other.y, z - other.z, w - other.w};
-}
-auto Uvec4::operator-(uint32_t scalar) const -> Uvec4 {
-  return {x - scalar, y - scalar, z - scalar, w - scalar};
-}
+auto Uvec4::operator-(const Uvec4 &other) const -> Uvec4 { return {x - other.x, y - other.y, z - other.z, w - other.w}; }
+auto Uvec4::operator-(uint32_t scalar) const -> Uvec4 { return {x - scalar, y - scalar, z - scalar, w - scalar}; }
 auto Uvec4::operator-=(const Uvec4 &other) -> Uvec4 & {
   x -= other.x;
   y -= other.y;
@@ -1098,12 +901,8 @@ auto Uvec4::operator-=(uint32_t scalar) -> Uvec4 & {
 }
 
 /// Multiplication ///
-auto Uvec4::operator*(uint32_t scalar) const -> Uvec4 {
-  return {x * scalar, y * scalar, z * scalar, w * scalar};
-}
-auto Uvec4::operator*(const Uvec4 &other) const -> Uvec4 {
-  return {x * other.x, y * other.y, z * other.z, w * other.w};
-}
+auto Uvec4::operator*(uint32_t scalar) const -> Uvec4 { return {x * scalar, y * scalar, z * scalar, w * scalar}; }
+auto Uvec4::operator*(const Uvec4 &other) const -> Uvec4 { return {x * other.x, y * other.y, z * other.z, w * other.w}; }
 auto Uvec4::operator*=(uint32_t scalar) -> Uvec4 & {
   x *= scalar;
   y *= scalar;
@@ -1120,12 +919,8 @@ auto Uvec4::operator*=(const Uvec4 &other) -> Uvec4 & {
 }
 
 /// Division ///
-auto Uvec4::operator/(uint32_t scalar) const -> Uvec4 {
-  return {x / scalar, y / scalar, z / scalar, w / scalar};
-}
-auto Uvec4::operator/(const Uvec4 &other) const -> Uvec4 {
-  return {x / other.x, y / other.y, z / other.z, w / other.w};
-}
+auto Uvec4::operator/(uint32_t scalar) const -> Uvec4 { return {x / scalar, y / scalar, z / scalar, w / scalar}; }
+auto Uvec4::operator/(const Uvec4 &other) const -> Uvec4 { return {x / other.x, y / other.y, z / other.z, w / other.w}; }
 auto Uvec4::operator/=(uint32_t scalar) -> Uvec4 & {
   x /= scalar;
   y /= scalar;
@@ -1141,35 +936,21 @@ auto Uvec4::operator/=(const Uvec4 &other) -> Uvec4 & {
   return *this;
 }
 
-auto Uvec4::operator==(const Uvec4 &other) const -> bool {
-  return x == other.x && y == other.y && z == other.z && w == other.w;
-}
-auto Uvec4::operator!=(const Uvec4 &other) const -> bool {
-  return !(*this == other);
-}
-Uvec4::Uvec4(const Uvec2 &vec2, uint32_t z_val, uint32_t w_val)
-    : x(vec2.x), y(vec2.y), z(z_val), w(w_val) {}
-Uvec4::Uvec4(const Uvec3 &vec3, uint32_t w_val)
-    : x(vec3.x), y(vec3.y), z(vec3.z), w(w_val) {}
-Uvec4::Uvec4(const Ivec2 &vec2, uint32_t z_val, uint32_t w_val)
-    : x(static_cast<uint32_t>(vec2.x)), y(static_cast<uint32_t>(vec2.y)),
-      z(z_val), w(w_val) {}
+auto Uvec4::operator==(const Uvec4 &other) const -> bool { return x == other.x && y == other.y && z == other.z && w == other.w; }
+auto Uvec4::operator!=(const Uvec4 &other) const -> bool { return !(*this == other); }
+Uvec4::Uvec4(const Uvec2 &vec2, uint32_t z_val, uint32_t w_val) : x(vec2.x), y(vec2.y), z(z_val), w(w_val) {}
+Uvec4::Uvec4(const Uvec3 &vec3, uint32_t w_val) : x(vec3.x), y(vec3.y), z(vec3.z), w(w_val) {}
+Uvec4::Uvec4(const Ivec2 &vec2, uint32_t z_val, uint32_t w_val) : x(static_cast<uint32_t>(vec2.x)), y(static_cast<uint32_t>(vec2.y)), z(z_val), w(w_val) {}
 Uvec4::Uvec4(const Ivec3 &vec3, uint32_t w_val)
-    : x(static_cast<uint32_t>(vec3.x)), y(static_cast<uint32_t>(vec3.y)),
-      z(static_cast<uint32_t>(vec3.z)), w(w_val) {}
+    : x(static_cast<uint32_t>(vec3.x)), y(static_cast<uint32_t>(vec3.y)), z(static_cast<uint32_t>(vec3.z)), w(w_val) {}
 Uvec4::Uvec4(const Ivec4 &vec4)
-    : x(static_cast<uint32_t>(vec4.x)), y(static_cast<uint32_t>(vec4.y)),
-      z(static_cast<uint32_t>(vec4.z)), w(static_cast<uint32_t>(vec4.w)) {}
+    : x(static_cast<uint32_t>(vec4.x)), y(static_cast<uint32_t>(vec4.y)), z(static_cast<uint32_t>(vec4.z)), w(static_cast<uint32_t>(vec4.w)) {}
 
 ///// Ivec2 /////
 
 /// Addition ///
-auto Ivec2::operator+(const Ivec2 &other) const -> Ivec2 {
-  return {x + other.x, y + other.y};
-}
-auto Ivec2::operator+(int32_t scalar) const -> Ivec2 {
-  return {x + scalar, y + scalar};
-}
+auto Ivec2::operator+(const Ivec2 &other) const -> Ivec2 { return {x + other.x, y + other.y}; }
+auto Ivec2::operator+(int32_t scalar) const -> Ivec2 { return {x + scalar, y + scalar}; }
 auto Ivec2::operator+=(const Ivec2 &other) -> Ivec2 & {
   x += other.x;
   y += other.y;
@@ -1182,12 +963,8 @@ auto Ivec2::operator+=(int32_t scalar) -> Ivec2 & {
 }
 
 /// Subtraction ///
-auto Ivec2::operator-(const Ivec2 &other) const -> Ivec2 {
-  return {x - other.x, y - other.y};
-}
-auto Ivec2::operator-(int32_t scalar) const -> Ivec2 {
-  return {x - scalar, y - scalar};
-}
+auto Ivec2::operator-(const Ivec2 &other) const -> Ivec2 { return {x - other.x, y - other.y}; }
+auto Ivec2::operator-(int32_t scalar) const -> Ivec2 { return {x - scalar, y - scalar}; }
 auto Ivec2::operator-=(const Ivec2 &other) -> Ivec2 & {
   x -= other.x;
   y -= other.y;
@@ -1200,12 +977,8 @@ auto Ivec2::operator-=(int32_t scalar) -> Ivec2 & {
 }
 
 /// Multiplication ///
-auto Ivec2::operator*(int32_t scalar) const -> Ivec2 {
-  return {x * scalar, y * scalar};
-}
-auto Ivec2::operator*(const Ivec2 &other) const -> Ivec2 {
-  return {x * other.x, y * other.y};
-}
+auto Ivec2::operator*(int32_t scalar) const -> Ivec2 { return {x * scalar, y * scalar}; }
+auto Ivec2::operator*(const Ivec2 &other) const -> Ivec2 { return {x * other.x, y * other.y}; }
 auto Ivec2::operator*=(int32_t scalar) -> Ivec2 & {
   x *= scalar;
   y *= scalar;
@@ -1218,12 +991,8 @@ auto Ivec2::operator*=(const Ivec2 &other) -> Ivec2 & {
 }
 
 /// Division ///
-auto Ivec2::operator/(int32_t scalar) const -> Ivec2 {
-  return {x / scalar, y / scalar};
-}
-auto Ivec2::operator/(const Ivec2 &other) const -> Ivec2 {
-  return {x / other.x, y / other.y};
-}
+auto Ivec2::operator/(int32_t scalar) const -> Ivec2 { return {x / scalar, y / scalar}; }
+auto Ivec2::operator/(const Ivec2 &other) const -> Ivec2 { return {x / other.x, y / other.y}; }
 auto Ivec2::operator/=(int32_t scalar) -> Ivec2 & {
   x /= scalar;
   y /= scalar;
@@ -1235,30 +1004,19 @@ auto Ivec2::operator/=(const Ivec2 &other) -> Ivec2 & {
   return *this;
 }
 
-auto Ivec2::operator==(const Ivec2 &other) const -> bool {
-  return x == other.x && y == other.y;
-}
-auto Ivec2::operator!=(const Ivec2 &other) const -> bool {
-  return !(*this == other);
-}
+auto Ivec2::operator==(const Ivec2 &other) const -> bool { return x == other.x && y == other.y; }
+auto Ivec2::operator!=(const Ivec2 &other) const -> bool { return !(*this == other); }
 Ivec2::Ivec2(const Ivec3 &vec3) : x(vec3.x), y(vec3.y) {}
 Ivec2::Ivec2(const Ivec4 &vec4) : x(vec4.x), y(vec4.y) {}
-Ivec2::Ivec2(const Uvec2 &vec2)
-    : x(static_cast<int32_t>(vec2.x)), y(static_cast<int32_t>(vec2.y)) {}
-Ivec2::Ivec2(const Uvec3 &vec3)
-    : x(static_cast<int32_t>(vec3.x)), y(static_cast<int32_t>(vec3.y)) {}
-Ivec2::Ivec2(const Uvec4 &vec4)
-    : x(static_cast<int32_t>(vec4.x)), y(static_cast<int32_t>(vec4.y)) {}
+Ivec2::Ivec2(const Uvec2 &vec2) : x(static_cast<int32_t>(vec2.x)), y(static_cast<int32_t>(vec2.y)) {}
+Ivec2::Ivec2(const Uvec3 &vec3) : x(static_cast<int32_t>(vec3.x)), y(static_cast<int32_t>(vec3.y)) {}
+Ivec2::Ivec2(const Uvec4 &vec4) : x(static_cast<int32_t>(vec4.x)), y(static_cast<int32_t>(vec4.y)) {}
 
 ///// Ivec3 /////
 
 /// Addition ///
-auto Ivec3::operator+(const Ivec3 &other) const -> Ivec3 {
-  return {x + other.x, y + other.y, z + other.z};
-}
-auto Ivec3::operator+(int32_t scalar) const -> Ivec3 {
-  return {x + scalar, y + scalar, z + scalar};
-}
+auto Ivec3::operator+(const Ivec3 &other) const -> Ivec3 { return {x + other.x, y + other.y, z + other.z}; }
+auto Ivec3::operator+(int32_t scalar) const -> Ivec3 { return {x + scalar, y + scalar, z + scalar}; }
 auto Ivec3::operator+=(const Ivec3 &other) -> Ivec3 & {
   x += other.x;
   y += other.y;
@@ -1273,12 +1031,8 @@ auto Ivec3::operator+=(int32_t scalar) -> Ivec3 & {
 }
 
 /// Subtraction ///
-auto Ivec3::operator-(const Ivec3 &other) const -> Ivec3 {
-  return {x - other.x, y - other.y, z - other.z};
-}
-auto Ivec3::operator-(int32_t scalar) const -> Ivec3 {
-  return {x - scalar, y - scalar, z - scalar};
-}
+auto Ivec3::operator-(const Ivec3 &other) const -> Ivec3 { return {x - other.x, y - other.y, z - other.z}; }
+auto Ivec3::operator-(int32_t scalar) const -> Ivec3 { return {x - scalar, y - scalar, z - scalar}; }
 auto Ivec3::operator-=(const Ivec3 &other) -> Ivec3 & {
   x -= other.x;
   y -= other.y;
@@ -1293,12 +1047,8 @@ auto Ivec3::operator-=(int32_t scalar) -> Ivec3 & {
 }
 
 /// Multiplication ///
-auto Ivec3::operator*(int32_t scalar) const -> Ivec3 {
-  return {x * scalar, y * scalar, z * scalar};
-}
-auto Ivec3::operator*(const Ivec3 &other) const -> Ivec3 {
-  return {x * other.x, y * other.y, z * other.z};
-}
+auto Ivec3::operator*(int32_t scalar) const -> Ivec3 { return {x * scalar, y * scalar, z * scalar}; }
+auto Ivec3::operator*(const Ivec3 &other) const -> Ivec3 { return {x * other.x, y * other.y, z * other.z}; }
 auto Ivec3::operator*=(int32_t scalar) -> Ivec3 & {
   x *= scalar;
   y *= scalar;
@@ -1313,12 +1063,8 @@ auto Ivec3::operator*=(const Ivec3 &other) -> Ivec3 & {
 }
 
 /// Division ///
-auto Ivec3::operator/(int32_t scalar) const -> Ivec3 {
-  return {x / scalar, y / scalar, z / scalar};
-}
-auto Ivec3::operator/(const Ivec3 &other) const -> Ivec3 {
-  return {x / other.x, y / other.y, z / other.z};
-}
+auto Ivec3::operator/(int32_t scalar) const -> Ivec3 { return {x / scalar, y / scalar, z / scalar}; }
+auto Ivec3::operator/(const Ivec3 &other) const -> Ivec3 { return {x / other.x, y / other.y, z / other.z}; }
 auto Ivec3::operator/=(int32_t scalar) -> Ivec3 & {
   x /= scalar;
   y /= scalar;
@@ -1332,34 +1078,19 @@ auto Ivec3::operator/=(const Ivec3 &other) -> Ivec3 & {
   return *this;
 }
 
-auto Ivec3::operator==(const Ivec3 &other) const -> bool {
-  return x == other.x && y == other.y && z == other.z;
-}
-auto Ivec3::operator!=(const Ivec3 &other) const -> bool {
-  return !(*this == other);
-}
-Ivec3::Ivec3(const Ivec2 &vec2, int32_t z_val)
-    : x(vec2.x), y(vec2.y), z(z_val) {}
+auto Ivec3::operator==(const Ivec3 &other) const -> bool { return x == other.x && y == other.y && z == other.z; }
+auto Ivec3::operator!=(const Ivec3 &other) const -> bool { return !(*this == other); }
+Ivec3::Ivec3(const Ivec2 &vec2, int32_t z_val) : x(vec2.x), y(vec2.y), z(z_val) {}
 Ivec3::Ivec3(const Ivec4 &vec4) : x(vec4.x), y(vec4.y), z(vec4.z) {}
-Ivec3::Ivec3(const Uvec2 &vec2, int32_t z_val)
-    : x(static_cast<int32_t>(vec2.x)), y(static_cast<int32_t>(vec2.y)),
-      z(z_val) {}
-Ivec3::Ivec3(const Uvec3 &vec3)
-    : x(static_cast<int32_t>(vec3.x)), y(static_cast<int32_t>(vec3.y)),
-      z(static_cast<int32_t>(vec3.z)) {}
-Ivec3::Ivec3(const Uvec4 &vec4)
-    : x(static_cast<int32_t>(vec4.x)), y(static_cast<int32_t>(vec4.y)),
-      z(static_cast<int32_t>(vec4.z)) {}
+Ivec3::Ivec3(const Uvec2 &vec2, int32_t z_val) : x(static_cast<int32_t>(vec2.x)), y(static_cast<int32_t>(vec2.y)), z(z_val) {}
+Ivec3::Ivec3(const Uvec3 &vec3) : x(static_cast<int32_t>(vec3.x)), y(static_cast<int32_t>(vec3.y)), z(static_cast<int32_t>(vec3.z)) {}
+Ivec3::Ivec3(const Uvec4 &vec4) : x(static_cast<int32_t>(vec4.x)), y(static_cast<int32_t>(vec4.y)), z(static_cast<int32_t>(vec4.z)) {}
 
 ///// Ivec4 /////
 
 /// Addition ///
-auto Ivec4::operator+(const Ivec4 &other) const -> Ivec4 {
-  return {x + other.x, y + other.y, z + other.z, w + other.w};
-}
-auto Ivec4::operator+(int32_t scalar) const -> Ivec4 {
-  return {x + scalar, y + scalar, z + scalar, w + scalar};
-}
+auto Ivec4::operator+(const Ivec4 &other) const -> Ivec4 { return {x + other.x, y + other.y, z + other.z, w + other.w}; }
+auto Ivec4::operator+(int32_t scalar) const -> Ivec4 { return {x + scalar, y + scalar, z + scalar, w + scalar}; }
 auto Ivec4::operator+=(const Ivec4 &other) -> Ivec4 & {
   x += other.x;
   y += other.y;
@@ -1376,12 +1107,8 @@ auto Ivec4::operator+=(int32_t scalar) -> Ivec4 & {
 }
 
 /// Subtraction ///
-auto Ivec4::operator-(const Ivec4 &other) const -> Ivec4 {
-  return {x - other.x, y - other.y, z - other.z, w - other.w};
-}
-auto Ivec4::operator-(int32_t scalar) const -> Ivec4 {
-  return {x - scalar, y - scalar, z - scalar, w - scalar};
-}
+auto Ivec4::operator-(const Ivec4 &other) const -> Ivec4 { return {x - other.x, y - other.y, z - other.z, w - other.w}; }
+auto Ivec4::operator-(int32_t scalar) const -> Ivec4 { return {x - scalar, y - scalar, z - scalar, w - scalar}; }
 auto Ivec4::operator-=(const Ivec4 &other) -> Ivec4 & {
   x -= other.x;
   y -= other.y;
@@ -1398,12 +1125,8 @@ auto Ivec4::operator-=(int32_t scalar) -> Ivec4 & {
 }
 
 /// Multiplication ///
-auto Ivec4::operator*(int32_t scalar) const -> Ivec4 {
-  return {x * scalar, y * scalar, z * scalar, w * scalar};
-}
-auto Ivec4::operator*(const Ivec4 &other) const -> Ivec4 {
-  return {x * other.x, y * other.y, z * other.z, w * other.w};
-}
+auto Ivec4::operator*(int32_t scalar) const -> Ivec4 { return {x * scalar, y * scalar, z * scalar, w * scalar}; }
+auto Ivec4::operator*(const Ivec4 &other) const -> Ivec4 { return {x * other.x, y * other.y, z * other.z, w * other.w}; }
 auto Ivec4::operator*=(int32_t scalar) -> Ivec4 & {
   x *= scalar;
   y *= scalar;
@@ -1420,12 +1143,8 @@ auto Ivec4::operator*=(const Ivec4 &other) -> Ivec4 & {
 }
 
 /// Division ///
-auto Ivec4::operator/(int32_t scalar) const -> Ivec4 {
-  return {x / scalar, y / scalar, z / scalar, w / scalar};
-}
-auto Ivec4::operator/(const Ivec4 &other) const -> Ivec4 {
-  return {x / other.x, y / other.y, z / other.z, w / other.w};
-}
+auto Ivec4::operator/(int32_t scalar) const -> Ivec4 { return {x / scalar, y / scalar, z / scalar, w / scalar}; }
+auto Ivec4::operator/(const Ivec4 &other) const -> Ivec4 { return {x / other.x, y / other.y, z / other.z, w / other.w}; }
 auto Ivec4::operator/=(int32_t scalar) -> Ivec4 & {
   x /= scalar;
   y /= scalar;
@@ -1441,96 +1160,49 @@ auto Ivec4::operator/=(const Ivec4 &other) -> Ivec4 & {
   return *this;
 }
 
-auto Ivec4::operator==(const Ivec4 &other) const -> bool {
-  return x == other.x && y == other.y && z == other.z && w == other.w;
-}
-auto Ivec4::operator!=(const Ivec4 &other) const -> bool {
-  return !(*this == other);
-}
-Ivec4::Ivec4(const Ivec2 &vec2, int32_t z_val, int32_t w_val)
-    : x(vec2.x), y(vec2.y), z(z_val), w(w_val) {}
-Ivec4::Ivec4(const Ivec3 &vec3, int32_t w_val)
-    : x(vec3.x), y(vec3.y), z(vec3.z), w(w_val) {}
-Ivec4::Ivec4(const Uvec2 &vec2, int32_t z_val, int32_t w_val)
-    : x(static_cast<int32_t>(vec2.x)), y(static_cast<int32_t>(vec2.y)),
-      z(z_val), w(w_val) {}
-Ivec4::Ivec4(const Uvec3 &vec3, int32_t w_val)
-    : x(static_cast<int32_t>(vec3.x)), y(static_cast<int32_t>(vec3.y)),
-      z(static_cast<int32_t>(vec3.z)), w(w_val) {}
+auto Ivec4::operator==(const Ivec4 &other) const -> bool { return x == other.x && y == other.y && z == other.z && w == other.w; }
+auto Ivec4::operator!=(const Ivec4 &other) const -> bool { return !(*this == other); }
+Ivec4::Ivec4(const Ivec2 &vec2, int32_t z_val, int32_t w_val) : x(vec2.x), y(vec2.y), z(z_val), w(w_val) {}
+Ivec4::Ivec4(const Ivec3 &vec3, int32_t w_val) : x(vec3.x), y(vec3.y), z(vec3.z), w(w_val) {}
+Ivec4::Ivec4(const Uvec2 &vec2, int32_t z_val, int32_t w_val) : x(static_cast<int32_t>(vec2.x)), y(static_cast<int32_t>(vec2.y)), z(z_val), w(w_val) {}
+Ivec4::Ivec4(const Uvec3 &vec3, int32_t w_val) : x(static_cast<int32_t>(vec3.x)), y(static_cast<int32_t>(vec3.y)), z(static_cast<int32_t>(vec3.z)), w(w_val) {}
 Ivec4::Ivec4(const Uvec4 &vec4)
-    : x(static_cast<int32_t>(vec4.x)), y(static_cast<int32_t>(vec4.y)),
-      z(static_cast<int32_t>(vec4.z)), w(static_cast<int32_t>(vec4.w)) {}
+    : x(static_cast<int32_t>(vec4.x)), y(static_cast<int32_t>(vec4.y)), z(static_cast<int32_t>(vec4.z)), w(static_cast<int32_t>(vec4.w)) {}
 
-auto Min(const Vec2 &vec_a, const Vec2 &vec_b) -> Vec2 {
-  return {std::fmin(vec_a.x, vec_b.x), std::fmin(vec_a.y, vec_b.y)};
-}
-auto Min(const Vec3 &vec_a, const Vec3 &vec_b) -> Vec3 {
-  return {std::fmin(vec_a.x, vec_b.x), std::fmin(vec_a.y, vec_b.y),
-          std::fmin(vec_a.z, vec_b.z)};
-}
+auto Min(const Vec2 &vec_a, const Vec2 &vec_b) -> Vec2 { return {std::fmin(vec_a.x, vec_b.x), std::fmin(vec_a.y, vec_b.y)}; }
+auto Min(const Vec3 &vec_a, const Vec3 &vec_b) -> Vec3 { return {std::fmin(vec_a.x, vec_b.x), std::fmin(vec_a.y, vec_b.y), std::fmin(vec_a.z, vec_b.z)}; }
 auto Min(const Vec4 &vec_a, const Vec4 &vec_b) -> Vec4 {
-  return {std::fmin(vec_a.x, vec_b.x), std::fmin(vec_a.y, vec_b.y),
-          std::fmin(vec_a.z, vec_b.z), std::fmin(vec_a.w, vec_b.w)};
+  return {std::fmin(vec_a.x, vec_b.x), std::fmin(vec_a.y, vec_b.y), std::fmin(vec_a.z, vec_b.z), std::fmin(vec_a.w, vec_b.w)};
 }
 
-auto Max(const Vec2 &vec_a, const Vec2 &vec_b) -> Vec2 {
-  return {std::fmax(vec_a.x, vec_b.x), std::fmax(vec_a.y, vec_b.y)};
-}
-auto Max(const Vec3 &vec_a, const Vec3 &vec_b) -> Vec3 {
-  return {std::fmax(vec_a.x, vec_b.x), std::fmax(vec_a.y, vec_b.y),
-          std::fmax(vec_a.z, vec_b.z)};
-}
+auto Max(const Vec2 &vec_a, const Vec2 &vec_b) -> Vec2 { return {std::fmax(vec_a.x, vec_b.x), std::fmax(vec_a.y, vec_b.y)}; }
+auto Max(const Vec3 &vec_a, const Vec3 &vec_b) -> Vec3 { return {std::fmax(vec_a.x, vec_b.x), std::fmax(vec_a.y, vec_b.y), std::fmax(vec_a.z, vec_b.z)}; }
 auto Max(const Vec4 &vec_a, const Vec4 &vec_b) -> Vec4 {
-  return {std::fmax(vec_a.x, vec_b.x), std::fmax(vec_a.y, vec_b.y),
-          std::fmax(vec_a.z, vec_b.z), std::fmax(vec_a.w, vec_b.w)};
+  return {std::fmax(vec_a.x, vec_b.x), std::fmax(vec_a.y, vec_b.y), std::fmax(vec_a.z, vec_b.z), std::fmax(vec_a.w, vec_b.w)};
 }
 
-auto Min(const Uvec2 &vec_a, const Uvec2 &vec_b) -> Uvec2 {
-  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y)};
-}
-auto Min(const Uvec3 &vec_a, const Uvec3 &vec_b) -> Uvec3 {
-  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y),
-          std::min(vec_a.z, vec_b.z)};
-}
+auto Min(const Uvec2 &vec_a, const Uvec2 &vec_b) -> Uvec2 { return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y)}; }
+auto Min(const Uvec3 &vec_a, const Uvec3 &vec_b) -> Uvec3 { return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y), std::min(vec_a.z, vec_b.z)}; }
 auto Min(const Uvec4 &vec_a, const Uvec4 &vec_b) -> Uvec4 {
-  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y),
-          std::min(vec_a.z, vec_b.z), std::min(vec_a.w, vec_b.w)};
+  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y), std::min(vec_a.z, vec_b.z), std::min(vec_a.w, vec_b.w)};
 }
 
-auto Max(const Uvec2 &vec_a, const Uvec2 &vec_b) -> Uvec2 {
-  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y)};
-}
-auto Max(const Uvec3 &vec_a, const Uvec3 &vec_b) -> Uvec3 {
-  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y),
-          std::max(vec_a.z, vec_b.z)};
-}
+auto Max(const Uvec2 &vec_a, const Uvec2 &vec_b) -> Uvec2 { return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y)}; }
+auto Max(const Uvec3 &vec_a, const Uvec3 &vec_b) -> Uvec3 { return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y), std::max(vec_a.z, vec_b.z)}; }
 auto Max(const Uvec4 &vec_a, const Uvec4 &vec_b) -> Uvec4 {
-  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y),
-          std::max(vec_a.z, vec_b.z), std::max(vec_a.w, vec_b.w)};
+  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y), std::max(vec_a.z, vec_b.z), std::max(vec_a.w, vec_b.w)};
 }
 
-auto Min(const Ivec2 &vec_a, const Ivec2 &vec_b) -> Ivec2 {
-  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y)};
-}
-auto Min(const Ivec3 &vec_a, const Ivec3 &vec_b) -> Ivec3 {
-  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y),
-          std::min(vec_a.z, vec_b.z)};
-}
+auto Min(const Ivec2 &vec_a, const Ivec2 &vec_b) -> Ivec2 { return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y)}; }
+auto Min(const Ivec3 &vec_a, const Ivec3 &vec_b) -> Ivec3 { return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y), std::min(vec_a.z, vec_b.z)}; }
 auto Min(const Ivec4 &vec_a, const Ivec4 &vec_b) -> Ivec4 {
-  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y),
-          std::min(vec_a.z, vec_b.z), std::min(vec_a.w, vec_b.w)};
+  return {std::min(vec_a.x, vec_b.x), std::min(vec_a.y, vec_b.y), std::min(vec_a.z, vec_b.z), std::min(vec_a.w, vec_b.w)};
 }
 
-auto Max(const Ivec2 &vec_a, const Ivec2 &vec_b) -> Ivec2 {
-  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y)};
-}
-auto Max(const Ivec3 &vec_a, const Ivec3 &vec_b) -> Ivec3 {
-  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y),
-          std::max(vec_a.z, vec_b.z)};
-}
+auto Max(const Ivec2 &vec_a, const Ivec2 &vec_b) -> Ivec2 { return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y)}; }
+auto Max(const Ivec3 &vec_a, const Ivec3 &vec_b) -> Ivec3 { return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y), std::max(vec_a.z, vec_b.z)}; }
 auto Max(const Ivec4 &vec_a, const Ivec4 &vec_b) -> Ivec4 {
-  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y),
-          std::max(vec_a.z, vec_b.z), std::max(vec_a.w, vec_b.w)};
+  return {std::max(vec_a.x, vec_b.x), std::max(vec_a.y, vec_b.y), std::max(vec_a.z, vec_b.z), std::max(vec_a.w, vec_b.w)};
 }
 
 /*
@@ -1570,8 +1242,7 @@ auto Plane::DistanceToPoint(const Vec3 &point) const -> float {
   return normal.Dot(point) - distance;
 }
 
-auto Plane::IntersectRay(const Vec3 &origin, const Vec3 &direction) const
-    -> std::optional<Vec3> {
+auto Plane::IntersectRay(const Vec3 &origin, const Vec3 &direction) const -> std::optional<Vec3> {
   Vec3 normal = Normal();
   float distance = Distance();
   float denom = normal.Dot(direction);

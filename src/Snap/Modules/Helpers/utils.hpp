@@ -53,8 +53,7 @@ auto UnorderedErase(std::vector<T> &vect, const V &value) -> uint32_t {
   return count;
 }
 
-template <typename T>
-auto UnorderedErase(std::vector<T> &vect, std::size_t index) -> uint32_t {
+template <typename T> auto UnorderedErase(std::vector<T> &vect, std::size_t index) -> uint32_t {
   if (index >= vect.size()) {
     return 0;
   }
@@ -64,34 +63,26 @@ auto UnorderedErase(std::vector<T> &vect, std::size_t index) -> uint32_t {
   return 1;
 }
 
-auto InterleaveSpans(
-    std::vector<std::pair<std::span<const uint8_t>, size_t>> &spans)
-    -> std::vector<uint8_t>;
+auto InterleaveSpans(std::vector<std::pair<std::span<const uint8_t>, size_t>> &spans) -> std::vector<uint8_t>;
 
 auto AlignUp(size_t value, size_t alignment) -> size_t;
 auto AlignDown(size_t value, size_t alignment) -> size_t;
 
-auto Subspan(std::span<const uint8_t> span, size_t offset, size_t size)
-    -> std::span<const uint8_t>;
-auto Subspan(std::vector<uint8_t> &vec, size_t offset, size_t size)
-    -> std::span<uint8_t>;
+auto Subspan(std::span<const uint8_t> span, size_t offset, size_t size) -> std::span<const uint8_t>;
+auto Subspan(std::vector<uint8_t> &vec, size_t offset, size_t size) -> std::span<uint8_t>;
 
 auto SetBindingToSlot(uint32_t set, uint32_t binding) -> uint64_t;
 
 auto SlotToSetBinding(uint64_t slot) -> std::pair<uint32_t, uint32_t>;
 
 template <typename T, typename Comp_lt, typename Comp_Eq>
-auto DeDuplicate(std::vector<T> &data,
-                 Comp_lt compare_less_than = std::less<T>(),
-                 Comp_Eq compare_equals = std::equal_to<T>()) {
+auto DeDuplicate(std::vector<T> &data, Comp_lt compare_less_than = std::less<T>(), Comp_Eq compare_equals = std::equal_to<T>()) {
   std::ranges::sort(data, compare_less_than);
   auto [first, last] = std::ranges::unique(data, compare_equals);
   data.erase(first, last);
 }
 
-template <typename T, typename Comp_lt>
-auto DeDuplicate(std::vector<T> &data,
-                 Comp_lt compare_less_than = std::less<T>()) {
+template <typename T, typename Comp_lt> auto DeDuplicate(std::vector<T> &data, Comp_lt compare_less_than = std::less<T>()) {
   std::ranges::sort(data, compare_less_than);
   auto [first, last] = std::ranges::unique(data);
   data.erase(first, last);
@@ -184,8 +175,7 @@ template <typename T> struct EnumStringHelper {
     return iter->second;
   }
 
-  [[nodiscard]] auto FromString(const std::string_view &str,
-                                T defaultValue) const -> T {
+  [[nodiscard]] auto FromString(const std::string_view &str, T defaultValue) const -> T {
     auto iter = stringToEnum.find(str);
     if (iter == stringToEnum.end()) {
       return defaultValue;
@@ -195,21 +185,16 @@ template <typename T> struct EnumStringHelper {
 };
 
 // Fast ceil division, returns the smallest integer greater than or equal to value/divisor
-template <typename T> constexpr auto CeilDivFast(T value, T divisor) -> T {
-  return (value + divisor - 1) / divisor;
-}
+template <typename T, typename D> constexpr auto CeilDiv(T value, D divisor) -> T { return ((value + divisor) - 1) / divisor; }
 
 // Overflow-safe ceil division, returns the smallest integer greater than or equal to value/divisor
-template <typename T> constexpr auto CeilDiv(T value, T divisor) -> T {
-  return (value / divisor) + (value % divisor != 0);
-}
+template <typename T, typename D> constexpr auto CeilDivSafe(T value, D divisor) -> T { return (value / divisor) + (value % divisor != 0); }
 
 template <typename F> void ParallelFor(size_t count, F &&func) {
   std::vector<size_t> indices(count);
   std::ranges::iota(indices, 0);
 
-  std::for_each(std::execution::par, indices.begin(), indices.end(),
-                std::forward<F>(func));
+  std::for_each(std::execution::par, indices.begin(), indices.end(), std::forward<F>(func));
 }
 
 template <typename T, typename F>
@@ -218,10 +203,7 @@ void ParallelFor(std::vector<T> &data, F &&func) {
   std::vector<size_t> indices(data.size());
   std::ranges::iota(indices, 0);
 
-  std::for_each(std::execution::par, indices.begin(), indices.end(),
-                [&](const size_t index) -> void {
-                  std::forward<F>(func)(data.at(index));
-                });
+  std::for_each(std::execution::par, indices.begin(), indices.end(), [&](const size_t index) -> void { std::forward<F>(func)(data.at(index)); });
 }
 
 template <typename F>
@@ -233,20 +215,19 @@ auto ParallelFor(size_t count, F &&func) -> Error {
   std::atomic<bool> hasError{false};
   auto error = Error::Success();
 
-  std::for_each(std::execution::par, indices.begin(), indices.end(),
-                [&](const auto &index) -> void {
-                  if (hasError.load()) {
-                    return;
-                  }
+  std::for_each(std::execution::par, indices.begin(), indices.end(), [&](const auto &index) -> void {
+    if (hasError.load()) {
+      return;
+    }
 
-                  auto err = std::forward<F>(func)(index);
+    auto err = std::forward<F>(func)(index);
 
-                  if (Error::IsError(err)) {
-                    if (!hasError.exchange(true, std::memory_order_relaxed)) {
-                      error = err;
-                    }
-                  }
-                });
+    if (Error::IsError(err)) {
+      if (!hasError.exchange(true, std::memory_order_relaxed)) {
+        error = err;
+      }
+    }
+  });
 
   return error;
 }
@@ -257,8 +238,7 @@ auto NextCapacity(size_t currentCapacity, size_t requiredCapacity) -> size_t;
 
 // Returns the next capacity that is greater than or equal to requiredCapacity
 // and is a power-of-two multiple of currentCapacity.
-auto NextCapacity(size_t currentCapacity, size_t requiredCapacity,
-                  size_t initialCapacity) -> size_t;
+auto NextCapacity(size_t currentCapacity, size_t requiredCapacity, size_t initialCapacity) -> size_t;
 
 // NOLINTBEGIN
 template <typename F> struct Defer {
@@ -279,14 +259,13 @@ template <typename F> Defer(F) -> Defer<F>;
 
 #define UNIQUE_NAME(prefix) CONCAT(prefix, __COUNTER__)
 
-#define snap_defer(...)                                                        \
-  auto UNIQUE_NAME(_defer_) = ::Utils::Defer([&] { __VA_ARGS__; })
+#define snap_defer(...) auto UNIQUE_NAME(_defer_) = ::Utils::Defer([&] { __VA_ARGS__; })
 
 #if defined(__clang__) || defined(__GNUC__)
-#define ASSUME(x)                                                              \
-  do {                                                                         \
-    if (!(x))                                                                  \
-      __builtin_unreachable();                                                 \
+#define ASSUME(x)                                                                                                                                              \
+  do {                                                                                                                                                         \
+    if (!(x))                                                                                                                                                  \
+      __builtin_unreachable();                                                                                                                                 \
   } while (0)
 #elif defined(_MSC_VER)
 #define ASSUME(x) __assume(x)

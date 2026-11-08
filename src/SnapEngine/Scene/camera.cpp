@@ -9,10 +9,12 @@
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
+#include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
+#include "Modules/stackVector.hpp"
 #include "Modules/window.hpp"
 #include "Renderer/rendertargetManager.hpp"
 #include "Scene/cameraMatrices.hpp"
@@ -461,9 +463,13 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
 
   textures.VolumetricLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VolumetricLighting));
 
+  Math::StackVector<Math::Uvec2, 4> offsets{{0, 0}, {1, 1}, {1, 0}, {0, 1}};
+  Math::Uvec2 offset = offsets[context.currentFrame % 4U];
+
   auto volumetricLightingShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::VolumetricLighting));
   CHECK_ERR(volumetricLightingShader->Send(context, "CameraData", {GetBuffer(), Graphics::StorageBuffer::read}));
   CHECK_ERR(UniformWriter::Send(volumetricLightingShader, "DirectionalLightCount", renderer.GetSceneLightBuffers().DirectionalLightCount));
+  CHECK_ERR(UniformWriter::Send(volumetricLightingShader, "PixelOffset", offset));
 
   CHECK_ERR(volumetricLightingShader->Send(context, "OutputTexture", {textures.VolumetricLighting, StorageTexture::write}));
   CHECK_ERR(volumetricLightingShader->Send(context, "VolumeBVH", volumeManager.GetTLAS()));
@@ -478,10 +484,9 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
 
   RenderState::SetShader(volumetricLightingShader);
 
-  CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
+  CHECK_ERR(DispatchWithin(context, Math::Uvec3(width / 2, height / 2, 1)));
 
   auto volumetricsWriteShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::WriteVolumetrics));
-
   CHECK_ERR(volumetricsWriteShader->Send(context, "Volumetrics", textures.VolumetricLighting));
 
   RenderState::SetShader(volumetricsWriteShader);
@@ -1149,6 +1154,7 @@ auto LuaCamera::SetHeight(lua_State *state) -> int {
 
 const std::unordered_map<std::string_view, bool Camera::PersistentTextureSettings::*> persistentTextureMap = {
     {"Depth", &Camera::PersistentTextureSettings::Depth},
+    {"PreviousDepth", &Camera::PersistentTextureSettings::PreviousDepth},
     {"Normal", &Camera::PersistentTextureSettings::Normal},
     {"Albedo", &Camera::PersistentTextureSettings::Albedo},
     {"Material", &Camera::PersistentTextureSettings::Material},
@@ -1160,6 +1166,15 @@ const std::unordered_map<std::string_view, bool Camera::PersistentTextureSetting
     {"DirectLighting", &Camera::PersistentTextureSettings::DirectLighting},
     {"Irradiance", &Camera::PersistentTextureSettings::Irradiance},
     {"PostProcessed", &Camera::PersistentTextureSettings::PostProcessed},
+    {"BloomFinal", &Camera::PersistentTextureSettings::BloomFinal},
+    {"BloomDownsampleChain", &Camera::PersistentTextureSettings::BloomDownsampleChain},
+    {"ShadowVisibility", &Camera::PersistentTextureSettings::ShadowVisibility},
+    {"PreviousShadowVisibility", &Camera::PersistentTextureSettings::PreviousShadowVisibility},
+    {"ShadowHitFlags", &Camera::PersistentTextureSettings::ShadowHitFlags},
+    {"AmbientOcclusion", &Camera::PersistentTextureSettings::AmbientOcclusion},
+    {"PreviousAmbientOcclusion", &Camera::PersistentTextureSettings::PreviousAmbientOcclusion},
+    {"AmbientOcclusionSamples", &Camera::PersistentTextureSettings::AmbientOcclusionSamples},
+    {"VolumetricLighting", &Camera::PersistentTextureSettings::VolumetricLighting},
 };
 
 auto LuaCamera::GetPersistentTextureSettings(lua_State *state) -> int {

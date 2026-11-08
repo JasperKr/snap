@@ -66,8 +66,7 @@ inline auto GetGlobalSlangSession() -> Result<slang::IGlobalSession *> {
     } else {
       ZoneScopedN("Reuse existing global session");
 
-      SlangSessionCV.wait(
-          lock, [&]() -> bool { return !UnusedGlobalSlangSessions.empty(); });
+      SlangSessionCV.wait(lock, [&]() -> bool { return !UnusedGlobalSlangSessions.empty(); });
 
       GlobalSlangSession = UnusedGlobalSlangSessions.back();
       UnusedGlobalSlangSessions.pop_back();
@@ -90,43 +89,36 @@ inline auto ReleaseGlobalSlangSession() -> void {
 
 auto GetCompilerOptions() -> std::vector<slang::CompilerOptionEntry> * {
   static std::vector<slang::CompilerOptionEntry> CompilerOptions = {
-      slang::CompilerOptionEntry{
-          .name = slang::CompilerOptionName::Optimization,
-          .value =
-              slang::CompilerOptionValue{
-                  .kind = slang::CompilerOptionValueKind::Int,
-                  .intValue0 = SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
-              }},
-      slang::CompilerOptionEntry{
-          .name = slang::CompilerOptionName::EmitSpirvMethod,
-          .value =
-              slang::CompilerOptionValue{
-                  .kind = slang::CompilerOptionValueKind::Int,
-                  .intValue0 = SlangEmitSpirvMethod::SLANG_EMIT_SPIRV_DIRECTLY,
-              }},
-      slang::CompilerOptionEntry{
-          .name = slang::CompilerOptionName::VulkanUseEntryPointName,
-          .value =
-              slang::CompilerOptionValue{
-                  .kind = slang::CompilerOptionValueKind::Int,
-                  .intValue0 = 1,
-              }},
-      slang::CompilerOptionEntry{
-          .name = slang::CompilerOptionName::DebugInformation,
-          .value =
-              slang::CompilerOptionValue{
-                  .kind = slang::CompilerOptionValueKind::Int,
-                  .intValue0 =
-                      SlangDebugInfoLevel::SLANG_DEBUG_INFO_LEVEL_MAXIMAL,
-              }},
-      slang::CompilerOptionEntry{
-          .name = slang::CompilerOptionName::FloatingPointMode,
-          .value =
-              slang::CompilerOptionValue{
-                  .kind = slang::CompilerOptionValueKind::Int,
-                  .intValue0 =
-                      SlangFloatingPointMode::SLANG_FLOATING_POINT_MODE_FAST,
-              }},
+      slang::CompilerOptionEntry{.name = slang::CompilerOptionName::Optimization,
+                                 .value =
+                                     slang::CompilerOptionValue{
+                                         .kind = slang::CompilerOptionValueKind::Int,
+                                         .intValue0 = SLANG_OPTIMIZATION_LEVEL_MAXIMAL,
+                                     }},
+      slang::CompilerOptionEntry{.name = slang::CompilerOptionName::EmitSpirvMethod,
+                                 .value =
+                                     slang::CompilerOptionValue{
+                                         .kind = slang::CompilerOptionValueKind::Int,
+                                         .intValue0 = SlangEmitSpirvMethod::SLANG_EMIT_SPIRV_DIRECTLY,
+                                     }},
+      slang::CompilerOptionEntry{.name = slang::CompilerOptionName::VulkanUseEntryPointName,
+                                 .value =
+                                     slang::CompilerOptionValue{
+                                         .kind = slang::CompilerOptionValueKind::Int,
+                                         .intValue0 = 1,
+                                     }},
+      slang::CompilerOptionEntry{.name = slang::CompilerOptionName::DebugInformation,
+                                 .value =
+                                     slang::CompilerOptionValue{
+                                         .kind = slang::CompilerOptionValueKind::Int,
+                                         .intValue0 = SlangDebugInfoLevel::SLANG_DEBUG_INFO_LEVEL_MAXIMAL,
+                                     }},
+      slang::CompilerOptionEntry{.name = slang::CompilerOptionName::FloatingPointMode,
+                                 .value =
+                                     slang::CompilerOptionValue{
+                                         .kind = slang::CompilerOptionValueKind::Int,
+                                         .intValue0 = SlangFloatingPointMode::SLANG_FLOATING_POINT_MODE_FAST,
+                                     }},
   };
 
   return &CompilerOptions;
@@ -150,8 +142,7 @@ auto LoadShaderModule() -> Error {
   ERR_ASSERT(SpvTargetDesc.profile != SLANG_PROFILE_UNKNOWN);
 
   auto *options = GetCompilerOptions();
-  const std::vector<string_view> capabilities = {
-      "spvRayQueryKHR", "spvDescriptorHeapEXT", "spvRayTracingKHR"};
+  const std::vector<string_view> capabilities = {"spvRayQueryKHR", "spvDescriptorHeapEXT", "spvRayTracingKHR"};
 
   for (auto capability : capabilities) {
     auto &option = options->emplace_back();
@@ -166,8 +157,7 @@ auto LoadShaderModule() -> Error {
 
   ReleaseGlobalSlangSession();
 
-  DefaultShaderModule = CHECK_RES(Shader::Create(
-      *GetCurrentGraphicsContext(), "default2D", "Default shader"));
+  DefaultShaderModule = CHECK_RES(Shader::Create(*GetCurrentGraphicsContext(), "default2D", "Default shader"));
 
   return Error::Success();
 }
@@ -217,11 +207,9 @@ auto SlangStageToVkStage(SlangStage stage) -> VkShaderStageFlagBits {
 }
 
 const std::vector<SlangStage> SlangStages = {
-    SLANG_STAGE_VERTEX,   SLANG_STAGE_HULL,          SLANG_STAGE_DOMAIN,
-    SLANG_STAGE_GEOMETRY, SLANG_STAGE_FRAGMENT,      SLANG_STAGE_COMPUTE,
-    SLANG_STAGE_MESH,     SLANG_STAGE_AMPLIFICATION, SLANG_STAGE_RAY_GENERATION,
-    SLANG_STAGE_ANY_HIT,  SLANG_STAGE_CLOSEST_HIT,   SLANG_STAGE_MISS,
-    SLANG_STAGE_CALLABLE,
+    SLANG_STAGE_VERTEX,      SLANG_STAGE_HULL, SLANG_STAGE_DOMAIN,        SLANG_STAGE_GEOMETRY,       SLANG_STAGE_FRAGMENT,
+    SLANG_STAGE_COMPUTE,     SLANG_STAGE_MESH, SLANG_STAGE_AMPLIFICATION, SLANG_STAGE_RAY_GENERATION, SLANG_STAGE_ANY_HIT,
+    SLANG_STAGE_CLOSEST_HIT, SLANG_STAGE_MISS, SLANG_STAGE_CALLABLE,
 };
 
 inline auto SlangStageToString(SlangStage stage) -> std::string_view {
@@ -258,14 +246,12 @@ inline auto SlangStageToString(SlangStage stage) -> std::string_view {
 }
 
 // NOLINTNEXTLINE
-static inline auto LoadSlang(const GraphicsContext &context,
-                             Ref<Shader> &shader) -> Error {
+static inline auto LoadSlang(const GraphicsContext &context, Ref<Shader> &shader) -> Error {
   ZoneScoped;
 
   slang::SessionDesc sessionDesc = {};
   sessionDesc.allowGLSLSyntax = false;
-  sessionDesc.defaultMatrixLayoutMode =
-      SlangMatrixLayoutMode::SLANG_MATRIX_LAYOUT_ROW_MAJOR;
+  sessionDesc.defaultMatrixLayoutMode = SlangMatrixLayoutMode::SLANG_MATRIX_LAYOUT_ROW_MAJOR;
 
   auto sourceBaseDir = Filesystem::GetSourceBaseDirectory();
   auto sourceDir = Filesystem::GetSourceDirectory();
@@ -275,12 +261,10 @@ static inline auto LoadSlang(const GraphicsContext &context,
   const auto &sourceBack = Path::Join(sourceDir, std::string(".."));
 
   std::vector<const char *> searchPaths = {
-      sourceDir.c_str(),     sourceBack.c_str(),      saveDir.c_str(),
-      sourceBaseDir.c_str(), shaderDirectory.c_str(),
+      sourceDir.c_str(), sourceBack.c_str(), saveDir.c_str(), sourceBaseDir.c_str(), shaderDirectory.c_str(),
   };
 
-  searchPaths.insert(searchPaths.end(), ShaderSearchPaths.begin(),
-                     ShaderSearchPaths.end());
+  searchPaths.insert(searchPaths.end(), ShaderSearchPaths.begin(), ShaderSearchPaths.end());
 
   std::string directories = "To be searched:\n";
   for (const auto &path : searchPaths) {
@@ -292,8 +276,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
   sessionDesc.targets = &SpvTargetDesc;
   sessionDesc.targetCount = 1;
   sessionDesc.preprocessorMacros = shader->preprocessorMacros.data();
-  sessionDesc.preprocessorMacroCount =
-      static_cast<uint32_t>(shader->preprocessorMacros.size());
+  sessionDesc.preprocessorMacroCount = static_cast<uint32_t>(shader->preprocessorMacros.size());
 
   auto *globalSession = CHECK_RES(GetGlobalSlangSession());
 
@@ -307,20 +290,15 @@ static inline auto LoadSlang(const GraphicsContext &context,
   }
 
   Slang::ComPtr<slang::IBlob> diagnosticsBlob;
-  PrintDebug("Compiling shader: " + shader->moduleName);
   {
     ZoneScopedN("Load Module");
-    shader->slangModule = session->loadModule(shader->moduleName.c_str(),
-                                              diagnosticsBlob.writeRef());
+    shader->slangModule = session->loadModule(shader->moduleName.c_str(), diagnosticsBlob.writeRef());
   }
 
   if (diagnosticsBlob != nullptr) {
-    auto diagnostics = std::string(
-        static_cast<const char *>(diagnosticsBlob->getBufferPointer()),
-        diagnosticsBlob->getBufferSize());
+    auto diagnostics = std::string(static_cast<const char *>(diagnosticsBlob->getBufferPointer()), diagnosticsBlob->getBufferSize());
 
-    if (diagnosticsBlob.get() == nullptr ||
-        (diagnosticsBlob->getBufferSize() == 0U)) {
+    if (diagnosticsBlob.get() == nullptr || (diagnosticsBlob->getBufferSize() == 0U)) {
       return Error::Create("Unknown error");
     }
 
@@ -348,8 +326,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
 
     Slang::ComPtr<slang::IEntryPoint> entryPoint = nullptr;
 
-    auto result = shader->slangModule->findEntryPointByName(
-        entryPointName.c_str(), entryPoint.writeRef());
+    auto result = shader->slangModule->findEntryPointByName(entryPointName.c_str(), entryPoint.writeRef());
 
     if (entryPoint.readRef() == nullptr || Error::IsError(result)) {
       continue;
@@ -360,13 +337,11 @@ static inline auto LoadSlang(const GraphicsContext &context,
 
     auto vkStage = SlangStageToVkStage(stage);
     shader->entryPoints.emplace_back(entryPointName, vkStage);
-    shader->combinedShaderStages = static_cast<VkShaderStageFlagBits>(
-        static_cast<uint32_t>(shader->combinedShaderStages) | (uint)vkStage);
+    shader->combinedShaderStages = static_cast<VkShaderStageFlagBits>(static_cast<uint32_t>(shader->combinedShaderStages) | (uint)vkStage);
 
     stages.emplace_back(stage);
 
-    PrintDebug(" - {}; index: {}", entryPointName,
-               std::to_string(entryPoints.size() - 1));
+    PrintDebug(" - {}; index: {}", entryPointName, std::to_string(entryPoints.size() - 1));
   }
 
   std::vector<slang::IComponentType *> componentTypes;
@@ -382,12 +357,10 @@ static inline auto LoadSlang(const GraphicsContext &context,
   {
     ZoneScopedN("Create composite component type");
 
-    auto result = session->createCompositeComponentType(
-        componentTypes.data(), static_cast<SlangInt>(componentTypes.size()),
-        composedProgram.writeRef(), diagnosticsBlob.writeRef());
+    auto result = session->createCompositeComponentType(componentTypes.data(), static_cast<SlangInt>(componentTypes.size()), composedProgram.writeRef(),
+                                                        diagnosticsBlob.writeRef());
 
-    CHECK_ERR(
-        Error::Create(result, diagnosticsBlob, composedProgram.readRef()));
+    CHECK_ERR(Error::Create(result, diagnosticsBlob, composedProgram.readRef()));
   }
 
   PrintDebug("Linking program...");
@@ -395,11 +368,9 @@ static inline auto LoadSlang(const GraphicsContext &context,
   {
     ZoneScopedN("Link program");
 
-    auto result = composedProgram->link(shader->linkedProgram.writeRef(),
-                                        diagnosticsBlob.writeRef());
+    auto result = composedProgram->link(shader->linkedProgram.writeRef(), diagnosticsBlob.writeRef());
 
-    CHECK_ERR(Error::Create(result, diagnosticsBlob,
-                            shader->linkedProgram.readRef()));
+    CHECK_ERR(Error::Create(result, diagnosticsBlob, shader->linkedProgram.readRef()));
   }
 
   PrintDebug("Getting program layout...");
@@ -407,13 +378,10 @@ static inline auto LoadSlang(const GraphicsContext &context,
   {
     ZoneScopedN("Get program layout");
 
-    shader->programLayout =
-        shader->linkedProgram->getLayout(0, diagnosticsBlob.writeRef());
+    shader->programLayout = shader->linkedProgram->getLayout(0, diagnosticsBlob.writeRef());
 
     if (diagnosticsBlob != nullptr) {
-      auto diagnostics = std::string_view(
-          static_cast<const char *>(diagnosticsBlob->getBufferPointer()),
-          diagnosticsBlob->getBufferSize());
+      auto diagnostics = std::string_view(static_cast<const char *>(diagnosticsBlob->getBufferPointer()), diagnosticsBlob->getBufferSize());
       return Error::Createf("Diagnostics:\n{}", diagnostics);
     }
   }
@@ -428,18 +396,14 @@ static inline auto LoadSlang(const GraphicsContext &context,
     std::array<SlangUInt, 3> out_workgroupSize = {1, 1, 1};
     SlangUInt out_waveSize = 0;
 
-    entrypointReflection->getComputeThreadGroupSize(3,
-                                                    out_workgroupSize.data());
+    entrypointReflection->getComputeThreadGroupSize(3, out_workgroupSize.data());
     entrypointReflection->getComputeWaveSize(&out_waveSize);
 
     shader->threadgroupSize =
-        Math::Uvec3{static_cast<uint32_t>(out_workgroupSize[0]),
-                    static_cast<uint32_t>(out_workgroupSize[1]),
-                    static_cast<uint32_t>(out_workgroupSize[2])};
+        Math::Uvec3{static_cast<uint32_t>(out_workgroupSize[0]), static_cast<uint32_t>(out_workgroupSize[1]), static_cast<uint32_t>(out_workgroupSize[2])};
     shader->waveSize = static_cast<uint32_t>(out_waveSize);
 
-    auto invocationlimit =
-        context.deviceProperties.limits.maxComputeWorkGroupInvocations;
+    auto invocationlimit = context.deviceProperties.limits.maxComputeWorkGroupInvocations;
 
     Math::Uvec3 sizelimit{
         context.deviceProperties.limits.maxComputeWorkGroupSize[0],
@@ -447,9 +411,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
         context.deviceProperties.limits.maxComputeWorkGroupSize[2],
     };
 
-    ERR_ASSERT(out_workgroupSize[0] * out_workgroupSize[1] *
-                   out_workgroupSize[2] <=
-               invocationlimit);
+    ERR_ASSERT(out_workgroupSize[0] * out_workgroupSize[1] * out_workgroupSize[2] <= invocationlimit);
 
     ERR_ASSERT(shader->threadgroupSize.x <= sizelimit.x);
     ERR_ASSERT(shader->threadgroupSize.y <= sizelimit.y);
@@ -483,9 +445,8 @@ static inline auto LoadSlang(const GraphicsContext &context,
   {
     ZoneScopedN("Get target code");
 
-    auto result = shader->linkedProgram->getTargetCode(
-        0, // targetIndex
-        spirvCode.writeRef(), diagnosticsBlob.writeRef());
+    auto result = shader->linkedProgram->getTargetCode(0, // targetIndex
+                                                       spirvCode.writeRef(), diagnosticsBlob.writeRef());
 
     CHECK_ERR(Error::Create(result, diagnosticsBlob, spirvCode.readRef()));
   }
@@ -499,8 +460,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
   memcpy(data.data(), spirvCode->getBufferPointer(), codeSize);
 
   // NOLINTNEXTLINE
-  std::span<uint8_t> spirvCodeSpan(reinterpret_cast<uint8_t *>(data.data()),
-                                   codeSize);
+  std::span<uint8_t> spirvCodeSpan(reinterpret_cast<uint8_t *>(data.data()), codeSize);
 
   VkShaderModuleCreateInfo moduleCreateInfo = {};
   moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -510,9 +470,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
     ZoneScopedN("Create vulkan shadermodule");
 
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
-    CHECK_NEW_ERR(vkCreateShaderModule(context.device, &moduleCreateInfo,
-                                       GetAllocationCallbacks(),
-                                       &shader->module));
+    CHECK_NEW_ERR(vkCreateShaderModule(context.device, &moduleCreateInfo, GetAllocationCallbacks(), &shader->module));
 
     VkDebugUtilsObjectNameInfoEXT nameInfo = {};
     nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
@@ -526,8 +484,7 @@ static inline auto LoadSlang(const GraphicsContext &context,
   }
 
 #if Enable_Snapshots
-  Snapshot::CaptureEvent(
-      Snapshot::ShaderModuleCreateEvent(shader->module, shader->moduleName));
+  Snapshot::CaptureEvent(Snapshot::ShaderModuleCreateEvent(shader->module, shader->moduleName));
 #endif
 
   PrintDebug("Shader module created successfully.");
@@ -535,14 +492,12 @@ static inline auto LoadSlang(const GraphicsContext &context,
   return Error::Success();
 }
 
-auto Shader::Create(
-    const Graphics::GraphicsContext &context, const std::string &modulename,
-    const std::string &name,
-    const std::vector<slang::PreprocessorMacroDesc> *preprocessorMacros)
-    -> Result<Ref<Shader>> {
+auto Shader::Create(const Graphics::GraphicsContext &context, const std::string &modulename, const std::string &name,
+                    const std::vector<slang::PreprocessorMacroDesc> *preprocessorMacros) -> Result<Ref<Shader>> {
   ZoneScoped;
 
   ZoneName(modulename.c_str(), modulename.size());
+  PrintInfo("Compiling shader: {}", modulename);
 
   Ref<Shader> shader = Ref<Shader>::Make();
   shader->name = name;
@@ -574,8 +529,7 @@ auto Shader::Create(
   CHECK_ERR(ReflectShader(context, shader->programLayout, shader->reflection));
 
 #if Enable_Snapshots
-  Snapshot::CaptureEvent(
-      Snapshot::ShaderModuleCreateEvent(shader->module, shader->moduleName));
+  Snapshot::CaptureEvent(Snapshot::ShaderModuleCreateEvent(shader->module, shader->moduleName));
 #endif
 
   shader->uniformsSize = shader->reflection.globalBufferFormat.GetStride();
@@ -590,8 +544,7 @@ auto Shader::Create(
   return shader;
 }
 
-StorageBuffer::StorageBuffer(const Ref<StructuredBuffer> &buffer,
-                             uint64_t access) {
+StorageBuffer::StorageBuffer(const Ref<StructuredBuffer> &buffer, uint64_t access) {
   resource = buffer->GetBuffer();
   this->access = access;
   type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -603,8 +556,7 @@ UniformBuffer::UniformBuffer(const Ref<StructuredBuffer> &buffer) {
   type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 }
 
-auto Shader::GetUniform(const ResourceKey &key) const
-    -> const Reflect::ResourceInfo * {
+auto Shader::GetUniform(const ResourceKey &key) const -> const Reflect::ResourceInfo * {
   const Result<ResolvedKey> resolved = ResolveKey(key);
 
   [[unlikely]]
@@ -615,8 +567,7 @@ auto Shader::GetUniform(const ResourceKey &key) const
   return &GetUniform(resolved.value());
 }
 
-auto Shader::GetUniform(ResolvedKey key) const
-    -> const Reflect::ResourceInfo & {
+auto Shader::GetUniform(ResolvedKey key) const -> const Reflect::ResourceInfo & {
   assert(key < reflection.keyToInfo.size());
   return reflection.keyToInfo.at(key);
 }
@@ -626,14 +577,11 @@ auto Shader::ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey> {
 
   auto iter = reflection.keyMapping.find(key);
 
-  ERR_ASSERT_MSG(
-      iter != reflection.keyMapping.end(),
-      std::format("Key '{}' Not found.", Reflect::ResourceKeyToString(key)));
+  ERR_ASSERT_MSG(iter != reflection.keyMapping.end(), std::format("Key '{}' Not found.", Reflect::ResourceKeyToString(key)));
   return iter->second;
 }
 
-auto Shader::Send(const ResourceKey &key,
-                  const std::span<const uint8_t> &data) const -> Error {
+auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data) const -> Error {
   ZoneScopedN("Shader::Send data span");
 
   const auto &info = *CHECK_NULL(GetUniform(key));
@@ -660,8 +608,7 @@ auto Shader::Send(const ResolvedKey key, const uint64_t data) const -> Error {
   return Error::Success();
 }
 
-auto Shader::Send(const ResolvedKey key,
-                  const CombinedImageSampler address) const -> Error {
+auto Shader::Send(const ResolvedKey key, const CombinedImageSampler address) const -> Error {
   ZoneScopedN("Shader::Send texture + sampler address");
 
   const auto &info = GetUniform(key);
@@ -670,21 +617,17 @@ auto Shader::Send(const ResolvedKey key,
   assert(address.image != 0 && address.sampler != 0);
 
   // NOLINTNEXTLINE, pointer arithmetic
-  memcpy(GetState().uniforms.data() + info.offset, &address,
-         sizeof(CombinedImageSampler));
+  memcpy(GetState().uniforms.data() + info.offset, &address, sizeof(CombinedImageSampler));
 
   return Error::Success();
 }
 
-auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
-                  const UniformBuffer &buffer) -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key, const UniformBuffer &buffer) -> Error {
   ZoneScopedN("Shader::Send uniform buffer");
-  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
-      context, buffer.type, 0, buffer.resource->size));
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(context, buffer.type, 0, buffer.resource->size));
   ERR_ASSERT(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
 
-  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
-             0U);
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) != 0U);
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundBuffers[resolved] = buffer;
@@ -692,15 +635,12 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   return Send(resolved, address);
 }
 
-auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
-                  const DynamicUniformBuffer &buffer) -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key, const DynamicUniformBuffer &buffer) -> Error {
   ZoneScopedN("Shader::Send dynamic uniform buffer");
-  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
-      context, buffer.type, buffer.offset, buffer.size));
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(context, buffer.type, buffer.offset, buffer.size));
   ERR_ASSERT(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
 
-  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) !=
-             0U);
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT) != 0U);
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundBuffers[resolved] = UniformBuffer{buffer.resource};
@@ -708,17 +648,14 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   return Send(resolved, address);
 }
 
-auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
-                  const StorageBuffer &buffer) -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key, const StorageBuffer &buffer) -> Error {
   ZoneScopedN("Shader::Send storage buffer");
-  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(
-      context, buffer.type, 0, buffer.resource->size));
+  VkDeviceSize address = CHECK_RES(buffer.resource->GetAddress(context, buffer.type, 0, buffer.resource->size));
 
   ERR_ASSERT(buffer.type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   assert(DescriptorHeapManager::GetInstance().IsBufferOffsetValid(address));
 
-  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT) !=
-             0U);
+  ERR_ASSERT((buffer.resource->usage & VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT) != 0U);
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundBuffers[resolved] = buffer;
@@ -726,22 +663,18 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   return Send(resolved, address);
 }
 
-auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
-                  const SampledTexture &texture) -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key, const SampledTexture &texture) -> Error {
   ZoneScopedN("Shader::Send sampled texture");
 
-  VkDeviceSize address =
-      CHECK_RES(texture.resource->GetAddress(context, texture.type));
+  VkDeviceSize address = CHECK_RES(texture.resource->GetAddress(context, texture.type));
   assert(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
 
-  ERR_ASSERT((texture.resource->imageMemory->usage &
-              VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);
+  ERR_ASSERT((texture.resource->imageMemory->usage & VK_IMAGE_USAGE_2_SAMPLED_BIT_KHR) != 0U);
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundTextures[resolved] = texture;
 
-  VkDeviceSize samplerAddress =
-      CHECK_RES(texture.resource->GetSampler(context));
+  VkDeviceSize samplerAddress = CHECK_RES(texture.resource->GetSampler(context));
 
   return Send(resolved, {
                             .image = static_cast<uint32_t>(address),
@@ -749,16 +682,13 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
                         });
 }
 
-auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
-                  const StorageTexture &texture) -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key, const StorageTexture &texture) -> Error {
   ZoneScopedN("Shader::Send storage texture");
 
-  VkDeviceSize address =
-      CHECK_RES(texture.resource->GetAddress(context, texture.type));
+  VkDeviceSize address = CHECK_RES(texture.resource->GetAddress(context, texture.type));
   ERR_ASSERT(DescriptorHeapManager::GetInstance().IsImageOffsetValid(address));
 
-  ERR_ASSERT((texture.resource->imageMemory->usage &
-              VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) != 0U);
+  ERR_ASSERT((texture.resource->imageMemory->usage & VK_IMAGE_USAGE_2_STORAGE_BIT_KHR) != 0U);
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
   GetState().userBoundTextures[resolved] = texture;
@@ -766,8 +696,7 @@ auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
   return Send(resolved, address);
 }
 
-auto Shader::Send(const GraphicsContext &context, const ResourceKey &key,
-                  const Ref<TLAS> &accelStructure) -> Error {
+auto Shader::Send(const GraphicsContext &context, const ResourceKey &key, const Ref<TLAS> &accelStructure) -> Error {
   ZoneScopedN("Shader::Send acceleration structure");
 
   const ResolvedKey resolved = CHECK_RES(ResolveKey(key));
@@ -786,18 +715,15 @@ auto Shader::hash() const -> size_t {
 
 auto Shader::GetThreadgroupSize() const -> Result<Math::Uvec3> {
   [[unlikely]]
-  if (threadgroupSize.x == 0 || threadgroupSize.y == 0 ||
-      threadgroupSize.z == 0) {
-    return Error::Unexpected(
-        "Shader is not a compute shader or threadgroup size not set.");
+  if (threadgroupSize.x == 0 || threadgroupSize.y == 0 || threadgroupSize.z == 0) {
+    return Error::Unexpected("Shader is not a compute shader or threadgroup size not set.");
   }
   return threadgroupSize;
 }
 
 auto Shader::GetWaveSize() const -> uint32_t { return waveSize; }
 
-auto Shader::GetSlotDescription(DescriptorSlot slot)
-    -> Reflect::ResourceInfo * {
+auto Shader::GetSlotDescription(DescriptorSlot slot) -> Reflect::ResourceInfo * {
   auto iter = reflection.slotToInfo.find(slot);
   if (iter == reflection.slotToInfo.end()) {
     return nullptr;

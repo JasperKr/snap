@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <string_view>
 
@@ -58,36 +59,32 @@ auto inline GetColorCode(ConsoleColor color) -> std::string_view {
   }
 }
 
-auto inline ColorText(const std::string &text, ConsoleColor color)
-    -> std::string {
-  return std::format("{}{}{}", GetColorCode(color), text,
-                     GetColorCode(ConsoleColor::Reset));
+auto inline ColorText(const std::string &text, ConsoleColor color) -> std::string {
+  return std::format("{}{}{}", GetColorCode(color), text, GetColorCode(ConsoleColor::Reset));
 }
 
 auto inline ColorText(const char *text, ConsoleColor color) -> std::string {
-  return std::format("{}{}{}", GetColorCode(color), text,
-                     GetColorCode(ConsoleColor::Reset));
+  return std::format("{}{}{}", GetColorCode(color), text, GetColorCode(ConsoleColor::Reset));
 }
 
 // #define LOG_TO_FILE
 
 #ifdef LOG_TO_FILE
 #include <fstream>
-#include <mutex>
 // NOLINTBEGIN
-static std::mutex loggingMutex;
 static std::ofstream logFile("Snap.log", std::ios::out | std::ios::app);
 // NOLINTEND
-#define OBTAIN_LOG_LOCK std::lock_guard<std::mutex> lock(loggingMutex);
 #define OUT logFile
-#define END                                                                    \
-  '\n';                                                                        \
+#define END                                                                                                                                                    \
+  '\n';                                                                                                                                                        \
   logFile.flush();
 #else
-#define OBTAIN_LOG_LOCK
 #define OUT std::cout
 #define END '\n';
 #endif
+
+static std::mutex loggingMutex; // NOLINT
+#define OBTAIN_LOG_LOCK std::lock_guard<std::mutex> lock(loggingMutex);
 
 inline void PrintAlways(const std::string &message) {
   OBTAIN_LOG_LOCK
@@ -97,8 +94,7 @@ inline void PrintAlways(const std::string &message) {
 template <typename... Args> // NOLINTNEXTLINE args forwarding
 inline void PrintAlways(std::string_view format, Args &&...args) {
   OBTAIN_LOG_LOCK
-  OUT << ColorText("[ALWAYS] ", ConsoleColor::BrightWhite)
-      << std::vformat(format, std::make_format_args(args...)) << END
+  OUT << ColorText("[ALWAYS] ", ConsoleColor::BrightWhite) << std::vformat(format, std::make_format_args(args...)) << END
 }
 
 inline void PrintDebug(const std::string &message) {
@@ -112,8 +108,7 @@ template <typename... Args> // NOLINTNEXTLINE args forwarding
 inline void PrintDebug(std::string_view format, Args &&...args) {
   if (LogLevel::Debug >= CurrentLogLevel) {
     OBTAIN_LOG_LOCK
-    OUT << ColorText("[DEBUG] ", ConsoleColor::Cyan)
-        << std::vformat(format, std::make_format_args(args...)) << END
+    OUT << ColorText("[DEBUG] ", ConsoleColor::Cyan) << std::vformat(format, std::make_format_args(args...)) << END
   }
 }
 
@@ -128,14 +123,13 @@ template <typename... Args> // NOLINTNEXTLINE args forwarding
 inline void PrintInfo(std::string_view format, Args &&...args) {
   if (LogLevel::Info >= CurrentLogLevel) {
     OBTAIN_LOG_LOCK
-    OUT << ColorText("[INFO] ", ConsoleColor::Green)
-        << std::vformat(format, std::make_format_args(args...)) << END
+    OUT << ColorText("[INFO] ", ConsoleColor::Green) << std::vformat(format, std::make_format_args(args...)) << END
   }
 }
 
 inline void PrintLibrary([[maybe_unused]] const std::string &message) {
 #ifndef NDEBUG
-  if (LogLevel::Info >= CurrentLogLevel) {
+  if (LogLevel::Debug >= CurrentLogLevel) {
     OBTAIN_LOG_LOCK
     OUT << ColorText("[LIBRARY] ", ConsoleColor::Blue) << message << END
   }
@@ -143,13 +137,11 @@ inline void PrintLibrary([[maybe_unused]] const std::string &message) {
 }
 
 template <typename... Args> // NOLINTNEXTLINE args forwarding
-inline void PrintLibrary([[maybe_unused]] std::string_view format,
-                         [[maybe_unused]] Args &&...args) {
+inline void PrintLibrary([[maybe_unused]] std::string_view format, [[maybe_unused]] Args &&...args) {
 #ifndef NDEBUG
-  if (LogLevel::Info >= CurrentLogLevel) {
+  if (LogLevel::Debug >= CurrentLogLevel) {
     OBTAIN_LOG_LOCK
-    OUT << ColorText("[LIBRARY] ", ConsoleColor::Blue)
-        << std::vformat(format, std::make_format_args(args...)) << END
+    OUT << ColorText("[LIBRARY] ", ConsoleColor::Blue) << std::vformat(format, std::make_format_args(args...)) << END
   }
 #endif
 }
@@ -165,8 +157,7 @@ template <typename... Args> // NOLINTNEXTLINE args forwarding
 inline void PrintWarning(std::string_view format, Args &&...args) {
   if (LogLevel::Warning >= CurrentLogLevel) {
     OBTAIN_LOG_LOCK
-    OUT << ColorText("[WARNING] ", ConsoleColor::Yellow)
-        << std::vformat(format, std::make_format_args(args...)) << END
+    OUT << ColorText("[WARNING] ", ConsoleColor::Yellow) << std::vformat(format, std::make_format_args(args...)) << END
   }
 }
 
@@ -181,8 +172,7 @@ template <typename... Args> // NOLINTNEXTLINE args forwarding
 inline void PrintError(std::string_view format, Args &&...args) {
   if (LogLevel::Error >= CurrentLogLevel) {
     OBTAIN_LOG_LOCK
-    OUT << ColorText("[ERROR] ", ConsoleColor::Red)
-        << std::vformat(format, std::make_format_args(args...)) << END
+    OUT << ColorText("[ERROR] ", ConsoleColor::Red) << std::vformat(format, std::make_format_args(args...)) << END
   }
 }
 
@@ -197,7 +187,6 @@ template <typename... Args> // NOLINTNEXTLINE args forwarding
 inline void PrintFatal(std::string_view format, Args &&...args) {
   if (LogLevel::Fatal >= CurrentLogLevel) {
     OBTAIN_LOG_LOCK
-    OUT << ColorText("[FATAL] ", ConsoleColor::Magenta)
-        << std::vformat(format, std::make_format_args(args...)) << END
+    OUT << ColorText("[FATAL] ", ConsoleColor::Magenta) << std::vformat(format, std::make_format_args(args...)) << END
   }
 }
