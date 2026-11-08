@@ -88,9 +88,9 @@ auto AcquireNextSwapchainImage(Graphics::GraphicsContext &context) -> Error {
 
     if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
       if (res == VK_ERROR_OUT_OF_DATE_KHR) {
-        PrintAlways("Swapchain out-of-date");
+        PrintInfo("Swapchain out-of-date");
       } else {
-        PrintAlways("Swapchain suboptimal");
+        PrintInfo("Swapchain suboptimal");
       }
 
       // Swapchain is out of date, need to recreate

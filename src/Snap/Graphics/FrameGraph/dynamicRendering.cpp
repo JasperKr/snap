@@ -214,6 +214,7 @@ auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandB
 
   if (!wasGraphics) {
     sameViewport = false, sameScissor = false;
+    sameDepthWrite = false;
   }
 
   if (isGraphics) {

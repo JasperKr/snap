@@ -302,8 +302,6 @@ static inline auto LoadSlang(const GraphicsContext &context, Ref<Shader> &shader
       return Error::Create("Unknown error");
     }
 
-    PrintAlways("{}", diagnostics);
-
     return Error::Createf("Diagnostics:\n{}", diagnostics);
   }
 

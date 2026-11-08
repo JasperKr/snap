@@ -438,7 +438,7 @@ auto FrameGraph::DebugOutput() -> Error {
   stream << "}\n";
 
   CHECK_ERR(Filesystem::WriteFile("framegraph.dot", stream.str()));
-  PrintAlways("Finalized writing .dot file");
+  PrintInfo("Finalized writing .dot file");
 
   return {};
 }

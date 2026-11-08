@@ -8,6 +8,7 @@
 #include "Graphics/mesh.hpp"
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <cstdint>
@@ -697,7 +698,7 @@ auto BLAS::Compact(const GraphicsContext &context) -> Error {
     };
   };
 
-  PrintAlways("Compacting BLAS (current size: {} bytes)", accelerationStructureBuffer->size);
+  PrintInfo("Compacting BLAS (current size: {} bytes)", accelerationStructureBuffer->size);
 
   auto readbackThread = std::thread(errorHandler([context, queryPool, queryTimelineValue, this]() -> Error {
     std::unique_lock<std::mutex> lock(mutex);
