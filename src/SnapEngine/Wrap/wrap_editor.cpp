@@ -62,4 +62,10 @@ auto wrap_ApplyTransform(lua_State *state) -> int {
   return 0;
 }
 
+auto wrap_CancelTransform(lua_State *state) -> int {
+  Editor::CancelTransform();
+
+  return 0;
+}
+
 } // namespace Engine::Wrap_Editor

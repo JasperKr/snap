@@ -21,3 +21,5 @@ function snap.editor.startScaling() end
 function snap.editor.setTransformAxis(axis) end
 
 function snap.editor.applyTransform() end
+
+function snap.editor.cancelTransform() end

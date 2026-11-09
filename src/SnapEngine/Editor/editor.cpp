@@ -8,6 +8,7 @@
 #include "Modules/Math/quaternion.hpp"
 #include "Modules/Math/ray.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/window.hpp"
@@ -19,6 +20,7 @@
 #include "Scene/transform.hpp"
 #include "flecs/addons/cpp/entity.hpp"
 #include "renderer.hpp"
+#include <algorithm>
 #include <format>
 #include <functional>
 #include <imgui.h>
@@ -32,7 +34,6 @@ namespace Engine {
 std::queue<PickEntityReadback> Engine::Editor::PickedEntities{};
 MoveData Engine::Editor::MoveInfo{};
 
-flecs::entity Engine::Editor::SelectedEntity{};
 std::vector<flecs::entity> Engine::Editor::SelectedEntities{};
 flecs::entity Engine::Editor::EditorCamera{};
 
@@ -62,14 +63,15 @@ auto DrawEntity(const flecs::entity &entity) -> bool {
 
   ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 
-  if (Editor::SelectedEntity == entity) {
+  if (std::ranges::contains(Editor::SelectedEntities, entity)) {
     // NOLINTNEXTLINE
     nodeFlags |= ImGuiTreeNodeFlags_Selected;
   }
 
   bool node = ImGui::TreeNodeEx(entityName.data(), nodeFlags);
   if (ImGui::IsItemClicked()) {
-    Editor::SelectedEntity = entity;
+    Editor::SelectedEntities = {entity};
+    Editor::MoveInfo.UpdatedTransformAxis = true;
   }
 
   ImGui::PopID();
@@ -144,13 +146,13 @@ auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter) -
 }
 
 inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> void {
-  if (!Editor::SelectedEntity.is_valid()) {
+  if (Editor::SelectedEntities.empty()) {
     return;
   }
 
-  ImGui::PushID(static_cast<int>(Editor::SelectedEntity.id()));
+  ImGui::PushID(static_cast<int>(entity.id()));
 
-  Editor::SelectedEntity.each([&](flecs::id identifier) -> auto {
+  entity.each([&](flecs::id identifier) -> auto {
     if (!identifier.is_entity()) {
       return;
     }
@@ -164,7 +166,7 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
     ImGui::TextDisabled("-%s", componentName.data());
   });
 
-  Editor::SelectedEntity.each([&](flecs::id identifier) -> auto {
+  entity.each([&](flecs::id identifier) -> auto {
     if (!identifier.is_entity()) {
       return;
     }
@@ -183,7 +185,7 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
       ImGui::PushID(static_cast<int>(componentEntity.id()));
       auto name = std::format("Component: {}", componentName.data());
       if (ImGui::TreeNodeEx(name.c_str(), iter->second.defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
-        iter->second.func(Editor::SelectedEntity);
+        iter->second.func(entity);
         ImGui::TreePop();
       }
       ImGui::PopID();
@@ -216,10 +218,13 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
 
     scene->world.each<Geometry>([&](flecs::entity entity, const Geometry &geometry) -> void {
       if (geometry.hasTlasIndex && geometry.tlasIndex == pickResult.InstanceID) {
-        Editor::SelectedEntity = entity;
-        Editor::SelectedEntities = {Editor::SelectedEntity};
+        Editor::MoveInfo.Cancel();
 
-        Editor::MoveInfo.UpdatedTransformAxis = true;
+        if (Editor::SelectedEntities.empty()) {
+          Editor::SelectedEntities = {entity};
+        } else {
+          Editor::SelectedEntities = {};
+        }
       }
     });
   }
@@ -227,7 +232,11 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   Editor::MoveInfo.Transforms.clear();
 
   for (const auto entity : Editor::SelectedEntities) {
-    Editor::MoveInfo.Transforms.emplace_back(entity.try_get_mut<Transform>());
+    auto *transform = entity.try_get_mut<Transform>();
+
+    if (transform != nullptr) {
+      Editor::MoveInfo.Transforms.emplace_back(transform);
+    }
   }
 
   Editor::MoveInfo.Update();
@@ -304,19 +313,20 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
     ImGui::PopStyleColor();
   }
 
-  if (ImGui::BeginChild("Selected Entity", ImVec2(0, 0), ImGuiChildFlags_Borders)) {
-    DrawEntityEditor(Editor::SelectedEntity, scene);
+  if (!Editor::SelectedEntities.empty()) {
+    if (ImGui::BeginChild("Selected Entity", ImVec2(0, 0), ImGuiChildFlags_Borders)) {
+      DrawEntityEditor(Editor::SelectedEntities.front(), scene);
+    }
+    ImGui::EndChild();
   }
-  ImGui::EndChild();
+
   ImGui::End();
 
   return {};
 }
 
 auto Editor::PickEntity(const Graphics::GraphicsContext &context, Math::Vec2 mousePos) -> Error {
-
   auto shader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::ObjectPicker));
-
   auto &tlas = Renderer::RendererInstance.GetSceneTLAS();
 
   Graphics::BufferCreationInfo info{
@@ -336,9 +346,7 @@ auto Editor::PickEntity(const Graphics::GraphicsContext &context, Math::Vec2 mou
   CHECK_ERR(shader->Send(context, {"TraceResults"}, {pickBuffer, Graphics::StorageBuffer::write}));
 
   CHECK_ERR(Graphics::UniformWriter::Send(shader, {"uv"}, mousePos));
-
   Graphics::RenderState::SetShader(shader);
-
   CHECK_ERR(Graphics::Dispatch(context, {1, 1, 1}));
 
   auto readback = CHECK_RES(pickBuffer->Readback(context));
@@ -401,7 +409,7 @@ auto Editor::PopEntityPickResult() -> Result<std::optional<PickEntityResult>> {
 }
 
 auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> Math::Vec3 {
-  Math::Vec3 OriginToCamera = (currentRay.Origin - moveData.Origin).Normalize();
+  Math::Vec3 OriginToCamera = currentRay.Origin - moveData.Origin;
 
   switch (moveData.Axis) {
   case TransformAxis::None:
@@ -412,7 +420,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> 
     normal.x = 0.0F;
     normal = normal.Normalize();
     Math::Plane plane(moveData.Origin, normal);
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(plane);
+    auto intersection = currentRay.IntersectPlane2Way(plane);
     if (!intersection.has_value()) {
       return {};
     }
@@ -430,7 +438,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> 
     normal.y = 0.0F;
     normal = normal.Normalize();
     Math::Plane plane(moveData.Origin, normal);
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(plane);
+    auto intersection = currentRay.IntersectPlane2Way(plane);
     if (!intersection.has_value()) {
       return {};
     }
@@ -448,7 +456,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> 
     normal.z = 0.0F;
     normal = normal.Normalize();
     Math::Plane plane(moveData.Origin, normal);
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(plane);
+    auto intersection = currentRay.IntersectPlane2Way(plane);
     if (!intersection.has_value()) {
       return {};
     }
@@ -463,7 +471,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> 
   case TransformAxis::XY: // Plane on to XY plane
   {
     Math::Plane plane(moveData.Origin, Math::Vec3(0.0F, 0.0F, 1.0F));
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(plane);
+    auto intersection = currentRay.IntersectPlane2Way(plane);
     if (!intersection.has_value()) {
       return {};
     }
@@ -477,7 +485,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> 
   case TransformAxis::XZ: // Plane on to XZ plane
   {
     Math::Plane plane(moveData.Origin, Math::Vec3(0.0F, 1.0F, 0.0F));
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(plane);
+    auto intersection = currentRay.IntersectPlane2Way(plane);
     if (!intersection.has_value()) {
       return {};
     }
@@ -491,7 +499,7 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> 
   case TransformAxis::YZ: // Plane on to YZ plane
   {
     Math::Plane plane(moveData.Origin, Math::Vec3(1.0F, 0.0F, 0.0F));
-    auto intersection = moveData.OriginalRay.IntersectPlane2Way(plane);
+    auto intersection = currentRay.IntersectPlane2Way(plane);
     if (!intersection.has_value()) {
       return {};
     }
@@ -503,8 +511,8 @@ auto GizmoTranslation(const MoveData &moveData, const Math::Ray &currentRay) -> 
     return translation;
   }
   case TransformAxis::XYZ: {
-    Math::Vec3 originalPoint = moveData.OriginalRay.PointAt(moveData.OriginalDistance);
-    Math::Vec3 currentPoint = moveData.OriginalRay.PointAt(moveData.Distance);
+    Math::Vec3 originalPoint = currentRay.PointAt(moveData.OriginalDistance);
+    Math::Vec3 currentPoint = currentRay.PointAt(moveData.Distance);
     Math::Vec3 translation = currentPoint - originalPoint;
     return translation;
   }
@@ -672,6 +680,8 @@ auto MoveData::Update() -> void {
       Origin += transform->GetWorldMatrix().GetTranslation();
     }
 
+    Origin /= float(Transforms.size());
+
     UpdatedTransformAxis = false;
   }
 
@@ -684,27 +694,46 @@ auto MoveData::Update() -> void {
     return;
   }
 
-  Math::Ray currentRay(Editor::EditorCamera.get<Transform>().GetPosition(),
-                       Editor::EditorCamera.get<CameraMatrices>().InverseProject_Rotation(Math::Vec3{CurrentMousePosition, 0.0F}));
-
-  TransformGizmo(*this, currentRay);
+  TransformGizmo(*this, Editor::EditorCamera.get<CameraMatrices>().GetRay(CurrentMousePosition));
 }
 
 auto MoveData::Apply() -> void {
-  for (auto *transform : Transforms) {
-    transform->ApplyTranslation(CurrentTranslation);
-    transform->ApplyRotation(CurrentRotation);
-    transform->ApplyScaling(CurrentScale);
+  CurrentTranslation = {};
+  CurrentRotation = {};
+  CurrentScale = {1, 1, 1};
+
+  Origin = {};
+  for (const auto *transform : Transforms) {
+    Origin += transform->GetWorldMatrix().GetTranslation();
   }
+
+  Origin /= float(Transforms.size());
+}
+
+auto MoveData::Cancel() -> void {
+  Origin = {};
+
+  for (auto *transform : Transforms) {
+    transform->ApplyTranslation(-CurrentTranslation);
+    transform->ApplyRotation(CurrentRotation.Inverse());
+    transform->ApplyScaling(Math::Vec3(1.0F) / CurrentScale);
+
+    Origin += transform->GetWorldMatrix().GetTranslation();
+  }
+
+  Origin /= float(Transforms.size());
+  Origin -= CurrentTranslation;
 
   CurrentTranslation = {};
   CurrentRotation = {};
-  CurrentScale = {};
+  CurrentScale = {1, 1, 1};
 }
 
 auto Editor::StartTranslating() -> void {
   if (Editor::MoveInfo.Mode == TransformMode::None) {
     Editor::MoveInfo.StartedTransforming = true;
+  } else {
+    Editor::MoveInfo.Cancel();
   }
 
   Editor::MoveInfo.Mode = TransformMode::Translate;
@@ -713,6 +742,8 @@ auto Editor::StartTranslating() -> void {
 auto Editor::StartRotating() -> void {
   if (Editor::MoveInfo.Mode == TransformMode::None) {
     Editor::MoveInfo.StartedTransforming = true;
+  } else {
+    Editor::MoveInfo.Cancel();
   }
 
   Editor::MoveInfo.Mode = TransformMode::Rotate;
@@ -721,6 +752,8 @@ auto Editor::StartRotating() -> void {
 auto Editor::StartScaling() -> void {
   if (Editor::MoveInfo.Mode == TransformMode::None) {
     Editor::MoveInfo.StartedTransforming = true;
+  } else {
+    Editor::MoveInfo.Cancel();
   }
 
   Editor::MoveInfo.Mode = TransformMode::Scale;
@@ -728,6 +761,8 @@ auto Editor::StartScaling() -> void {
 
 auto Editor::SetTransformAxis(TransformAxis axis) -> void {
   if (Editor::MoveInfo.Axis != axis) {
+    Editor::MoveInfo.Cancel();
+
     Editor::MoveInfo.UpdatedTransformAxis = true;
   }
 
@@ -735,6 +770,14 @@ auto Editor::SetTransformAxis(TransformAxis axis) -> void {
 }
 
 auto Editor::FinalizeTransform() -> void { Editor::MoveInfo.Apply(); }
+auto Editor::CancelTransform() -> void {
+  Editor::MoveInfo.Cancel();
+
+  Editor::MoveInfo.Axis = TransformAxis::None;
+  Editor::MoveInfo.Mode = TransformMode::None;
+  Editor::MoveInfo.StartedTransforming = false;
+  Editor::MoveInfo.UpdatedTransformAxis = false;
+}
 
 inline auto DrawArrow(const Math::Vec3 &origin, const Math::Vec3 &direction, float length, float headLength, float headWidth, const Math::PackedColor &color,
                       float thickness) -> void {

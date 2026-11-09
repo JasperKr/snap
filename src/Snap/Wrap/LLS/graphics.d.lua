@@ -8,6 +8,8 @@ snap.graphics = {}
 ---@field blendmode "none"|"alpha"|"add"|"sub"|"mul" The blend mode to use.
 ---@field alphamode "alphamultiply"|"premultiplied" The alpha mode to use.
 
+--[[
+
 ---@alias snap.BlendFactor
 ---| "zero" # (0, 0, 0, 0)
 ---| "one" # (1, 1, 1, 1)
@@ -20,20 +22,23 @@ snap.graphics = {}
 ---| "dstalpha" # (Ad, Ad, Ad, Ad)
 ---| "oneminusdstalpha" # (1 - Ad, 1 - Ad, 1 - Ad, 1 - Ad)
 
----@alias snap.BlendOperation
+
+---@alias snap.BlendOp
 ---| "add" # Source + Destination
 ---| "sub" # Source - Destination
 ---| "revsub" # Destination - Source
 ---| "min" # Minimum of Source and Destination
 ---| "max" # Maximum of Source and Destination
 
+]]
+
 ---@class snap.DetailedBlendMode
 ---@field srccolor snap.BlendFactor The source color blend factor.
 ---@field dstcolor snap.BlendFactor The destination color blend factor.
 ---@field srcalpha snap.BlendFactor The source alpha blend factor.
 ---@field dstalpha snap.BlendFactor The destination alpha blend factor.
----@field colorop snap.BlendOperation The color blend operation.
----@field alphaop snap.BlendOperation The alpha blend operation.
+---@field colorop snap.BlendOp The color blend operation.
+---@field alphaop snap.BlendOp The alpha blend operation.
 
 ---@alias snap.BlendMode
 ---| snap.SimpleBlendMode
@@ -124,7 +129,7 @@ function snap.graphics.setLineWidth(width) end
 function snap.graphics.setWindingOrder(clockwise) end
 
 --- Gets the depth mode.
---- @return snap.DepthMode depthmode The current depth mode.
+--- @return snap.CompareMode depthmode The current depth mode.
 function snap.graphics.getDepthMode() end
 
 --- Gets the cull mode.

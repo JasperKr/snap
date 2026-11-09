@@ -18,6 +18,7 @@ auto wrap_StartRotating(lua_State *state) -> int;
 auto wrap_StartScaling(lua_State *state) -> int;
 auto wrap_SetTransformAxis(lua_State *state) -> int;
 auto wrap_ApplyTransform(lua_State *state) -> int;
+auto wrap_CancelTransform(lua_State *state) -> int;
 
 static const std::vector<luaL_Reg> EditorLib = {
     {"pickObject", wrap_PickObject},
@@ -28,6 +29,7 @@ static const std::vector<luaL_Reg> EditorLib = {
     {"startScaling", wrap_StartScaling},
     {"setTransformAxis", wrap_SetTransformAxis},
     {"applyTransform", wrap_ApplyTransform},
+    {"cancelTransform", wrap_CancelTransform},
 };
 
 static const ::LuaWrap::LuaEnum<TransformAxis> TransformAxisEnum{"TransformAxis",

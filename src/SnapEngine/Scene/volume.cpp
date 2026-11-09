@@ -1,7 +1,7 @@
 #include "volume.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/texture.hpp"
-#include "Modules/console.hpp"
+#include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Scene/Geometry/boundingBox.hpp"
@@ -59,6 +59,7 @@ auto LuaVolume::Create(lua_State *state) -> int {
   volumeEntity.add<Volume>();
   volumeEntity.add<Userdata>();
   volumeEntity.add<Transform>();
+  volumeEntity.set<LocalBounds>(LocalBounds{Math::Vec3{-0.5, -0.5, -0.5}, Math::Vec3{0.5, 0.5, 0.5}});
   volumeEntity.add<WorldBounds>();
   volumeEntity.set<DisplayName>({name});
 

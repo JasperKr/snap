@@ -72,17 +72,17 @@ struct MoveData {
 
   Math::Vec3 CurrentTranslation;
   Math::Quaternion CurrentRotation;
-  Math::Vec3 CurrentScale;
+  Math::Vec3 CurrentScale = {1, 1, 1};
 
   auto Update() -> void;
   auto Apply() -> void;
+  auto Cancel() -> void;
 };
 
 struct Editor {
   static std::queue<PickEntityReadback> PickedEntities;
   static MoveData MoveInfo;
 
-  static flecs::entity SelectedEntity;
   static std::vector<flecs::entity> SelectedEntities;
   static flecs::entity EditorCamera;
 
@@ -94,7 +94,6 @@ struct Editor {
 
   // Mouse position is expected to be within the range [0, 1]
   static auto PickEntity(const Graphics::GraphicsContext &context, Math::Vec2 mousePos) -> Error;
-
   static auto PopEntityPickResult() -> Result<std::optional<PickEntityResult>>;
 
   static auto StartTranslating() -> void;
@@ -102,6 +101,7 @@ struct Editor {
   static auto StartScaling() -> void;
   static auto SetTransformAxis(TransformAxis axis) -> void;
   static auto FinalizeTransform() -> void;
+  static auto CancelTransform() -> void;
 };
 
 } // namespace Engine

@@ -6,11 +6,6 @@ error("Do not require this file")
 ---| "nearest" # Nearest-neighbor filtering
 ---| "linear" # Linear filtering
 
----@alias snap.WrapMode
----| "clamp" # Clamps texture coordinates to the edge
----| "repeat" # Repeats the texture
----| "mirror" # Mirrors the texture when the coordinates are outside the range [0, 1]
-
 ---@alias snap.TextureFormat
 ---| "rgba8" Default format
 ---| "rgba16"

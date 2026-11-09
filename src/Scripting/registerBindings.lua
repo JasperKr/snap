@@ -120,6 +120,7 @@ SnapEngine.keybindings.addAction("Gizmo - xz-plane", snap.editor.setTransformAxi
 SnapEngine.keybindings.addAction("Gizmo - xy-plane", snap.editor.setTransformAxis, "xy")
 
 SnapEngine.keybindings.addAction("Gizmo - xyz freeform", snap.editor.setTransformAxis, "xyz")
+SnapEngine.keybindings.addAction("Gizmo - Cancel", snap.editor.cancelTransform)
 
 SnapEngine.keybindings.addBinding({
   action = "Gizmo - Translate",
@@ -183,6 +184,11 @@ SnapEngine.keybindings.addBinding(
     high = "lshift"
   }
 )
+
+SnapEngine.keybindings.addBinding({
+  action = "Gizmo - Cancel",
+  rising = "escape",
+})
 
 -- SnapEngine.keybindings.addBinding(
 --   {
