@@ -64,12 +64,6 @@ struct FragmentInput {
   bool isFrontFace : SV_IsFrontFace;
 };
 
-uniform Sampler2D.Handle AlbedoTexture;
-uniform Sampler2D.Handle MetallicRoughnessTexture;
-uniform Sampler2D.Handle NormalTexture;
-uniform Sampler2D.Handle EmissiveTexture;
-uniform Sampler2D.Handle ReflectanceTexture;
-
 struct FragmentOutput {
   float4 Albedo : SV_Target0;
   float4 Normal : SV_Target1;
@@ -88,22 +82,22 @@ FragmentOutput fragmentMain(FragmentInput input) {
     tangent = -tangent;
   }
 
-  float4 texColor = AlbedoTexture.Sample(input.tex_coord);
   MaterialData matData = MaterialBuffer[MaterialBufferIndex];
+  float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float3 albedo = texColor.rgb * matData.albedoFactor.rgb;
 
-  float2 metallicRoughness = MetallicRoughnessTexture.Sample(input.tex_coord).bg;
+  float2 metallicRoughness = matData.MetallicRoughnessOrDefault(input.tex_coord);
 
-  float3 normalMap = normalize(NormalTexture.Sample(input.tex_coord).xyz * 2.0f - 1.0f);
+  float3 normalMap = normalize(matData.NormalOrDefault(input.tex_coord) * 2.0f - 1.0f);
 
   float3 bitangent = cross(normal, tangent.xyz) * tangent.w;
   float3x3 TBN = float3x3(tangent.xyz, bitangent, normal);
   TBN = transpose(TBN);
   normal = mul(TBN, normalMap);
 
-  float3 emissiveSample = EmissiveTexture.Sample(input.tex_coord).rgb;
-  float reflectanceSample = ReflectanceTexture.Sample(input.tex_coord).r;
+  float3 emissiveSample = matData.EmissiveOrDefault(input.tex_coord);
+  float reflectanceSample = matData.ReflectanceOrDefault(input.tex_coord);
 
   float metallic = metallicRoughness.x * matData.metallicFactor;
   float perceptualRoughness = metallicRoughness.y * matData.roughnessFactor;

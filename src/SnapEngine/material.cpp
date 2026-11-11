@@ -1,12 +1,16 @@
 #include "material.hpp"
+#include "Graphics/graphicsContext.hpp"
+#include "Graphics/texture.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
+#include "Modules/object.hpp"
 #include "Wrap/Helpers/lua_enum.hpp"
 #include "Wrap/wrap_engine.hpp"
 #include "renderer.hpp"
 #include <cstdint>
 #include <imgui.h>
 #include <lua.hpp>
+#include <vulkan/vulkan_core.h>
 
 namespace Engine::Renderer {
 
@@ -274,22 +278,44 @@ auto Material::Update(Graphics::GraphicsContext &context) -> Error {
   return Write(context);
 }
 
+inline auto WriteAddress(const Graphics::GraphicsContext &context, Ref<Graphics::Texture> &texture, Math::Uvec2 &out) -> Error {
+  if (!texture.isValid()) {
+    out.x = 0UL;
+    out.y = 0UL;
+
+    return {};
+  }
+
+  out.x = CHECK_RES(texture->GetAddress(context, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE));
+  out.y = CHECK_RES(texture->GetSampler(context));
+
+  return {};
+}
+
 auto Material::Write(Graphics::GraphicsContext &context) -> Error {
 
-  // NOLINTBEGIN (hicppp-avoid-c-arrays)
   struct MaterialData {
-    alignas(4) float albedoFactor[4];
-    alignas(4) float roughnessFactor;
-    alignas(4) float metallicFactor;
-    alignas(4) float reflectanceFactor;
-    alignas(4) uint32_t padding;
-    alignas(4) float emissiveFactor[3];
-    alignas(4) uint32_t alphaMode;
-    alignas(4) float alphaCutoff;
-    alignas(4) uint32_t textureUVIndices[2];
-    alignas(4) uint32_t padding2;
+    Math::Vec4 albedoFactor;
+
+    float roughnessFactor{};
+    float metallicFactor{};
+    float reflectanceFactor{};
+    uint32_t padding0{};
+
+    Math::Vec3 emissiveFactor;
+    uint32_t alphaMode{};
+
+    float alphaCutoff{};
+    uint padding1{};
+    Math::Uvec2 textureUVIndices{};
+
+    Math::Uvec2 AlbedoAddress{};
+    Math::Uvec2 NormalAddress{};
+    Math::Uvec2 MetallicRoughnessAddress{};
+    Math::Uvec2 AmbientOcclusionAddress{};
+    Math::Uvec2 ReflectanceAddress{};
+    Math::Uvec2 EmissiveAddress{};
   } materialData{};
-  // NOLINTEND (hicppp-avoid-c-arrays)
 
   materialData.albedoFactor[0] = albedoFactor.x;
   materialData.albedoFactor[1] = albedoFactor.y;
@@ -307,17 +333,19 @@ auto Material::Write(Graphics::GraphicsContext &context) -> Error {
   materialData.alphaCutoff = alphaCutoff;
   materialData.alphaMode = static_cast<uint32_t>(alphaMode);
 
+  CHECK_ERR(WriteAddress(context, albedoTexture, materialData.AlbedoAddress));
+  CHECK_ERR(WriteAddress(context, normalTexture, materialData.NormalAddress));
+  CHECK_ERR(WriteAddress(context, metallicRoughnessTexture, materialData.MetallicRoughnessAddress));
+  CHECK_ERR(WriteAddress(context, ambientOcclusionTexture, materialData.AmbientOcclusionAddress));
+  CHECK_ERR(WriteAddress(context, reflectanceTexture, materialData.ReflectanceAddress));
+  CHECK_ERR(WriteAddress(context, emissiveTexture, materialData.EmissiveAddress));
+
   uint64_t packedIndices = 0;
   for (size_t i = 0; i < textureUVIndices.size(); ++i) {
     packedIndices |= (static_cast<uint64_t>(textureUVIndices.at(i)) << (i * UINT8_WIDTH));
   }
   materialData.textureUVIndices[0] = packedIndices & ~0U;
   materialData.textureUVIndices[1] = (packedIndices >> UINT32_WIDTH) & ~0U;
-
-  // auto span = std::span<MaterialData>(&materialData, 1);
-
-  // return buffer->GetBuffer()->SetData(context, span,
-  //                                     materialSSBOIndex * buffer->GetStride());
 
   auto *ptr = RendererInstance.GetMaterialUploadManager().GetPtrAt(materialSSBOIndex);
   memcpy(ptr, &materialData, sizeof(MaterialData));

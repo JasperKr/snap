@@ -7,6 +7,7 @@
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <atomic>
+#include <bit>
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
@@ -100,13 +101,42 @@ struct Buffer : Object, Identifiable {
     auto operator==(const Address &other) const -> bool { return type == other.type && offset == other.offset && size == other.size; }
 
     [[nodiscard]] auto GetHash() const -> uint64_t {
-      Hash::Hasher hasher{};
+      struct AddrHash {
+        uint32_t offset;
+        uint32_t size : 24;
+        uint8_t type;
+      };
 
-      hasher.Add((uint64_t)type);
-      hasher.Add(offset);
-      hasher.Add(size);
+      static const std::unordered_map<VkDescriptorType, uint8_t> typeMap{
+          {VK_DESCRIPTOR_TYPE_SAMPLER, 0},
+          {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+          {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2},
+          {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
+          {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 4},
+          {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 5},
+          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 6},
+          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 7},
+          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 8},
+          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 9},
+          {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 10},
+          {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 11},
+          {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 12},
+          {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 13},
+          {VK_DESCRIPTOR_TYPE_SAMPLE_WEIGHT_IMAGE_QCOM, 14},
+          {VK_DESCRIPTOR_TYPE_BLOCK_MATCH_IMAGE_QCOM, 15},
+          {VK_DESCRIPTOR_TYPE_TENSOR_ARM, 16},
+          {VK_DESCRIPTOR_TYPE_MUTABLE_EXT, 17},
+          {VK_DESCRIPTOR_TYPE_PARTITIONED_ACCELERATION_STRUCTURE_NV, 18},
+          {VK_DESCRIPTOR_TYPE_MAX_ENUM, 21},
+      };
 
-      return hasher.Get();
+      auto addrHash = AddrHash{
+          .offset = offset,
+          .size = size,
+          .type = typeMap.at(type),
+      };
+
+      return std::bit_cast<uint64_t>(addrHash);
     }
   };
 

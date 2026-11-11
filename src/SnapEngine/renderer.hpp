@@ -30,6 +30,7 @@ const std::vector<Graphics::BufferComponent> MaterialBufferComponents = {
         .name = "AlbedoFactor",
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
     },
+
     Graphics::BufferComponent{
         .name = "RoughnessFactor",
         .format = VK_FORMAT_R32_SFLOAT,
@@ -39,6 +40,15 @@ const std::vector<Graphics::BufferComponent> MaterialBufferComponents = {
         .format = VK_FORMAT_R32_SFLOAT,
     },
     Graphics::BufferComponent{
+        .name = "ReflectanceFactor",
+        .format = VK_FORMAT_R32_SFLOAT,
+    },
+    Graphics::BufferComponent{
+        .name = "Padding0",
+        .format = VK_FORMAT_R32_UINT,
+    },
+
+    Graphics::BufferComponent{
         .name = "EmissiveFactor",
         .format = VK_FORMAT_R32G32B32_SFLOAT,
     },
@@ -46,12 +56,42 @@ const std::vector<Graphics::BufferComponent> MaterialBufferComponents = {
         .name = "AlphaMode",
         .format = VK_FORMAT_R32_UINT,
     },
+
     Graphics::BufferComponent{
         .name = "AlphaCutoff",
         .format = VK_FORMAT_R32_SFLOAT,
     },
     Graphics::BufferComponent{
+        .name = "Padding1",
+        .format = VK_FORMAT_R32_UINT,
+    },
+    Graphics::BufferComponent{
         .name = "TextureUVIndices",
+        .format = VK_FORMAT_R32G32_UINT,
+    },
+
+    Graphics::BufferComponent{
+        .name = "AlbedoAddress",
+        .format = VK_FORMAT_R32G32_UINT,
+    },
+    Graphics::BufferComponent{
+        .name = "NormalAddress",
+        .format = VK_FORMAT_R32G32_UINT,
+    },
+    Graphics::BufferComponent{
+        .name = "MetallicRoughnessAddress",
+        .format = VK_FORMAT_R32G32_UINT,
+    },
+    Graphics::BufferComponent{
+        .name = "AmbientOcclusionAddress",
+        .format = VK_FORMAT_R32G32_UINT,
+    },
+    Graphics::BufferComponent{
+        .name = "ReflectanceAddress",
+        .format = VK_FORMAT_R32G32_UINT,
+    },
+    Graphics::BufferComponent{
+        .name = "EmissiveAddress",
         .format = VK_FORMAT_R32G32_UINT,
     },
 };

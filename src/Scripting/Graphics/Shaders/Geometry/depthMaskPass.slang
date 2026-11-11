@@ -21,8 +21,6 @@ struct VertexInput {
 
 uniform uint2 testPadding;
 
-uniform Sampler2D.Handle AlbedoTexture;
-
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
   float4x4 transform = GetModelMatrix(ModelTransformIndex);
@@ -41,8 +39,8 @@ struct FragmentInput {
 
 [shader("fragment")]
 void fragmentMain(FragmentInput input) {
-  float4 texColor = AlbedoTexture.Sample(input.tex_coord);
   MaterialData matData = MaterialBuffer[MaterialBufferIndex];
+  float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float alpha = texColor.a * matData.albedoFactor.a;
 

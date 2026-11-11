@@ -113,30 +113,30 @@ inline auto BindMaterial(const GraphicsContext &context, const Ref<Shader> &shad
   }
 
   // NOLINTBEGIN
-  if ((flags & 1U) != 0U) {
-    CHECK_ERR(shader->Send(context, "AlbedoTexture", albedoTexture));
-  }
+  // if ((flags & 1U) != 0U) {
+  //   CHECK_ERR(shader->Send(context, "AlbedoTexture", albedoTexture));
+  // }
 
-  if ((flags & 2U) != 0U) {
-    CHECK_ERR(shader->Send(context, "MetallicRoughnessTexture", metallicRoughnessTexture));
-  }
+  // if ((flags & 2U) != 0U) {
+  //   CHECK_ERR(shader->Send(context, "MetallicRoughnessTexture", metallicRoughnessTexture));
+  // }
 
   // if ((flags & 4U) != 0U) {
   //   CHECK_ERR(
   //       shader->Send(context, "AmbientOcclusionTexture", ambientOcclusionTexture));
   // }
 
-  if ((flags & 8U) != 0U) {
-    CHECK_ERR(shader->Send(context, "NormalTexture", normalTexture));
-  }
+  // if ((flags & 8U) != 0U) {
+  //   CHECK_ERR(shader->Send(context, "NormalTexture", normalTexture));
+  // }
 
-  if ((flags & 16U) != 0U) {
-    CHECK_ERR(shader->Send(context, "EmissiveTexture", emissiveTexture));
-  }
+  // if ((flags & 16U) != 0U) {
+  //   CHECK_ERR(shader->Send(context, "EmissiveTexture", emissiveTexture));
+  // }
 
-  if ((flags & 32U) != 0U) {
-    CHECK_ERR(shader->Send(context, "ReflectanceTexture", reflectanceTexture));
-  }
+  // if ((flags & 32U) != 0U) {
+  //   CHECK_ERR(shader->Send(context, "ReflectanceTexture", reflectanceTexture));
+  // }
   // NOLINTEND
 
   return {};
