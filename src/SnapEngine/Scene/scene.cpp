@@ -38,6 +38,7 @@
 #include "Scene/volume.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
+#include "defer.hpp"
 #include "material.hpp"
 #include "renderer.hpp"
 #include <algorithm>
@@ -737,6 +738,7 @@ Scene::Scene(std::string name) : name(std::move(name)) {
 auto Scene::Update(double deltaTime) const -> Error {
   world.progress(static_cast<float>(deltaTime));
   Renderer::GlobalRenderTargetManager.Update();
+  DeferredManager::Instance.Update();
 
   return lastUpdateResult;
 }

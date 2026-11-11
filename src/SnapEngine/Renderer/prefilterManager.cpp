@@ -96,13 +96,18 @@ auto LightprobePrefilterManager::Initialize( // NOLINT
   CHECK_ERR(CreateStorageTextures(context, EnvMapReallocationStep));
 
   // NOLINTNEXTLINE
-  Camera = CHECK_RES(Engine::Camera::Create(context, 90.0F, {PrefilteredRadianceCubeMapSize, PrefilteredRadianceCubeMapSize}, 0.1F, 100.0F));
-  Camera.SetPersistentTextureSettings({
-      .IncomingLight = true,
-  });
-  Camera.SetSettings(Camera::Settings{
-      .DoPostProcessing = false,
-  });
+  Cameras = {};
+
+  for (int i = 0; i < Cameras.capacity(); i++) {
+    Cameras.emplace_back(CHECK_RES(Engine::Camera::Create(context, 90.0F, {PrefilteredRadianceCubeMapSize, PrefilteredRadianceCubeMapSize}, 0.1F, 100.0F)));
+
+    Cameras.back().SetPersistentTextureSettings({
+        .IncomingLight = true,
+    });
+    Cameras.back().SetSettings(Camera::Settings{
+        .DoPostProcessing = false,
+    });
+  }
 
   return {};
 }
@@ -177,9 +182,9 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(const Graphics::GraphicsCo
   }
 
   envMap->SetFilter(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR);
-  envMap->SetAnisotropy(0.0F); // NOLINT
+  envMap->SetAnisotropy(0.0F);
   output->SetFilter(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR);
-  output->SetAnisotropy(0.0F); // NOLINT
+  output->SetAnisotropy(0.0F);
 
   /// Prepare texture views ///
 
@@ -237,7 +242,7 @@ auto LightprobePrefilterManager::PrefilterRadianceMap(const Graphics::GraphicsCo
   // Prefilter the environment map for radiance ///
   auto prefilterRadianceShader = CHECK_RES(RendererInstance.GetShaderManager().GetShader(ShaderKey::PrefilterRadiance));
 
-  CHECK_ERR(prefilterRadianceShader->Send(context, "Coefficients", {PrefilteredRadianceCoeffsBuffer, Graphics::StorageTexture::read}));
+  CHECK_ERR(prefilterRadianceShader->Send(context, "Coefficients", {PrefilteredRadianceCoeffsBuffer, Graphics::StorageBuffer::read}));
   CHECK_ERR(prefilterRadianceShader->Send(context, "InputTexture", envMap));
 
   Graphics::RenderState::SetShader(prefilterRadianceShader);
@@ -378,15 +383,34 @@ auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsCon
     drawMatrices.InverseRotationMatrix = drawMatrices.RotationMatrix.Transpose();
     drawMatrices.Update();
 
-    CHECK_ERR(Camera.WriteToBuffer(drawMatrices, cubemapTransfrom));
+    CHECK_ERR(Cameras.at(i).WriteToBuffer(drawMatrices, cubemapTransfrom));
+  }
+
+  for (int i = 0; i < Transforms.size(); i++) {
+    auto cubemapTransfrom = Transforms.at(i);
+    cubemapTransfrom.SetPosition(transform.GetPosition());
+    cubemapTransfrom.UpdateLocalMatrix();
+    cubemapTransfrom.UpdateWorldMatrix(nullptr);
+
+    Engine::CameraMatrices drawMatrices = CameraMatrices;
+
+    const auto &worldMatrix = cubemapTransfrom.GetWorldMatrix();
+
+    drawMatrices.ViewMatrix = worldMatrix.InverseTranspose();
+    drawMatrices.InverseViewMatrix = worldMatrix;
+    drawMatrices.RotationMatrix = drawMatrices.ViewMatrix.AsMatrix3x3();
+    drawMatrices.InverseRotationMatrix = drawMatrices.RotationMatrix.Transpose();
+    drawMatrices.Update();
 
     Engine::DrawData drawData{
         .Transform = cubemapTransfrom,
         .Matrices = drawMatrices,
     };
 
-    CHECK_ERR(Camera.Render(context, drawData, scene));
+    CHECK_ERR(Cameras.at(i).Render(context, drawData, scene));
+  }
 
+  for (int i = 0; i < Transforms.size(); i++) {
     Graphics::RenderState::SetShader({});
 
     CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {
@@ -397,7 +421,7 @@ auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsCon
                                                                    },
                                                                }));
 
-    CHECK_ERR(Graphics::Draw(context, Camera.GetOwnedTextures().IncomingLight));
+    CHECK_ERR(Graphics::Draw(context, Cameras.at(i).GetOwnedTextures().IncomingLight));
   }
 
   CHECK_ERR(PrefilterEnvironmentMap(context, SceneCubemap, lightProbe));
@@ -424,9 +448,9 @@ auto LightprobePrefilterManager::PrefilterEnvironment(const Graphics::GraphicsCo
     drawMatrices.InverseRotationMatrix = drawMatrices.RotationMatrix.Transpose();
     drawMatrices.Update();
 
-    CHECK_ERR(Camera.WriteToBuffer(drawMatrices, cubemapTransfrom));
+    CHECK_ERR(Cameras.at(i).WriteToBuffer(drawMatrices, cubemapTransfrom));
 
-    CHECK_ERR(Camera.RenderSkyboxOnly(context, Environment{.SkyboxTexture = skyboxTexture}));
+    CHECK_ERR(Cameras.at(i).RenderSkyboxOnly(context, Environment{.SkyboxTexture = skyboxTexture}));
 
     Graphics::RenderState::SetShader({});
 
@@ -438,7 +462,7 @@ auto LightprobePrefilterManager::PrefilterEnvironment(const Graphics::GraphicsCo
                                                                    },
                                                                }));
 
-    CHECK_ERR(Graphics::Draw(context, Camera.GetOwnedTextures().DirectLighting));
+    CHECK_ERR(Graphics::Draw(context, Cameras.at(i).GetOwnedTextures().DirectLighting));
   }
 
   CHECK_ERR(PrefilterEnvironmentMap(context, SceneCubemap, lightProbe));
@@ -455,7 +479,7 @@ auto LightprobePrefilterManager::Deinitialize() -> void {
 
   SceneCubemap.reset();
   EnvMapArrayViews.clear();
-  Camera = Engine::Camera();
+  Cameras.clear();
 
   TemporaryRadianceMap.reset();
 

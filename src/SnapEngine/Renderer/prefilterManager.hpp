@@ -6,6 +6,7 @@
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
+#include "Modules/stackVector.hpp"
 #include "Renderer/lightProbe.hpp"
 #include "Scene/camera.hpp"
 #include <array>
@@ -64,7 +65,7 @@ private:
 
   std::array<bool, MaxEnvMaps> EnvMapUsed{};
 
-  Engine::Camera Camera;
+  Math::StackVector<Engine::Camera, 6> Cameras;
 
   std::vector<Ref<Graphics::Texture>> EnvMapArrayViews;
 

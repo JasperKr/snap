@@ -11,11 +11,11 @@ public RaytracingAccelerationStructure GetSceneBVH() {
 
 public bool TraceAnyHitRay(RayDesc ray) {
   RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
-           RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+           RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_NON_OPAQUE> q;
 
   q.TraceRayInline(GetSceneBVH(),
                    RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER |
-                       RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,
+                       RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_CULL_NON_OPAQUE,
                    0xff, ray);
 
   // while (q.Proceed()) {

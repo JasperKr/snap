@@ -11,6 +11,7 @@
 #include "Modules/stackVector.hpp"
 #include "commandState.hpp"
 #include "dynamicRendering.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -925,7 +926,7 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent, 
   if (LastDebugMarkerStackFrame != context.currentFrame) {
     for (const auto &marker : debugMarkerStack) {
       VkDebugUtilsLabelEXT info{
-          .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+          .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
           .pNext = nullptr,
           .pLabelName = marker.name.c_str(),
           .color = {marker.color.x, marker.color.y, marker.color.z, marker.color.w},
@@ -934,29 +935,33 @@ auto DrawState::Apply(const GraphicsContext &context, const RenderPass &parent, 
       vkCmdBeginDebugUtilsLabelEXT(cmdBuffer, &info);
     }
   } else {
-    if (LastDebugMarkerStack.size() > debugMarkerStack.size()) {
-      for (int i = 0; i < LastDebugMarkerStack.size() - debugMarkerStack.size(); i++) {
-        vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
-      }
-    }
+    int validFrom = 0;
 
     for (int i = 0; i < debugMarkerStack.size(); i++) {
       const auto &marker = debugMarkerStack.at(i);
 
-      if (i < LastDebugMarkerStack.size()) {
-        const auto &lastMarker = LastDebugMarkerStack.at(i);
-
-        if (marker.name == lastMarker.name) {
-          continue;
-        }
-
-        for (int j = i; j < LastDebugMarkerStack.size(); j++) {
-          vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
-        }
+      if (i >= LastDebugMarkerStack.size()) {
+        break;
       }
 
+      const auto &lastMarker = LastDebugMarkerStack.at(i);
+
+      if (lastMarker.name != marker.name) {
+        break;
+      }
+
+      validFrom = i + 1;
+    }
+
+    for (int i = validFrom; i < LastDebugMarkerStack.size(); i++) {
+      vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
+    }
+
+    for (int i = validFrom; i < debugMarkerStack.size(); i++) {
+      const auto &marker = debugMarkerStack.at(i);
+
       VkDebugUtilsLabelEXT info{
-          .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+          .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
           .pNext = nullptr,
           .pLabelName = marker.name.c_str(),
           .color = {marker.color.x, marker.color.y, marker.color.z, marker.color.w},

@@ -28,6 +28,7 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Engine {
 
@@ -56,7 +57,7 @@ auto EntityName(const flecs::entity &entity) -> std::string_view {
   return {entityName};
 }
 
-auto DrawEntity(const flecs::entity &entity) -> bool {
+auto DrawEntity(const flecs::entity &entity, bool partOfTree) -> bool {
   auto entityName = EntityName(entity);
 
   ImGui::PushID(static_cast<int>(entity.id()));
@@ -68,7 +69,12 @@ auto DrawEntity(const flecs::entity &entity) -> bool {
     nodeFlags |= ImGuiTreeNodeFlags_Selected;
   }
 
+  if (partOfTree) {
+    ImGui::SetNextItemOpen(true);
+  }
+
   bool node = ImGui::TreeNodeEx(entityName.data(), nodeFlags);
+
   if (ImGui::IsItemClicked()) {
     Editor::SelectedEntities = {entity};
     Editor::MoveInfo.UpdatedTransformAxis = true;
@@ -112,7 +118,7 @@ inline auto matchesRecursive(const flecs::entity &entity, const std::string_view
   return matches;
 }
 
-auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter) -> void {
+auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter, std::vector<flecs::entity> &selected) -> void {
 
   auto match = matchesRecursive(entity, filter);
   if (match == MatchType::None) {
@@ -130,7 +136,21 @@ auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter) -
     return;
   }
 
-  bool drawChildren = DrawEntity(entity);
+  bool partOfTree = false;
+
+  if (!selected.empty()) {
+    partOfTree = selected.back() == entity;
+
+    if (partOfTree) {
+      selected.pop_back();
+    }
+
+    if (selected.empty()) {
+      partOfTree = false; // Don't force open last entity
+    }
+  }
+
+  bool drawChildren = DrawEntity(entity, partOfTree);
 
   if (match == MatchType::This) {
     // If this entity matches, all children should be shown regardless of their names
@@ -138,9 +158,7 @@ auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter) -
   }
 
   if (drawChildren) {
-    ImGui::Indent();
-    entity.children([&](flecs::entity child) -> void { DrawEntityHierarchy(child, filter); });
-    ImGui::Unindent();
+    entity.children([&](flecs::entity child) -> void { DrawEntityHierarchy(child, filter, selected); });
     ImGui::TreePop();
   }
 }
@@ -212,6 +230,20 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   }
 
   auto pickReadbackResult = CHECK_RES(Editor::PopEntityPickResult());
+  std::vector<flecs::entity> SelectedEntityTree;
+  static std::vector<flecs::entity> LastSelectedEntities;
+
+  // Last != current prevents the ui from forcing the tree to open every tick
+  if (!Editor::SelectedEntities.empty() && LastSelectedEntities != Editor::SelectedEntities) {
+    flecs::entity current = Editor::SelectedEntities.front();
+
+    while (current != flecs::entity::null()) {
+      SelectedEntityTree.emplace_back(current);
+      current = current.parent();
+    }
+
+    LastSelectedEntities = Editor::SelectedEntities;
+  }
 
   if (pickReadbackResult != std::nullopt) {
     auto pickResult = pickReadbackResult.value();
@@ -264,7 +296,7 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
                         ImGuiChildFlags_Borders)) {
 
     scene->world.entity(0).children([&](flecs::entity entity) -> void {
-      DrawEntityHierarchy(entity, std::string_view(buf)); // NOLINT
+      DrawEntityHierarchy(entity, std::string_view(buf), SelectedEntityTree); // NOLINT
     });
   }
   ImGui::EndChild();

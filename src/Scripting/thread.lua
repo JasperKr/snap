@@ -258,20 +258,14 @@ while true do
 
   draw()
 
+  probe:render()
+
+  snap.graphics.setRenderTarget()
+
   if frameIndex == 1 then
-    -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
-    snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
-    scene:newVolume("Test volume 1"):setPosition(0, 0, 0);
-
-    scene:newVolume("Test volume 2"):setPosition(2, 0, 0);
-
-    scene:newVolume("Test volume 3"):setPosition(4, 0, 0);
-
-    scene:newVolume("Test volume 4"):setPosition(0, 2, 0);
-
-    scene:newVolume("Test volume 5"):setPosition(0, 4, 0);
-
-    scene:newVolume("Test volume 6"):setPosition(0, 0, 2);
+    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    -- scene:newVolume("Test volume 1"):setPosition(0, 0, 0);
   end
 
   local commands, newSnapshot = snap.graphics.submitGraphics()

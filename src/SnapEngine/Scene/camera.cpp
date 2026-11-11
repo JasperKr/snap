@@ -670,7 +670,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Apply lighting");
 
-  CHECK_ERR(CalculateVariance(context));
+  // CHECK_ERR(CalculateVariance(context));
   CHECK_ERR(ApplyAmbientOcclusion(context));
   CHECK_ERR(CalculateShadows(context));
   CHECK_ERR(ApplyLighting(context, drawData, scene));

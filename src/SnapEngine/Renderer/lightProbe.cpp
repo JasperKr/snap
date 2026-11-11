@@ -1,14 +1,19 @@
 #include "lightProbe.hpp"
 #include "Graphics/graphics.hpp"
+#include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
+#include "Modules/stackVector.hpp"
+#include "Renderer/prefilterManager.hpp"
 #include "Scene/transform.hpp"
 #include "Scene/userdata.hpp"
 #include "Wrap/wrap.hpp"
+#include "defer.hpp"
 #include "renderer.hpp"
 #include <array>
 #include <flecs.h>
 #include <imgui.h>
+#include <vulkan/vulkan_core.h>
 
 namespace Engine::Renderer {
 
@@ -21,6 +26,9 @@ auto LightProbe::Render(const Transform &transform) -> Error {
 }
 
 auto LightProbe::DrawGUI(flecs::entity entity) -> Error {
+  auto &context = *Graphics::GetCurrentGraphicsContext();
+  auto &manager = RendererInstance.GetPrefilterManager();
+
   ImGui::Text("Light Probe");
   ImGui::Separator();
   ImGui::DragFloat("Radius", &Radius, 0.1F, 0.0F, 100.0F);            // NOLINT
@@ -29,8 +37,46 @@ auto LightProbe::DrawGUI(flecs::entity entity) -> Error {
   InnerRadius = std::min(InnerRadius, Radius);
   ImGui::Text("Environment Map Index: %d", EnvironmentMapIndex);
   if (ImGui::Button("Render Light Probe")) {
-    auto *ctx = Graphics::GetCurrentGraphicsContext();
     CHECK_ERR(Render(entity.get<Transform>()));
+  }
+
+  if (ImGui::CollapsingHeader("Maps") && EnvironmentMapIndex != -1) {
+    auto irradiance = CHECK_RES(Graphics::Texture::Create(context, manager.GetIrradianceMaps().get(), VK_IMAGE_VIEW_TYPE_2D,
+                                                          VkImageSubresourceRange{
+                                                              .baseMipLevel = 0,
+                                                              .levelCount = 1,
+                                                              .baseArrayLayer = static_cast<uint32_t>(EnvironmentMapIndex),
+                                                              .layerCount = 1,
+                                                          }));
+
+    auto size = 200;
+
+    ImGui::Image(reinterpret_cast<ImTextureID>(irradiance.get()), ImVec2(size, size)); //NOLINT
+
+    auto radiance = CHECK_RES(Graphics::Texture::Create(context, manager.GetRadianceMaps().get(), VK_IMAGE_VIEW_TYPE_2D,
+                                                        VkImageSubresourceRange{
+                                                            .baseMipLevel = 0,
+                                                            .levelCount = 1,
+                                                            .baseArrayLayer = static_cast<uint32_t>(EnvironmentMapIndex),
+                                                            .layerCount = 1,
+                                                        }));
+
+    ImGui::Image(reinterpret_cast<ImTextureID>(radiance.get()), ImVec2(size, size)); //NOLINT
+
+    irradiance->MarkUse();
+    radiance->MarkUse();
+
+    irradiance->retain();
+    radiance->retain();
+
+    DeferredManager::Instance.Register({
+        .callOnShutdown = true,
+        .frames = 1UL,
+        .action = [irradiance, radiance]() -> void {
+          irradiance->release();
+          radiance->release();
+        },
+    });
   }
 
   return {};

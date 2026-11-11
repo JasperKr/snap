@@ -808,6 +808,12 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID) -> ui
     // no extra cost to call
   }
 
+  const auto *bound = get_if_derived<BoundResources>(child.data);
+  if (bound != nullptr) {
+    cost += bound->reads.size();
+    cost += bound->writes.size() * 2;
+  }
+
   return cost;
 }
 

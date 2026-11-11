@@ -16,6 +16,7 @@
 #include "Scene/Lights/sphereLight.hpp"
 #include "Scene/Lights/spotLight.hpp"
 #include "bufferUploadManager.hpp"
+#include "defer.hpp"
 #include "material.hpp"
 #include <cassert>
 #include <cstdint>
@@ -233,6 +234,8 @@ auto DrawFullScreen(const Graphics::GraphicsContext &context) -> Error {
 }
 
 void Renderer::Deinitialize() {
+  DeferredManager::Instance.Shutdown();
+
   GlobalRenderTargetManager.Deinitialize();
   PrefilterManager.Deinitialize();
   LineDrawer.Deinitialize();

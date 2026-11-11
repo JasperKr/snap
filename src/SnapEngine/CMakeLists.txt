@@ -9,6 +9,7 @@ add_library(SnapEngine
   gltfLoader.cpp
   renderer.cpp
   style.cpp
+  defer.cpp
 
   Editor/gui.cpp
   Editor/lineDrawer.cpp
