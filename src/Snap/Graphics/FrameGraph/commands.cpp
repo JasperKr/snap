@@ -11,7 +11,6 @@
 #include "Modules/stackVector.hpp"
 #include "commandState.hpp"
 #include "dynamicRendering.hpp"
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>

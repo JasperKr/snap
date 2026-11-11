@@ -9,8 +9,7 @@ import Lighting.Lights.directionalLight;
 
 import transform;
 
-uniform uint MaterialBufferIndex;
-uniform uint ModelTransformIndex;
+uniform uint2 ModelInfo;
 uniform uint FrameRandomState;
 
 struct VertexStageOutput {
@@ -34,7 +33,7 @@ struct VertexInput {
 VertexStageOutput vertexMain(VertexInput input) {
   VertexStageOutput out;
 
-  Transform transform = GetModelTransform(ModelTransformIndex);
+  Transform transform = GetModelTransform(ModelInfo.x);
 
   float4 worldPos = mul(float4(input.Position, 1.0), transform.ModelMatrix);
   out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
@@ -74,7 +73,7 @@ float4 fragmentMain(FragmentInput input) {
     tangent.xyz = -tangent.xyz;
   }
 
-  MaterialData matData = MaterialBuffer[MaterialBufferIndex];
+  MaterialData matData = MaterialBuffer[ModelInfo.y];
   float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float alpha = texColor.a * matData.albedoFactor.a;

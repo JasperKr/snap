@@ -593,6 +593,20 @@ auto Shader::Send(const ResourceKey &key, const std::span<const uint8_t> &data) 
   return Error::Success();
 }
 
+auto Shader::Send(ResolvedKey key, const std::span<const uint8_t> &data) const -> Error {
+  ZoneScopedN("Shader::Send data span");
+
+  const auto &info = GetUniform(key);
+
+  ERR_ASSERT(info.offset + data.size() <= uniformsSize);
+  ERR_ASSERT(info.GetSize() == data.size());
+
+  // NOLINTNEXTLINE, pointer arithmetic
+  memcpy(GetState().uniforms.data() + info.offset, data.data(), data.size());
+
+  return Error::Success();
+}
+
 auto Shader::Send(const ResolvedKey key, const uint64_t data) const -> Error {
   ZoneScopedN("Shader::Send device address");
 

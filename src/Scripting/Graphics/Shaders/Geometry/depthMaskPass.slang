@@ -3,8 +3,7 @@ import material;
 
 import transform;
 
-uniform uint MaterialBufferIndex;
-uniform uint ModelTransformIndex;
+uniform uint2 ModelInfo;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -23,7 +22,7 @@ uniform uint2 testPadding;
 
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
-  float4x4 transform = GetModelMatrix(ModelTransformIndex);
+  float4x4 transform = GetModelMatrix(ModelInfo.x);
   float4 worldPos = mul(float4(input.Position, 1.0), transform);
 
   VertexStageOutput out;
@@ -39,7 +38,7 @@ struct FragmentInput {
 
 [shader("fragment")]
 void fragmentMain(FragmentInput input) {
-  MaterialData matData = MaterialBuffer[MaterialBufferIndex];
+  MaterialData matData = MaterialBuffer[ModelInfo.y];
   float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float alpha = texColor.a * matData.albedoFactor.a;

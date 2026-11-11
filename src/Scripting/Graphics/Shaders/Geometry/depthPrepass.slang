@@ -2,7 +2,7 @@ import camera;
 
 import transform;
 
-uniform uint ModelTransformIndex;
+uniform uint2 ModelInfo;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -18,7 +18,7 @@ struct VertexInput {
 
 [shader("vertex")]
 VertexStageOutput vertexMain(VertexInput input) {
-  float4x4 transform = GetModelMatrix(ModelTransformIndex);
+  float4x4 transform = GetModelMatrix(ModelInfo.x);
   float4 worldPos = mul(float4(input.Position, 1.0), transform);
 
   VertexStageOutput out;

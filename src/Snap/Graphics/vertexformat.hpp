@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Graphics/FrameGraph/commands.hpp"
 #include "Graphics/format.hpp"
 #include "Graphics/graphicsState.hpp"
 #include "Modules/Helpers/hasher.hpp"
@@ -26,6 +27,8 @@ struct VertexComponent {
 };
 
 struct VertexFormat {
+  VertexFormat() = default;
+
   explicit VertexFormat(std::vector<VertexComponent> attributes) : Attributes(std::move(attributes)) { ConstructBindings(); }
 
   explicit VertexFormat(std::vector<VertexComponent> attributes, std::vector<uint32_t> divisors) : Attributes(std::move(attributes)) {
@@ -102,7 +105,7 @@ public:
     return result;
   }
 
-  auto BindDynamicInputState(struct VirtualCommandBuffer *commandBuffer) const -> void;
+  auto BindDynamicInputState(VirtualCommandBuffer *commandBuffer) const -> void;
 
   [[nodiscard]] auto GetBindingCount() const -> size_t { return BindingIndices.size(); }
   [[nodiscard]] auto GetAttributeCount() const -> size_t { return Attributes.size(); }
@@ -116,14 +119,29 @@ public:
       return false;
     }
 
+    if (Bindings.size() != other.Bindings.size()) {
+      return false;
+    }
+
+    for (size_t i = 0; i < Bindings.size(); ++i) {
+      const auto &first = Bindings.at(i);
+      const auto &second = other.Bindings.at(i);
+
+      if (first.binding != second.binding || first.stride != second.stride || first.inputRate != second.inputRate || first.divisor != second.divisor) {
+        return false;
+      }
+    }
+
     if (Attributes.size() != other.Attributes.size()) {
       return false;
     }
 
     for (size_t i = 0; i < Attributes.size(); ++i) {
-      if (Attributes[i].location != other.Attributes[i].location || Attributes[i].binding != other.Attributes[i].binding ||
-          Attributes[i].format != other.Attributes[i].format || Attributes[i].offset != other.Attributes[i].offset ||
-          Attributes[i].name != other.Attributes[i].name) {
+      const auto &first = Attributes.at(i);
+      const auto &second = other.Attributes.at(i);
+
+      if (first.location != second.location || first.binding != second.binding || first.format != second.format || first.offset != second.offset ||
+          first.name != second.name) {
         return false;
       }
     }

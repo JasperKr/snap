@@ -7,8 +7,7 @@ import constants;
 
 import transform;
 
-uniform uint MaterialBufferIndex;
-uniform uint ModelTransformIndex;
+uniform uint2 ModelInfo;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -32,7 +31,7 @@ struct VertexInput {
 VertexStageOutput vertexMain(VertexInput input) {
   VertexStageOutput out;
 
-  Transform transform = GetModelTransform(ModelTransformIndex);
+  Transform transform = GetModelTransform(ModelInfo.x);
 
   float4 worldPos = mul(float4(input.Position, 1.0), transform.ModelMatrix);
   out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
@@ -82,7 +81,7 @@ FragmentOutput fragmentMain(FragmentInput input) {
     tangent = -tangent;
   }
 
-  MaterialData matData = MaterialBuffer[MaterialBufferIndex];
+  MaterialData matData = MaterialBuffer[ModelInfo.y];
   float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float3 albedo = texColor.rgb * matData.albedoFactor.rgb;

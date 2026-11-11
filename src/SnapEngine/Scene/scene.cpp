@@ -45,7 +45,6 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <flecs.h>
 #include <imgui.h>
 #include <lua.hpp>
@@ -80,91 +79,8 @@ inline auto CompareDrawItems(const DrawItem &first, const DrawItem &second) -> b
   return first.tertiaryKey < second.tertiaryKey;
 }
 
-inline auto BindMaterial(const GraphicsContext &context, const Ref<Shader> &shader, Renderer::Material const *material, uint8_t flags) -> Error {
-  const auto &defaultMaterial = Renderer::RendererInstance.GetDefaultMaterial();
-
-  auto albedoTexture = material->albedoTexture;
-  if (!albedoTexture.isValid()) {
-    albedoTexture = defaultMaterial.albedoTexture;
-  }
-
-  auto metallicRoughnessTexture = material->metallicRoughnessTexture;
-  if (!metallicRoughnessTexture.isValid()) {
-    metallicRoughnessTexture = defaultMaterial.metallicRoughnessTexture;
-  }
-
-  auto ambientOcclusionTexture = material->ambientOcclusionTexture;
-  if (!ambientOcclusionTexture.isValid()) {
-    ambientOcclusionTexture = defaultMaterial.ambientOcclusionTexture;
-  }
-
-  auto normalTexture = material->normalTexture;
-  if (!normalTexture.isValid()) {
-    normalTexture = defaultMaterial.normalTexture;
-  }
-
-  auto emissiveTexture = material->emissiveTexture;
-  if (!emissiveTexture.isValid()) {
-    emissiveTexture = defaultMaterial.emissiveTexture;
-  }
-  auto reflectanceTexture = material->reflectanceTexture;
-  if (!reflectanceTexture.isValid()) {
-    reflectanceTexture = defaultMaterial.reflectanceTexture;
-  }
-
-  // NOLINTBEGIN
-  // if ((flags & 1U) != 0U) {
-  //   CHECK_ERR(shader->Send(context, "AlbedoTexture", albedoTexture));
-  // }
-
-  // if ((flags & 2U) != 0U) {
-  //   CHECK_ERR(shader->Send(context, "MetallicRoughnessTexture", metallicRoughnessTexture));
-  // }
-
-  // if ((flags & 4U) != 0U) {
-  //   CHECK_ERR(
-  //       shader->Send(context, "AmbientOcclusionTexture", ambientOcclusionTexture));
-  // }
-
-  // if ((flags & 8U) != 0U) {
-  //   CHECK_ERR(shader->Send(context, "NormalTexture", normalTexture));
-  // }
-
-  // if ((flags & 16U) != 0U) {
-  //   CHECK_ERR(shader->Send(context, "EmissiveTexture", emissiveTexture));
-  // }
-
-  // if ((flags & 32U) != 0U) {
-  //   CHECK_ERR(shader->Send(context, "ReflectanceTexture", reflectanceTexture));
-  // }
-  // NOLINTEND
-
-  return {};
-}
-
-struct DrawConfig {
-  /*
-    albedoTexture
-    metallicRoughnessTexture
-    ambientOcclusionTexture
-    normalTexture
-    emissiveTexture
-    reflectanceTexture
-  */
-  uint8_t bindMaterialTextures{};
-  bool bindMaterialBuffer = false;
-};
-
-inline auto RenderDrawItem(const DrawItem &item, const Ref<Shader> &shader, const GraphicsContext &ctx, const DrawConfig &config) -> Error {
-  if (config.bindMaterialTextures != 0) {
-    CHECK_ERR(BindMaterial(ctx, shader, item.material, config.bindMaterialTextures));
-  }
-
-  if (config.bindMaterialBuffer) {
-    CHECK_ERR(UniformWriter::Send(shader, {"MaterialBufferIndex"}, item.material->materialSSBOIndex));
-  }
-
-  CHECK_ERR(UniformWriter::Send(shader, {"ModelTransformIndex"}, item.transformIndex));
+inline auto RenderDrawItem(const DrawItem &item, const Ref<Shader> &shader, const GraphicsContext &ctx, ResolvedKey key) -> Error {
+  CHECK_ERR(UniformWriter::Send(shader, key, Math::Uvec2{item.transformIndex, item.material->materialSSBOIndex}));
 
   if (item.geometry.mesh.get() == nullptr) {
     return Error::Create("Invalid geometry mesh");
@@ -331,28 +247,23 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
                                                        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                                                    }}));
 
-  auto opaqueConfig = DrawConfig{
-      .bindMaterialTextures = 0,
-      .bindMaterialBuffer = false,
-  };
-
   Graphics::RenderState::PushDebugMarker("Depth Opaque Prepass");
 
   RenderState::SetShader(depthOpaque);
+  auto key = CHECK_RES(depthOpaque->ResolveKey("ModelInfo"));
+
   for (const auto &item : OpaqueDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, depthOpaque, context, opaqueConfig));
+    CHECK_ERR(RenderDrawItem(item, depthOpaque, context, key));
   }
 
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Depth Masked Prepass");
 
-  auto maskedConfig = DrawConfig{
-      .bindMaterialTextures = 1,
-      .bindMaterialBuffer = true,
-  };
   RenderState::SetShader(depthMasked);
+  key = CHECK_RES(depthMasked->ResolveKey("ModelInfo"));
+
   for (const auto &item : MaskedDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, depthMasked, context, maskedConfig));
+    CHECK_ERR(RenderDrawItem(item, depthMasked, context, key));
   }
 
   Graphics::RenderState::PopDebugMarker();
@@ -396,22 +307,18 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
                                                         .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                                                     }}));
 
-  auto deferredConfig = DrawConfig{
-      .bindMaterialTextures = UINT8_MAX,
-      .bindMaterialBuffer = true,
-  };
-
   Graphics::RenderState::PushDebugMarker("Opaque Materials");
+  key = CHECK_RES(deferred->ResolveKey("ModelInfo"));
 
   for (const auto &item : OpaqueDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, deferred, context, deferredConfig));
+    CHECK_ERR(RenderDrawItem(item, deferred, context, key));
   }
 
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Masked Materials");
 
   for (const auto &item : MaskedDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, deferred, context, deferredConfig));
+    CHECK_ERR(RenderDrawItem(item, deferred, context, key));
   }
 
   if (OpaqueDrawItems.empty() && MaskedDrawItems.empty()) {
@@ -473,13 +380,9 @@ auto Scene::DrawTransparentModels(const GraphicsContext &context, Camera &camera
                                                         .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                                                     }}));
 
-  auto forwardConfig = DrawConfig{
-      .bindMaterialTextures = UINT8_MAX,
-      .bindMaterialBuffer = true,
-  };
-
+  auto key = CHECK_RES(forward->ResolveKey("ModelInfo"));
   for (const auto &item : TransparentDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, forward, context, forwardConfig));
+    CHECK_ERR(RenderDrawItem(item, forward, context, key));
   }
 
   RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);

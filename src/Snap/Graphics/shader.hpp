@@ -210,6 +210,7 @@ struct Shader : Object, Identifiable {
                      const std::vector<slang::PreprocessorMacroDesc> *preprocessorMacros = nullptr) -> Result<Ref<Shader>>;
 
   auto Send(const ResourceKey &key, const std::span<const uint8_t> &data) const -> Error;
+  auto Send(ResolvedKey key, const std::span<const uint8_t> &data) const -> Error;
 
   auto Send(const GraphicsContext &context, const ResourceKey &key, const UniformBuffer &buffer) -> Error;
 
