@@ -88,7 +88,6 @@ auto LineDrawer::GenerateMesh(const Graphics::GraphicsContext &context, std::vec
 }
 
 auto LineDrawer::Render(const Graphics::GraphicsContext &context, Camera &camera) -> Error {
-
   if (Lines.empty() && OverlayLines.empty()) {
     return {};
   }
@@ -105,7 +104,6 @@ auto LineDrawer::Render(const Graphics::GraphicsContext &context, Camera &camera
     CHECK_ERR(GenerateMesh(context, Lines));
 
     CHECK_ERR(Graphics::Draw(context, *Mesh, Lines.size()));
-    Lines.clear();
   }
 
   if (OverlayLines.empty()) {
@@ -116,9 +114,13 @@ auto LineDrawer::Render(const Graphics::GraphicsContext &context, Camera &camera
 
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   CHECK_ERR(Graphics::Draw(context, *Mesh, OverlayLines.size()));
-  OverlayLines.clear();
 
   return {};
+}
+
+auto LineDrawer::NewFrame() -> void {
+  Lines.clear();
+  OverlayLines.clear();
 }
 
 } // namespace Engine::Renderer

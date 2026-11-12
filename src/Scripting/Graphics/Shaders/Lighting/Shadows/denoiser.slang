@@ -44,7 +44,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
 
   bool inShadow = (RayHitTexture.Load(int3(id.xy, 0)).x & (1 << id.z)) != 0;
 
-  if (any(sampleCoord < 0.0) || any(sampleCoord.xy >= 1.0)) {
+  if (any(sampleCoord < 0.0) || any(sampleCoord.xy >= 1.0) || CameraData[0].HistoryInvalidated()) {
     OutputTexture.Store(id, inShadow ? 0.0 : 1.0);
     return;
   }

@@ -36,6 +36,7 @@ struct Camera {
 
   struct Settings {
     bool DoPostProcessing = true;
+    bool DrawPrimitives = false;
 
     Math::Vec3 AlbedoWeights = {0.1, 0.1, 0.1};
     Math::Vec3 MaterialWeights = {0.1, 0.1, 0.1};
@@ -49,22 +50,22 @@ struct Camera {
   void SetVerticalFOV(float fovDeg) {
     verticalFOVDeg = fovDeg;
     VerticalFOVRad = Math::DegToRad(fovDeg);
-    projectionDirty = true;
+    ProjectionDirty = true;
   }
 
   void SetAspectRatio(float aspectRatio) {
     AspectRatio = aspectRatio;
-    projectionDirty = true;
+    ProjectionDirty = true;
   }
 
   void SetNearPlane(float nearPlane) {
     NearPlane = nearPlane;
-    projectionDirty = true;
+    ProjectionDirty = true;
   }
 
   void SetFarPlane(float farPlane) {
     FarPlane = farPlane;
-    projectionDirty = true;
+    ProjectionDirty = true;
   }
 
   void SetSettings(const Settings &newSettings) { settings = newSettings; }
@@ -87,7 +88,7 @@ struct Camera {
     }
 
     Dimensions = newDimensions;
-    projectionDirty = true;
+    ProjectionDirty = true;
     ConfigureRendertargets();
     AspectRatio = static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
   }
@@ -100,7 +101,7 @@ struct Camera {
 
   auto Resize(Math::Uvec2 newDimensions) -> void {
     Dimensions = newDimensions;
-    projectionDirty = true;
+    ProjectionDirty = true;
   }
 
   auto Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
@@ -251,6 +252,8 @@ struct Camera {
 
   [[nodiscard]] auto GetDimensions() -> Math::Uvec2 { return Dimensions; }
 
+  auto InvalidateHistory() -> void { HistoryInvalidated = true; }
+
   auto DrawGUI(flecs::entity entity) -> void;
 
 private:
@@ -273,8 +276,9 @@ private:
 
   int VisibleProbeCount = 0;
 
-  bool projectionDirty = true;
-  bool firstFrameAfterResize = false;
+  bool ProjectionDirty = true;
+  bool FirstFrameAfterResize = false;
+  bool HistoryInvalidated = false;
 
   auto ConfigureRendertargets() -> void;
 

@@ -66,6 +66,7 @@ struct LineDrawer {
   auto Deinitialize() -> void;
 
   auto Render(const Graphics::GraphicsContext &context, Camera &camera) -> Error;
+  auto NewFrame() -> void;
 
 private:
   auto GenerateMesh(const Graphics::GraphicsContext &context, std::vector<LineVertex> &lines) -> Error;

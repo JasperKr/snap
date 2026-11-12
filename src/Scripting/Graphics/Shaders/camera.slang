@@ -14,7 +14,7 @@ public struct _CameraData {
   public float Far;
   public float NearMulFar;
   public float FarMinusNear;
-  public uint HistoryInvalidated;
+  uint _HistoryInvalidated;
   public float2 Jitter;
   public uint ProjectionType;
   public uint ShadowCascadeCount;
@@ -57,6 +57,8 @@ public struct _CameraData {
     float3 worldPos = GetWorldPosition(uv, depth);
     return GetPreviousUVs(worldPos);
   }
+
+  public bool HistoryInvalidated() { return _HistoryInvalidated != 0; }
 };
 
 public uniform StructuredBuffer<_CameraData>.Handle CameraData;

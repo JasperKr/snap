@@ -13,7 +13,7 @@ local viewport = { offset = vec2(), size = vec2() }
 local commandBufferChannel, canStartChannel, scene, events = ...
 
 -- scene:newCamera(name, verticalFOV, width, height, near, far)
-local camera = scene:newCamera("main camera", 90, 1, 1, 0.01, 1000)
+local camera = scene:newCamera("main camera", 90, 1, 1, 0.01, 1000, { postprocessing = true, primitives = true })
 camera:setPersistentTextureSettings({
   PostProcessed = true,
 })
@@ -33,6 +33,7 @@ local function draw()
   snap.graphics.setDepthMode("greater", true)
 
   Editor.drawGUI()
+  scene:drawUIElement();
 
   camera:render(scene)
   snap.graphics.setShader()
@@ -75,7 +76,6 @@ local function draw()
   end
   Imgui.End()
 
-  scene:drawUIElement();
 
   local startTime = snap.timer.getTime()
 

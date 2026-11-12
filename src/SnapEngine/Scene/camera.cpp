@@ -36,6 +36,7 @@
 #include <imgui.h>
 #include <lauxlib.h>
 #include <lua.h>
+#include <lualib.h>
 #include <span>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -101,11 +102,11 @@ void Camera::RegisterCameraSystems(Scene &scene) {
         camera.Jitter /= Math::Vec2(camera.Dimensions);
         matrices.Jitter = camera.Jitter;
 
-        if (camera.projectionDirty) {
+        if (camera.ProjectionDirty) {
           matrices.ProjectionMatrix = Math::Matrix4x4::Perspective(camera.VerticalFOVRad, camera.AspectRatio, camera.NearPlane, camera.FarPlane);
           matrices.InverseProjectionMatrix = matrices.ProjectionMatrix.InverseTranspose();
 
-          camera.projectionDirty = false;
+          camera.ProjectionDirty = false;
         }
       });
 
@@ -384,6 +385,8 @@ auto Camera::ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> 
 }
 
 auto Camera::CalculateShadows(const Graphics::GraphicsContext &context) -> Error {
+  RenderState::PushDebugMarker("Shadows");
+
   auto [width, height] = GetDimensions();
 
   auto &textures = GetOwnedTextures();
@@ -453,6 +456,8 @@ auto Camera::CalculateShadows(const Graphics::GraphicsContext &context) -> Error
 
   CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
 
+  RenderState::PopDebugMarker();
+
   return {};
 }
 
@@ -470,7 +475,7 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
   Math::StackVector<Math::Uvec2, 4> offsets{{0, 0}, {1, 1}, {1, 0}, {0, 1}};
   Math::Uvec2 offset = offsets[context.currentFrame % 4U];
 
-  if (firstFrameAfterResize) {
+  if (FirstFrameAfterResize) {
     auto clearShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::Clear));
 
     CHECK_ERR(clearShader->Send(context, "ClearTexture", {textures.VolumetricLighting, StorageTexture::write}));
@@ -703,10 +708,13 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
                                                                   .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                                                               }}));
 
-  Graphics::RenderState::PushDebugMarker("Draw Lines");
-  CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
-  CHECK_ERR(Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
-  Graphics::RenderState::PopDebugMarker();
+  if (settings.DrawPrimitives) {
+    Graphics::RenderState::PushDebugMarker("Draw Primitives");
+    CHECK_ERR(Renderer::RendererInstance.GetLineDrawer().Render(context, *this));
+    CHECK_ERR(Renderer::RendererInstance.GetPrimitiveDrawer().Render(context, *this));
+    Graphics::RenderState::PopDebugMarker();
+  }
+
   Graphics::RenderState::PushDebugMarker("Temporal Anti-Aliasing");
 
   auto taaShader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::TAA));
@@ -727,6 +735,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
   CHECK_ERR(taaShader->Send(context, {"IncomingLight"}, OwnedTextures.IncomingLight));
   CHECK_ERR(taaShader->Send(context, {"PreviousIncomingLight"}, OwnedTextures.PreviousTAA));
   CHECK_ERR(taaShader->Send(context, {"MotionTexture"}, OwnedTextures.Motion));
+  CHECK_ERR(taaShader->Send(context, {"CameraData"}, {CameraBuffer, StorageBuffer::read}));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
@@ -751,7 +760,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
       OwnedTextures.VariableRateModeDebug,
   }));
 
-  firstFrameAfterResize = false;
+  FirstFrameAfterResize = false;
 
   return {};
 }
@@ -941,7 +950,7 @@ auto Camera::ConfigureRendertargets() -> void {
       .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
   };
 
-  firstFrameAfterResize = true;
+  FirstFrameAfterResize = true;
 }
 
 auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform &transform) const -> Error {
@@ -965,7 +974,7 @@ auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform
       .Far = FarPlane,
       .NearMulFar = NearPlane * FarPlane,
       .FarMinusNear = FarPlane - NearPlane,
-      .HistoryInvalidated = 0,
+      .HistoryInvalidated = static_cast<uint32_t>(HistoryInvalidated),
       .Jitter = Jitter,
       .ProjectionType = 0,
       .ShadowCascadeCount = 0,
@@ -1024,19 +1033,30 @@ auto LuaCamera::Create(lua_State *state) -> int {
   const auto near = luaL_optscalar(state, 6, 0.1F);
   const auto far = luaL_optscalar(state, 7, 1000.0F);
 
-  auto cameraResult = LUA_CK_RES(Camera::Create(context, fov, {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}, near, far));
+  luaL_checktype(state, 8, LUA_TTABLE);
+  lua_getfield(state, 8, "postprocessing");
+  const auto doPostprocessing = luaL_optboolean(state, -1, true);
+  lua_pop(state, 1);
+
+  lua_getfield(state, 8, "primitives");
+  const auto drawPrimitives = luaL_optboolean(state, -1, false);
+  lua_pop(state, 1);
+
+  auto camera = LUA_CK_RES(Camera::Create(context, fov, {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}, near, far));
+  camera.settings.DoPostProcessing = doPostprocessing;
+  camera.settings.DrawPrimitives = drawPrimitives;
 
   auto entity = scene->world.entity();
-  entity.set<Camera>(cameraResult);
+  entity.set<Camera>(camera);
   entity.add<CameraMatrices>();
   entity.add<Frustum>();
   entity.add<Transform>();
   entity.add<Userdata>();
   entity.set<DisplayName>({luaL_optstring(state, 2, "Camera")});
 
-  auto camera = Ref<LuaCamera>::Make(entity);
+  auto luaCamera = Ref<LuaCamera>::Make(entity);
 
-  ::LuaWrap::PushObject(state, LuaCamera::GetType(), camera.get());
+  ::LuaWrap::PushObject(state, LuaCamera::GetType(), luaCamera.get());
   return 1;
 }
 

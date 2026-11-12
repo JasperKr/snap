@@ -87,7 +87,6 @@ auto PrimitiveDrawer::Render(const Graphics::GraphicsContext &context, Camera &c
     Mesh->SetDrawRange({.Offset = 0, .Count = static_cast<uint32_t>(Primitives.size())});
 
     CHECK_ERR(Graphics::Draw(context, *Mesh, Primitives.size()));
-    Primitives.clear();
   }
 
   if (Overlaid.empty()) {
@@ -100,9 +99,13 @@ auto PrimitiveDrawer::Render(const Graphics::GraphicsContext &context, Camera &c
 
   Graphics::RenderState::SetDepthMode(false, false, VK_COMPARE_OP_ALWAYS);
   CHECK_ERR(Graphics::Draw(context, *Mesh));
-  Overlaid.clear();
 
   return {};
+}
+
+auto PrimitiveDrawer::NewFrame() -> void {
+  Primitives.clear();
+  Overlaid.clear();
 }
 
 } // namespace Engine::Renderer

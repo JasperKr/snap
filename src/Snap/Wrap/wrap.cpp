@@ -485,3 +485,10 @@ auto luaL_optscalar(lua_State *state, int index, Math::Scalar defaultValue) -> M
   }
   return static_cast<Math::Scalar>(luaL_checknumber(state, index));
 }
+
+auto luaL_optboolean(lua_State *state, int index, bool defaultValue) -> bool {
+  if (lua_isnoneornil(state, index)) {
+    return defaultValue;
+  }
+  return lua_toboolean(state, index) != 0;
+}

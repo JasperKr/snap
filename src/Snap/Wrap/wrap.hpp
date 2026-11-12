@@ -206,6 +206,7 @@ inline auto PushVarargs(lua_State *state, const std::vector<Data::LuaType> &laun
 // No namespace.
 auto luaL_checkscalar(lua_State *state, int index) -> Math::Scalar;
 auto luaL_optscalar(lua_State *state, int index, Math::Scalar defaultValue) -> Math::Scalar;
+auto luaL_optboolean(lua_State *state, int index, bool defaultValue) -> bool;
 
 template <typename T> struct ObjectTypeNameBase {
   using type = std::remove_cvref_t<T>;

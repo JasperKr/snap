@@ -42,7 +42,7 @@ void computeMain(uint2 id: SV_DispatchThreadID) {
 
   float visibility = RayHitTexture.Load(int3(id, 0));
 
-  if (any(sampleCoord.xy < texelSize * 0.5) || any(sampleCoord.xy >= 1.0 - texelSize * 0.5)) {
+  if (any(sampleCoord.xy < texelSize * 0.5) || any(sampleCoord.xy >= 1.0 - texelSize * 0.5) || CameraData[0].HistoryInvalidated()) {
     OutputTexture.Store(id, float2(visibility, 0.0));
     return;
   }

@@ -407,6 +407,7 @@ auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsCon
         .Matrices = drawMatrices,
     };
 
+    Cameras.at(i).InvalidateHistory();
     CHECK_ERR(Cameras.at(i).Render(context, drawData, scene));
   }
 

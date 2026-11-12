@@ -639,6 +639,9 @@ Scene::Scene(std::string name) : name(std::move(name)) {
 }
 
 auto Scene::Update(double deltaTime) const -> Error {
+  Renderer::RendererInstance.GetLineDrawer().NewFrame();
+  Renderer::RendererInstance.GetPrimitiveDrawer().NewFrame();
+
   world.progress(static_cast<float>(deltaTime));
   Renderer::GlobalRenderTargetManager.Update();
   DeferredManager::Instance.Update();

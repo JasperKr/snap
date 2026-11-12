@@ -2,6 +2,7 @@
 
 import constants;
 import utils;
+import camera;
 
 #include "fullscreen.slang"
 
@@ -65,7 +66,12 @@ float3 SampleTextureCatmullRom(Sampler2D<float3> tex, float2 uv, float2 texSize,
   return result;
 }
 
-[shader("fragment")] float3 fragmentMain(float2 texCoords : TEXCOORDS) {
+[shader("fragment")]
+float3 fragmentMain(float2 texCoords: TEXCOORDS) {
+  if (CameraData[0].HistoryInvalidated()) {
+    return IncomingLight.SampleLevelZero(texCoords);
+  }
+
   float3 neighbourMin = float3(1e6);
   float3 neighbourMax = float3(-1e6);
   float3 neighbourSum = 0.0;

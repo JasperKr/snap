@@ -849,7 +849,6 @@ auto Editor::DrawGizmo() -> void {
   const auto &matrices = EditorCamera.get<CameraMatrices>();
 
   auto scale = (MoveInfo.Origin - matrices.GetPosition()).Length() * 0.1F; // NOLINT
-  auto &lineDrawer = Renderer::RendererInstance.GetLineDrawer();
   const auto thickness = 4.0F;
   auto originToCamera = (matrices.GetPosition() - MoveInfo.Origin).Normalize();
 

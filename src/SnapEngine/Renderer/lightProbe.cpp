@@ -10,9 +10,11 @@
 #include "Wrap/wrap.hpp"
 #include "defer.hpp"
 #include "renderer.hpp"
+#include <algorithm>
 #include <array>
 #include <flecs.h>
 #include <imgui.h>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace Engine::Renderer {
@@ -41,6 +43,8 @@ auto LightProbe::DrawGUI(flecs::entity entity) -> Error {
   }
 
   if (ImGui::CollapsingHeader("Maps") && EnvironmentMapIndex != -1) {
+    static int Mip = 0;
+
     auto irradiance = CHECK_RES(Graphics::Texture::Create(context, manager.GetIrradianceMaps().get(), VK_IMAGE_VIEW_TYPE_2D,
                                                           VkImageSubresourceRange{
                                                               .baseMipLevel = 0,
@@ -53,9 +57,14 @@ auto LightProbe::DrawGUI(flecs::entity entity) -> Error {
 
     ImGui::Image(reinterpret_cast<ImTextureID>(irradiance.get()), ImVec2(size, size)); //NOLINT
 
+    int mipmapCount = static_cast<int>(manager.GetRadianceMaps()->GetMipmapCount());
+    ImGui::SliderInt("Mip", &Mip, 0, mipmapCount - 1);
+
+    Mip = std::clamp(Mip, 0, mipmapCount - 1);
+
     auto radiance = CHECK_RES(Graphics::Texture::Create(context, manager.GetRadianceMaps().get(), VK_IMAGE_VIEW_TYPE_2D,
                                                         VkImageSubresourceRange{
-                                                            .baseMipLevel = 0,
+                                                            .baseMipLevel = static_cast<uint32_t>(Mip),
                                                             .levelCount = 1,
                                                             .baseArrayLayer = static_cast<uint32_t>(EnvironmentMapIndex),
                                                             .layerCount = 1,
