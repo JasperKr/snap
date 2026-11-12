@@ -4,6 +4,9 @@
 #include "Graphics/FrameGraph/virtualState.hpp"
 #include "Graphics/FrameGraph/vulkanResource.hpp"
 #include "Graphics/graphics.hpp"
+#ifndef NDEBUG
+#include "Graphics/renderState.hpp"
+#endif
 #include "Libraries/vma.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"

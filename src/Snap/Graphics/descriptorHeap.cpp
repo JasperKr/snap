@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <format>
 #include <mutex>
 #include <span>
 #include <vector>
@@ -87,7 +88,6 @@ auto DescriptorHeapManager::Initialize(const GraphicsContext &context) -> Error 
 
   InvalidBufferOffsets = {
       0,
-      heapProperties.minResourceHeapReservedRange,
   };
 
   InvalidSamplerOffsets = {
@@ -136,7 +136,8 @@ auto DescriptorHeapManager::AllocateResource(bool isImage) -> Result<VkDeviceSiz
 
   ERR_ASSERT_MSG(imageCursor + imageDescriptorSize < BufferCursorOrigin - (bufferCursor + bufferDescriptorSize), "Out of heap memory");
 
-  assert(!std::ranges::contains(isImage ? InvalidImageOffsets : InvalidBufferOffsets, cursor));
+  ERR_ASSERT_MSG(!std::ranges::contains(isImage ? InvalidImageOffsets : InvalidBufferOffsets, cursor),
+                 std::format("{} cursor: {} is Invalid", isImage ? "Image" : "Buffer", cursor));
 
   return offset;
 }
@@ -155,7 +156,7 @@ auto DescriptorHeapManager::AllocateSampler() -> Result<VkDeviceSize> {
   // Same alignment argument as Resource allocation.
   samplerCursor = samplerCursor + size;
 
-  assert(!std::ranges::contains(InvalidSamplerOffsets, samplerCursor));
+  ERR_ASSERT(!std::ranges::contains(InvalidSamplerOffsets, samplerCursor));
 
   return offset;
 }
