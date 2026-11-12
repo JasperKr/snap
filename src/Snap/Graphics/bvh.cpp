@@ -986,7 +986,7 @@ auto TLAS::RemoveInstance(uint32_t index) -> void {
   instances.erase(instances.begin() + index);
 }
 
-auto TLAS::UpdateInstance(uint32_t index, const Math::Matrix4x4 &transform) -> void {
+auto TLAS::UpdateInstanceTransform(uint32_t index, const Math::Matrix4x4 &transform) -> void {
   if (index >= instances.size()) {
     return;
   }
@@ -1000,6 +1000,21 @@ auto TLAS::UpdateInstance(uint32_t index, const Math::Matrix4x4 &transform) -> v
       transform.At(0, 2), transform.At(1, 2), transform.At(2, 2), transform.At(3, 2),
   };
   // clang-format on
+}
+
+auto TLAS::UpdateInstanceFlags(uint32_t index, VkGeometryInstanceFlagsKHR flags) -> void {
+  if (index >= instances.size()) {
+    return;
+  }
+
+  instances.at(index).flags = flags;
+}
+
+auto TLAS::GetInstanceFlags(uint32_t index) -> Result<VkGeometryInstanceFlagsKHR> {
+  ERR_ASSERT(index < instances.size());
+
+  auto flags = instances.at(index).flags;
+  return flags;
 }
 
 auto TLAS::Refit(const GraphicsContext &context) -> Error {

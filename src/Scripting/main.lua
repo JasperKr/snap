@@ -6,6 +6,7 @@ require("init")
 local commandsChannel = snap.thread.newChannel()
 local startThreadChannel = snap.thread.newChannel()
 local events = snap.thread.newChannel()
+local threadToMainEvents = snap.thread.newChannel()
 local scene = snap.scene.newScene("Main")
 
 snap.graphics.acquireGraphics("load")
@@ -17,7 +18,7 @@ local qx, qy, qz, qw = snap.math.eulerToQuaternion(-math.pi / 1.5, 0.3, 0);
 scene:newDirectionalLight("Test directional light", qx, qy, qz, qw, 1, 1, 1, 5)
 
 print("Starting render thread")
-thread:start(commandsChannel, startThreadChannel, scene, events)
+thread:start(commandsChannel, startThreadChannel, scene, events, threadToMainEvents)
 
 local buffer = require("string.buffer");
 
@@ -26,6 +27,14 @@ function snap.any(...)
 end
 
 function snap.update(dt)
+  local event = threadToMainEvents:pop()
+
+  while event do
+    snap[event[1]][event[2]](unpack(event, 3));
+
+    event = threadToMainEvents:pop();
+  end
+
   i = i + 1
 
   scene:update(dt)

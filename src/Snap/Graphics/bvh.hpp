@@ -157,7 +157,9 @@ struct TLAS : Object, Identifiable {
 
   auto AddInstance(const Ref<BLAS> &blas, const Math::Matrix4x4 &transform, VkGeometryInstanceFlagsKHR flags) -> Result<uint32_t>;
   auto RemoveInstance(uint32_t index) -> void;
-  auto UpdateInstance(uint32_t index, const Math::Matrix4x4 &transform) -> void;
+  auto UpdateInstanceTransform(uint32_t index, const Math::Matrix4x4 &transform) -> void;
+  auto UpdateInstanceFlags(uint32_t index, VkGeometryInstanceFlagsKHR flags) -> void;
+  auto GetInstanceFlags(uint32_t index) -> Result<VkGeometryInstanceFlagsKHR>;
 
   auto GetInstances() const -> const std::vector<VkAccelerationStructureInstanceKHR> & { return instances; }
 

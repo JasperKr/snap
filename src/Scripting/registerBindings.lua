@@ -190,6 +190,19 @@ SnapEngine.keybindings.addBinding({
   rising = "escape",
 })
 
+SnapEngine.keybindings.addAction("Toggle Fullscreen Viewport", ToggleFullscreen)
+SnapEngine.keybindings.addAction("Disable Fullscreen Viewport", DisableFullscreen)
+
+SnapEngine.keybindings.addBinding({
+  action = "Toggle Fullscreen Viewport",
+  rising = "f12"
+})
+
+SnapEngine.keybindings.addBinding({
+  action = "Disable Fullscreen Viewport",
+  rising = "escape"
+})
+
 -- SnapEngine.keybindings.addBinding(
 --   {
 --     action = "Gizmo - xyz freeform",

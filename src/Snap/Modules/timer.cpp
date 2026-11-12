@@ -1,4 +1,5 @@
 #include "timer.hpp"
+#include "Modules/console.hpp"
 #include <SDL3/SDL_timer.h>
 #include <cstdint>
 

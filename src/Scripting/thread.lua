@@ -1,4 +1,20 @@
 require("init")
+
+local fullscreen = false
+local commandBufferChannel, canStartChannel, scene, events, threadToMainEvents = ...
+
+function ToggleFullscreen()
+  fullscreen = not fullscreen
+
+  threadToMainEvents:push({ "window", "setFullscreen", fullscreen })
+end
+
+function DisableFullscreen()
+  fullscreen = false
+
+  threadToMainEvents:push({ "window", "setFullscreen", fullscreen })
+end
+
 require("registerBindings");
 
 local ffi = require("ffi")
@@ -9,8 +25,6 @@ local lastImDrawTime = 0
 local lastShownImDrawTime = 0
 local count = 0
 local viewport = { offset = vec2(), size = vec2() }
-
-local commandBufferChannel, canStartChannel, scene, events = ...
 
 -- scene:newCamera(name, verticalFOV, width, height, near, far)
 local camera = scene:newCamera("main camera", 90, 1, 1, 0.01, 1000, { postprocessing = true, primitives = true })
@@ -28,9 +42,11 @@ local probe = scene:newLightProbe()
 
 local snapshot
 
-local function draw()
+local function draw(delta)
   snap.graphics.setCullMode("none")
   snap.graphics.setDepthMode("greater", true)
+
+  snap.gui.newFrame(delta)
 
   Editor.drawGUI()
   scene:drawUIElement();
@@ -254,9 +270,21 @@ while true do
     startupSequence[frameIndex]()
   end
 
-  snap.gui.newFrame(delta)
+  if fullscreen then
+    camera:setDimensions(snap.graphics.getDimensions())
 
-  draw()
+    camera:render(scene)
+    snap.graphics.setShader()
+
+    snap.graphics.setCullMode("none")
+    snap.graphics.setDepthMode("always", false)
+    snap.graphics.setRenderTarget()
+    local rt = camera:getRendertarget("PostProcessed")
+    snap.graphics.draw(rt)
+    rt:release()
+  else
+    draw(delta)
+  end
 
   probe:render()
 
@@ -264,7 +292,8 @@ while true do
 
   if frameIndex == 1 then
     -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
-    snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    snap.scene.loadModel(scene, "Assets/Terrain/main_sponza/NewSponza_Main_glTF_003.gltf")
     -- scene:newVolume("Test volume 1"):setPosition(0, 0, 0);
   end
 

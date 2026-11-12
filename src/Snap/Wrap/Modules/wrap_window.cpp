@@ -1,4 +1,5 @@
 #include "wrap_window.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/window.hpp"
 

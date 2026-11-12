@@ -40,13 +40,7 @@ auto GetFullscreenDimensions(SDL_Window *window, int displayIndex) -> std::vecto
   return resolutions;
 }
 
-auto SetFullscreen(SDL_Window *window, bool fullscreen) -> void {
-  if (fullscreen) {
-    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-  } else {
-    SDL_SetWindowFullscreen(window, false);
-  }
-}
+auto SetFullscreen(SDL_Window *window, bool fullscreen) -> void { SDL_SetWindowFullscreen(window, fullscreen); }
 
 auto GetWidth(SDL_Window *window) -> int {
   int width = 0;

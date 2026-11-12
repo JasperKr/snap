@@ -130,7 +130,7 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
 
   probeInfo.irradiance *= INV_PI;
 
-  if (!SpecularEnabled || false) {
+  if (!SpecularEnabled) {
     probeInfo.radiance *= 0.0;
     probeInfo.irradiance *= (1.0 - E) * albedo; // since we turn off specular, fully metallic objects will be black
     // to solve this, we multiply by albedo instead of diffuse

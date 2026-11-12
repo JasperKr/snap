@@ -511,35 +511,42 @@ Scene::Scene(std::string name) : name(std::move(name)) {
     lastUpdateResult = camera.WriteToBuffer(cameraMatrices, transform);
   }));
 
-  preRender.emplace_back(world.system<Geometry>().kind(0).each([this](flecs::entity entity, Geometry &geometry) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
-
-    auto &transform = entity.get_mut<Transform>();
-    const auto &worldMatrix = transform.GetWorldMatrix();
-
-    auto &renderer = Renderer::RendererInstance;
-
-    if (geometry.mesh->GetBLAS() != nullptr) {
-      if (!geometry.hasTlasIndex) {
-        geometry.hasTlasIndex = true;
-
-        auto result = renderer.GetSceneTLAS()->AddInstance(geometry.mesh->GetBLAS(), worldMatrix, 0);
-
-        if (Error::IsError(result)) {
-          lastUpdateResult = result.error();
+  preRender.emplace_back(
+      world.system<Geometry, Renderer::Material>().kind(0).each([this](flecs::entity entity, Geometry &geometry, Renderer::Material &material) -> auto {
+        if (lastUpdateResult.IsError()) {
           return;
         }
 
-        geometry.tlasIndex = result.value();
+        auto &transform = entity.get_mut<Transform>();
+        const auto &worldMatrix = transform.GetWorldMatrix();
 
-        renderer.SetSceneNeedsTLASRebuild(true);
-      } else {
-        renderer.GetSceneTLAS()->UpdateInstance(geometry.tlasIndex, worldMatrix);
-      }
-    }
-  }));
+        auto &renderer = Renderer::RendererInstance;
+
+        if (geometry.mesh->GetBLAS() != nullptr) {
+          bool isOpaque = material.alphaMode == Renderer::AlphaMode::Opaque;
+          VkGeometryInstanceFlagsKHR flags = 0;
+
+          flags |= isOpaque ? VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR : VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
+
+          if (!geometry.hasTlasIndex) {
+            geometry.hasTlasIndex = true;
+
+            auto result = renderer.GetSceneTLAS()->AddInstance(geometry.mesh->GetBLAS(), worldMatrix, flags);
+
+            if (Error::IsError(result)) {
+              lastUpdateResult = result.error();
+              return;
+            }
+
+            geometry.tlasIndex = result.value();
+
+            renderer.SetSceneNeedsTLASRebuild(true);
+          } else {
+            renderer.GetSceneTLAS()->UpdateInstanceTransform(geometry.tlasIndex, worldMatrix);
+            renderer.GetSceneTLAS()->UpdateInstanceFlags(geometry.tlasIndex, flags);
+          }
+        }
+      }));
 
   preRender.emplace_back(world.system<Volume>().kind(0).each([this](flecs::entity entity, Volume &volume) -> auto {
     if (lastUpdateResult.IsError()) {

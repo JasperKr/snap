@@ -4,6 +4,7 @@ function snap.config(config)
 
   config.window.title = "snap"
   config.window.resizable = true
+  config.window.fullscreen = false
 
   -- "linear" | "gammacorrect" | "hdr"
   config.window.colorspace = "gammacorrect"

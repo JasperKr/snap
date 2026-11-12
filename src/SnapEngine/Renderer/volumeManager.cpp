@@ -100,7 +100,7 @@ auto VolumeManager::UpdateInstance(const Graphics::GraphicsContext &context, uin
 
   Math::Matrix4x4 transform = Math::Matrix4x4::TransformationMatrix(position, scale, Math::Quaternion());
 
-  VolumeTLAS->UpdateInstance(index, transform);
+  VolumeTLAS->UpdateInstanceTransform(index, transform);
 
   uint32_t textureAddress = 0UL;
   uint32_t samplerAddress = 0UL;
