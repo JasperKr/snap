@@ -18,6 +18,7 @@ namespace Graphics {
 auto Reset(const GraphicsContext &context) -> Error {
   RecordingState::CurrentState = {};
   RecordingState::LastState = nullptr;
+  RecordingState::LastGraphicsState = nullptr;
 
   return Error::Success();
 }
@@ -25,6 +26,7 @@ auto Reset(const GraphicsContext &context) -> Error {
 void Shutdown(const GraphicsContext &context) {
   RecordingState::LastState = nullptr;
   RecordingState::LastStateStorage = {};
+  RecordingState::LastGraphicsState = nullptr;
 }
 
 auto IsSwapchainTexture(const GraphicsContext &context, const Graphics::Texture &texture) -> bool {
@@ -43,6 +45,8 @@ auto BeginFrame(const GraphicsContext &context) -> Error {
   RecordingState::CurrentState = {};
   RecordingState::LastState = nullptr;
   RecordingState::LastStateStorage = {};
+  RecordingState::LastGraphicsState = nullptr;
+  RecordingState::LastGraphicsStateStorage = {};
 
   return Error::Success();
 }

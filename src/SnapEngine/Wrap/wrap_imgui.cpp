@@ -17,6 +17,7 @@
 #include "Modules/imageData.hpp"
 #include "Modules/object.hpp"
 #include "Modules/timer.hpp"
+#include "SDL3/SDL_keyboard.h"
 #include "Wrap/wrap.hpp"
 #include "imgui.h"
 
@@ -396,15 +397,18 @@ auto KeyPressed(lua_State *state) -> int {
 
   auto keycode = static_cast<SDL_Keycode>(iterator->second);
 
-  auto scanecodeMap = Keyboard::StringToScancodeMap;
-  auto scancodeIterator = scanecodeMap.find(key);
-  if (scancodeIterator == scanecodeMap.end()) {
+  auto scancodeMap = Keyboard::StringToScancodeMap;
+  auto scancodeIterator = scancodeMap.find(key);
+  if (scancodeIterator == scancodeMap.end()) {
     return luaL_error(state, "Unknown key string passed to ImGui KeyPressed: %s", key);
   }
 
   auto scancode = static_cast<SDL_Scancode>(scancodeIterator->second);
 
   auto &inout = ImGui::GetIO();
+
+  Engine::Gui::UpdateImguiKeyModifiers(SDL_GetModState());
+
   auto imkey = Engine::Gui::KeyEventToImguiKey(keycode, scancode);
 
   inout.AddKeyEvent(imkey, true);

@@ -1,4 +1,6 @@
 #include "editor.hpp"
+#include "Editor/gui.hpp"
+#include "Editor/icons.hpp"
 #include "Editor/lineDrawer.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/draw.hpp"
@@ -169,21 +171,6 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
   }
 
   ImGui::PushID(static_cast<int>(entity.id()));
-
-  entity.each([&](flecs::id identifier) -> auto {
-    if (!identifier.is_entity()) {
-      return;
-    }
-
-    auto componentEntity = identifier.entity();
-    if (componentEntity == flecs::ChildOf || !componentEntity.is_valid()) {
-      return;
-    }
-
-    auto componentName = EntityName(componentEntity);
-    ImGui::TextDisabled("-%s", componentName.data());
-  });
-
   entity.each([&](flecs::id identifier) -> auto {
     if (!identifier.is_entity()) {
       return;
@@ -201,11 +188,39 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
     if (iter != scene->drawFunctions.end()) {
       ImGui::Separator();
       ImGui::PushID(static_cast<int>(componentEntity.id()));
-      auto name = std::format("Component: {}", componentName.data());
-      if (ImGui::TreeNodeEx(name.c_str(), iter->second.defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
+      auto name = std::format("{}", componentName.data());
+
+      float widthAvailable = ImGui::GetContentRegionAvail().x;
+
+      bool node = ImGui::TreeNodeEx(name.c_str(), iter->second.defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+      ImGui::SameLine();
+
+      Gui::PushBlankButtonStyle();
+      ImGui::PushFont(Gui::IconsFont, 0.0F);
+      float width = ImGui::CalcTextSize(Gui::Icon_more_horiz).x;
+
+      ImGui::SetCursorPosX(widthAvailable - width);
+      if (ImGui::SmallButton(Gui::Icon_more_horiz)) {
+        ImGui::OpenPopup("Component options");
+      }
+      ImGui::PopFont();
+      Gui::PopBlankButtonStyle();
+
+      if (ImGui::BeginPopup("Component options")) {
+        Gui::PushBlankButtonStyle();
+        if (ImGui::Button("Remove")) {
+        }
+
+        Gui::PopBlankButtonStyle();
+        ImGui::EndPopup();
+      }
+
+      if (node) {
         iter->second.func(entity);
+
         ImGui::TreePop();
       }
+
       ImGui::PopID();
     }
   });
@@ -272,7 +287,10 @@ auto DrawSceneHierarchy(const Ref<Engine::Scene> &scene) -> Error {
   }
 
   Editor::MoveInfo.Update();
-  Editor::DrawGizmo();
+
+  if (!Editor::SelectedEntities.empty()) {
+    Editor::DrawGizmo();
+  }
 
   static bool DrawBoundingBox = false;
   static bool DrawBoundsRecursively = false;

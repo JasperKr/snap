@@ -190,75 +190,72 @@ auto Material::DrawGUI(flecs::entity entity) -> void {
 
   ImGui::Separator();
 
-  if (ImGui::CollapsingHeader("Texture UV Indices")) {
-    constexpr int MaxUVSets = 4;
-
-    // NOLINTBEGIN (magic numbers)
-    ImGui::SliderInt("Albedo", &textureUVIndices.at(0), 0, MaxUVSets);
-    ImGui::SliderInt("Normal", &textureUVIndices.at(1), 0, MaxUVSets);
-    ImGui::SliderInt("Roughness", &textureUVIndices.at(2), 0, MaxUVSets);
-    ImGui::SliderInt("Metallic", &textureUVIndices.at(3), 0, MaxUVSets);
-    ImGui::SliderInt("AO", &textureUVIndices.at(4), 0, MaxUVSets);
-    ImGui::SliderInt("Reflectance", &textureUVIndices.at(5), 0, MaxUVSets);
-    ImGui::SliderInt("Emissive", &textureUVIndices.at(6), 0, MaxUVSets);
-    // NOLINTEND (magic numbers)
-  }
-
+  constexpr int MaxUVSets = 3;
   constexpr ImVec2 PreviewSize = ImVec2(200, 200);
 
-  ImGui::BeginDisabled(!albedoTexture.isValid());
-  if (ImGui::CollapsingHeader("Albedo Texture")) {
-    if (albedoTexture.isValid()) {
-      // NOLINTNEXTLINE
-      ImGui::Image(reinterpret_cast<ImTextureID>(albedoTexture.get()), PreviewSize);
+  if (ImGui::TreeNodeEx("Textures")) {
+    ImGui::BeginDisabled(!albedoTexture.isValid());
+    if (ImGui::CollapsingHeader("Albedo Texture")) {
+      if (albedoTexture.isValid()) { // NOLINTNEXTLINE
+        ImGui::Image(reinterpret_cast<ImTextureID>(albedoTexture.get()), PreviewSize);
+        ImGui::SliderInt("Vertex uv index", &textureUVIndices.at(0), 0, MaxUVSets);
+      }
     }
-  }
-  ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
-  ImGui::BeginDisabled(!metallicRoughnessTexture.isValid());
-  if (ImGui::CollapsingHeader("Metallic Roughness Texture")) {
-    if (metallicRoughnessTexture.isValid()) {
-      ImGui::Image( // NOLINTNEXTLINE
-          reinterpret_cast<ImTextureID>(metallicRoughnessTexture.get()), PreviewSize);
+    ImGui::BeginDisabled(!metallicRoughnessTexture.isValid());
+    if (ImGui::CollapsingHeader("Metallic Roughness Texture")) {
+      if (metallicRoughnessTexture.isValid()) { // NOLINTNEXTLINE
+        ImGui::Image(reinterpret_cast<ImTextureID>(metallicRoughnessTexture.get()), PreviewSize);
+        ImGui::SliderInt("Vertex uv index - Metallic", &textureUVIndices.at(3), 0, MaxUVSets);
+        ImGui::SliderInt("Vertex uv index - Roughness", &textureUVIndices.at(2), 0, MaxUVSets);
+      }
     }
-  }
-  ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
-  ImGui::BeginDisabled(!ambientOcclusionTexture.isValid());
-  if (ImGui::CollapsingHeader("Ambient Occlusion Texture")) {
-    if (ambientOcclusionTexture.isValid()) {
-      ImGui::Image( // NOLINTNEXTLINE
-          reinterpret_cast<ImTextureID>(ambientOcclusionTexture.get()), PreviewSize);
+    ImGui::BeginDisabled(!ambientOcclusionTexture.isValid());
+    if (ImGui::CollapsingHeader("Ambient Occlusion Texture")) {
+      if (ambientOcclusionTexture.isValid()) { // NOLINTNEXTLINE
+        ImGui::Image(reinterpret_cast<ImTextureID>(ambientOcclusionTexture.get()), PreviewSize);
+        ImGui::SliderInt("Vertex uv index", &textureUVIndices.at(4), 0, MaxUVSets);
+      }
     }
-  }
-  ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
-  ImGui::BeginDisabled(!reflectanceTexture.isValid());
-  if (ImGui::CollapsingHeader("Normal Texture")) {
-    if (normalTexture.isValid()) {
-      ImGui::Image( // NOLINTNEXTLINE
-          reinterpret_cast<ImTextureID>(normalTexture.get()), PreviewSize);
+    ImGui::BeginDisabled(!normalTexture.isValid());
+    if (ImGui::CollapsingHeader("Normal Texture")) {
+      if (normalTexture.isValid()) { // NOLINTNEXTLINE
+        ImGui::Image(reinterpret_cast<ImTextureID>(normalTexture.get()), PreviewSize);
+        ImGui::SliderInt("Vertex uv index", &textureUVIndices.at(1), 0, MaxUVSets);
+      }
     }
-  }
-  ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
-  ImGui::BeginDisabled(!reflectanceTexture.isValid());
-  if (ImGui::CollapsingHeader("Emissive Texture")) {
-    if (emissiveTexture.isValid()) {
-      ImGui::Image( // NOLINTNEXTLINE
-          reinterpret_cast<ImTextureID>(emissiveTexture.get()), PreviewSize);
+    ImGui::BeginDisabled(!emissiveTexture.isValid());
+    if (ImGui::CollapsingHeader("Emissive Texture")) {
+      if (emissiveTexture.isValid()) { // NOLINTNEXTLINE
+        ImGui::Image(reinterpret_cast<ImTextureID>(emissiveTexture.get()), PreviewSize);
+        ImGui::SliderInt("Vertex uv index", &textureUVIndices.at(6), 0, MaxUVSets);
+      }
     }
-  }
-  ImGui::EndDisabled();
+    ImGui::EndDisabled();
 
-  ImGui::BeginDisabled(!preview.isValid());
-  if (ImGui::CollapsingHeader("Reflectance Texture")) {
-    if (reflectanceTexture.isValid()) {
-      ImGui::Image( // NOLINTNEXTLINE
-          reinterpret_cast<ImTextureID>(reflectanceTexture.get()), PreviewSize);
+    ImGui::BeginDisabled(!reflectanceTexture.isValid());
+    if (ImGui::CollapsingHeader("Reflectance Texture")) {
+      if (reflectanceTexture.isValid()) { // NOLINTNEXTLINE
+        ImGui::Image(reinterpret_cast<ImTextureID>(reflectanceTexture.get()), PreviewSize);
+        ImGui::SliderInt("Vertex uv index", &textureUVIndices.at(5), 0, MaxUVSets);
+      }
     }
+    ImGui::EndDisabled();
+
+    ImGui::TreePop();
   }
-  ImGui::EndDisabled();
+
+  if (preview.isValid()) {
+    ImGui::Image( // NOLINTNEXTLINE
+        reinterpret_cast<ImTextureID>(preview.get()), PreviewSize);
+  }
 
   dirty = true;
 }

@@ -31,14 +31,14 @@ const std::unordered_map<UIStyles, UIStyleDefinition> UIStylePresets{
          .Primary = Color(0x222831FF),
          .Secondary = Color(0x393E46FF),
          .Tertiary = Color(0x948979FF),
-         .Quaternary = Color(0xDFD0B8FF),
+         .Quaternary = Color(0xDFD0B860),
      }},
     {UIStyles::Greenish,
      {
          .Primary = Color(0x343434FF),
          .Secondary = Color(0x474f49FF),
          .Tertiary = Color(0x5b665fFF),
-         .Quaternary = Color(0x8e8b81FF),
+         .Quaternary = Color(0x8e8b8160),
      }},
 };
 

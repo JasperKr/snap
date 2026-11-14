@@ -62,18 +62,12 @@ struct LuaBoundingBox : LuaWrap::LuaECSObject {
 struct LocalBounds {
   BoundingBox Bounds;
 
-  auto DrawGUI(flecs::entity entity) const -> void {
-    ImGui::TextDisabled("Local Bounds");
-    Bounds.DrawGUI(entity);
-  }
+  auto DrawGUI(flecs::entity entity) const -> void { Bounds.DrawGUI(entity); }
 };
 struct WorldBounds {
   BoundingBox Bounds;
 
-  auto DrawGUI(flecs::entity entity) const -> void {
-    ImGui::TextDisabled("World Bounds");
-    Bounds.DrawGUI(entity);
-  }
+  auto DrawGUI(flecs::entity entity) const -> void { Bounds.DrawGUI(entity); }
 };
 
 extern const ::LuaWrap::LuaClass BoundingBoxClass;

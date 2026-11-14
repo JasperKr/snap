@@ -17,6 +17,7 @@ namespace Engine::Gui {
 Ref<Graphics::Shader> ImGuiShaderRGBA8;
 Ref<Graphics::Shader> ImGuiShaderA8;
 std::vector<std::vector<unsigned char>> ImGuiFonts{};
+ImFont *IconsFont;
 // NOLINTEND
 
 auto MainWindow() -> void {}
@@ -64,10 +65,14 @@ auto LoadGUIState(lua_State *state) -> Error {
   const auto &sourceDirectory = Filesystem::GetSourceDirectory();
   const std::string &fontPath = "Graphics/Assets/user_interface_font.ttf";
   const auto &fontData = CHECK_RES(Filesystem::ReadFile(fontPath));
+  const std::string &iconsPath = "Graphics/Assets/icons.ttf";
+  const auto &iconData = CHECK_RES(Filesystem::ReadFile(iconsPath));
 
   ImGuiFonts.emplace_back(fontData);
+  ImGuiFonts.emplace_back(iconData);
 
-  ImFont *font = inout.Fonts->AddFontFromMemoryTTF((void *)ImGuiFonts.back().data(), (int)ImGuiFonts.back().size(), baseFontSize, &config);
+  ImFont *font = inout.Fonts->AddFontFromMemoryTTF((void *)ImGuiFonts.at(0).data(), (int)ImGuiFonts.at(0).size(), baseFontSize, &config);
+  IconsFont = inout.Fonts->AddFontFromMemoryTTF((void *)ImGuiFonts.at(1).data(), (int)ImGuiFonts.at(1).size(), baseFontSize, &config);
 
   // Set the font as the default font
   inout.FontDefault = font;
@@ -126,6 +131,19 @@ auto ShutdownImGui() -> Error {
   ImGuiShaderA8.reset();
 
   return Error::Success();
+}
+
+auto PushBlankButtonStyle() -> void {
+  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0F, 0.0F, 0.0F, 0.0F));
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0F, 1.0F, 1.0F, 0.04F));
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0F, 1.0F, 1.0F, 0.04F));
+  ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0F, 0.0F, 0.0F, 0.0F));
+  ImGui::PushStyleColor(ImGuiCol_BorderShadow, ImVec4(0.0F, 0.0F, 0.0F, 0.0F));
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+}
+auto PopBlankButtonStyle() -> void {
+  ImGui::PopStyleColor(5);
+  ImGui::PopStyleVar(1);
 }
 
 } // namespace Engine::Gui

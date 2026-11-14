@@ -31,6 +31,6 @@ struct LuaGeometry : LuaWrap::LuaECSObject {
   static auto Create(lua_State *state) -> int;
 };
 
-extern const ::LuaWrap::LuaClass GeometryClass;
+extern const ::LuaWrap::LuaComponent GeometryComponent;
 
 } // namespace Engine

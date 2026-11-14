@@ -770,43 +770,7 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID) -> ui
   const auto &parent = GetCommand(commands.at(parentID));
   const auto &child = GetCommand(commands.at(childID));
 
-  const auto DynamicStateUpdateCost = 100U;
-  const auto EndRenderingCost = 500U;
-  const auto StartRenderingCost = 1000U;
-
   uint32_t cost = 1000U;
-
-  const auto *parentDrawState = parent.GetDrawState();
-  const auto *childDrawState = child.GetDrawState();
-
-  if (parent.GetType() == CommandType::renderPass) { // Parent is rendering
-    const auto &virtualState = std::get<RenderPass>(parent.data).state;
-
-    if (child.GetType() == CommandType::renderPass) { // Child is rendering
-      const auto &childVirtualState = std::get<RenderPass>(child.data).state;
-
-      if (!ComparePipelineCompatability(virtualState, childVirtualState)) {
-        cost += EndRenderingCost;
-
-        if (childVirtualState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
-          cost += StartRenderingCost;
-        }
-
-        // Full compat check, including blend mode, back face etc..
-      } else if (virtualState != childVirtualState) {
-        cost += DynamicStateUpdateCost;
-      }
-    } else { // Child is not rendering
-      cost += EndRenderingCost;
-    }
-  } else if (child.GetType() == CommandType::renderPass) { // Child is rendering but parent isn't
-    const auto &childVirtualState = std::get<RenderPass>(child.data).state;
-    if (childVirtualState.bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS) {
-      cost += StartRenderingCost;
-    }
-  } else { // Neither child nor parent are rendering
-    // no extra cost to call
-  }
 
   const auto *bound = get_if_derived<BoundResources>(child.data);
   if (bound != nullptr) {

@@ -79,10 +79,12 @@ inline auto BeginRendering(const GraphicsContext &context, VkCommandBuffer cmdBu
   renderingInfo.viewMask = 0;
   renderingInfo.flags = 0;
 
+  [[unlikely]]
   if (RecordingState::CurrentState.renderState->colorAttachments.size() > context.deviceProperties.limits.maxColorAttachments) {
     return Error::Create("Number of bound render targets exceeds device limits.");
   }
 
+  [[unlikely]]
   if (renderingInfo.renderArea.extent.width == 0 || renderingInfo.renderArea.extent.height == 0) {
     return Error::Create("Render area has zero width or height.");
   }
@@ -190,14 +192,14 @@ auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandB
   bool sameFFWinding = false;
 
   // Flush updates the last state so we need to compare before updating it
-  if (RecordingState::LastState != nullptr) {
-    sameViewport = compareViewports(RecordingState::CurrentState, *RecordingState::LastState);
-    sameScissor = compareScissors(RecordingState::CurrentState, *RecordingState::LastState);
-    sameDepth = compareDepthConfigs(RecordingState::CurrentState, *RecordingState::LastState);
-    sameBlendMode = compareBlendmodes(RecordingState::CurrentState, *RecordingState::LastState);
-    sameCullmode = RecordingState::CurrentState.cullMode == RecordingState::LastState->cullMode;
-    sameFFWinding = RecordingState::CurrentState.frontFace == RecordingState::LastState->frontFace;
-    sameDepthWrite = RecordingState::CurrentState.renderState->depthWriteEnable == RecordingState::LastState->renderState->depthWriteEnable;
+  if (RecordingState::LastGraphicsState != nullptr) {
+    sameViewport = compareViewports(RecordingState::CurrentState, *RecordingState::LastGraphicsState);
+    sameScissor = compareScissors(RecordingState::CurrentState, *RecordingState::LastGraphicsState);
+    sameDepth = compareDepthConfigs(RecordingState::CurrentState, *RecordingState::LastGraphicsState);
+    sameBlendMode = compareBlendmodes(RecordingState::CurrentState, *RecordingState::LastGraphicsState);
+    sameCullmode = RecordingState::CurrentState.cullMode == RecordingState::LastGraphicsState->cullMode;
+    sameFFWinding = RecordingState::CurrentState.frontFace == RecordingState::LastGraphicsState->frontFace;
+    sameDepthWrite = RecordingState::CurrentState.renderState->depthWriteEnable == RecordingState::LastGraphicsState->renderState->depthWriteEnable;
   }
 
   bool isGraphics = RecordingState::CurrentState.renderState->bindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -219,6 +221,8 @@ auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandB
 
   if (isGraphics) {
     ZoneScopedN("Dynamic state setup");
+    RecordingState::LastGraphicsStateStorage = RecordingState::CurrentState;
+    RecordingState::LastGraphicsState = &RecordingState::LastGraphicsStateStorage;
 
     if (!wasRendering) {
       CHECK_ERR(BeginRendering(context, vkCommandBuffer));
@@ -228,9 +232,9 @@ auto PrepareRendering(const GraphicsContext &context, VkCommandBuffer vkCommandB
       vkCmdSetViewport(vkCommandBuffer, 0, 1, &RecordingState::CurrentState.viewport);
     }
 
-    if (!sameScissor) {
-      vkCmdSetScissor(vkCommandBuffer, 0, 1, &RecordingState::CurrentState.scissor);
-    }
+    // if (!sameScissor) {
+    vkCmdSetScissor(vkCommandBuffer, 0, 1, &RecordingState::CurrentState.scissor);
+    // }
 
     if (!sameDepth) {
       vkCmdSetDepthTestEnable(vkCommandBuffer, RecordingState::CurrentState.depthTestEnable);

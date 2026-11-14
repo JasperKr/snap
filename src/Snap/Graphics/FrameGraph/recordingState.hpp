@@ -18,6 +18,9 @@ struct CombinedState {
 thread_local extern CombinedState CurrentState;
 thread_local extern CombinedState LastStateStorage;
 thread_local extern CombinedState *LastState;
+// If the last state was compute, we might misidentify that the scissor state was updated correctly
+thread_local extern CombinedState LastGraphicsStateStorage;
+thread_local extern CombinedState *LastGraphicsState;
 // NOLINTEND
 
 } // namespace Graphics::RecordingState

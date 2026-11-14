@@ -1162,11 +1162,15 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context, flecs::world *wor
 
   CHECK_ERR(mesh->CreateBLAS(context));
 
-  auto geometry = world->entity(GetUniqueName("Geometry").c_str());
-  geometry.set<Engine::Geometry>(Engine::Geometry{.mesh = mesh});
-  geometry.add<Engine::Transform>();
+  info.Parent.set<Engine::Geometry>(Engine::Geometry{.mesh = mesh});
 
-  Engine::LocalBounds localBounds{};
+  // auto geometry = world->entity(GetUniqueName("Geometry").c_str());
+  // geometry.set<Engine::Geometry>(Engine::Geometry{.mesh = mesh});
+  // geometry.add<Engine::Transform>();
+
+  // Engine::LocalBounds localBounds{};
+
+  auto &localBounds = info.Parent.get_mut<Engine::LocalBounds>();
 
   std::span<const VertexData> vertexDataSpan(reinterpret_cast<const VertexData *>(info.Vertices.data()), // NOLINT
                                              info.Vertices.size() / sizeof(VertexData));
@@ -1176,15 +1180,15 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context, flecs::world *wor
     localBounds.Bounds.Grow(pos);
   }
 
-  geometry.set<Engine::LocalBounds>(localBounds);
-  geometry.add<Engine::WorldBounds>();
-  geometry.child_of(info.Parent);
+  // geometry.set<Engine::LocalBounds>(localBounds);
+  // geometry.add<Engine::WorldBounds>();
+  // geometry.child_of(info.Parent);
 
   // Load material if present.
   if (info.MaterialIndex.has_value()) {
     const auto &material = asset.materials[info.MaterialIndex.value()];
-    geometry.add<Engine::Renderer::Material>();
-    auto rendererMaterial = Ref<Engine::Renderer::LuaMaterial>::Make(geometry);
+    info.Parent.add<Engine::Renderer::Material>();
+    auto rendererMaterial = Ref<Engine::Renderer::LuaMaterial>::Make(info.Parent);
 
     CHECK_ERR(LoadMaterial(context, asset, basePath, material, rendererMaterial));
   }
@@ -1295,6 +1299,10 @@ LoadNode(flecs::world *world, Graphics::GraphicsContext &context, const fastgltf
       shapes.emplace_back(shapeEntity);
 
       auto lod = world->entity(GetUniqueName("LOD").c_str());
+      lod.add<Engine::LevelOfDetail>();
+      lod.add<Engine::WorldBounds>();
+      lod.add<Engine::Transform>();
+      lod.add<Engine::LocalBounds>();
 
       MeshLoadInfo loadInfo = {
           .Name = std::string(gltfMesh.name),
@@ -1308,10 +1316,6 @@ LoadNode(flecs::world *world, Graphics::GraphicsContext &context, const fastgltf
       };
 
       loadInfos.emplace_back(verticesLoadInfo, loadInfo);
-
-      lod.add<Engine::LevelOfDetail>();
-      lod.add<Engine::WorldBounds>();
-      lod.add<Engine::Transform>();
 
       lod.child_of(shapeEntity);
     }

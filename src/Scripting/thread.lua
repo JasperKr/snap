@@ -208,21 +208,10 @@ local startupSequence = {
     texture:setFilter("linear", "linear", "linear")
     texture:setWrap("repeat", "repeat", "repeat")
 
-    local min = 0.2
-    local max = 0.8
-
-    mesh = snap.graphics.newMesh({
-      { format = "floatvec2",  location = 0, name = "Position" },
-      { format = "floatvec2",  location = 1, name = "Uvs" },
-      { format = "unorm8vec4", location = 2, name = "Color" },
-    }, {
-      { min, min, 0, 0, 1, 0, 0, 1 },
-      { max, min, 2, 0, 0, 1, 0, 1 },
-      { min, max, 0, 2, 0, 0, 1, 1 },
-    })
-
     local env = scene:newEnvironment("Test environment", texture)
     scene:setEnvironment(env)
+
+    for i = 1, 10 do probe:render() end
   end
 }
 

@@ -114,9 +114,9 @@ auto ApplyDefaultStyle(UIStyles uiStyle) -> Error {
   colors[ImGuiCol_ButtonActive] = ToImVec4(Accent(tertiary, 1.5F));
 
   // Headers
-  colors[ImGuiCol_Header] = ToImVec4(secondary);
-  colors[ImGuiCol_HeaderHovered] = ToImVec4(Accent(secondary));
-  colors[ImGuiCol_HeaderActive] = ToImVec4(Accent(secondary, 1.5F));
+  colors[ImGuiCol_Header] = ToImVec4(quaternary);
+  colors[ImGuiCol_HeaderHovered] = ToImVec4(Accent(quaternary));
+  colors[ImGuiCol_HeaderActive] = ToImVec4(Accent(quaternary, 1.5F));
 
   // Separators
   colors[ImGuiCol_Separator] = ToImVec4(Accent(primary, 1.1F));

@@ -33,6 +33,9 @@ add_library(SnapEngine
   Scene/Geometry/boundingBox.cpp
   Scene/Geometry/geometry.cpp
   Scene/Geometry/model.cpp
+  Scene/Geometry/rigidbody.cpp
+
+  Scene/Geometry/Shapes/boxShape.cpp
 
   Scene/Lights/light.cpp
   Scene/Lights/directionalLight.cpp

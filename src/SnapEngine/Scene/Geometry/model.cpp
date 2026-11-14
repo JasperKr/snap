@@ -8,7 +8,6 @@
 #include "Scene/userdata.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
-#include "material.hpp"
 #include <lua.hpp>
 
 namespace Engine {

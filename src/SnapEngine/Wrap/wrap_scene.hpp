@@ -2,7 +2,6 @@
 
 #include "Renderer/lightProbe.hpp"
 #include "Scene/Geometry/boundingBox.hpp"
-#include "Scene/Geometry/geometry.hpp"
 #include "Scene/Geometry/levelOfDetail.hpp"
 #include "Scene/Geometry/model.hpp"
 #include "Scene/Geometry/shape.hpp"
@@ -47,7 +46,6 @@ extern "C" inline auto luaopen_scene(lua_State *state) -> int {
   LuaWrap::RegisterLuaType(state, ::Engine::GetShapeClass());
   LuaWrap::RegisterLuaType(state, ::Engine::LevelOfDetailClass);
   LuaWrap::RegisterLuaType(state, ::Engine::BoundingBoxClass);
-  LuaWrap::RegisterLuaType(state, ::Engine::GeometryClass);
 
   LuaWrap::RegisterLuaType(state, ::Engine::DirectionalLightClass);
   LuaWrap::RegisterLuaType(state, ::Engine::PointLightClass);

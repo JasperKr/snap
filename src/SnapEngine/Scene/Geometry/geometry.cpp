@@ -41,14 +41,9 @@ auto LuaGeometry::Create(lua_State *state) -> int {
   return 1;
 }
 
-const ::LuaWrap::LuaClass GeometryClass = {
-    .Name = "Geometry",
-    .Type = LuaGeometry::GetType(),
-    .Methods =
-        {
-            {"getMesh", LuaGeometry::GetMesh},
-            {"create", LuaGeometry::Create},
-        },
-};
+const ::LuaWrap::LuaComponent GeometryComponent = {{
+    {"getMesh", LuaGeometry::GetMesh},
+    {"create", LuaGeometry::Create},
+}};
 
 } // namespace Engine

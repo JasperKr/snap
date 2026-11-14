@@ -18,6 +18,7 @@ auto LoadGUIState(lua_State *state) -> Error;
 extern Ref<Graphics::Shader> ImGuiShaderRGBA8;
 extern Ref<Graphics::Shader> ImGuiShaderA8;
 extern std::vector<std::vector<unsigned char>> ImGuiFonts;
+extern ImFont *IconsFont;
 // NOLINTEND
 
 inline auto KeyEventToImguiKey(SDL_Keycode keycode, SDL_Scancode scancode) -> ImGuiKey {
@@ -293,6 +294,14 @@ inline auto KeyEventToImguiKey(SDL_Keycode keycode, SDL_Scancode scancode) -> Im
   return ImGuiKey_None;
 }
 
+inline void UpdateImguiKeyModifiers(SDL_Keymod sdl_key_mods) {
+  ImGuiIO &inout = ImGui::GetIO();
+  inout.AddKeyEvent(ImGuiMod_Ctrl, (sdl_key_mods & SDL_KMOD_CTRL) != 0);
+  inout.AddKeyEvent(ImGuiMod_Shift, (sdl_key_mods & SDL_KMOD_SHIFT) != 0);
+  inout.AddKeyEvent(ImGuiMod_Alt, (sdl_key_mods & SDL_KMOD_ALT) != 0);
+  inout.AddKeyEvent(ImGuiMod_Super, (sdl_key_mods & SDL_KMOD_GUI) != 0);
+}
+
 inline auto GetImGuiCursorMap() -> std::unordered_map<ImGuiMouseCursor, Ref<Mouse::MouseCursor>> & {
   static std::unordered_map<ImGuiMouseCursor, Ref<Mouse::MouseCursor>> imgui_cursor_to_mouse_cursor;
 
@@ -303,5 +312,7 @@ extern std::unordered_map<ImTextureID, Ref<Graphics::Texture>> ImGuiTextures; //
 
 auto LoadImGuiCursorMap() -> Error;
 auto ShutdownImGui() -> Error;
+auto PushBlankButtonStyle() -> void;
+auto PopBlankButtonStyle() -> void;
 
 } // namespace Engine::Gui
