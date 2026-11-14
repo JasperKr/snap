@@ -5,7 +5,6 @@
 #include "Graphics/texture.hpp"
 #include "Graphics/vertexformat.hpp"
 #include "Modules/Math/vector.hpp"
-#include "Modules/color.hpp"
 #include "Modules/compressedImageData.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
@@ -20,8 +19,8 @@
 #include "Scene/transform.hpp"
 #include "Scene/userdata.hpp"
 #include "material.hpp"
-#include "mikkTSpace.hpp"      // Don't remove either
-#include "simdjson/simdjson.h" // <-- Do not remove; Forces the use of project simdjson instead of system simdjson
+#include "mikkTSpace.hpp"      // IWYU pragma: keep
+#include "simdjson/simdjson.h" // IWYU pragma: keep; Forces the use of project simdjson instead of system simdjson
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -32,7 +31,6 @@
 #include <flecs.h>
 #include <mutex>
 #include <numeric>
-#include <optional>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string>

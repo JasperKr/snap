@@ -20,7 +20,7 @@
 #include "Modules/window.hpp"
 #include "Renderer/rendertargetManager.hpp"
 #include "Renderer/shaderManager.hpp"
-#include "SDL3/SDL_keycode.h"
+#include "Scene/Lights/directionalLight.hpp"
 #include "Scene/cameraMatrices.hpp"
 #include "Scene/displayName.hpp"
 #include "Scene/environment.hpp"
@@ -54,15 +54,15 @@ const auto CameraBufferFormat = Graphics::BufferFormat({
     {"InverseViewProjectionMatrix", "floatmat4"},
     {"RotationProjectionMatrix", "floatmat4"},
     {"InverseRotationProjectionMatrix", "floatmat4"},
+
     {"Position", "floatvec3"},
     {"Near", "float"},
+
     {"Far", "float"},
     {"NearMulFar", "float"},
     {"FarMinusNear", "float"},
-    {"HistoryInvalidated", "uint32"},
+    {"Settings", "uint32"},
     {"Jitter", "floatvec2"},
-    {"ProjectionType", "uint32"},
-    {"ShadowCascadeCount", "uint32"},
 });
 
 struct CameraBufferStruct {
@@ -74,15 +74,17 @@ struct CameraBufferStruct {
   Math::Matrix4x4 InverseViewProjectionMatrix;
   Math::Matrix4x4 RotationProjectionMatrix;
   Math::Matrix4x4 InverseRotationProjectionMatrix;
+
   Math::Vec3 Position;
   float Near{};
+
   float Far{};
   float NearMulFar{};
   float FarMinusNear{};
-  uint32_t HistoryInvalidated{};
+  uint32_t Settings{};
+
   Math::Vec2 Jitter;
-  uint32_t ProjectionType{};
-  uint32_t ShadowCascadeCount{};
+  Math::Uvec2 padding{};
 };
 
 static constexpr std::array<Math::Vec2, 4> JitterPattern = {
@@ -95,12 +97,17 @@ static constexpr std::array<Math::Vec2, 4> JitterPattern = {
 void Camera::RegisterCameraSystems(Scene &scene) {
   auto cameraProjection =
       scene.world.system<Camera, CameraMatrices>().kind(flecs::PostUpdate).each([](flecs::entity entity, Camera &camera, CameraMatrices &matrices) -> void {
-        camera.Jitter = JitterPattern.at(Graphics::GetCurrentGraphicsContext()->currentFrame % JitterPattern.size());
-        camera.Jitter /= 4.0F; // NOLINT
-        camera.Jitter -= 0.5F; // NOLINT
+        if (camera.settings.DoPostProcessing) {
+          camera.Jitter = JitterPattern.at(Graphics::GetCurrentGraphicsContext()->currentFrame % JitterPattern.size());
+          camera.Jitter /= 4.0F; // NOLINT
+          camera.Jitter -= 0.5F; // NOLINT
 
-        camera.Jitter /= Math::Vec2(camera.Dimensions);
-        matrices.Jitter = camera.Jitter;
+          camera.Jitter /= Math::Vec2(camera.Dimensions);
+          matrices.Jitter = camera.Jitter;
+        } else {
+          camera.Jitter = Math::Vec2(0.0F);
+          matrices.Jitter = camera.Jitter;
+        }
 
         if (camera.ProjectionDirty) {
           matrices.ProjectionMatrix = Math::Matrix4x4::Perspective(camera.VerticalFOVRad, camera.AspectRatio, camera.NearPlane, camera.FarPlane);
@@ -248,7 +255,7 @@ auto Camera::FillSkybox(const Graphics::GraphicsContext &context, const Environm
   return {};
 }
 
-auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const DrawData &drawData, Scene *scene) -> void {
+auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const DrawData &drawData, Scene &scene) -> void {
 
   if (max <= 0) {
     return;
@@ -263,7 +270,7 @@ auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const
 
   std::vector<std::pair<float, ProbeData>> probes;
 
-  scene->world.each([&](flecs::entity entity, const Transform &transform, const Renderer::LightProbe &lightProbe) -> void {
+  scene.world.each([&](flecs::entity entity, const Transform &transform, const Renderer::LightProbe &lightProbe) -> void {
     auto distanceSqr = (transform.GetPosition() - drawData.Transform.GetWorldMatrix().GetTranslation()).LengthSqr();
     probes.emplace_back(distanceSqr, ProbeData{.probe = lightProbe, .transform = transform});
   });
@@ -278,7 +285,7 @@ auto Camera::UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const
   VisibleProbeCount = std::min(max, static_cast<int>(probes.size()));
 }
 
-auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
+auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error {
 
   Graphics::RenderState::PushDebugMarker("Apply Light Probes");
 
@@ -325,7 +332,6 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context, const Dr
   CHECK_ERR(shader->Send(context, "MaterialTexture", textures.Material));
   CHECK_ERR(shader->Send(context, "DepthTexture", textures.Depth));
   CHECK_ERR(shader->Send(context, "AmbientOcclusionTexture", textures.AmbientOcclusion));
-  CHECK_ERR(Graphics::UniformWriter::Send(shader, "SpecularEnabled", 1));
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
@@ -524,7 +530,7 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
   return {};
 }
 
-auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
+auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error {
   auto [width, height] = GetDimensions();
 
   auto &textures = GetOwnedTextures();
@@ -645,7 +651,7 @@ auto Camera::CalculateVariance(const GraphicsContext &context) -> Error {
 }
 
 // NOLINTNEXTLINE
-auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error {
+auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error {
 
   CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
       OwnedTextures.DirectLighting,
@@ -666,11 +672,11 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
 
   auto frustum = drawData.Matrices.GetFrustum();
 
-  CHECK_ERR(scene->PrepareDrawLists(context, frustum));
+  CHECK_ERR(scene.PrepareDrawLists(context, frustum));
 
   Graphics::RenderState::PushDebugMarker("Draw Models");
 
-  CHECK_ERR(scene->DrawOpaqueModels(context, *this));
+  CHECK_ERR(scene.DrawOpaqueModels(context, *this));
 
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Apply lighting");
@@ -680,7 +686,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
   CHECK_ERR(CalculateShadows(context));
   CHECK_ERR(ApplyLighting(context, drawData, scene));
 
-  const auto &entity = scene->currentEnvironment;
+  const auto &entity = scene.currentEnvironment;
   if (entity.is_valid()) {
     const auto *environment = entity.try_get<Environment>();
 
@@ -693,7 +699,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
     }
   }
 
-  CHECK_ERR(scene->DrawTransparentModels(context, *this));
+  CHECK_ERR(scene.DrawTransparentModels(context, *this));
   CHECK_ERR(ApplyVolumetricLighting(context));
 
   Graphics::RenderState::PopDebugMarker();
@@ -960,6 +966,12 @@ auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform
 
   CHECK_ERR(CameraBuffer->GetBuffer()->CopyTo(context, *CameraBuffer->GetBuffer(), 0, sizeof(CameraBufferStruct), sizeof(CameraBufferStruct)));
 
+  uint32_t settings{};
+  settings |= 0UL; // Projection type
+  settings |= static_cast<uint32_t>(HistoryInvalidated) << 1UL;
+  settings |= (static_cast<uint32_t>(DirectionalLightShadowmapCascadeCount) & 0xFFU) << 2UL;
+  settings |= static_cast<uint32_t>(this->settings.SpecularEnabled) << 10UL;
+
   auto data = CameraBufferStruct{
       .ViewMatrix = cameraMatrices.ViewMatrix,
       .InverseViewMatrix = cameraMatrices.InverseViewMatrix,
@@ -974,10 +986,8 @@ auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform
       .Far = FarPlane,
       .NearMulFar = NearPlane * FarPlane,
       .FarMinusNear = FarPlane - NearPlane,
-      .HistoryInvalidated = static_cast<uint32_t>(HistoryInvalidated),
+      .Settings = settings,
       .Jitter = Jitter,
-      .ProjectionType = 0,
-      .ShadowCascadeCount = 0,
   };
 
   const auto *uint8Ptr = reinterpret_cast<const uint8_t *>(&data); // NOLINT
@@ -1150,7 +1160,7 @@ auto LuaCamera::Render(lua_State *state) -> int {
       .Matrices = *obj->entity.try_get<CameraMatrices>(),
   };
 
-  LUA_CK_ERR(camera->Render(context, drawData, scene.get()));
+  LUA_CK_ERR(camera->Render(context, drawData, *scene));
 
   return 0;
 }

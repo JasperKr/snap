@@ -9,6 +9,10 @@
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Graphics/uniformWriter.hpp"
+
+#include "Jolt/Jolt.h" // IWYU pragma: keep
+#include "Jolt/Physics/PhysicsSystem.h"
+
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/vector.hpp"
@@ -410,6 +414,9 @@ Scene::Scene(std::string name) : name(std::move(name)) {
   AddGuiMethod<Geometry>(&Geometry::DrawGUI);
   AddGuiMethod<Renderer::LightProbe>(&Renderer::LightProbe::DrawGUI, true);
   AddGuiMethod<Engine::Volume>(&Engine::Volume::DrawGUI, true);
+
+  PhysicsSystem.Init(Physics::MaxRigidbodies, 0UL, Physics::MaxBodyPairs, Physics::MaxContactConstraints, PhysicsBroadPhaseLayer, PhysicsObjectBroadphaseFilter,
+                     PhysicsObjectObjectFilter);
 
   auto transformSystem = world.system<Engine::Transform, Engine::Transform *>()
                              .term_at(1)

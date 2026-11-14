@@ -1,5 +1,10 @@
 module camera;
 
+public enum ProjectionType {
+  Perspective,
+  Orthographic,
+};
+
 public struct _CameraData {
   public float4x4 ViewMatrix;
   public float4x4 InverseViewMatrix;
@@ -9,15 +14,21 @@ public struct _CameraData {
   public float4x4 InverseViewProjectionMatrix;
   public float4x4 RotationProjectionMatrix;
   public float4x4 InverseRotationProjectionMatrix;
+
   public float3 Position;
   public float Near;
+
   public float Far;
   public float NearMulFar;
   public float FarMinusNear;
-  uint _HistoryInvalidated;
+
+  // [Projection type: 0-0]
+  // [History invalidated 1-1]
+  // [Cascade count 2-9]
+  // [Specular enabled 10-10]
+  uint Settings;
+
   public float2 Jitter;
-  public uint ProjectionType;
-  public uint ShadowCascadeCount;
 
   public float3 GetForward() { return -normalize(ViewMatrix[2].xyz); }
   public float3 GetRight() { return normalize(ViewMatrix[0].xyz); }
@@ -58,7 +69,10 @@ public struct _CameraData {
     return GetPreviousUVs(worldPos);
   }
 
-  public bool HistoryInvalidated() { return _HistoryInvalidated != 0; }
+  public ProjectionType GetProjectionType() { return ProjectionType(Settings & 1); }
+  public bool HistoryInvalidated() { return (Settings & 2) != 0; }
+  public uint GetShadowCascadeCount() { return (Settings >> 2) & 8; }
+  public bool SpecularEnabled() { return (Settings & (1 << 10)) != 0; }
 };
 
 public uniform StructuredBuffer<_CameraData>.Handle CameraData;

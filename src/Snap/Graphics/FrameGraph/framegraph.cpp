@@ -774,7 +774,7 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID) -> ui
   const auto EndRenderingCost = 500U;
   const auto StartRenderingCost = 1000U;
 
-  uint32_t cost = 0U;
+  uint32_t cost = 1000U;
 
   const auto *parentDrawState = parent.GetDrawState();
   const auto *childDrawState = child.GetDrawState();
@@ -813,6 +813,9 @@ auto FrameGraph::ScoreCommand(CommandIndex parentID, CommandIndex childID) -> ui
     cost += bound->reads.size();
     cost += bound->writes.size() * 2;
   }
+
+  cost += commandParents.at(childID).size() * 100;
+  cost -= nextReady.at(childID).size() * 10;
 
   return cost;
 }

@@ -115,5 +115,9 @@ FragmentOutput fragmentMain(FragmentInput input) {
   float2 motion = currentNDC - previousNDC;
   // motion = motion * 0.5 + 0.5; // remap to [0, 1] range
 
+  if (CameraData[0].HistoryInvalidated()) {
+    motion = float2(0.0f);
+  }
+
   return FragmentOutput(float4(albedo, 0.0), float4(normalize(normal) * 0.5 + 0.5, 0.0), material.packed, float4(emissive, 1.0), PackMotionVector(motion));
 }

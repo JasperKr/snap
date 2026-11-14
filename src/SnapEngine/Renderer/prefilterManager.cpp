@@ -106,6 +106,8 @@ auto LightprobePrefilterManager::Initialize( // NOLINT
     });
     Cameras.back().SetSettings(Camera::Settings{
         .DoPostProcessing = false,
+        .DrawPrimitives = false,
+        .SpecularEnabled = false,
     });
   }
 
@@ -360,7 +362,7 @@ const static Engine::CameraMatrices CameraMatrices{
     .InverseRotationProjectionMatrix = ProjectionMatrix.InverseTranspose(),
 };
 
-auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsContext &context, LightProbe &lightProbe, Engine::Scene *scene,
+auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsContext &context, LightProbe &lightProbe, Engine::Scene &scene,
                                                      const Transform &transform) -> Error {
 
   if (lightProbe.EnvironmentMapIndex < 0) {

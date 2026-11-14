@@ -11,8 +11,8 @@
     },
 
     "files.exclude": {
-        "include/": true,
-        "external/": true,
+        // "include/": true,
+        // "external/": true,
         "third_party/": true
     },
     "chat.disableAIFeatures": true

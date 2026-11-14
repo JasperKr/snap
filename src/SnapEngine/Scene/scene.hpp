@@ -1,11 +1,20 @@
 #pragma once
 #include "Graphics/graphicsContext.hpp"
+
+/*
+The Jolt headers don't include Jolt/Jolt.h.
+Always include Jolt/Jolt.h before including any other Jolt header.
+You can use Jolt/Jolt.h in your precompiled header to speed up compilation.
+*/
+#include "Jolt/Jolt.h" // IWYU pragma: keep
+#include "Jolt/Physics/PhysicsSystem.h"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/type.hpp"
 #include "Scene/Geometry/geometry.hpp"
 #include "Wrap/wrap.hpp"
 #include "material.hpp"
+#include "physicsSetup.hpp"
 #include <flecs.h>
 #include <lua.hpp>
 #include <string>
@@ -46,7 +55,11 @@ struct Scene : Object {
   std::vector<DrawItem> MaskedDrawItems;
   std::vector<DrawItem> TransparentDrawItems;
 
-  explicit Scene();
+  JPH::PhysicsSystem PhysicsSystem;
+  Physics::BPLayerInterfaceImpl PhysicsBroadPhaseLayer;
+  Physics::ObjectVsBroadPhaseLayerFilterImpl PhysicsObjectBroadphaseFilter;
+  JPH::ObjectLayerPairFilter PhysicsObjectObjectFilter;
+
   explicit Scene(std::string name);
 
   static auto GetType() -> const Type * { return &SceneType; }

@@ -38,7 +38,8 @@ SnapEngine.editor = {
 
 snap.editor.setCamera(camera)
 
-local probe = scene:newLightProbe()
+local probe = scene:newLightProbe("Light probe", 100, 100)
+probe:setPosition(0, 2, 0)
 
 local snapshot
 
@@ -286,14 +287,12 @@ while true do
     draw(delta)
   end
 
-  probe:render()
-
   snap.graphics.setRenderTarget()
 
   if frameIndex == 1 then
     -- snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
-    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
-    snap.scene.loadModel(scene, "Assets/Terrain/main_sponza/NewSponza_Main_glTF_003.gltf")
+    snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/main_sponza/NewSponza_Main_glTF_003.gltf")
     -- scene:newVolume("Test volume 1"):setPosition(0, 0, 0);
   end
 

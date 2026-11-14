@@ -58,6 +58,10 @@ FragmentOutput fragmentMain(FragmentInput input) {
   pixel.NoV = ClampNoV(dot(normal, viewDir));
   pixel.LambdaV = ComputeLambdaV(pixel.Roughness, pixel.NoV);
 
+  if (!CameraData[0].SpecularEnabled()) {
+    pixel.Metallic = 0.0f;
+  }
+
   uint2 screenCoords = uint2(input.screen_position.xy);
 
   for (int i = 0; i < DirectionalLightCount; i++) {

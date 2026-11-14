@@ -1,17 +1,21 @@
 #pragma once
 
 #include "Modules/error.hpp"
-#include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
 #include "Wrap/wrap_engine.hpp"
+
+namespace Engine {
+struct Scene;
+}
+
 namespace Engine::Renderer {
 
 struct LightProbe {
   float Radius{};
   float InnerRadius{};
+  Scene *scene = nullptr;
 
   int32_t EnvironmentMapIndex = -1;
-  Scene *scene = nullptr;
 
   auto Render(const Transform &transform) -> Error;
   auto DrawGUI(flecs::entity entity) -> Error;

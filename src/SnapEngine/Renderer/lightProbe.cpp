@@ -3,8 +3,8 @@
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
-#include "Modules/stackVector.hpp"
 #include "Renderer/prefilterManager.hpp"
+#include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
 #include "Scene/userdata.hpp"
 #include "Wrap/wrap.hpp"
@@ -14,6 +14,7 @@
 #include <array>
 #include <flecs.h>
 #include <imgui.h>
+#include <lauxlib.h>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -22,7 +23,7 @@ namespace Engine::Renderer {
 auto LightProbe::Render(const Transform &transform) -> Error {
   auto *ctx = Graphics::GetCurrentGraphicsContext();
 
-  CHECK_ERR(RendererInstance.GetPrefilterManager().PrefilterLightProbe(*ctx, *this, scene, transform));
+  CHECK_ERR(RendererInstance.GetPrefilterManager().PrefilterLightProbe(*ctx, *this, *scene, transform));
 
   return {};
 }
@@ -126,7 +127,10 @@ auto LuaLightProbe::Create(lua_State *state) -> int {
   auto scene = LUA_CK_NULL(::LuaWrap::ObjectFromLua<Scene>(state, 1));
   auto entity = scene->world.entity();
 
-  entity.set(LightProbe{.scene = scene.get()});
+  double radius = luaL_optnumber(state, 3, 10.0);
+  double innerRadius = luaL_optnumber(state, 4, radius / 2.0);
+
+  entity.set(LightProbe{.Radius = static_cast<float>(radius), .InnerRadius = static_cast<float>(innerRadius), .scene = scene.get()});
   entity.add<Transform>();
   entity.set<DisplayName>({luaL_optstring(state, 2, "LightProbe")});
   entity.add<Userdata>();

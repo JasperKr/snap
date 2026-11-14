@@ -12,7 +12,6 @@
 #include "Renderer/rendertargetManager.hpp"
 #include "Scene/cameraMatrices.hpp"
 #include "Scene/environment.hpp"
-#include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
@@ -45,6 +44,8 @@ struct Camera {
 
     float VarianceThreshold = {1.0};
     bool DebugVariance = false;
+
+    bool SpecularEnabled = true;
   };
 
   void SetVerticalFOV(float fovDeg) {
@@ -93,7 +94,7 @@ struct Camera {
     AspectRatio = static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
   }
 
-  static void RegisterCameraSystems(Scene &scene);
+  static void RegisterCameraSystems(struct Scene &scene);
 
   static auto Create(const Graphics::GraphicsContext &context, float verticalFOVDeg, Math::Uvec2 Dimensions, float near, float far) -> Result<Camera>;
 
@@ -104,7 +105,7 @@ struct Camera {
     ProjectionDirty = true;
   }
 
-  auto Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
+  auto Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error;
 
   auto RenderSkyboxOnly(const Graphics::GraphicsContext &context, const Environment &environment) -> Error;
 
@@ -288,15 +289,15 @@ private:
 
   auto FillSkybox(const Graphics::GraphicsContext &context, const Environment &environment) -> Error;
 
-  auto ApplyLightProbes(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
+  auto ApplyLightProbes(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error;
 
   auto ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> Error;
   auto CalculateShadows(const Graphics::GraphicsContext &context) -> Error;
-  auto ApplyLighting(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene *scene) -> Error;
+  auto ApplyLighting(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error;
   auto ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -> Error;
   auto CalculateVariance(const Graphics::GraphicsContext &context) -> Error;
 
-  auto UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const DrawData &drawData, Scene *scene) -> void;
+  auto UpdateClosestLightProbes(int max, std::vector<uint8_t> &data, const DrawData &drawData, Scene &scene) -> void;
 };
 
 extern const Graphics::BufferFormat CameraBufferFormat;

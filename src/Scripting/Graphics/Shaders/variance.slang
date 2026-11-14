@@ -3,10 +3,10 @@ import utils;
 import constants;
 import camera;
 
-Sampler2D<float> DepthTexture;
-Sampler2D<float> PreviousDepthTexture;
-Sampler2D<float2> MotionTexture;
-Sampler2D<uint> NormalTexture;
+uniform Sampler2D<float> DepthTexture;
+uniform Sampler2D<float> PreviousDepthTexture;
+uniform Sampler2D<float2> MotionTexture;
+uniform Sampler2D<uint> NormalTexture;
 
 #include "fullscreen.slang"
 
@@ -22,7 +22,7 @@ float fragmentMain(float2 texCoords: TEXCOORDS) {
 
   float previousDepth = PreviousDepthTexture.SampleLevelZero(previousTexCoords);
 
-  if (previousDepth == DepthFarPlane || previousDepth == DepthNearPlane) {
+  if (previousDepth == DepthFarPlane || previousDepth == DepthNearPlane || CameraData[0].HistoryInvalidated()) {
     return 1.0;
   }
 

@@ -30,6 +30,7 @@
 #include "Wrap/wrap.hpp"
 
 #ifdef BUNDLE_ENGINE
+#include "physics.hpp"
 #include "renderer.hpp"
 #endif
 
@@ -50,7 +51,8 @@ function snap.run()
 
       if name == "quit" then
         if snap.quit then
-          return snap.quit() or 0
+          local success, result = pcall(snap.quit)
+          if success then return result end
         end
         return 0
       end
@@ -266,6 +268,10 @@ auto MainLoop(const std::vector<std::string> &arguments) -> Error {
   CHECK_ERR(InitializeUniformBufferModule(context));
 
   CHECK_ERR(Engine::Gui::LoadGUIState(state));
+
+#ifdef BUNDLE_ENGINE
+  CHECK_ERR(Engine::Physics::Initialize());
+#endif
 
   CHECK_ERR(LoadLua(state, arguments));
 

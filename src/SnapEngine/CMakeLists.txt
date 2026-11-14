@@ -10,6 +10,7 @@ add_library(SnapEngine
   renderer.cpp
   style.cpp
   defer.cpp
+  physics.cpp
 
   Editor/gui.cpp
   Editor/lineDrawer.cpp
@@ -72,9 +73,21 @@ add_subdirectory(
   ${CMAKE_BINARY_DIR}/include/meshoptimizer
 )
 
+set(USE_AVX512 ON)
+set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF)
+set(JPH_USE_DX12 OFF)
+set(JPH_USE_VK OFF)
+set(JPH_USE_MTL OFF)
+
+add_subdirectory(
+  ${CMAKE_SOURCE_DIR}/include/jolt/Build
+  ${CMAKE_BINARY_DIR}/include/jolt/Build
+)
+
 target_link_libraries(SnapEngine
   PUBLIC snap_core
   PRIVATE TBB::tbb
   OpenMP::OpenMP_CXX
   meshoptimizer
+  Jolt
 )

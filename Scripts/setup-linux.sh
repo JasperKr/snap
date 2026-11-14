@@ -70,20 +70,6 @@ else
 fi
 
 
-# Fetch embree pre-built binaries for Linux x86_64
-URL="https://github.com/embree/embree/releases/download/v4.4.0/embree-4.4.0.x86_64.linux.tar.gz"
-if [ "$override" -eq 1 ] || [ ! -d "include/embree" ] || [ -z "$(ls -A include/embree)" ]; then
-    mkdir -p temp_embree
-    curl -L "$URL" -o "temp_embree/embree.tar.gz"
-    tar -xzf "temp_embree/embree.tar.gz" -C temp_embree
-    mkdir -p include/embree
-    cp -r temp_embree/include/embree4/* include/embree/
-    mkdir -p lib/embree
-    cp -r temp_embree/lib/* lib/embree/
-    rm -rf temp_embree
-fi
-
-
 # If "./include/slang/" is missing or empty, or override is set:
 if [ "$override" -eq 1 ] || [ ! -d "./include/slang/" ] || [ -z "$(ls -A ./include/slang/)" ]; then
     URL="https://github.com/shader-slang/slang/releases/download/v2026.20/slang-2026.20-linux-x86_64.zip"
@@ -159,6 +145,19 @@ if [ "$override" -eq 1 ] || [ ! -d "include/meshoptimizer" ]; then
     mv include/meshoptimizer/meshoptimizer-1.1/* include/meshoptimizer/
     rm -rf include/meshoptimizer/meshoptimizer-1.1
     rm include/meshoptimizer.zip
+fi
+
+URL="https://github.com/jrouwe/JoltPhysics/archive/refs/tags/v5.6.0.tar.gz"
+if [ "$override" -eq 1 ] || [ ! -d "include/jolt" ]; then
+  rm -rf include/jolt
+  mkdir -p include/jolt
+  curl -L "$URL" -o "include/jolt.tar.gz"
+  tar -xzf "include/jolt.tar.gz"
+  shopt -s dotglob
+  mv JoltPhysics-5.6.0/* include/jolt
+  shopt -u dotglob
+  rmdir JoltPhysics-5.6.0
+  rm include/jolt.tar.gz
 fi
 
 echo "All dependencies fetched into include/"

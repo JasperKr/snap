@@ -25,7 +25,8 @@ struct FragmentOutput {
   float2 motion : SV_Target1;
 };
 
-[shader("fragment")] FragmentOutput fragmentMain(float2 tex_coord : TEXCOORDS) {
+[shader("fragment")]
+FragmentOutput fragmentMain(float2 tex_coord: TEXCOORDS) {
   float depth = DepthTexture.SampleLevelZero(tex_coord).r;
   if (depth != DepthFarPlane) {
     discard;
@@ -35,6 +36,10 @@ struct FragmentOutput {
 
   float3 previous = CameraData[0].ReprojectToPreviousUVs(tex_coord, depth);
   float2 motion = PackMotionVector(tex_coord - previous.xy);
+
+  if (CameraData[0].HistoryInvalidated()) {
+    motion = float2(0.0f);
+  }
 
 #if defined(CUBE_MAP)
   return FragmentOutput(SkyboxTexture.Sample(rayDirection), motion);

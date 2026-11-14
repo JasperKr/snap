@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Graphics/buffer.hpp"
-#include "Graphics/renderState.hpp"
-#include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -34,7 +32,7 @@ struct LightprobePrefilterManager {
 
   auto Deinitialize() -> void;
 
-  auto PrefilterLightProbe(const Graphics::GraphicsContext &context, LightProbe &lightProbe, Engine::Scene *scene, const Transform &transform) -> Error;
+  auto PrefilterLightProbe(const Graphics::GraphicsContext &context, LightProbe &lightProbe, Engine::Scene &scene, const Transform &transform) -> Error;
 
   auto PrefilterEnvironment(const Graphics::GraphicsContext &context, const Ref<Graphics::Texture> &skyboxTexture) -> Error;
 

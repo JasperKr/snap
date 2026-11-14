@@ -9,8 +9,6 @@ uniform Sampler2D.Handle NormalTexture;
 uniform Sampler2D.Handle AlbedoTexture;
 uniform Sampler2D.Handle MaterialTexture;
 
-uniform bool SpecularEnabled;
-
 #include "fullscreen.slang"
 
 struct FragmentOutput {
@@ -130,7 +128,7 @@ FragmentOutput fragmentMain(float2 VertexCoords: TEXCOORD0) {
 
   probeInfo.irradiance *= INV_PI;
 
-  if (!SpecularEnabled) {
+  if (!CameraData[0].SpecularEnabled()) {
     probeInfo.radiance *= 0.0;
     probeInfo.irradiance *= (1.0 - E) * albedo; // since we turn off specular, fully metallic objects will be black
     // to solve this, we multiply by albedo instead of diffuse
