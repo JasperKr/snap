@@ -22,6 +22,7 @@ add_library(SnapEngine
   Scene/transform.cpp
   Scene/userdata.cpp
   Scene/frustum.cpp
+  Scene/node.cpp
   Scene/camera.cpp
   Scene/displayName.cpp
   Scene/cameraMatrices.cpp

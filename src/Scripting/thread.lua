@@ -1,18 +1,17 @@
 require("init")
 
-local fullscreen = false
 local commandBufferChannel, canStartChannel, scene, events, threadToMainEvents = ...
 
 function ToggleFullscreen()
-  fullscreen = not fullscreen
+  snap.internal.fullscreen = not snap.internal.fullscreen
 
-  threadToMainEvents:push({ "window", "setFullscreen", fullscreen })
+  threadToMainEvents:push({ "window", "setFullscreen", snap.internal.fullscreen })
 end
 
 function DisableFullscreen()
-  fullscreen = false
+  snap.internal.fullscreen = false
 
-  threadToMainEvents:push({ "window", "setFullscreen", fullscreen })
+  threadToMainEvents:push({ "window", "setFullscreen", snap.internal.fullscreen })
 end
 
 require("registerBindings");
@@ -25,6 +24,10 @@ local lastImDrawTime = 0
 local lastShownImDrawTime = 0
 local count = 0
 local viewport = { offset = vec2(), size = vec2() }
+snap.internal = {
+  fullscreen = false,
+  mouseOverViewport = false,
+}
 
 -- scene:newCamera(name, verticalFOV, width, height, near, far)
 local camera = scene:newCamera("main camera", 90, 1, 1, 0.01, 1000, { postprocessing = true, primitives = true })
@@ -84,6 +87,8 @@ local function draw(delta)
     Imgui.Image(rt, windowSize)
     rt:release()
 
+    snap.internal.mouseOverViewport = Imgui.IsWindowHovered()
+
     camera:setDimensions(windowSize.x, windowSize.y)
 
     viewport.offset.x = Imgui.GetWindowPos().x
@@ -105,12 +110,12 @@ local function draw(delta)
 
   ---@type snap.DetailedBlendMode
   local imguiBlendState = {
-    alphaop = "add",
-    colorop = "add",
-    srcalpha = "srcalpha",
     srccolor = "srcalpha",
-    dstalpha = "oneminussrcalpha",
     dstcolor = "oneminussrcalpha",
+    colorop = "add",
+    srcalpha = "one",
+    dstalpha = "oneminussrcalpha",
+    alphaop = "add",
   }
 
   snap.graphics.setRenderTarget({ loadas = "clear", blendmode = imguiBlendState })
@@ -146,31 +151,46 @@ function GetViewportRelativeMousePosition()
   return mx, my
 end
 
+local function GetWantCaptureMouse()
+  return Imgui.GetIO().WantCaptureMouse
+end
+
+local function GetWantCaptureKeyboard()
+  return Imgui.GetIO().WantCaptureKeyboard
+end
+
 local isDown = {}
 function snap.mousepressed(x, y, button)
-  isDown[button] = true
+  if not GetWantCaptureMouse() or snap.internal.mouseOverViewport then
+    isDown[button] = true
 
-  SnapEngine.keybindings.pressed(button)
+    SnapEngine.keybindings.pressed(button)
+  end
 end
 
 function snap.mousereleased(x, y, button)
-  isDown[button] = false
+  if not GetWantCaptureMouse() or snap.internal.mouseOverViewport then
+    isDown[button] = false
 
-  SnapEngine.keybindings.released(button)
+    SnapEngine.keybindings.released(button)
+  end
 end
 
 function snap.keypressed(key, scancode, isrepeat)
   if isrepeat then return end
 
-  isDown[key] = true
-
-  SnapEngine.keybindings.pressed(key)
+  if not GetWantCaptureKeyboard() or snap.internal.mouseOverViewport then
+    isDown[key] = true
+    SnapEngine.keybindings.pressed(key)
+  end
 end
 
 function snap.keyreleased(key)
-  isDown[key] = false
+  if not GetWantCaptureKeyboard() or snap.internal.mouseOverViewport then
+    isDown[key] = false
 
-  SnapEngine.keybindings.released(key)
+    SnapEngine.keybindings.released(key)
+  end
 end
 
 function snap.mousemoved(x, y, dx, dy)
@@ -178,21 +198,23 @@ function snap.mousemoved(x, y, dx, dy)
     return
   end
 
-  local userdata = camera:getUserdata()
+  if not GetWantCaptureMouse() or snap.internal.mouseOverViewport or snap.internal.fullscreen then
+    local userdata = camera:getUserdata()
 
-  if not userdata then
-    userdata = camera:setUserdata({
-      rotation = vec3()
-    })
+    if not userdata then
+      userdata = camera:setUserdata({
+        rotation = vec3()
+      })
+    end
+
+    local rotation = userdata.rotation
+
+    rotation.y = rotation.y - dx * 0.0015
+    rotation.x = rotation.x - dy * 0.0015
+
+    rotation.x = math.max(math.min(rotation.x, math.pi / 2), -math.pi / 2)
+    camera:setRotation(snap.math.eulerToQuaternion(rotation:get()))
   end
-
-  local rotation = userdata.rotation
-
-  rotation.y = rotation.y - dx * 0.0015
-  rotation.x = rotation.x - dy * 0.0015
-
-  rotation.x = math.max(math.min(rotation.x, math.pi / 2), -math.pi / 2)
-  camera:setRotation(snap.math.eulerToQuaternion(rotation:get()))
 end
 
 function update(dt)
@@ -260,7 +282,7 @@ while true do
     startupSequence[frameIndex]()
   end
 
-  if fullscreen then
+  if snap.internal.fullscreen then
     camera:setDimensions(snap.graphics.getDimensions())
 
     camera:render(scene)

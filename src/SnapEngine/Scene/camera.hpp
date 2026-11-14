@@ -6,6 +6,7 @@
 #include "Graphics/texture.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/type.hpp"
@@ -92,6 +93,7 @@ struct Camera {
     ProjectionDirty = true;
     ConfigureRendertargets();
     AspectRatio = static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
+    InvalidateHistory();
   }
 
   static void RegisterCameraSystems(struct Scene &scene);
@@ -99,11 +101,6 @@ struct Camera {
   static auto Create(const Graphics::GraphicsContext &context, float verticalFOVDeg, Math::Uvec2 Dimensions, float near, float far) -> Result<Camera>;
 
   auto WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform &transform) const -> Error;
-
-  auto Resize(Math::Uvec2 newDimensions) -> void {
-    Dimensions = newDimensions;
-    ProjectionDirty = true;
-  }
 
   auto Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error;
 
@@ -278,8 +275,7 @@ private:
   int VisibleProbeCount = 0;
 
   bool ProjectionDirty = true;
-  bool FirstFrameAfterResize = false;
-  bool HistoryInvalidated = false;
+  bool HistoryInvalidated = true;
 
   auto ConfigureRendertargets() -> void;
 

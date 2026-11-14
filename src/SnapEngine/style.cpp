@@ -81,8 +81,8 @@ auto ApplyDefaultStyle(UIStyles uiStyle) -> Error {
   colors[ImGuiCol_PopupBg] = ToImVec4(Accent(primary, 0.9F));
 
   // Borders and shadows
-  colors[ImGuiCol_Border] = ToImVec4(Accent(primary, 0.9F), 1.0F);
-  colors[ImGuiCol_BorderShadow] = ToImVec4(Accent(primary, 0.8F), 1.0F);
+  colors[ImGuiCol_Border] = ToImVec4(Accent(primary, 0.9F), 0.39F);
+  colors[ImGuiCol_BorderShadow] = ToImVec4(Accent(primary, 0.8F), 0.0F);
 
   // Frames
   colors[ImGuiCol_FrameBg] = ToImVec4(Accent(primary), 1.F);

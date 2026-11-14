@@ -481,7 +481,7 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
   Math::StackVector<Math::Uvec2, 4> offsets{{0, 0}, {1, 1}, {1, 0}, {0, 1}};
   Math::Uvec2 offset = offsets[context.currentFrame % 4U];
 
-  if (FirstFrameAfterResize) {
+  if (HistoryInvalidated) {
     auto clearShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::Clear));
 
     CHECK_ERR(clearShader->Send(context, "ClearTexture", {textures.VolumetricLighting, StorageTexture::write}));
@@ -766,7 +766,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
       OwnedTextures.VariableRateModeDebug,
   }));
 
-  FirstFrameAfterResize = false;
+  HistoryInvalidated = false;
 
   return {};
 }
@@ -776,6 +776,7 @@ auto Camera::RenderSkyboxOnly(const Graphics::GraphicsContext &context, const En
 
   CHECK_ERR(FillSkybox(context, environment));
 
+  HistoryInvalidated = false;
   return {};
 }
 
@@ -955,8 +956,6 @@ auto Camera::ConfigureRendertargets() -> void {
       .mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST,
       .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
   };
-
-  FirstFrameAfterResize = true;
 }
 
 auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform &transform) const -> Error {

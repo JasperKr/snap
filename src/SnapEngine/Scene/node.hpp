@@ -4,7 +4,7 @@
 namespace Engine {
 
 struct Node {
-  auto DrawGUI(flecs::entity entity) const -> void {}
+  auto DrawGUI(flecs::entity entity) -> void;
 };
 
 } // namespace Engine

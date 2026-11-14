@@ -82,8 +82,6 @@ auto DrawEntity(const flecs::entity &entity, bool partOfTree) -> bool {
     Editor::MoveInfo.UpdatedTransformAxis = true;
   }
 
-  ImGui::PopID();
-
   return node;
 }
 
@@ -163,6 +161,8 @@ auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter, s
     entity.children([&](flecs::entity child) -> void { DrawEntityHierarchy(child, filter, selected); });
     ImGui::TreePop();
   }
+
+  ImGui::PopID();
 }
 
 inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> void {
@@ -208,7 +208,7 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
 
       if (ImGui::BeginPopup("Component options")) {
         Gui::PushBlankButtonStyle();
-        if (ImGui::Button("Remove")) {
+        if (ImGui::Button("Remove component")) {
         }
 
         Gui::PopBlankButtonStyle();
@@ -224,6 +224,24 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
       ImGui::PopID();
     }
   });
+
+  if (ImGui::Button("Add component")) {
+    ImGui::OpenPopup("Add component");
+  }
+
+  if (ImGui::BeginPopup("Add component")) {
+    scene->world.each([&](flecs::id identifier) -> auto {
+      if (!identifier.is_entity()) {
+        return;
+      }
+
+      auto componentEntity = identifier.entity();
+
+      ImGui::Selectable(componentEntity.name());
+    });
+
+    ImGui::EndPopup();
+  }
 
   ImGui::PopID();
 }
