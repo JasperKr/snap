@@ -314,5 +314,6 @@ auto LoadImGuiCursorMap() -> Error;
 auto ShutdownImGui() -> Error;
 auto PushBlankButtonStyle() -> void;
 auto PopBlankButtonStyle() -> void;
+auto ButtonCentered(const char *label, float alignment = 0.5F) -> bool;
 
 } // namespace Engine::Gui

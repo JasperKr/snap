@@ -4,6 +4,7 @@
 #include "Scene/camera.hpp"
 #include "Wrap/wrap.hpp"
 #include <lauxlib.h>
+#include <lua.h>
 
 namespace Engine::Wrap_Editor {
 
@@ -64,6 +65,18 @@ auto wrap_ApplyTransform(lua_State *state) -> int {
 
 auto wrap_CancelTransform(lua_State *state) -> int {
   Editor::CancelTransform();
+
+  return 0;
+}
+
+auto wrap_IsTransforming(lua_State *state) -> int {
+  lua_pushboolean(state, (int)Editor::MoveInfo.StartedTransforming);
+
+  return 1;
+}
+
+auto wrap_DeselectObjects(lua_State *state) -> int {
+  Editor::SelectedEntities.clear();
 
   return 0;
 }

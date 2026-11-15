@@ -12,6 +12,7 @@
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
+#include "Modules/timer.hpp"
 #include "Modules/window.hpp"
 #include "Renderer/shaderManager.hpp"
 #include "Scene/Geometry/Shapes/boxShape.hpp"
@@ -34,6 +35,7 @@
 #include "flecs/addons/cpp/entity.hpp"
 #include "renderer.hpp"
 #include <algorithm>
+#include <cmath>
 #include <format>
 #include <functional>
 #include <imgui.h>
@@ -42,6 +44,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace Engine {
@@ -249,6 +252,24 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
 
   // Does this need to be destroyed?
   auto transform = scene->world.component<Transform>();
+  auto &style = ImGui::GetStyle();
+
+  float widthAvailable = ImGui::GetContentRegionAvail().x;
+  float cursorPosX = ImGui::GetCursorScreenPos().x;
+  auto *drawList = ImGui::GetWindowDrawList();
+  drawList->ChannelsSplit(2);
+
+  static flecs::entity lastEntitySelected;
+  static constexpr float AnimationTime = 0.1F;
+
+  // first bool: is currently opened, second vec2: x: animation time, y: size, z: last size for scissor
+  static std::vector<std::pair<bool, Math::Vec3>> widgetStates;
+  int widgetIndex = 0;
+
+  if (lastEntitySelected != entity) {
+    widgetStates.clear();
+    lastEntitySelected = entity;
+  }
 
   ImGui::PushID(static_cast<int>(entity.id()));
   entity.each([&](flecs::id identifier) -> auto {
@@ -266,13 +287,28 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
 
     auto iter = scene->drawFunctions.find(componentEntity.id());
     if (iter != scene->drawFunctions.end()) {
-      ImGui::Separator();
       ImGui::PushID(static_cast<int>(componentEntity.id()));
       auto name = std::format("{}", componentName.data());
 
-      float widthAvailable = ImGui::GetContentRegionAvail().x;
+      ImGui::BeginGroup();
+      drawList->ChannelsSetCurrent(1);
+      auto clipMin = ImGui::GetCursorScreenPos();
+      float clipHeight = 100.0F;
 
+      if (widgetIndex < widgetStates.size()) {
+        clipHeight = widgetStates.at(widgetIndex).second.z;
+      }
+
+      auto clipMax = clipMin;
+      clipMax.x += widthAvailable;
+      clipMax.y += clipHeight;
+
+      ImGui::PushClipRect(clipMin, clipMax, true);
+
+      ImGui::Dummy(ImVec2(0, style.ItemSpacing.y / 2.0F));
       bool node = ImGui::TreeNodeEx(name.c_str(), iter->second.defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+      float cursorHeightAfterNode = ImGui::GetCursorPosY();
+      float treeNodeHeight = ImGui::GetItemRectSize().y;
       ImGui::SameLine();
 
       Gui::PushBlankButtonStyle();
@@ -312,12 +348,73 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
 
         ImGui::TreePop();
       }
+      ImGui::Dummy(ImVec2(0, style.ItemSpacing.y / 2.0F));
+
+      ImGui::PopClipRect();
+      ImGui::EndGroup();
+      auto min = ImGui::GetItemRectMin();
+      auto max = ImGui::GetItemRectMax();
+
+      float animatedSize = max.y - min.y;
+
+      if (widgetIndex >= widgetStates.size()) {
+        widgetStates.resize(widgetIndex + 1);
+        auto &widgetState = widgetStates.at(widgetIndex);
+
+        widgetState.second.x = 0.0F;
+        widgetState.second.y = animatedSize;
+        widgetState.second.z = widgetState.second.y;
+      }
+
+      auto &widgetState = widgetStates.at(widgetIndex);
+      bool animating = false;
+
+      if (node && !widgetState.first) { // Opening
+        // Animation finished
+        if (widgetState.second.x >= AnimationTime || animatedSize == widgetState.second.y) {
+          widgetState.first = true;
+        } else {
+          animating = true;
+        }
+
+        animatedSize = std::lerp(widgetState.second.y, animatedSize, widgetState.second.x / AnimationTime);
+        widgetState.second.x = std::min(AnimationTime, widgetState.second.x + static_cast<float>(Timer::GetDelta()));
+      } else if (!node && widgetState.first) { // Closing
+        // Animation finished
+        if (widgetState.second.x >= AnimationTime || animatedSize == widgetState.second.y) {
+          widgetState.first = false;
+        } else {
+          animating = true;
+        }
+
+        animating = true;
+        animatedSize = std::lerp(widgetState.second.y, animatedSize, widgetState.second.x / AnimationTime);
+        widgetState.second.x = std::min(AnimationTime, widgetState.second.x + static_cast<float>(Timer::GetDelta()));
+      } else {
+        widgetState.second.x = 0.0F;
+        widgetState.second.y = animatedSize;
+      }
+
+      widgetState.second.z = animatedSize;
+      max.x = cursorPosX + widthAvailable;
+      max.y = min.y + animatedSize;
+
+      if (animating) {
+        ImGui::SetCursorPosY(cursorHeightAfterNode);
+        ImGui::Dummy(ImVec2(0, animatedSize - treeNodeHeight - (style.ItemSpacing.y * 2.0F)));
+      }
+
+      drawList->ChannelsSetCurrent(0);
+      drawList->AddRectFilled(min, max, 0x0AFFFFFF, style.FrameRounding);
 
       ImGui::PopID();
+      widgetIndex++;
     }
   });
 
-  if (ImGui::Button("Add component")) {
+  drawList->ChannelsMerge();
+
+  if (Gui::ButtonCentered("Add component")) {
     ImGui::OpenPopup("Add component");
   }
 

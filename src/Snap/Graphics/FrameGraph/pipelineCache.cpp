@@ -20,11 +20,11 @@ auto PipelineCache::Initialize(const GraphicsContext &context) -> Error {
 
 auto PipelineCache::DeInitialize(const GraphicsContext &context) -> void {
   std::scoped_lock<std::mutex, std::mutex> lock(Graphics::GraphicsContext::mutexes.device, mutex);
-  for (const auto &pipeline : pipelines) {
-    if (pipeline != VK_NULL_HANDLE) {
-      vkDestroyPipeline(context.device, pipeline, GetAllocationCallbacks());
-    }
-  }
+  // for (const auto &pipeline : pipelines) {
+  //   if (pipeline != VK_NULL_HANDLE) {
+  //     vkDestroyPipeline(context.device, pipeline, GetAllocationCallbacks());
+  //   }
+  // }
 
   cache.clear();
   pipelines.clear();

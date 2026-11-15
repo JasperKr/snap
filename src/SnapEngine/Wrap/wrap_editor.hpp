@@ -10,6 +10,7 @@
 namespace Engine::Wrap_Editor {
 
 auto wrap_PickObject(lua_State *state) -> int;
+auto wrap_DeselectObjects(lua_State *state) -> int;
 auto wrap_SetCamera(lua_State *state) -> int;
 auto wrap_SetRelativeMousePosition(lua_State *state) -> int;
 
@@ -19,9 +20,11 @@ auto wrap_StartScaling(lua_State *state) -> int;
 auto wrap_SetTransformAxis(lua_State *state) -> int;
 auto wrap_ApplyTransform(lua_State *state) -> int;
 auto wrap_CancelTransform(lua_State *state) -> int;
+auto wrap_IsTransforming(lua_State *state) -> int;
 
 static const std::vector<luaL_Reg> EditorLib = {
     {"pickObject", wrap_PickObject},
+    {"deselectObjects", wrap_DeselectObjects},
     {"setCamera", wrap_SetCamera},
     {"setRelativeMousePosition", wrap_SetRelativeMousePosition},
     {"startTranslating", wrap_StartTranslating},
@@ -30,6 +33,7 @@ static const std::vector<luaL_Reg> EditorLib = {
     {"setTransformAxis", wrap_SetTransformAxis},
     {"applyTransform", wrap_ApplyTransform},
     {"cancelTransform", wrap_CancelTransform},
+    {"isTransforming", wrap_IsTransforming},
 };
 
 static const ::LuaWrap::LuaEnum<TransformAxis> TransformAxisEnum{"TransformAxis",

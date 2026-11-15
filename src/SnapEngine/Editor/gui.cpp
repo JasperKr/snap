@@ -141,9 +141,24 @@ auto PushBlankButtonStyle() -> void {
   ImGui::PushStyleColor(ImGuiCol_BorderShadow, ImVec4(0.0F, 0.0F, 0.0F, 0.0F));
   ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 }
+
 auto PopBlankButtonStyle() -> void {
   ImGui::PopStyleColor(5);
   ImGui::PopStyleVar(1);
+}
+
+auto ButtonCentered(const char *label, float alignment) -> bool {
+  ImGuiStyle &style = ImGui::GetStyle();
+
+  float size = ImGui::CalcTextSize(label).x + (style.FramePadding.x * 2.0F);
+  float avail = ImGui::GetContentRegionAvail().x;
+
+  float off = (avail - size) * alignment;
+  if (off > 0.0F) {
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
+  }
+
+  return ImGui::Button(label);
 }
 
 } // namespace Engine::Gui

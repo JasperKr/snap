@@ -23,3 +23,7 @@ function snap.editor.setTransformAxis(axis) end
 function snap.editor.applyTransform() end
 
 function snap.editor.cancelTransform() end
+
+function snap.editor.isTranforming() end
+
+function snap.editor.deselectObjects() end

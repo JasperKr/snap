@@ -203,6 +203,18 @@ SnapEngine.keybindings.addBinding({
   rising = "escape"
 })
 
+-- TODO: This needs to fire after Gizmo - Cancel, so something like a priority field or something
+SnapEngine.keybindings.addAction("Deselect Objects", function()
+  if not snap.editor.isTransforming() then
+    snap.editor.deselectObjects()
+  end
+end)
+
+SnapEngine.keybindings.addBinding({
+  action = "Deselect Objects",
+  rising = "escape"
+})
+
 -- SnapEngine.keybindings.addBinding(
 --   {
 --     action = "Gizmo - xyz freeform",
