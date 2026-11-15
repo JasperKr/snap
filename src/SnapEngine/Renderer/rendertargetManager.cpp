@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <format>
 #include <string>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace Engine::Renderer {
 
@@ -104,6 +106,11 @@ auto RendertargetDescriptor::GetMipmapCount() const -> uint32_t {
   return Image::GetMipmapCount(size.x, size.y);
 }
 
+auto RendertargetDescriptor::ToString() const -> std::string {
+  return std::format("Size: {}x{}, mipmaps? {}, levelCount: {}, layerCount: {}, format: {}", size.x, size.y, requiresMipmaps ? "yes" : "no", GetMipmapCount(),
+                     arrayLayers, Graphics::Format::ImageFormatToString(format));
+}
+
 auto RendertargetDescriptorHash::operator()(const RendertargetDescriptor &desc) const -> size_t {
   Hash::Hasher hasher;
   hasher.Add(desc.size.x);
@@ -122,42 +129,110 @@ auto RendertargetDescriptorHash::operator()(const RendertargetDescriptor &desc) 
   return hasher.Get();
 }
 
+inline auto ImageSubresourceRangeEquality(VkImageSubresourceRange first, VkImageSubresourceRange second) -> bool {
+  return first.levelCount == second.levelCount && first.layerCount == second.layerCount && first.baseArrayLayer == second.baseArrayLayer &&
+         first.baseMipLevel == second.baseMipLevel;
+}
+
+inline auto ReconfigureTexture(const RendertargetDescriptor &descriptor, const Ref<::Graphics::Texture> &texture) -> void {
+  texture->SetFilter(descriptor.minFilter, descriptor.magFilter, descriptor.mipFilter);
+  texture->SetWrapmode(descriptor.addressModeU, descriptor.addressModeV, descriptor.addressModeW);
+  texture->SetBorderColor(descriptor.borderColor);
+}
+
+auto RendertargetHandle::GetTexture() -> Ref<Graphics::Texture> {
+  for (auto &view : views) {
+    if (view->subresourceRange.levelCount != descriptor.GetMipmapCount()) {
+      continue;
+    }
+
+    if (view->subresourceRange.layerCount != descriptor.arrayLayers) {
+      continue;
+    }
+
+    return view;
+  }
+
+  assert(false);
+}
+
+auto RendertargetHandle::GetTexture(const Graphics::GraphicsContext &context, VkImageSubresourceRange range) -> Result<Ref<Graphics::Texture>> {
+  Ref<Graphics::Texture> view;
+
+  for (auto &existingView : views) {
+    if (!ImageSubresourceRangeEquality(existingView->subresourceRange, range)) {
+      continue;
+    }
+
+    view = existingView;
+  }
+
+  if (view == nullptr) {
+    view = CHECK_RES(Graphics::Texture::Create(context, texture.get(), VK_IMAGE_VIEW_TYPE_2D, range));
+    views.emplace_back(view);
+  }
+
+  ReconfigureTexture(descriptor, view);
+
+  return view;
+}
+
 auto RenderTargetManager::GetRendertarget(const struct ::Graphics::GraphicsContext &context, const RendertargetDescriptor &descriptor)
-    -> Result<Ref<::Graphics::Texture>> {
+    -> Result<RendertargetHandle> {
   // First try to find an exact match.
   for (auto &entry : Rendertargets) {
-    if (entry.descriptor == descriptor && !entry.inUse) {
+    if (entry.originalDescriptor == descriptor && !entry.inUse) {
       entry.inUse = true;
       entry.lastUsedFrame = Graphics::GetCurrentGraphicsContext()->currentFrame;
-      return entry.texture;
+      entry.handle.descriptor = descriptor;
+      return entry.handle;
     }
   }
 
   // If no exact match, find the best candidate that meets the requirements.
   int bestScore = -1;
-  int bestTextureIndex = -1;
-  Ref<::Graphics::Texture> bestTexture;
-  for (auto i = 0; i < Rendertargets.size(); i++) {
-    const auto &entry = Rendertargets[i];
-
-    int score = entry.descriptor.Score(descriptor);
-    if (score > bestScore && !entry.inUse) {
+  RendertargetEntry *bestEntry = nullptr;
+  for (auto &rendertarget : Rendertargets) {
+    int score = rendertarget.originalDescriptor.Score(descriptor);
+    if (score > bestScore && !rendertarget.inUse) {
       bestScore = score;
-      bestTexture = entry.texture;
-      bestTextureIndex = i;
+      bestEntry = &rendertarget;
     }
   }
 
-  if (bestTextureIndex != -1) {
-    ReconfigureTexture(descriptor, bestTexture);
-    auto &entry = Rendertargets[bestTextureIndex];
-    assert(!entry.inUse);
+  if (bestEntry != nullptr) {
+    assert(!bestEntry->inUse);
 
-    entry.descriptor = descriptor;
-    entry.inUse = true;
-    entry.lastUsedFrame = Graphics::GetCurrentGraphicsContext()->currentFrame;
+    bestEntry->handle.descriptor = descriptor;
+    bestEntry->inUse = true;
+    bestEntry->lastUsedFrame = Graphics::GetCurrentGraphicsContext()->currentFrame;
 
-    return bestTexture;
+    bool foundViewMatchingDescriptor = false;
+
+    for (auto &view : bestEntry->handle.views) {
+      if (view->subresourceRange.levelCount != descriptor.GetMipmapCount()) {
+        continue;
+      }
+
+      if (view->subresourceRange.layerCount != descriptor.arrayLayers) {
+        continue;
+      }
+
+      foundViewMatchingDescriptor = true;
+    }
+
+    if (!foundViewMatchingDescriptor) {
+      auto view = CHECK_RES(Graphics::Texture::Create(context, bestEntry->handle.texture.get(), VK_IMAGE_VIEW_TYPE_2D,
+                                                      VkImageSubresourceRange{
+                                                          .baseMipLevel = 0,
+                                                          .levelCount = descriptor.GetMipmapCount(),
+                                                          .baseArrayLayer = 0,
+                                                          .layerCount = static_cast<uint32_t>(descriptor.arrayLayers),
+                                                      }));
+      bestEntry->handle.views.emplace_back(view);
+    }
+
+    return bestEntry->handle;
   }
 
   // This might look a bit strange;
@@ -175,9 +250,7 @@ auto RenderTargetManager::GetRendertarget(const struct ::Graphics::GraphicsConte
   if (Rendertargets.size() >= MaxRendertargets) {
     std::string message = "Currently allocated:\n";
     for (const auto &entry : Rendertargets) {
-      message += std::format("- {}x{}, format: {}, usage: {}, mip levels: {}, filters: {} / {}\n", entry.descriptor.size.x, entry.descriptor.size.y,
-                             Graphics::Format::ImageFormatToString(entry.descriptor.format), (int)entry.descriptor.usage, entry.descriptor.GetMipmapCount(),
-                             (int)entry.descriptor.minFilter, (int)entry.descriptor.magFilter);
+      message += std::format("Texture: {}, Descriptor: {}\n", (void *)entry.handle.texture->imageMemory->image, entry.originalDescriptor.ToString());
     }
 
     PrintError("RenderTargetManager: {}", message);
@@ -197,25 +270,33 @@ auto RenderTargetManager::GetRendertarget(const struct ::Graphics::GraphicsConte
   };
 
   auto texture = CHECK_RES(::Graphics::Texture::Create(context, info));
-
   Rendertargets.push_back({
-      .descriptor = descriptor,
       .inUse = true,
-      .texture = texture,
       .lastUsedFrame = Graphics::GetCurrentGraphicsContext()->currentFrame,
+      .handle = RendertargetHandle(descriptor, texture),
+      .originalDescriptor = descriptor,
   });
 
-  return texture;
+  auto view = CHECK_RES(Graphics::Texture::Create(context, texture.get(), VK_IMAGE_VIEW_TYPE_2D,
+                                                  VkImageSubresourceRange{
+                                                      .baseMipLevel = 0,
+                                                      .levelCount = descriptor.GetMipmapCount(),
+                                                      .baseArrayLayer = 0,
+                                                      .layerCount = static_cast<uint32_t>(descriptor.arrayLayers),
+                                                  }));
+  Rendertargets.back().handle.views.emplace_back(view);
+
+  return Rendertargets.back().handle;
 }
 
-auto RenderTargetManager::ReleaseRendertarget(const Ref<::Graphics::Texture> &texture) -> Error {
+auto RenderTargetManager::ReleaseRendertarget(const Ref<::Graphics::Texture> &texture) -> Result<bool> {
   if (texture == nullptr) {
-    return {};
+    return false;
   }
 
   size_t count = 0;
   for (auto &entry : Rendertargets) {
-    if (entry.texture == texture) {
+    if (entry.handle.texture->imageMemory->image == texture->imageMemory->image) {
       entry.inUse = false;
       entry.lastUsedFrame = Graphics::GetCurrentGraphicsContext()->currentFrame;
       count++;
@@ -223,24 +304,20 @@ auto RenderTargetManager::ReleaseRendertarget(const Ref<::Graphics::Texture> &te
   }
 
   if (count > 1) {
-    return Error::Create("RenderTargetManager: Released more than one rendertarget texture");
+    return Error::Unexpected("RenderTargetManager: Released more than one rendertarget texture");
   }
 
-  return {};
+  return count == 1;
 }
 
-auto RenderTargetManager::ReleaseRendertargets(const std::vector<Ref<::Graphics::Texture>> &textures) -> Error {
+auto RenderTargetManager::ReleaseRendertargets(const std::vector<Ref<::Graphics::Texture>> &textures) -> Result<bool> {
+  bool allSuccess = true;
+
   for (const auto &texture : textures) {
-    CHECK_ERR(ReleaseRendertarget(texture));
+    allSuccess = allSuccess && CHECK_RES(ReleaseRendertarget(texture));
   }
 
-  return {};
-}
-
-auto RenderTargetManager::ReconfigureTexture(const RendertargetDescriptor &descriptor, const Ref<::Graphics::Texture> &texture) -> void {
-  texture->SetFilter(descriptor.minFilter, descriptor.magFilter, descriptor.mipFilter);
-  texture->SetWrapmode(descriptor.addressModeU, descriptor.addressModeV, descriptor.addressModeW);
-  texture->SetBorderColor(descriptor.borderColor);
+  return allSuccess;
 }
 
 // Clean up old rendertargets that haven't been used for a while.
@@ -251,7 +328,8 @@ auto RenderTargetManager::Cleanup(bool evictAll) -> void {
     bool expired = (currentFrame - entry.lastUsedFrame) > RendertargetLifetime;
     bool clean = !entry.inUse && (expired || evictAll);
     if (clean) {
-      entry.texture = nullptr;
+      entry.handle.views.clear();
+      entry.handle.texture = nullptr;
     }
 
     return clean;

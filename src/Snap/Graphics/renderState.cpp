@@ -2,6 +2,7 @@
 #include "Graphics/Buffers/uniform.hpp"
 #include "Graphics/FrameGraph/commands.hpp"
 #include "Modules/color.hpp"
+#include "Modules/console.hpp"
 #include "renderTarget.hpp"
 
 #include "Graphics/draw.hpp"
@@ -301,7 +302,7 @@ auto SetRenderTargets(const GraphicsContext &context, const std::vector<RenderTa
     ERR_ASSERT(target.texture != nullptr);
     ERR_ASSERT(target.texture->GetWidth() == expectedExtent.width);
     ERR_ASSERT(target.texture->GetHeight() == expectedExtent.height);
-    ERR_ASSERT(target.texture->subresourceRange.levelCount == 1);
+    assert(target.texture->subresourceRange.levelCount == 1);
 
     // Depth/Stencil is separate
     if (target.texture->IsDepthOrStencilTexture()) {

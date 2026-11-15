@@ -37,6 +37,15 @@ add_library(SnapEngine
   Scene/Geometry/rigidbody.cpp
 
   Scene/Geometry/Shapes/boxShape.cpp
+  Scene/Geometry/Shapes/cylinderShape.cpp
+  Scene/Geometry/Shapes/planeShape.cpp
+  Scene/Geometry/Shapes/taperedCylinderShape.cpp
+  Scene/Geometry/Shapes/convexHullShape.cpp
+  Scene/Geometry/Shapes/meshShape.cpp
+  Scene/Geometry/Shapes/taperedCapsuleShape.cpp
+  Scene/Geometry/Shapes/capsuleShape.cpp
+  Scene/Geometry/Shapes/heightFieldShape.cpp
+  Scene/Geometry/Shapes/sphereShape.cpp
 
   Scene/Lights/light.cpp
   Scene/Lights/directionalLight.cpp

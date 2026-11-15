@@ -251,7 +251,6 @@ inline auto LoadMaterial(const Graphics::GraphicsContext &context, const fastglt
   }
 
   material->name = gltfMaterial.name;
-
   material->cullMode = gltfMaterial.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
 
   material->alphaCutoff = gltfMaterial.alphaCutoff;
@@ -1289,16 +1288,7 @@ LoadNode(flecs::world *world, Graphics::GraphicsContext &context, const fastgltf
     std::vector<flecs::entity> shapes;
 
     for (const auto &primitive : gltfMesh.primitives) {
-      // Each primitive corresponds to a separate mesh in our engine.
-      auto shapeEntity = world->entity(GetUniqueName(gltfMesh.name.c_str()).c_str());
-      shapeEntity.add<Engine::Shape>();
-      shapeEntity.add<Engine::WorldBounds>();
-      // shapeEntity.add<Engine::LocalBounds>(); No local bounds, only based on child geometry bounds.
-      shapeEntity.set<Engine::Transform>(transform);
-
-      shapes.emplace_back(shapeEntity);
-
-      auto lod = world->entity(GetUniqueName("LOD").c_str());
+      auto lod = world->entity(GetUniqueName(gltfMesh.name.c_str()).c_str());
       lod.add<Engine::LevelOfDetail>();
       lod.add<Engine::WorldBounds>();
       lod.add<Engine::Transform>();
@@ -1317,7 +1307,7 @@ LoadNode(flecs::world *world, Graphics::GraphicsContext &context, const fastgltf
 
       loadInfos.emplace_back(verticesLoadInfo, loadInfo);
 
-      lod.child_of(shapeEntity);
+      shapes.emplace_back(lod);
     }
 
     return shapes;

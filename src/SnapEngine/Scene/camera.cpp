@@ -170,7 +170,7 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context) -> Er
   auto shader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::PostProcessing));
   Graphics::RenderState::SetShader(shader);
 
-  OwnedTextures.PostProcessed = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.PostProcessed));
+  OwnedTextures.PostProcessed = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.PostProcessed)).GetTexture();
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {Graphics::RenderState::RenderTarget{
                                                                  .texture = OwnedTextures.PostProcessed,
@@ -206,7 +206,9 @@ auto Camera::ApplyPostProcessing(const Graphics::GraphicsContext &context) -> Er
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(OwnedTextures.BloomFinal));
+  if (OwnedTextures.BloomFinal.isValid()) {
+    ERR_ASSERT(CHECK_RES(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(OwnedTextures.BloomFinal)));
+  }
 
   return {};
 }
@@ -300,7 +302,7 @@ auto Camera::ApplyLightProbes(const Graphics::GraphicsContext &context, const Dr
   auto &textures = GetOwnedTextures();
   const auto &rendertargets = GetRendertargets();
 
-  textures.Irradiance = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Irradiance));
+  textures.Irradiance = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Irradiance)).GetTexture();
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {{
                                                                   .blendMode = Graphics::BlendmodeAdditive,
@@ -350,9 +352,10 @@ auto Camera::ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> 
   auto &renderer = Renderer::RendererInstance;
   auto &shaderManager = renderer.GetShaderManager();
 
-  textures.AmbientOcclusionSamples = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusionSamples));
+  textures.AmbientOcclusionSamples =
+      CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusionSamples)).GetTexture();
   if (!textures.PreviousAmbientOcclusion.isValid()) {
-    textures.PreviousAmbientOcclusion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusion));
+    textures.PreviousAmbientOcclusion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusion)).GetTexture();
   }
 
   auto frameRandomState = Math::Random(0, 255);
@@ -370,7 +373,7 @@ auto Camera::ApplyAmbientOcclusion(const Graphics::GraphicsContext &context) -> 
 
   CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
 
-  textures.AmbientOcclusion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusion));
+  textures.AmbientOcclusion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.AmbientOcclusion)).GetTexture();
 
   auto aoDenoiseShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::AO_Denoise));
   CHECK_ERR(aoDenoiseShader->Send(context, "DepthTexture", textures.Depth));
@@ -402,7 +405,7 @@ auto Camera::CalculateShadows(const Graphics::GraphicsContext &context) -> Error
 
   using K = Renderer::ShaderKey;
 
-  textures.ShadowHitFlags = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowHitFlags));
+  textures.ShadowHitFlags = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowHitFlags)).GetTexture();
 
   auto shadowPoint = CHECK_RES(shaderManager.GetShader(K::Shadows_Point));
   auto shadowSpot = CHECK_RES(shaderManager.GetShader(K::Shadows_Spot));
@@ -443,10 +446,10 @@ auto Camera::CalculateShadows(const Graphics::GraphicsContext &context) -> Error
 
   CHECK_ERR(DispatchWithin(context, Math::Uvec3(width, height, 1)));
 
-  textures.ShadowVisibility = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowVisibility));
+  textures.ShadowVisibility = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowVisibility)).GetTexture();
 
   if (!textures.PreviousShadowVisibility.isValid()) {
-    textures.PreviousShadowVisibility = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowVisibility));
+    textures.PreviousShadowVisibility = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.ShadowVisibility)).GetTexture();
   }
 
   CHECK_ERR(UniformWriter::Send(shadowDenoise, {"LayerOffset"}, 0U));
@@ -476,7 +479,7 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
   auto &shaderManager = renderer.GetShaderManager();
   auto &volumeManager = Renderer::RendererInstance.GetVolumeManager();
 
-  textures.VolumetricLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VolumetricLighting));
+  textures.VolumetricLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VolumetricLighting)).GetTexture();
 
   Math::StackVector<Math::Uvec2, 4> offsets{{0, 0}, {1, 1}, {1, 0}, {0, 1}};
   Math::Uvec2 offset = offsets[context.currentFrame % 4U];
@@ -525,7 +528,7 @@ auto Camera::ApplyVolumetricLighting(const Graphics::GraphicsContext &context) -
   CHECK_ERR(Renderer::DrawFullScreen(context));
   Graphics::RenderState::PopDebugMarker();
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(textures.VolumetricLighting));
+  ERR_ASSERT(CHECK_RES(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(textures.VolumetricLighting)));
 
   return {};
 }
@@ -559,15 +562,16 @@ auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawD
 
   CHECK_ERR(renderer.BindLightBuffers(context, lightingShader));
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets(
-      {textures.PreviousShadowVisibility, textures.ShadowHitFlags, textures.AmbientOcclusionSamples, textures.PreviousAmbientOcclusion}));
+  ERR_ASSERT(CHECK_RES(Renderer::GlobalRenderTargetManager.ReleaseRendertargets(
+      {textures.PreviousShadowVisibility, textures.ShadowHitFlags, textures.AmbientOcclusionSamples, textures.PreviousAmbientOcclusion})));
+
   textures.PreviousShadowVisibility = textures.ShadowVisibility;
   textures.PreviousAmbientOcclusion = textures.AmbientOcclusion;
 
   RenderState::SetShader(lightingShader);
   CHECK_ERR(lightingShader->Send(context, "ShadowVisibilityTexture", textures.ShadowVisibility));
 
-  textures.DirectLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.DirectLighting));
+  textures.DirectLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.DirectLighting)).GetTexture();
 
   CHECK_ERR(RenderState::SetRenderTargets(context, {{
                                                        .texture = textures.DirectLighting,
@@ -579,15 +583,15 @@ auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawD
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
   // TODO: Remove Normals, Motion and Material here once we need them for post-processing effects
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
+  ERR_ASSERT(CHECK_RES(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
       textures.Albedo,
       textures.Normal,
       textures.Material,
       textures.Emissive,
       textures.Motion,
-  }));
+  })));
 
-  OwnedTextures.IncomingLight = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.IncomingLight));
+  OwnedTextures.IncomingLight = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.IncomingLight)).GetTexture();
 
   CHECK_ERR(ApplyLightProbes(context, drawData, scene));
 
@@ -611,7 +615,43 @@ auto Camera::ApplyLighting(const Graphics::GraphicsContext &context, const DrawD
 
   CHECK_ERR(Graphics::Draw(context, OwnedTextures.Irradiance));
 
+  textures.ShadowVisibility.reset();
+  textures.AmbientOcclusion.reset();
+
   Graphics::RenderState::PopDebugMarker();
+
+  return {};
+}
+
+auto Camera::ReleaseRendertargets() -> Error {
+  auto &manager = Renderer::GlobalRenderTargetManager;
+
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.Depth));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.PreviousDepth));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.Normal));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.Albedo));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.Material));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.Emissive));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.Motion));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.IncomingLight));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.TAA));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.PreviousTAA));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.DirectLighting));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.Irradiance));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.PostProcessed));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.BloomFinal));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.BloomDownsampleChain));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.ShadowVisibility));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.PreviousShadowVisibility));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.ShadowHitFlags));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.AmbientOcclusion));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.PreviousAmbientOcclusion));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.AmbientOcclusionSamples));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.VolumetricLighting));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.VariableRateMode));
+  CHECK_RES(manager.ReleaseRendertarget(OwnedTextures.VariableRateModeDebug));
+
+  OwnedTextures = AllocatedTextures();
 
   return {};
 }
@@ -626,8 +666,9 @@ auto Camera::CalculateVariance(const GraphicsContext &context) -> Error {
 
   auto varianceShader = CHECK_RES(shaderManager.GetShader(Renderer::ShaderKey::Variance));
 
-  OwnedTextures.VariableRateMode = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VariableRateMode));
-  OwnedTextures.VariableRateModeDebug = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VariableRateModeDebug));
+  OwnedTextures.VariableRateMode = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VariableRateMode)).GetTexture();
+  OwnedTextures.VariableRateModeDebug =
+      CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.VariableRateModeDebug)).GetTexture();
 
   CHECK_ERR(UniformWriter::Send(varianceShader, "AlbedoWeights", settings.AlbedoWeights));
   CHECK_ERR(UniformWriter::Send(varianceShader, "MaterialWeights", settings.MaterialWeights));
@@ -653,7 +694,7 @@ auto Camera::CalculateVariance(const GraphicsContext &context) -> Error {
 // NOLINTNEXTLINE
 auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &drawData, Scene &scene) -> Error {
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
+  CHECK_RES(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
       OwnedTextures.DirectLighting,
       OwnedTextures.PreviousDepth,
       OwnedTextures.Normal,
@@ -664,10 +705,14 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
       OwnedTextures.Irradiance,
   }));
 
+  if (HistoryInvalidated) {
+    CHECK_ERR(ReleaseRendertargets());
+  }
+
   OwnedTextures.PreviousDepth = OwnedTextures.Depth;
 
   if (!OwnedTextures.PreviousDepth.isValid()) {
-    OwnedTextures.PreviousDepth = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.Depth));
+    OwnedTextures.PreviousDepth = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.Depth)).GetTexture();
   }
 
   auto frustum = drawData.Matrices.GetFrustum();
@@ -725,7 +770,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
 
   auto taaShader = CHECK_RES(Renderer::RendererInstance.GetShaderManager().GetShader(Renderer::ShaderKey::TAA));
 
-  OwnedTextures.TAA = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.TemporalAntiAliasing));
+  OwnedTextures.TAA = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.TemporalAntiAliasing)).GetTexture();
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {{
                                                                  .blendMode = Graphics::BlendmodeNone,
@@ -734,7 +779,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
                                                              }}));
 
   if (!OwnedTextures.PreviousTAA.isValid()) {
-    OwnedTextures.PreviousTAA = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.TemporalAntiAliasing));
+    OwnedTextures.PreviousTAA = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.TemporalAntiAliasing)).GetTexture();
   }
 
   Graphics::RenderState::SetShader(taaShader);
@@ -745,7 +790,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
 
   CHECK_ERR(Renderer::DrawFullScreen(context));
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(OwnedTextures.PreviousTAA));
+  ERR_ASSERT(CHECK_RES(Renderer::GlobalRenderTargetManager.ReleaseRendertarget(OwnedTextures.PreviousTAA)));
 
   OwnedTextures.PreviousTAA = OwnedTextures.TAA;
 
@@ -761,10 +806,10 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
     Graphics::RenderState::PopDebugMarker();
   }
 
-  CHECK_ERR(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
-      OwnedTextures.VariableRateMode,
-      OwnedTextures.VariableRateModeDebug,
-  }));
+  // ERR_ASSERT(CHECK_RES(Renderer::GlobalRenderTargetManager.ReleaseRendertargets({
+  //     OwnedTextures.VariableRateMode,
+  //     OwnedTextures.VariableRateModeDebug,
+  // })));
 
   HistoryInvalidated = false;
 
@@ -772,7 +817,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
 }
 
 auto Camera::RenderSkyboxOnly(const Graphics::GraphicsContext &context, const Environment &environment) -> Error {
-  OwnedTextures.DirectLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.DirectLighting));
+  OwnedTextures.DirectLighting = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, Rendertargets.DirectLighting)).GetTexture();
 
   CHECK_ERR(FillSkybox(context, environment));
 
@@ -841,8 +886,8 @@ auto Camera::ConfigureRendertargets() -> void {
   Rendertargets.IncomingLight = Renderer::RendertargetDescriptor{
       .size = Dimensions,
       .format = VK_FORMAT_B10G11R11_UFLOAT_PACK32,
-      .minFilter = VK_FILTER_NEAREST,
-      .magFilter = VK_FILTER_NEAREST,
+      .minFilter = VK_FILTER_LINEAR,
+      .magFilter = VK_FILTER_LINEAR,
       .mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST,
       .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
   };
@@ -886,7 +931,7 @@ auto Camera::ConfigureRendertargets() -> void {
 
   Rendertargets.ShadowVisibility = Renderer::RendertargetDescriptor{
       .size = Dimensions,
-      .arrayLayers = 16, // NOLINT
+      .arrayLayers = 16,
       .format = VK_FORMAT_R8_UNORM,
       .minFilter = VK_FILTER_LINEAR,
       .magFilter = VK_FILTER_LINEAR,

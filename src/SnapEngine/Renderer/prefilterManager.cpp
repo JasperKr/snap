@@ -95,21 +95,17 @@ auto LightprobePrefilterManager::Initialize( // NOLINT
 
   CHECK_ERR(CreateStorageTextures(context, EnvMapReallocationStep));
 
-  // NOLINTNEXTLINE
-  Cameras = {};
+  Camera = CHECK_RES(Engine::Camera::Create(context, 90.0F, {PrefilteredRadianceCubeMapSize, PrefilteredRadianceCubeMapSize}, 0.1F, 100.0F));
 
-  for (int i = 0; i < Cameras.capacity(); i++) {
-    Cameras.emplace_back(CHECK_RES(Engine::Camera::Create(context, 90.0F, {PrefilteredRadianceCubeMapSize, PrefilteredRadianceCubeMapSize}, 0.1F, 100.0F)));
+  Camera.SetPersistentTextureSettings({
+      .IncomingLight = true,
+  });
 
-    Cameras.back().SetPersistentTextureSettings({
-        .IncomingLight = true,
-    });
-    Cameras.back().SetSettings(Camera::Settings{
-        .DoPostProcessing = false,
-        .DrawPrimitives = false,
-        .SpecularEnabled = false,
-    });
-  }
+  Camera.SetSettings(Camera::Settings{
+      .DoPostProcessing = false,
+      .DrawPrimitives = false,
+      .SpecularEnabled = false,
+  });
 
   return {};
 }
@@ -371,25 +367,7 @@ auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsCon
 
   for (int i = 0; i < Transforms.size(); i++) {
     auto cubemapTransfrom = Transforms.at(i);
-    cubemapTransfrom.SetPosition(transform.GetPosition());
-    cubemapTransfrom.UpdateLocalMatrix();
-    cubemapTransfrom.UpdateWorldMatrix(nullptr);
 
-    Engine::CameraMatrices drawMatrices = CameraMatrices;
-
-    const auto &worldMatrix = cubemapTransfrom.GetWorldMatrix();
-
-    drawMatrices.ViewMatrix = worldMatrix.InverseTranspose();
-    drawMatrices.InverseViewMatrix = worldMatrix;
-    drawMatrices.RotationMatrix = drawMatrices.ViewMatrix.AsMatrix3x3();
-    drawMatrices.InverseRotationMatrix = drawMatrices.RotationMatrix.Transpose();
-    drawMatrices.Update();
-
-    CHECK_ERR(Cameras.at(i).WriteToBuffer(drawMatrices, cubemapTransfrom));
-  }
-
-  for (int i = 0; i < Transforms.size(); i++) {
-    auto cubemapTransfrom = Transforms.at(i);
     cubemapTransfrom.SetPosition(transform.GetPosition());
     cubemapTransfrom.UpdateLocalMatrix();
     cubemapTransfrom.UpdateWorldMatrix(nullptr);
@@ -409,11 +387,11 @@ auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsCon
         .Matrices = drawMatrices,
     };
 
-    Cameras.at(i).InvalidateHistory();
-    CHECK_ERR(Cameras.at(i).Render(context, drawData, scene));
-  }
+    CHECK_ERR(Camera.WriteToBuffer(drawMatrices, cubemapTransfrom));
 
-  for (int i = 0; i < Transforms.size(); i++) {
+    Camera.InvalidateHistory();
+    CHECK_ERR(Camera.Render(context, drawData, scene));
+
     Graphics::RenderState::SetShader({});
 
     CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {
@@ -424,7 +402,7 @@ auto LightprobePrefilterManager::PrefilterLightProbe(const Graphics::GraphicsCon
                                                                    },
                                                                }));
 
-    CHECK_ERR(Graphics::Draw(context, Cameras.at(i).GetOwnedTextures().IncomingLight));
+    CHECK_ERR(Graphics::Draw(context, Camera.GetOwnedTextures().IncomingLight));
   }
 
   CHECK_ERR(PrefilterEnvironmentMap(context, SceneCubemap, lightProbe));
@@ -451,9 +429,10 @@ auto LightprobePrefilterManager::PrefilterEnvironment(const Graphics::GraphicsCo
     drawMatrices.InverseRotationMatrix = drawMatrices.RotationMatrix.Transpose();
     drawMatrices.Update();
 
-    CHECK_ERR(Cameras.at(i).WriteToBuffer(drawMatrices, cubemapTransfrom));
+    CHECK_ERR(Camera.WriteToBuffer(drawMatrices, cubemapTransfrom));
 
-    CHECK_ERR(Cameras.at(i).RenderSkyboxOnly(context, Environment{.SkyboxTexture = skyboxTexture}));
+    Camera.InvalidateHistory();
+    CHECK_ERR(Camera.RenderSkyboxOnly(context, Environment{.SkyboxTexture = skyboxTexture}));
 
     Graphics::RenderState::SetShader({});
 
@@ -465,7 +444,7 @@ auto LightprobePrefilterManager::PrefilterEnvironment(const Graphics::GraphicsCo
                                                                    },
                                                                }));
 
-    CHECK_ERR(Graphics::Draw(context, Cameras.at(i).GetOwnedTextures().DirectLighting));
+    CHECK_ERR(Graphics::Draw(context, Camera.GetOwnedTextures().DirectLighting));
   }
 
   CHECK_ERR(PrefilterEnvironmentMap(context, SceneCubemap, lightProbe));
@@ -482,7 +461,7 @@ auto LightprobePrefilterManager::Deinitialize() -> void {
 
   SceneCubemap.reset();
   EnvMapArrayViews.clear();
-  Cameras.clear();
+  Camera = {};
 
   TemporaryRadianceMap.reset();
 

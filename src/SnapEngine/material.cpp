@@ -5,6 +5,7 @@
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Wrap/Helpers/lua_enum.hpp"
+#include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
 #include "renderer.hpp"
 #include <cstdint>
@@ -28,15 +29,7 @@ const static ::LuaWrap::LuaEnum<VkCullModeFlags> LuaCullModeEnum("CullMode", {
                                                                              });
 
 auto LuaMaterial::wrap_setTextureUVIndex(lua_State *state) -> int {
-  auto *entity = ::LuaWrap::EntityFromLua(state, 1);
-  if (entity == nullptr) {
-    return luaL_error(state, "Invalid Entity");
-  }
-
-  auto *material = entity->try_get_mut<Material>();
-  if (material == nullptr) {
-    return luaL_error(state, "Entity does not have a Material component");
-  }
+  auto *material = LUA_CK_RES(::LuaWrap::ComponentFromLua<Material>(state, 1));
 
   auto textureType = luaL_checkinteger(state, 2);
   if (textureType < 0 || textureType >= static_cast<int>(material->textureUVIndices.size())) {
@@ -53,15 +46,8 @@ auto LuaMaterial::wrap_setTextureUVIndex(lua_State *state) -> int {
 }
 
 auto LuaMaterial::wrap_getTextureUVIndex(lua_State *state) -> int {
-  auto *entity = ::LuaWrap::EntityFromLua(state, 1);
-  if (entity == nullptr) {
-    return luaL_error(state, "Invalid Entity");
-  }
+  auto *material = LUA_CK_RES(::LuaWrap::ComponentFromLua<Material>(state, 1));
 
-  auto *material = entity->try_get_mut<Material>();
-  if (material == nullptr) {
-    return luaL_error(state, "Entity does not have a Material component");
-  }
   auto textureType = luaL_checkinteger(state, 2);
   if (textureType < 0 || textureType >= static_cast<int>(material->textureUVIndices.size())) {
     return luaL_error(state, "Invalid texture type index");
@@ -73,15 +59,7 @@ auto LuaMaterial::wrap_getTextureUVIndex(lua_State *state) -> int {
 }
 
 auto LuaMaterial::wrap_setCullMode(lua_State *state) -> int {
-  auto *entity = ::LuaWrap::EntityFromLua(state, 1);
-  if (entity == nullptr) {
-    return luaL_error(state, "Invalid Entity");
-  }
-
-  auto *material = entity->try_get_mut<Material>();
-  if (material == nullptr) {
-    return luaL_error(state, "Entity does not have a Material component");
-  }
+  auto *material = LUA_CK_RES(::LuaWrap::ComponentFromLua<Material>(state, 1));
 
   auto result = LuaCullModeEnum.FromLua(state, 2);
   if (Error::IsError(result)) {
@@ -93,15 +71,7 @@ auto LuaMaterial::wrap_setCullMode(lua_State *state) -> int {
 }
 
 auto LuaMaterial::wrap_getCullMode(lua_State *state) -> int {
-  auto *entity = ::LuaWrap::EntityFromLua(state, 1);
-  if (entity == nullptr) {
-    return luaL_error(state, "Invalid Entity");
-  }
-
-  auto *material = entity->try_get_mut<Material>();
-  if (material == nullptr) {
-    return luaL_error(state, "Entity does not have a Material component");
-  }
+  auto *material = LUA_CK_RES(::LuaWrap::ComponentFromLua<Material>(state, 1));
 
   auto result = LuaCullModeEnum.ToLua(state, material->cullMode);
   if (Error::IsError(result)) {
@@ -112,15 +82,7 @@ auto LuaMaterial::wrap_getCullMode(lua_State *state) -> int {
 }
 
 auto LuaMaterial::wrap_setAlphaMode(lua_State *state) -> int {
-  auto *entity = ::LuaWrap::EntityFromLua(state, 1);
-  if (entity == nullptr) {
-    return luaL_error(state, "Invalid Entity");
-  }
-
-  auto *material = entity->try_get_mut<Material>();
-  if (material == nullptr) {
-    return luaL_error(state, "Entity does not have a Material component");
-  }
+  auto *material = LUA_CK_RES(::LuaWrap::ComponentFromLua<Material>(state, 1));
 
   auto result = LuaAlphaModeEnum.FromLua(state, 2);
   if (Error::IsError(result)) {
@@ -132,15 +94,7 @@ auto LuaMaterial::wrap_setAlphaMode(lua_State *state) -> int {
 }
 
 auto LuaMaterial::wrap_getAlphaMode(lua_State *state) -> int {
-  auto *entity = ::LuaWrap::EntityFromLua(state, 1);
-  if (entity == nullptr) {
-    return luaL_error(state, "Invalid Entity");
-  }
-
-  auto *material = entity->try_get_mut<Material>();
-  if (material == nullptr) {
-    return luaL_error(state, "Entity does not have a Material component");
-  }
+  auto *material = LUA_CK_RES(::LuaWrap::ComponentFromLua<Material>(state, 1));
 
   auto result = LuaAlphaModeEnum.ToLua(state, material->alphaMode);
   if (Error::IsError(result)) {
@@ -260,7 +214,7 @@ auto Material::DrawGUI(flecs::entity entity) -> void {
   dirty = true;
 }
 
-auto Material::Update(Graphics::GraphicsContext &context) -> Error {
+auto Material::Update(const Graphics::GraphicsContext &context) -> Error {
   if (!dirty && obtainedSSBOIndex) {
     return {};
   }
@@ -289,7 +243,7 @@ inline auto WriteAddress(const Graphics::GraphicsContext &context, Ref<Graphics:
   return {};
 }
 
-auto Material::Write(Graphics::GraphicsContext &context) -> Error {
+auto Material::Write(const Graphics::GraphicsContext &context) -> Error {
 
   struct MaterialData {
     Math::Vec4 albedoFactor;

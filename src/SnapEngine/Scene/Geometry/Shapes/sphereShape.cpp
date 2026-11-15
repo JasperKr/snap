@@ -1,0 +1,11 @@
+#include "sphereShape.hpp"
+
+namespace Engine::Physics {
+
+static auto Create(lua_State *state) -> int { return 0; }
+
+auto LuaSphereShape::wrap_GetRadius(lua_State *state) -> int { return 0; }
+auto LuaSphereShape::wrap_GetMass(lua_State *state) -> int { return 0; }
+auto LuaSphereShape::wrap_GetInertiaTensor(lua_State *state) -> int { return 0; }
+
+} // namespace Engine::Physics

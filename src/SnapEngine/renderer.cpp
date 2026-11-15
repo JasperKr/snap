@@ -32,75 +32,41 @@ auto Renderer::InitializeDefaultMaterial(Graphics::GraphicsContext &context) -> 
   constexpr Color CheckerboardColorPrimary = {0.0F, 0.0F, 0.0F, 1.0F};
   constexpr Color CheckerboardColorSecondary = {1.0F, 0.0F, 1.0F, 1.0F};
 
+  constexpr Color CheckerboardMaterialPrimary = {0.0F, 1.0F, 0.0F, 0.0F};
+  constexpr Color CheckerboardMaterialSecondary = {0.0F, 0.0F, 1.0F, 0.0F};
+
   Image::ImageData defaultTextureData({CheckerboardTextureSize, CheckerboardTextureSize, 1}, VK_FORMAT_R8G8B8A8_UNORM);
+  Image::ImageData defaultMaterialData({CheckerboardTextureSize, CheckerboardTextureSize, 1}, VK_FORMAT_R8G8B8A8_UNORM);
 
   for (uint32_t column = 0; column < CheckerboardTextureSize; ++column) {
     for (uint32_t row = 0; row < CheckerboardTextureSize; ++row) {
       bool isPrimaryColor = (row % 2 == 0 && column % 2 == 0) || (row % 2 == 1 && column % 2 == 1);
 
       Color pixelColor = isPrimaryColor ? CheckerboardColorPrimary : CheckerboardColorSecondary;
+      Color pixelMaterial = isPrimaryColor ? CheckerboardMaterialPrimary : CheckerboardMaterialSecondary;
 
       CHECK_ERR(defaultTextureData.SetColor({column, row, 0}, pixelColor));
+      CHECK_ERR(defaultMaterialData.SetColor({column, row, 0}, pixelMaterial));
     }
   }
 
-  auto defaultTextureResult = Graphics::Texture::FromMemory(context, defaultTextureData, VK_IMAGE_USAGE_SAMPLED_BIT);
+  auto defaultTexture = CHECK_RES(Graphics::Texture::FromMemory(context, defaultTextureData, VK_IMAGE_USAGE_SAMPLED_BIT));
+  auto materialTexture = CHECK_RES(Graphics::Texture::FromMemory(context, defaultMaterialData, VK_IMAGE_USAGE_SAMPLED_BIT));
 
-  if (Error::IsError(defaultTextureResult)) {
-    return defaultTextureResult.error();
-  }
+  NoMaterial = Material();
 
-  Image::ImageData defaultNormalTextureData({1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM);
+  NoMaterial.name = "No Material";
+  NoMaterial.albedoTexture = defaultTexture;
+  NoMaterial.albedoTexture->SetFilter(VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST);
+  NoMaterial.metallicRoughnessTexture = materialTexture;
+  NoMaterial.metallicRoughnessTexture->SetFilter(VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST);
+  NoMaterial.cullMode = VK_CULL_MODE_NONE;
+  NoMaterial.alphaMode = AlphaMode::Opaque;
 
-  const Color pixelColor = {0.5F, 0.5F, 1.0F, 1.0F};
-  CHECK_ERR(defaultNormalTextureData.SetColor({}, pixelColor));
-
-  auto defaultNormalTextureResult = Graphics::Texture::FromMemory(context, defaultNormalTextureData, VK_IMAGE_USAGE_SAMPLED_BIT);
-
-  if (Error::IsError(defaultNormalTextureResult)) {
-    return defaultNormalTextureResult.error();
-  }
-  auto defaultNormalTexture = defaultNormalTextureResult.value();
-
-  Image::ImageData defaultBlackTextureData({1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM);
-  const Color blackColor = {0.0F, 0.0F, 0.0F, 1.0F};
-  CHECK_ERR(defaultBlackTextureData.SetColor({}, blackColor));
-
-  auto defaultBlackTextureResult = Graphics::Texture::FromMemory(context, defaultBlackTextureData, VK_IMAGE_USAGE_SAMPLED_BIT);
-  if (Error::IsError(defaultBlackTextureResult)) {
-    return defaultBlackTextureResult.error();
-  }
-  auto defaultBlackTexture = defaultBlackTextureResult.value();
-
-  auto defaultWhiteTexture = CHECK_RES(Graphics::Texture::GetDefault(context, VK_FORMAT_R8G8B8A8_UNORM, Graphics::TextureType::DEFAULT));
-
-  auto material = Material();
-
-  material.name = "No Material";
-  material.albedoTexture = defaultTextureResult.value();
-  material.albedoTexture->SetFilter(VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST);
-  material.metallicRoughnessTexture = material.albedoTexture;
-  material.emissiveTexture = defaultWhiteTexture;
-  material.normalTexture = defaultNormalTexture;
-  material.reflectanceTexture = defaultWhiteTexture;
-
-  material.cullMode = VK_CULL_MODE_NONE;
-  material.alphaMode = AlphaMode::Opaque;
-
-  NoMaterial = material;
-
-  material = Material();
-  material.name = "Default Material";
-  material.albedoTexture = defaultWhiteTexture;
-  material.metallicRoughnessTexture = defaultWhiteTexture;
-  material.emissiveTexture = defaultWhiteTexture;
-  material.normalTexture = defaultNormalTexture;
-  material.reflectanceTexture = defaultWhiteTexture;
-
-  material.cullMode = VK_CULL_MODE_BACK_BIT;
-  material.alphaMode = AlphaMode::Opaque;
-
-  DefaultMaterial = material;
+  DefaultMaterial = Material();
+  DefaultMaterial.name = "Default Material";
+  DefaultMaterial.cullMode = VK_CULL_MODE_BACK_BIT;
+  DefaultMaterial.alphaMode = AlphaMode::Opaque;
 
   return {};
 }

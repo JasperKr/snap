@@ -161,34 +161,34 @@ end
 
 local isDown = {}
 function snap.mousepressed(x, y, button)
-  if not GetWantCaptureMouse() or snap.internal.mouseOverViewport then
-    isDown[button] = true
+  isDown[button] = true
 
+  if not GetWantCaptureMouse() or snap.internal.mouseOverViewport then
     SnapEngine.keybindings.pressed(button)
   end
 end
 
 function snap.mousereleased(x, y, button)
-  if not GetWantCaptureMouse() or snap.internal.mouseOverViewport then
-    isDown[button] = false
+  isDown[button] = false
 
+  if not GetWantCaptureMouse() or snap.internal.mouseOverViewport then
     SnapEngine.keybindings.released(button)
   end
 end
 
 function snap.keypressed(key, scancode, isrepeat)
+  isDown[key] = true
   if isrepeat then return end
 
   if not GetWantCaptureKeyboard() or snap.internal.mouseOverViewport then
-    isDown[key] = true
     SnapEngine.keybindings.pressed(key)
   end
 end
 
 function snap.keyreleased(key)
-  if not GetWantCaptureKeyboard() or snap.internal.mouseOverViewport then
-    isDown[key] = false
+  isDown[key] = false
 
+  if not GetWantCaptureKeyboard() or snap.internal.mouseOverViewport then
     SnapEngine.keybindings.released(key)
   end
 end

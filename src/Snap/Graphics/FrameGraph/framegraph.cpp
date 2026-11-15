@@ -486,9 +486,9 @@ auto FrameGraph::SyncMask(CommandLevel start, CommandLevel end, VkAccessFlags2 l
         const uint64_t mask = 1ULL << bitIndex;
 
         const bool srcMatch =
-            // Match the sync's source stage with our current bit
+            // Match the sync's source stage with the current bit
             (barrier.srcStageMask & lastWritePipeline) != 0ULL &&
-            // Match the sync's source access with our resource's last usage
+            // Match the sync's source access with the resource's last usage
             (barrier.srcAccessMask & lastWriteAccess) != 0ULL;
 
         if (srcMatch) {

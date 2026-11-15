@@ -108,10 +108,10 @@ struct Material : Identifiable {
   }
 
   auto DrawGUI(flecs::entity entity) -> void;
-  auto Update(Graphics::GraphicsContext &context) -> Error;
+  auto Update(const Graphics::GraphicsContext &context) -> Error;
 
 private:
-  auto Write(Graphics::GraphicsContext &context) -> Error;
+  auto Write(const Graphics::GraphicsContext &context) -> Error;
 };
 
 struct LuaMaterial : LuaWrap::LuaECSObject {

@@ -10,16 +10,27 @@
 #include "Modules/Math/quaternion.hpp"
 #include "Modules/Math/ray.hpp"
 #include "Modules/Math/vector.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/window.hpp"
 #include "Renderer/shaderManager.hpp"
+#include "Scene/Geometry/Shapes/boxShape.hpp"
+#include "Scene/Geometry/Shapes/capsuleShape.hpp"
+#include "Scene/Geometry/Shapes/convexHullShape.hpp"
+#include "Scene/Geometry/Shapes/cylinderShape.hpp"
+#include "Scene/Geometry/Shapes/heightFieldShape.hpp"
+#include "Scene/Geometry/Shapes/meshShape.hpp"
+#include "Scene/Geometry/Shapes/planeShape.hpp"
+#include "Scene/Geometry/Shapes/sphereShape.hpp"
+#include "Scene/Geometry/Shapes/taperedCapsuleShape.hpp"
+#include "Scene/Geometry/Shapes/taperedCylinderShape.hpp"
 #include "Scene/Geometry/boundingBox.hpp"
 #include "Scene/Geometry/geometry.hpp"
+#include "Scene/Geometry/rigidbody.hpp"
 #include "Scene/cameraMatrices.hpp"
 #include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
+#include "flecs/addons/cpp/c_types.hpp"
 #include "flecs/addons/cpp/entity.hpp"
 #include "renderer.hpp"
 #include <algorithm>
@@ -30,6 +41,7 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace Engine {
@@ -165,10 +177,78 @@ auto DrawEntityHierarchy(const flecs::entity &entity, std::string_view filter, s
   ImGui::PopID();
 }
 
+inline auto DrawAddComponentPopup(flecs::entity parent) {
+  if (ImGui::BeginMenu("Physics")) {
+    if (ImGui::BeginMenu("Shapes")) {
+      if (ImGui::MenuItem("Box shape")) {
+        parent.add<Physics::BoxShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Sphere shape")) {
+        parent.add<Physics::SphereShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Capsule shape")) {
+        parent.add<Physics::CapsuleShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Tapered capsule shape")) {
+        parent.add<Physics::TaperedCapsuleShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Cylinder shape")) {
+        parent.add<Physics::CylinderShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Tapered cylinder shape")) {
+        parent.add<Physics::TaperedCylinderShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Convex hull shape")) {
+        parent.add<Physics::ConvexHullShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Plane shape")) {
+        parent.add<Physics::PlaneShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Mesh shape")) {
+        parent.add<Physics::MeshShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (ImGui::MenuItem("Height field shape")) {
+        parent.add<Physics::HeightFieldShape>();
+        ImGui::CloseCurrentPopup();
+      }
+
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::MenuItem("Rigidbody")) {
+      parent.add<Physics::Rigidbody>();
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndMenu();
+  }
+}
+
 inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> void {
   if (Editor::SelectedEntities.empty()) {
     return;
   }
+
+  // Does this need to be destroyed?
+  auto transform = scene->world.component<Transform>();
 
   ImGui::PushID(static_cast<int>(entity.id()));
   entity.each([&](flecs::id identifier) -> auto {
@@ -205,18 +285,30 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
       }
       ImGui::PopFont();
       Gui::PopBlankButtonStyle();
+      bool removed = false;
 
       if (ImGui::BeginPopup("Component options")) {
         Gui::PushBlankButtonStyle();
-        if (ImGui::Button("Remove component")) {
+
+        bool isTransform = componentEntity == transform;
+        ImGui::BeginDisabled(isTransform);
+
+        if (ImGui::Button("Remove component") && !isTransform) {
+          entity.remove(componentEntity);
+
+          removed = true;
         }
+
+        ImGui::EndDisabled();
 
         Gui::PopBlankButtonStyle();
         ImGui::EndPopup();
       }
 
       if (node) {
-        iter->second.func(entity);
+        if (!removed) {
+          iter->second.func(entity);
+        }
 
         ImGui::TreePop();
       }
@@ -230,15 +322,7 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
   }
 
   if (ImGui::BeginPopup("Add component")) {
-    scene->world.each([&](flecs::id identifier) -> auto {
-      if (!identifier.is_entity()) {
-        return;
-      }
-
-      auto componentEntity = identifier.entity();
-
-      ImGui::Selectable(componentEntity.name());
-    });
+    DrawAddComponentPopup(entity);
 
     ImGui::EndPopup();
   }

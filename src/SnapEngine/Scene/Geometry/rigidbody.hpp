@@ -13,7 +13,7 @@
 namespace Engine::Physics {
 
 struct Rigidbody {
-  JPH::Body body;
+  JPH::Body *body;
 
   auto DrawGUI(flecs::entity entity) const -> void {}
 };

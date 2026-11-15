@@ -106,8 +106,14 @@ inline auto AddDrawItem(std::vector<DrawItem> &OpaqueDrawItems, std::vector<Draw
     material = &Renderer::RendererInstance.GetNoMaterial();
   }
 
-  const auto &worldBounds = entity.get<WorldBounds>();
-  const auto &boundingBox = worldBounds.Bounds;
+  const auto *worldBounds = entity.try_get<WorldBounds>();
+
+  [[unlikely]]
+  if (worldBounds == nullptr) {
+    return;
+  }
+
+  const auto &boundingBox = worldBounds->Bounds;
 
   if (!frustum.IntersectsAABB(boundingBox)) {
     return; // Skip entities that are outside the camera frustum
@@ -136,7 +142,7 @@ inline auto AddDrawItem(std::vector<DrawItem> &OpaqueDrawItems, std::vector<Draw
 auto Scene::PrepareDrawLists(const GraphicsContext &context, Frustum &frustum) -> Error {
   auto &renderer = Renderer::RendererInstance;
 
-  renderer.NewFrame();
+  CHECK_ERR(renderer.NewFrame(context));
 
   for (const auto &system : preRender) {
     system.run();
@@ -240,7 +246,7 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
 
   // Depth Opaque prepass
 
-  textures.Depth = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Depth));
+  textures.Depth = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Depth)).GetTexture();
 
   RenderState::SetDepthMode(true, true, VK_COMPARE_OP_GREATER);
   RenderState::SetWindingOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
@@ -272,11 +278,11 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
 
   Graphics::RenderState::PopDebugMarker();
 
-  textures.Albedo = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Albedo));
-  textures.Normal = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Normal));
-  textures.Material = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Material));
-  textures.Emissive = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Emissive));
-  textures.Motion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Motion));
+  textures.Albedo = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Albedo)).GetTexture();
+  textures.Normal = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Normal)).GetTexture();
+  textures.Material = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Material)).GetTexture();
+  textures.Emissive = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Emissive)).GetTexture();
+  textures.Motion = CHECK_RES(Renderer::GlobalRenderTargetManager.GetRendertarget(context, rendertargets.Motion)).GetTexture();
 
   RenderState::SetDepthMode(true, false, VK_COMPARE_OP_EQUAL);
   RenderState::SetShader(deferred);

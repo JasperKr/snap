@@ -14,19 +14,19 @@ uniform Sampler2D<float2>.Handle MotionTexture;
 
 // Samples a texture with Catmull-Rom filtering, using 9 texture fetches instead of 16.
 // See http://vec3.ca/bicubic-filtering-in-fewer-taps/ for more details
-float3 SampleTextureCatmullRom(Sampler2D<float3> tex, float2 uv, float2 texSize, float2 texelSize) {
+float3 SampleTextureCatmullRom(Sampler2D<float3>.Handle tex, float2 uv, float2 texSize, float2 texelSize) {
   // We're going to sample a a 4x4 grid of texels surrounding the target UV coordinate. We'll do this by rounding
-  // down the sample location to get the exact center of our "starting" texel. The starting texel will be at
+  // down the sample location to get the exact center of the "starting" texel. The starting texel will be at
   // location [1, 1] in the grid, where [0, 0] is the top left corner.
   float2 samplePos = uv * texSize;
   float2 texPos1 = floor(samplePos - 0.5f) + 0.5f;
 
-  // Compute the fractional offset from our starting texel to our original sample location, which we'll
-  // feed into the Catmull-Rom spline function to get our filter weights.
+  // Compute the fractional offset from the starting texel to the original sample location, which we'll
+  // feed into the Catmull-Rom spline function to get the filter weights.
   float2 f = samplePos - texPos1;
 
   // Compute the Catmull-Rom weights using the fractional offset that we calculated earlier.
-  // These equations are pre-expanded based on our knowledge of where the texels will be located,
+  // These equations are pre-expanded based on the knowledge of where the texels will be located,
   // which lets us avoid having to evaluate a piece-wise function.
   float2 w0 = f * (-0.5f + f * (1.0f - 0.5f * f));
   float2 w1 = 1.0f + f * f * (-2.5f + 1.5f * f);

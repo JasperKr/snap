@@ -63,7 +63,7 @@ private:
 
   std::array<bool, MaxEnvMaps> EnvMapUsed{};
 
-  Math::StackVector<Engine::Camera, 6> Cameras;
+  Engine::Camera Camera;
 
   std::vector<Ref<Graphics::Texture>> EnvMapArrayViews;
 

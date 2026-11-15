@@ -9,6 +9,7 @@
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Renderer/rendertargetManager.hpp"
+#include "Scene/camera.hpp"
 #include "renderer.hpp"
 #include <vulkan/vulkan_core.h>
 
@@ -78,7 +79,7 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context, Camera &
   const auto &renderTargets = camera.GetRendertargets();
   auto &textures = camera.GetOwnedTextures();
 
-  textures.BloomDownsampleChain = CHECK_RES(GlobalRenderTargetManager.GetRendertarget(context, renderTargets.BloomDownsampleChain));
+  textures.BloomDownsampleChain = CHECK_RES(GlobalRenderTargetManager.GetRendertarget(context, renderTargets.BloomDownsampleChain)).GetTexture();
 
   CHECK_ERR(UpdateViews(context, camera));
 
@@ -156,7 +157,8 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context, Camera &
 
   CHECK_ERR(DrawFullScreen(context));
 
-  textures.BloomFinal = CHECK_RES(GlobalRenderTargetManager.GetRendertarget(context, renderTargets.IncomingLight));
+  auto descriptor = CHECK_RES(GlobalRenderTargetManager.GetRendertarget(context, renderTargets.IncomingLight));
+  textures.BloomFinal = CHECK_RES(descriptor.GetTexture(context, Camera::BaseMipRange));
 
   CHECK_ERR(Graphics::RenderState::SetRenderTargets(context, {Graphics::RenderState::RenderTarget{
                                                                  .blendMode = Graphics::BlendmodeAdditive,
@@ -168,7 +170,7 @@ auto BloomManager::ApplyBloom(const Graphics::GraphicsContext &context, Camera &
   CHECK_ERR(Graphics::Draw(context, textures.TAA));
   CHECK_ERR(Graphics::Draw(context, DownsampleChainViews.at(1)));
 
-  CHECK_ERR(GlobalRenderTargetManager.ReleaseRendertarget(textures.BloomDownsampleChain));
+  ERR_ASSERT(CHECK_RES(GlobalRenderTargetManager.ReleaseRendertarget(textures.BloomDownsampleChain)));
 
   return {};
 }

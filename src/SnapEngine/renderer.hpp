@@ -220,7 +220,14 @@ struct Renderer {
   auto GetPrefilterManager() -> LightprobePrefilterManager & { return PrefilterManager; }
   auto GetPrefilterManager() const -> const LightprobePrefilterManager & { return PrefilterManager; }
 
-  auto NewFrame() -> void { ModelTransformBufferElementCount = 0; }
+  auto NewFrame(const Graphics::GraphicsContext &context) -> Error {
+    CHECK_ERR(NoMaterial.Update(context));
+    CHECK_ERR(DefaultMaterial.Update(context));
+
+    ModelTransformBufferElementCount = 0;
+
+    return {};
+  }
 
   auto GetLightProbeBuffer() -> Ref<Graphics::StructuredBuffer> { return LightProbeBuffer; }
 

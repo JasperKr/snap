@@ -6,7 +6,6 @@
 #include "Graphics/texture.hpp"
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/type.hpp"
@@ -31,7 +30,7 @@ enum class AgxLook : uint8_t {
   Golden,
 };
 
-struct Camera {
+struct Camera { // NOLINT
   friend struct LuaCamera;
 
   struct Settings {
@@ -251,8 +250,18 @@ struct Camera {
   [[nodiscard]] auto GetDimensions() -> Math::Uvec2 { return Dimensions; }
 
   auto InvalidateHistory() -> void { HistoryInvalidated = true; }
+  auto ReleaseRendertargets() -> Error;
 
   auto DrawGUI(flecs::entity entity) -> void;
+
+  static constexpr VkImageSubresourceRange BaseMipRange = VkImageSubresourceRange{
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+  };
+
+  ~Camera() { auto err = ReleaseRendertargets(); }
 
 private:
   Settings settings;

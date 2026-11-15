@@ -5,6 +5,7 @@
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <cstdint>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 namespace Engine::Renderer {
@@ -34,9 +35,25 @@ struct RendertargetDescriptor {
   // Score using the rendertarget of this descriptor as a candidate for the other descriptor's requirements.
   [[nodiscard]] auto Score(const RendertargetDescriptor &other) const -> int;
   [[nodiscard]] auto GetMipmapCount() const -> uint32_t;
+  [[nodiscard]] auto ToString() const -> std::string;
 
   auto operator==(const RendertargetDescriptor &other) const -> bool;
   auto operator!=(const RendertargetDescriptor &other) const -> bool;
+};
+
+struct RendertargetHandle {
+  auto GetTexture() -> Ref<Graphics::Texture>;
+  auto GetTexture(const Graphics::GraphicsContext &context, VkImageSubresourceRange range) -> Result<Ref<Graphics::Texture>>;
+
+private:
+  friend struct RenderTargetManager;
+
+  RendertargetHandle() = default;
+  RendertargetHandle(RendertargetDescriptor desc, const Ref<Graphics::Texture> &tex) : descriptor(desc), texture(tex) {}
+
+  RendertargetDescriptor descriptor;
+  Ref<Graphics::Texture> texture;
+  std::vector<Ref<Graphics::Texture>> views;
 };
 
 struct RendertargetDescriptorHash {
@@ -44,9 +61,9 @@ struct RendertargetDescriptorHash {
 };
 
 struct RenderTargetManager {
-  auto GetRendertarget(const struct ::Graphics::GraphicsContext &context, const RendertargetDescriptor &descriptor) -> Result<Ref<::Graphics::Texture>>;
-  auto ReleaseRendertarget(const Ref<::Graphics::Texture> &texture) -> Error;
-  auto ReleaseRendertargets(const std::vector<Ref<::Graphics::Texture>> &textures) -> Error;
+  auto GetRendertarget(const struct ::Graphics::GraphicsContext &context, const RendertargetDescriptor &descriptor) -> Result<RendertargetHandle>;
+  auto ReleaseRendertarget(const Ref<::Graphics::Texture> &texture) -> Result<bool>;
+  auto ReleaseRendertargets(const std::vector<Ref<::Graphics::Texture>> &textures) -> Result<bool>;
 
   [[nodiscard]] auto GetRendertargetCount() const -> size_t { return Rendertargets.size(); }
   auto Update() -> void;
@@ -55,15 +72,13 @@ struct RenderTargetManager {
 
 private:
   struct RendertargetEntry {
-    RendertargetDescriptor descriptor;
     bool inUse = false;
-    Ref<::Graphics::Texture> texture;
     uint64_t lastUsedFrame = 0;
+    RendertargetHandle handle;
+    RendertargetDescriptor originalDescriptor;
   };
 
   std::vector<RendertargetEntry> Rendertargets;
-
-  static auto ReconfigureTexture(const RendertargetDescriptor &descriptor, const Ref<::Graphics::Texture> &texture) -> void;
 
   auto Cleanup(bool evictAll = false) -> void;
 };

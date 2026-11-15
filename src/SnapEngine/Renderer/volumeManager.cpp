@@ -5,7 +5,6 @@
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/quaternion.hpp"
 #include "Modules/Math/vector.hpp"
-#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Scene/volume.hpp"
@@ -66,7 +65,7 @@ auto VolumeManager::AddInstance(const Graphics::GraphicsContext &context, const 
   uint32_t index = CHECK_RES(VolumeTLAS->AddInstance(InstanceBLAS, transform, VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR));
 
   // No resizing currently, who has more than 1024 volumes anyways
-  CHECK_ERR(index < InitialVolumeBufferSize);
+  ERR_ASSERT(index < InitialVolumeBufferSize);
 
   uint32_t textureAddress = 0UL;
   uint32_t samplerAddress = 0UL;

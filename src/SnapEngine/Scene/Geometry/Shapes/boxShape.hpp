@@ -13,19 +13,19 @@
 
 namespace Engine::Physics {
 
-struct BoxCollider {
+struct BoxShape {
   JPH::BoxShape shape;
 
   auto DrawGUI(flecs::entity entity) const -> void {}
 };
 
-static const Type boxColliderType = Type("BoxCollider");
+static const Type boxShapeType = Type("BoxShape");
 
 struct LuaBoxShape : LuaWrap::LuaECSObject {
   explicit LuaBoxShape(const flecs::entity &entity) : LuaECSObject(entity) {}
 
-  static auto GetType() -> const Type * { return &boxColliderType; }
-  auto GetInstanceType() const -> const Type * override { return &boxColliderType; }
+  static auto GetType() -> const Type * { return &boxShapeType; }
+  auto GetInstanceType() const -> const Type * override { return &boxShapeType; }
 
   static auto FromEntity(const flecs::entity &entity) -> Ref<LuaBoxShape> { return Ref<LuaBoxShape>::Make(entity); }
 
@@ -36,7 +36,7 @@ struct LuaBoxShape : LuaWrap::LuaECSObject {
   static auto wrap_GetInertiaTensor(lua_State *state) -> int;
 };
 
-const ::LuaWrap::LuaComponent BoxColliderComponent{{
+const ::LuaWrap::LuaComponent BoxShapeComponent{{
     {"getHalfExtent", LuaBoxShape::wrap_GetHalfExtent},
     {"getMass", LuaBoxShape::wrap_GetMass},
     {"getInertiaTensor", LuaBoxShape::wrap_GetInertiaTensor},

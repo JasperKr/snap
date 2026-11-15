@@ -66,4 +66,6 @@ auto LuaShape::Create(lua_State *state) -> int {
   return 1;
 }
 
+auto Shape::DrawGUI(flecs::entity entity) const -> void {}
+
 } // namespace Engine
