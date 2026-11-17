@@ -294,6 +294,7 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
       drawList->ChannelsSetCurrent(1);
       auto clipMin = ImGui::GetCursorScreenPos();
       float clipHeight = 100.0F;
+      bool wasAnimating = false;
 
       if (widgetIndex < widgetStates.size()) {
         clipHeight = widgetStates.at(widgetIndex).second.z;
@@ -308,8 +309,16 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
       ImGui::Dummy(ImVec2(0, style.ItemSpacing.y / 2.0F));
       bool node = ImGui::TreeNodeEx(name.c_str(), iter->second.defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0);
       float cursorHeightAfterNode = ImGui::GetCursorPosY();
-      float treeNodeHeight = ImGui::GetItemRectSize().y;
+      float treeNodeHeight = ImGui::GetItemRectSize().y + style.ItemSpacing.y;
       ImGui::SameLine();
+
+      if (widgetIndex < widgetStates.size()) {
+        wasAnimating = (node && !widgetStates.at(widgetIndex).first) || (!node && widgetStates.at(widgetIndex).first);
+      }
+
+      if (!node && wasAnimating) {
+        ImGui::Indent();
+      }
 
       Gui::PushBlankButtonStyle();
       ImGui::PushFont(Gui::IconsFont, 0.0F);
@@ -319,14 +328,26 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
       if (ImGui::SmallButton(Gui::Icon_more_horiz)) {
         ImGui::OpenPopup("Component options");
       }
+
+      bool isTransform = componentEntity == transform;
       ImGui::PopFont();
+
+      if (ecs_has_id(scene->world, componentEntity, EcsCanToggle)) {
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(widthAvailable - width - (style.ItemSpacing.x * 3.0F));
+
+        bool enabled = componentEntity.enabled();
+        if (ImGui::Checkbox("##Enable", &enabled)) {
+          entity.enable(componentEntity.id(), enabled);
+        }
+      }
+
       Gui::PopBlankButtonStyle();
       bool removed = false;
 
       if (ImGui::BeginPopup("Component options")) {
         Gui::PushBlankButtonStyle();
 
-        bool isTransform = componentEntity == transform;
         ImGui::BeginDisabled(isTransform);
 
         if (ImGui::Button("Remove component") && !isTransform) {
@@ -341,12 +362,16 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
         ImGui::EndPopup();
       }
 
-      if (node) {
+      if (node || wasAnimating) {
         if (!removed) {
           iter->second.func(entity);
         }
 
-        ImGui::TreePop();
+        if (node) {
+          ImGui::TreePop();
+        } else {
+          ImGui::Unindent();
+        }
       }
       ImGui::Dummy(ImVec2(0, style.ItemSpacing.y / 2.0F));
 
@@ -356,6 +381,12 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
       auto max = ImGui::GetItemRectMax();
 
       float animatedSize = max.y - min.y;
+      float nextAnimatedSize = max.y - min.y;
+
+      if (!node && wasAnimating) {
+        animatedSize = treeNodeHeight + (style.ItemSpacing.y * 2.0F);
+        nextAnimatedSize = treeNodeHeight + (style.ItemSpacing.y * 2.0F);
+      }
 
       if (widgetIndex >= widgetStates.size()) {
         widgetStates.resize(widgetIndex + 1);
@@ -379,6 +410,7 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
 
         animatedSize = std::lerp(widgetState.second.y, animatedSize, widgetState.second.x / AnimationTime);
         widgetState.second.x = std::min(AnimationTime, widgetState.second.x + static_cast<float>(Timer::GetDelta()));
+        nextAnimatedSize = std::lerp(widgetState.second.y, nextAnimatedSize, widgetState.second.x / AnimationTime);
       } else if (!node && widgetState.first) { // Closing
         // Animation finished
         if (widgetState.second.x >= AnimationTime || animatedSize == widgetState.second.y) {
@@ -390,17 +422,18 @@ inline auto DrawEntityEditor(flecs::entity entity, const Ref<Scene> &scene) -> v
         animating = true;
         animatedSize = std::lerp(widgetState.second.y, animatedSize, widgetState.second.x / AnimationTime);
         widgetState.second.x = std::min(AnimationTime, widgetState.second.x + static_cast<float>(Timer::GetDelta()));
+        nextAnimatedSize = std::lerp(widgetState.second.y, nextAnimatedSize, widgetState.second.x / AnimationTime);
       } else {
         widgetState.second.x = 0.0F;
         widgetState.second.y = animatedSize;
       }
 
-      widgetState.second.z = animatedSize;
+      widgetState.second.z = nextAnimatedSize;
       max.x = cursorPosX + widthAvailable;
       max.y = min.y + animatedSize;
 
       if (animating) {
-        ImGui::SetCursorPosY(cursorHeightAfterNode);
+        ImGui::SetCursorPosY(cursorHeightAfterNode + (style.ItemSpacing.y / 2.0F));
         ImGui::Dummy(ImVec2(0, animatedSize - treeNodeHeight - (style.ItemSpacing.y * 2.0F)));
       }
 

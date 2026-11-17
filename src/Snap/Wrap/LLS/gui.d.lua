@@ -14,16 +14,6 @@ function snap.gui.endFrame() end
 --- Renders the current frame
 function snap.gui.draw() end
 
---[[
-    {"mousePressed", MousePressed}, -- x, y, button
-    {"mouseReleased", MouseReleased}, -- x, y, button
-    {"mouseMoved", MouseMoved}, -- x, y
-    {"mouseWheelMoved", MouseWheelMoved}, -- x, y
-    {"keyPressed", KeyPressed}, -- key
-    {"keyReleased", KeyReleased}, -- key
-    {"textInput", TextInput}, -- text
-]]
-
 --- Handles a mouse pressed event
 --- @param x number X position
 --- @param y number Y position

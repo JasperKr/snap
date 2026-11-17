@@ -23,10 +23,21 @@
 #include "Renderer/lightProbe.hpp"
 #include "Renderer/rendertargetManager.hpp"
 #include "Renderer/shaderManager.hpp"
+#include "Scene/Geometry/Shapes/boxShape.hpp"
+#include "Scene/Geometry/Shapes/capsuleShape.hpp"
+#include "Scene/Geometry/Shapes/convexHullShape.hpp"
+#include "Scene/Geometry/Shapes/cylinderShape.hpp"
+#include "Scene/Geometry/Shapes/heightFieldShape.hpp"
+#include "Scene/Geometry/Shapes/meshShape.hpp"
+#include "Scene/Geometry/Shapes/planeShape.hpp"
+#include "Scene/Geometry/Shapes/sphereShape.hpp"
+#include "Scene/Geometry/Shapes/taperedCapsuleShape.hpp"
+#include "Scene/Geometry/Shapes/taperedCylinderShape.hpp"
 #include "Scene/Geometry/boundingBox.hpp"
 #include "Scene/Geometry/geometry.hpp"
 #include "Scene/Geometry/levelOfDetail.hpp"
 #include "Scene/Geometry/model.hpp"
+#include "Scene/Geometry/rigidbody.hpp"
 #include "Scene/Geometry/shape.hpp"
 #include "Scene/Lights/directionalLight.hpp"
 #include "Scene/Lights/light.hpp"
@@ -420,6 +431,19 @@ Scene::Scene(std::string name) : name(std::move(name)) {
   AddGuiMethod<Geometry>(&Geometry::DrawGUI);
   AddGuiMethod<Renderer::LightProbe>(&Renderer::LightProbe::DrawGUI, true);
   AddGuiMethod<Engine::Volume>(&Engine::Volume::DrawGUI, true);
+
+  AddGuiMethod<Engine::Physics::Rigidbody>(&Engine::Physics::Rigidbody::DrawGUI, true);
+
+  AddGuiMethod<Engine::Physics::BoxShape>(&Engine::Physics::BoxShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::CylinderShape>(&Engine::Physics::CylinderShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::PlaneShape>(&Engine::Physics::PlaneShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::TaperedCylinderShape>(&Engine::Physics::TaperedCylinderShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::ConvexHullShape>(&Engine::Physics::ConvexHullShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::MeshShape>(&Engine::Physics::MeshShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::TaperedCapsuleShape>(&Engine::Physics::TaperedCapsuleShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::CapsuleShape>(&Engine::Physics::CapsuleShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::HeightFieldShape>(&Engine::Physics::HeightFieldShape::DrawGUI, true);
+  AddGuiMethod<Engine::Physics::SphereShape>(&Engine::Physics::SphereShape::DrawGUI, true);
 
   PhysicsSystem.Init(Physics::MaxRigidbodies, 0UL, Physics::MaxBodyPairs, Physics::MaxContactConstraints, PhysicsBroadPhaseLayer, PhysicsObjectBroadphaseFilter,
                      PhysicsObjectObjectFilter);

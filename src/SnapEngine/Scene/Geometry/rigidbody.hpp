@@ -15,7 +15,7 @@ namespace Engine::Physics {
 struct Rigidbody {
   JPH::Body *body;
 
-  auto DrawGUI(flecs::entity entity) const -> void {}
+  auto DrawGUI(flecs::entity entity) const -> void;
 };
 
 static const Type rigidbodyType = Type("Rigidbody");
@@ -30,7 +30,6 @@ struct LuaRigidbody : LuaWrap::LuaECSObject {
 
   static auto Create(lua_State *state) -> int;
 
-  // static auto wrap_(lua_State *state) -> int;
   static auto wrap_IsActive(lua_State *state) -> int;
   static auto wrap_IsStatic(lua_State *state) -> int;
   static auto wrap_IsKinematic(lua_State *state) -> int;
