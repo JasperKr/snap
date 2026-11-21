@@ -1,5 +1,17 @@
 module material;
 
+public enum AlphaMode : uint {
+  Opaque = 0,
+  Mask = 1,
+  Blend = 2,
+};
+
+public enum CullMode : uint {
+  None = 0,
+  Back = 1,
+  Front = 2,
+};
+
 public struct MaterialData {
   public float4 albedoFactor;
 
@@ -9,10 +21,10 @@ public struct MaterialData {
   uint padding0;
 
   public float3 emissiveFactor;
-  public uint alphaMode;
+  public AlphaMode alphaMode;
 
   public float alphaCutoff;
-  uint padding1;
+  public CullMode cullMode;
   public uint2 textureUVIndices;
 
   public Sampler2D<float4>.Handle AlbedoTexture;
@@ -35,12 +47,6 @@ public struct MaterialData {
   public float AmbientOcclusionOrDefault(float2 uv) { return HasAmbientOcclusionTexture() ? AmbientOcclusionTexture.Sample(uv).r : float(1.0); }
   public float ReflectanceOrDefault(float2 uv) { return HasReflectanceTexture() ? ReflectanceTexture.Sample(uv).r : float(1.0); }
   public float3 EmissiveOrDefault(float2 uv) { return HasEmissiveTexture() ? EmissiveTexture.Sample(uv).rgb : float3(1.0); }
-};
-
-public enum AlphaMode {
-  Opaque = 0,
-  Mask = 1,
-  Blend = 2,
 };
 
 public uniform StructuredBuffer<MaterialData>.Handle MaterialBuffer;

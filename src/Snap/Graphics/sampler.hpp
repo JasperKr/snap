@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Modules/Helpers/hasher.hpp"
 #include "Modules/error.hpp"
 #include "vulkan/vulkan_core.h"
 #include <unordered_map>
@@ -27,26 +26,7 @@ struct SamplerDescription {
 };
 
 struct SamplerDescHash {
-  auto operator()(const SamplerDescription &desc) const -> size_t {
-    Hash::Hasher hash;
-
-    hash.Add(desc.magFilter);
-    hash.Add(desc.minFilter);
-    hash.Add(desc.mipmapMode);
-    hash.Add(desc.addressModeU);
-    hash.Add(desc.addressModeV);
-    hash.Add(desc.addressModeW);
-    hash.Add(desc.mipLodBias);
-    hash.Add((int)desc.anisotropyEnable);
-    hash.Add(desc.maxAnisotropy);
-    hash.Add((int)desc.compareEnable);
-    hash.Add(desc.compareOp);
-    hash.Add(desc.minLod);
-    hash.Add(desc.maxLod);
-    hash.Add(desc.borderColor);
-
-    return hash.Get();
-  }
+  auto operator()(const SamplerDescription &desc) const -> size_t;
 };
 
 extern std::unordered_map<SamplerDescription, VkDeviceSize, SamplerDescHash> SamplerCache; // NOLINT

@@ -232,9 +232,18 @@ local startupSequence = {
 
     local env = scene:newEnvironment("Test environment", texture)
     scene:setEnvironment(env)
-
-    for i = 1, 10 do probe:render() end
-  end
+  end,
+  function()
+    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
+    -- snap.scene.loadModel(scene, "Assets/Terrain/main_sponza/NewSponza_Main_glTF_003.gltf")
+    -- scene:newVolume("Test volume 1"):setPosition(0, 0, 0);
+  end,
+  function() probe:render() end,
+  function() probe:render() end,
+  function() probe:render() end,
+  function() probe:render() end,
+  function() probe:render() end,
 }
 
 local frameIndex = 0
@@ -274,8 +283,6 @@ while true do
 
   update(delta)
 
-  -- assert(frameIndex < 4)
-
   snap.graphics.setWindingOrder("cw")
 
   if startupSequence[frameIndex] then
@@ -299,13 +306,6 @@ while true do
   end
 
   snap.graphics.setRenderTarget()
-
-  if frameIndex == 1 then
-    snap.scene.loadModel(scene, "Assets/Terrain/Bistro/bistro.gltf")
-    -- snap.scene.loadModel(scene, "Assets/Terrain/sponza.glb")
-    -- snap.scene.loadModel(scene, "Assets/Terrain/main_sponza/NewSponza_Main_glTF_003.gltf")
-    -- scene:newVolume("Test volume 1"):setPosition(0, 0, 0);
-  end
 
   local commands, newSnapshot = snap.graphics.submitGraphics()
   if newSnapshot then

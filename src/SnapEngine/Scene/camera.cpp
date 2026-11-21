@@ -27,6 +27,7 @@
 #include "Scene/frustum.hpp"
 #include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
+#include "Scene/userdata.hpp"
 #include "Wrap/wrap.hpp"
 #include "renderer.hpp"
 #include <algorithm>
@@ -1410,4 +1411,43 @@ auto GetLuaCameraClass() -> ::LuaWrap::LuaClass {
   return LuaCameraClass;
 }
 
+void Camera::SetVerticalFOV(float fovDeg) {
+  verticalFOVDeg = fovDeg;
+  VerticalFOVRad = Math::DegToRad(fovDeg);
+  ProjectionDirty = true;
+}
+void Camera::SetAspectRatio(float aspectRatio) {
+  AspectRatio = aspectRatio;
+  ProjectionDirty = true;
+}
+void Camera::SetNearPlane(float nearPlane) {
+  NearPlane = nearPlane;
+  ProjectionDirty = true;
+}
+void Camera::SetFarPlane(float farPlane) {
+  FarPlane = farPlane;
+  ProjectionDirty = true;
+}
+auto Camera::SetDimensions(Math::Uvec2 newDimensions) -> void {
+  if (Dimensions == newDimensions) {
+    return;
+  }
+
+  Dimensions = newDimensions;
+  ProjectionDirty = true;
+  ConfigureRendertargets();
+  AspectRatio = static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
+  InvalidateHistory();
+}
+auto Camera::SetPostProcessingConfig(const PostProcessingConfig &config) -> void { postProcessingConfig = config; }
+void Camera::SetPersistentTextureSettings(const PersistentTextureSettings &newSettings) { persistentTextureSettings = newSettings; }
+[[nodiscard]] auto Camera::GetPostProcessingConfig() const -> PostProcessingConfig { return postProcessingConfig; }
+[[nodiscard]] auto Camera::GetPostProcessingConfig() -> PostProcessingConfig & { return postProcessingConfig; }
+[[nodiscard]] auto Camera::GetOwnedTextures() const -> const AllocatedTextures & { return OwnedTextures; }
+[[nodiscard]] auto Camera::GetOwnedTextures() -> AllocatedTextures & { return OwnedTextures; }
+[[nodiscard]] auto Camera::GetRendertargets() const -> const CameraRendertargets & { return Rendertargets; }
+[[nodiscard]] auto Camera::GetSettings() const -> Settings { return settings; }
+[[nodiscard]] auto Camera::GetPersistentTextureSettings() const -> PersistentTextureSettings { return persistentTextureSettings; }
+[[nodiscard]] auto Camera::GetDimensions() -> Math::Uvec2 { return Dimensions; }
+auto Camera::InvalidateHistory() -> void { HistoryInvalidated = true; }
 } // namespace Engine

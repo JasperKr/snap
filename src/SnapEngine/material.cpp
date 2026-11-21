@@ -4,6 +4,8 @@
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
+#include "Scene/displayName.hpp"
+#include "Scene/userdata.hpp"
 #include "Wrap/Helpers/lua_enum.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
@@ -305,4 +307,48 @@ auto Material::Write(const Graphics::GraphicsContext &context) -> Error {
   return {};
 }
 
+[[nodiscard]] auto Material::GetMainSortKey() const -> uint64_t {
+  Hash::Hasher hasher;
+
+  hasher.Add(shader ? shader->hash() : 0);
+  hasher.Add(albedoTexture ? (void *)albedoTexture->view : nullptr);
+  hasher.Add(metallicRoughnessTexture ? (void *)metallicRoughnessTexture->view : nullptr);
+  hasher.Add(ambientOcclusionTexture ? (void *)ambientOcclusionTexture->view : nullptr);
+  hasher.Add(reflectanceTexture ? (void *)reflectanceTexture->view : nullptr);
+  hasher.Add(emissiveTexture ? (void *)emissiveTexture->view : nullptr);
+
+  return hasher.Get();
+}
+
+[[nodiscard]] auto Material::GetSecondarySortKey() const -> uint64_t {
+  Hash::Hasher hasher;
+
+  hasher.Add(cullMode);
+  hasher.Add((uint32_t)alphaMode);
+  hasher.Add(albedoFactor.Hash());
+  hasher.Add(std::hash<float>()(roughnessFactor));
+  hasher.Add(std::hash<float>()(metallicFactor));
+  hasher.Add(std::hash<float>()(reflectanceFactor));
+  hasher.Add(emissiveFactor.Hash());
+
+  return hasher.Get();
+}
+
+auto GetMaterialClass() -> ::LuaWrap::LuaClass {
+  return {.Name = "Material",
+          .Type = LuaMaterial::GetType(),
+          .Methods =
+              {
+                  {"setCullMode", LuaMaterial::wrap_setCullMode},
+                  {"getCullMode", LuaMaterial::wrap_getCullMode},
+                  {"setAlphaMode", LuaMaterial::wrap_setAlphaMode},
+                  {"getAlphaMode", LuaMaterial::wrap_getAlphaMode},
+                  {"setTextureUVIndex", LuaMaterial::wrap_setTextureUVIndex},
+                  {"getTextureUVIndex", LuaMaterial::wrap_getTextureUVIndex},
+              },
+          .Components = {
+              DisplayNameComponent,
+              UserdataComponent,
+          }};
+}
 } // namespace Engine::Renderer

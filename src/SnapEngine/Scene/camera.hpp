@@ -4,7 +4,6 @@
 #include "Graphics/bufferformat.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/texture.hpp"
-#include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -48,26 +47,13 @@ struct Camera { // NOLINT
     bool SpecularEnabled = true;
   };
 
-  void SetVerticalFOV(float fovDeg) {
-    verticalFOVDeg = fovDeg;
-    VerticalFOVRad = Math::DegToRad(fovDeg);
-    ProjectionDirty = true;
-  }
+  void SetVerticalFOV(float fovDeg);
 
-  void SetAspectRatio(float aspectRatio) {
-    AspectRatio = aspectRatio;
-    ProjectionDirty = true;
-  }
+  void SetAspectRatio(float aspectRatio);
 
-  void SetNearPlane(float nearPlane) {
-    NearPlane = nearPlane;
-    ProjectionDirty = true;
-  }
+  void SetNearPlane(float nearPlane);
 
-  void SetFarPlane(float farPlane) {
-    FarPlane = farPlane;
-    ProjectionDirty = true;
-  }
+  void SetFarPlane(float farPlane);
 
   void SetSettings(const Settings &newSettings) { settings = newSettings; }
 
@@ -83,17 +69,7 @@ struct Camera { // NOLINT
 
   [[nodiscard]] auto GetDimensions() const -> Math::Uvec2 { return Dimensions; }
 
-  auto SetDimensions(Math::Uvec2 newDimensions) -> void {
-    if (Dimensions == newDimensions) {
-      return;
-    }
-
-    Dimensions = newDimensions;
-    ProjectionDirty = true;
-    ConfigureRendertargets();
-    AspectRatio = static_cast<float>(Dimensions.x) / static_cast<float>(Dimensions.y);
-    InvalidateHistory();
-  }
+  auto SetDimensions(Math::Uvec2 newDimensions) -> void;
 
   static void RegisterCameraSystems(struct Scene &scene);
 
@@ -229,29 +205,20 @@ struct Camera { // NOLINT
   };
   // NOLINTEND
 
-  auto SetPostProcessingConfig(const PostProcessingConfig &config) -> void { postProcessingConfig = config; }
+  auto SetPostProcessingConfig(const PostProcessingConfig &config) -> void;
+  void SetPersistentTextureSettings(const PersistentTextureSettings &newSettings);
 
-  void SetPersistentTextureSettings(const PersistentTextureSettings &newSettings) { persistentTextureSettings = newSettings; }
+  [[nodiscard]] auto GetPostProcessingConfig() const -> PostProcessingConfig;
+  [[nodiscard]] auto GetPostProcessingConfig() -> PostProcessingConfig &;
+  [[nodiscard]] auto GetOwnedTextures() const -> const AllocatedTextures &;
+  [[nodiscard]] auto GetOwnedTextures() -> AllocatedTextures &;
+  [[nodiscard]] auto GetRendertargets() const -> const CameraRendertargets &;
+  [[nodiscard]] auto GetSettings() const -> Settings;
+  [[nodiscard]] auto GetPersistentTextureSettings() const -> PersistentTextureSettings;
+  [[nodiscard]] auto GetDimensions() -> Math::Uvec2;
 
-  [[nodiscard]] auto GetPostProcessingConfig() const -> PostProcessingConfig { return postProcessingConfig; }
-
-  [[nodiscard]] auto GetPostProcessingConfig() -> PostProcessingConfig & { return postProcessingConfig; }
-
-  [[nodiscard]] auto GetOwnedTextures() const -> const AllocatedTextures & { return OwnedTextures; }
-
-  [[nodiscard]] auto GetOwnedTextures() -> AllocatedTextures & { return OwnedTextures; }
-
-  [[nodiscard]] auto GetRendertargets() const -> const CameraRendertargets & { return Rendertargets; }
-
-  [[nodiscard]] auto GetSettings() const -> Settings { return settings; }
-
-  [[nodiscard]] auto GetPersistentTextureSettings() const -> PersistentTextureSettings { return persistentTextureSettings; }
-
-  [[nodiscard]] auto GetDimensions() -> Math::Uvec2 { return Dimensions; }
-
-  auto InvalidateHistory() -> void { HistoryInvalidated = true; }
+  auto InvalidateHistory() -> void;
   auto ReleaseRendertargets() -> Error;
-
   auto DrawGUI(flecs::entity entity) -> void;
 
   static constexpr VkImageSubresourceRange BaseMipRange = VkImageSubresourceRange{

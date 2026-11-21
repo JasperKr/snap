@@ -1,28 +1,23 @@
 import camera;
-
+import Indirect.drawlists;
 import transform;
-
-uniform uint2 ModelInfo;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
 };
 
-struct VertexInput {
-  float3 Position : POSITION;
-  // float2 TexCoords : TEXCOORD;
-  // uint Normal : NORMAL;
-  // uint Tangent : TANGENT;
-  // float4 Color : COLOR;
-};
+uniform RWStructuredBuffer<DrawItem>.Handle DrawItems;
 
 [shader("vertex")]
-VertexStageOutput vertexMain(VertexInput input) {
-  float4x4 transform = GetModelMatrix(ModelInfo.x);
-  float4 worldPos = mul(float4(input.Position, 1.0), transform);
-
+VertexStageOutput vertexMain(uint instance: SV_InstanceID, uint vertexID: SV_VertexID) {
   VertexStageOutput out;
+
+  DrawItem item = DrawItems[instance];
+  Vertex vertex = item.Vertices[vertexID];
+
+  float4 worldPos = mul(float4(vertex.Position, 1.0), item.GetTransform());
   out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
+
   return out;
 }
 

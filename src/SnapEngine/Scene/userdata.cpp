@@ -124,4 +124,19 @@ const ::LuaWrap::LuaComponent UserdataComponent{{
     {"getUserdata", Userdata::GetUserdata},
 }};
 
+auto Userdata::GetFreeUserdataIndex() -> int32_t {
+  static int32_t currentIndex = 1;
+  if (!FreedUserdataIndices.empty()) {
+    int32_t index = FreedUserdataIndices.back();
+    FreedUserdataIndices.pop_back();
+    return index;
+  }
+  return currentIndex++;
+}
+auto Userdata::OnRemove() -> void {
+  if (userdataIndex != 0) {
+    FreeUserdataIndex(userdataIndex);
+    userdataIndex = 0;
+  }
+}
 } // namespace Engine

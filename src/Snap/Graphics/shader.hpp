@@ -1,23 +1,18 @@
 #pragma once
 
-#include "Graphics/allocations.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsState.hpp"
-#include "Graphics/resource.hpp"
 #include "Graphics/texture.hpp"
-#include "Libraries/vma.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/localState.hpp"
 #include "Modules/object.hpp"
 #include "Modules/type.hpp"
-#include "graphics.hpp"
 #include "reflect.hpp"
 #include "slang/slang.h"
 #include <cstdint>
-#include <mutex>
 #include <public/tracy/Tracy.hpp>
 #include <span>
 #include <string>
@@ -35,34 +30,7 @@ namespace Graphics {
 
 static const Type LuaShaderType = Type("Shader");
 
-constexpr auto ShaderStageFlagsToPipelineStageFlags(VkShaderStageFlags shaderStages) -> VkPipelineStageFlags2 {
-  VkPipelineStageFlags2 pipelineStages = 0;
-
-  if (shaderStages == VK_SHADER_STAGE_ALL) {
-    return VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-  }
-
-  if ((shaderStages & VK_SHADER_STAGE_VERTEX_BIT) != 0U) {
-    pipelineStages |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
-  }
-  if ((shaderStages & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT) != 0U) {
-    pipelineStages |= VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT;
-  }
-  if ((shaderStages & VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT) != 0U) {
-    pipelineStages |= VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT;
-  }
-  if ((shaderStages & VK_SHADER_STAGE_GEOMETRY_BIT) != 0U) {
-    pipelineStages |= VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT;
-  }
-  if ((shaderStages & VK_SHADER_STAGE_FRAGMENT_BIT) != 0U) {
-    pipelineStages |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-  }
-  if ((shaderStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0U) {
-    pipelineStages |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-  }
-
-  return pipelineStages;
-}
+constexpr auto ShaderStageFlagsToPipelineStageFlags(VkShaderStageFlags shaderStages) -> VkPipelineStageFlags2;
 
 // NOLINTBEGIN(hicpp-explicit-conversions)
 template <typename T> struct BoundShaderResource {
@@ -170,41 +138,13 @@ struct Shader : Object, Identifiable {
   std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
 
   static ThreadLocalState<BoundState> BoundStateManager;
-  [[nodiscard]] auto GetState() const -> BoundState & {
-    auto &state = BoundStateManager.GetState(*this);
-
-    if (state.uniforms.empty()) {
-      state.uniforms.resize(uniformsSize);
-    }
-
-    return state;
-  }
+  [[nodiscard]] auto GetState() const -> BoundState &;
 
   VkDeviceSize uniformsSize{};
   Math::Uvec3 threadgroupSize{1, 1, 1};
   uint32_t waveSize = 0;
 
-  ~Shader() override {
-    auto *ctx = GetCurrentGraphicsContext();
-
-    auto &state = GetState();
-    state.userBoundBuffers.clear();
-    state.userBoundTextures.clear();
-
-    BoundStateManager.EraseState(*this);
-
-    if (GetVirtualCommandBuffer() == nullptr) {
-      std::lock_guard<std::mutex> lock(GraphicsContext::mutexes.device);
-
-      vkDestroyShaderModule(ctx->device, module, GetAllocationCallbacks());
-
-      return;
-    }
-
-    ScheduleDestruction<VkShaderModule>(
-        [](const GraphicsContext &context, VkShaderModule &module) -> auto { vkDestroyShaderModule(context.device, module, GetAllocationCallbacks()); },
-        SemaphoreManager::GetSemaphoreValue(), module);
-  }
+  ~Shader() override;
 
   static auto Create(const GraphicsContext &context, const std::string &modulename, const std::string &name,
                      const std::vector<slang::PreprocessorMacroDesc> *preprocessorMacros = nullptr) -> Result<Ref<Shader>>;

@@ -14,4 +14,22 @@ namespace Data {
   return Ref<ByteData>::Make(data + offset, range, this);
 }
 
+ByteData::~ByteData() {
+  if (parent != nullptr) {
+    parent->release(); // Parent owns the data
+  } else {
+    delete[] data; // We own the data
+  }
+}
+
+ByteData::ByteData(size_t size) : size(size), data(new uint8_t[size]) {}
+
+ByteData::ByteData(const uint8_t *src, size_t size) : size(size), data(new uint8_t[size]) { std::memcpy(data, src, size); }
+
+ByteData::ByteData(const std::byte *src, size_t size) : size(size), data(new uint8_t[size]) { std::memcpy(data, src, size); }
+
+[[nodiscard]] auto ByteData::Clone() const -> ByteData { return {data, size}; }
+
+ByteData::ByteData(uint8_t *data, size_t size, ByteData *parent) : size(size), data(data), parent(parent) {}
+
 } // namespace Data

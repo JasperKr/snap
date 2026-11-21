@@ -1,4 +1,5 @@
 #include "gui.hpp"
+#include "Graphics/graphics.hpp"
 #include "Modules/error.hpp"
 #include "Modules/filesystem.hpp"
 #include "Modules/object.hpp"

@@ -1,33 +1,25 @@
 import camera;
 import material;
-
+import Indirect.drawlists;
 import transform;
-
-uniform uint2 ModelInfo;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
   float2 tex_coord : TEXCOORDS;
 };
 
-struct VertexInput {
-  float3 Position : POSITION;
-  float2 TexCoords : TEXCOORD;
-  // uint Normal : NORMAL;
-  // uint Tangent : TANGENT;
-  // float4 Color : COLOR;
-};
-
-uniform uint2 testPadding;
+uniform RWStructuredBuffer<DrawItem>.Handle DrawItems;
 
 [shader("vertex")]
-VertexStageOutput vertexMain(VertexInput input) {
-  float4x4 transform = GetModelMatrix(ModelInfo.x);
-  float4 worldPos = mul(float4(input.Position, 1.0), transform);
-
+VertexStageOutput vertexMain(uint instance: SV_InstanceID, uint vertexID: SV_VertexID) {
   VertexStageOutput out;
+  DrawItem item = DrawItems[instance];
+
+  Vertex vertex = item.Vertices[vertexID];
+  float4 worldPos = mul(float4(vertex.Position, 1.0), item.GetTransform());
+
   out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
-  out.tex_coord = input.TexCoords;
+  out.tex_coord = vertex.TexCoords;
 
   return out;
 }
@@ -37,8 +29,8 @@ struct FragmentInput {
 };
 
 [shader("fragment")]
-void fragmentMain(FragmentInput input) {
-  MaterialData matData = MaterialBuffer[ModelInfo.y];
+void fragmentMain(FragmentInput input, uint instance: SV_InstanceID) {
+  MaterialData matData = DrawItems[instance].GetMaterial();
   float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float alpha = texColor.a * matData.albedoFactor.a;

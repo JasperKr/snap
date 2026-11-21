@@ -929,4 +929,196 @@ auto ShaderReflection::FlattenReflection() -> Error {
   return {};
 }
 
+auto FromScalarType(slang::TypeReflection::ScalarType baseType) -> ScalarType {
+  switch (baseType) {
+  case slang::TypeReflection::ScalarType::Float32:
+    return ScalarType::Float;
+  case slang::TypeReflection::ScalarType::Int32:
+    return ScalarType::Int;
+  case slang::TypeReflection::ScalarType::UInt32:
+    return ScalarType::UInt;
+  case slang::TypeReflection::ScalarType::Bool:
+    return ScalarType::Bool;
+  default:
+    return ScalarType::Unknown;
+  }
+}
+auto ToVectorType(uint8_t elementCount) -> VectorType {
+  if (elementCount == 2) {
+    return VectorType::Vector2;
+  }
+  if (elementCount == 3) {
+    return VectorType::Vector3;
+  }
+  if (elementCount == 4) {
+    return VectorType::Vector4;
+  }
+
+  return VectorType::Unknown;
+}
+auto VectorChannelCount(VectorType vectorType) -> uint8_t {
+  switch (vectorType) {
+  case VectorType::Vector2:
+    return 2;
+  case VectorType::Vector3:
+    return 3;
+  case VectorType::Vector4:
+    return 4;
+  default:
+    return 0;
+  }
+}
+auto MatrixDimensions(MatrixType matrixType) -> std::pair<uint8_t, uint8_t> {
+  switch (matrixType) {
+  case MatrixType::Matrix2x2:
+    return {2, 2};
+  case MatrixType::Matrix3x3:
+    return {3, 3};
+  case MatrixType::Matrix4x4:
+    return {4, 4};
+  case MatrixType::Matrix2x3:
+    return {2, 3};
+  case MatrixType::Matrix2x4:
+    return {2, 4};
+  case MatrixType::Matrix3x2:
+    return {3, 2};
+  case MatrixType::Matrix3x4:
+    return {3, 4};
+  case MatrixType::Matrix4x2:
+    return {4, 2};
+  case MatrixType::Matrix4x3:
+    return {4, 3};
+  default:
+    return {0, 0};
+  }
+}
+auto ToMatrixType(uint8_t rowCount, uint8_t columnCount) -> MatrixType {
+  if (rowCount == 2 && columnCount == 2) {
+    return MatrixType::Matrix2x2;
+  }
+  if (rowCount == 3 && columnCount == 3) {
+    return MatrixType::Matrix3x3;
+  }
+  if (rowCount == 4 && columnCount == 4) {
+    return MatrixType::Matrix4x4;
+  }
+  if (rowCount == 2 && columnCount == 3) {
+    return MatrixType::Matrix2x3;
+  }
+  if (rowCount == 2 && columnCount == 4) {
+    return MatrixType::Matrix2x4;
+  }
+  if (rowCount == 3 && columnCount == 2) {
+    return MatrixType::Matrix3x2;
+  }
+  if (rowCount == 3 && columnCount == 4) {
+    return MatrixType::Matrix3x4;
+  }
+  if (rowCount == 4 && columnCount == 2) {
+    return MatrixType::Matrix4x2;
+  }
+  if (rowCount == 4 && columnCount == 3) {
+    return MatrixType::Matrix4x3;
+  }
+
+  return MatrixType::Unknown;
+}
+auto ResourceKeyToString(const Graphics::ResourceKey &key) -> std::string {
+  std::string result;
+  for (const auto &part : key) {
+    if (!result.empty()) {
+      result += ".";
+    }
+    result += part.ToString();
+  }
+  return result;
+}
+[[nodiscard]] auto ResourceInfo::GetTypename() const -> std::string_view {
+  if (IsBuffer()) {
+    return "Buffer";
+  }
+  if (IsSampler()) {
+    return "Sampler";
+  }
+  if (IsStruct()) {
+    return "Struct";
+  }
+  if (IsScalar()) {
+    return "Scalar";
+  }
+  if (IsVector()) {
+    return "Vector";
+  }
+  if (IsMatrix()) {
+    return "Matrix";
+  }
+  if (IsAccelerationStructure()) {
+    return "AccelerationStructure";
+  }
+  return "Unknown";
+}
+[[nodiscard]] auto ResourceInfo::ToString() const -> std::string {
+  auto result = std::format("Resource Name: {} Type: {} Offset: {}, Size: {}, Array Size: {}\n", name, GetTypename(), GetOffset(), GetSize(), GetArraySize());
+
+  if (IsBuffer()) {
+    const auto &bufferInfo = std::get<BufferInfo>(info);
+    result += "  Buffer Type: ";
+    switch (bufferInfo.bufferType) {
+    case BufferType::Uniform:
+      result += "Uniform\n";
+      break;
+    case BufferType::Storage:
+      result += "Storage\n";
+      break;
+    case BufferType::PushConstant:
+      result += "Push Constant\n";
+      break;
+    default:
+      result += "Unknown\n";
+      break;
+    }
+    result += "  Set: " + std::to_string(bufferInfo.set) + "\n";
+    result += "  Binding: " + std::to_string(bufferInfo.binding) + "\n";
+  } else if (IsSampler()) {
+    const auto &samplerInfo = std::get<SamplerInfo>(info);
+    result += "  Set: " + std::to_string(samplerInfo.set) + "\n";
+    result += "  Binding: " + std::to_string(samplerInfo.binding) + "\n";
+  } else if (IsAccelerationStructure()) {
+    const auto &asInfo = std::get<AccelerationStructureInfo>(info);
+    result += "  Set: " + std::to_string(asInfo.set) + "\n";
+    result += "  Binding: " + std::to_string(asInfo.binding) + "\n";
+  } else if (IsStruct()) {
+    const auto &structInfo = std::get<StructInfo>(info);
+    result += "  Fields:\n";
+    for (const auto &field : structInfo.fields) {
+      result += "    - " + field.ToString();
+    }
+  }
+  return result;
+}
+constexpr auto SlangResourceAccessToVkAccessFlags_Buffer(SlangResourceAccess access) -> VkAccessFlags2 {
+  switch (access) {
+  case SLANG_RESOURCE_ACCESS_READ:
+    return VK_ACCESS_2_SHADER_READ_BIT;
+  case SLANG_RESOURCE_ACCESS_READ_WRITE:
+    return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+  case SLANG_RESOURCE_ACCESS_WRITE:
+    return VK_ACCESS_2_SHADER_WRITE_BIT;
+  default:
+    return VK_ACCESS_2_SHADER_READ_BIT;
+  }
+}
+constexpr auto SlangResourceAccessToVkAccessFlags_Sampler(SlangResourceAccess access) -> VkAccessFlags2 {
+  switch (access) {
+  case SLANG_RESOURCE_ACCESS_NONE:
+  case SLANG_RESOURCE_ACCESS_READ:
+    return VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+  case SLANG_RESOURCE_ACCESS_READ_WRITE:
+    return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+  case SLANG_RESOURCE_ACCESS_WRITE:
+    return VK_ACCESS_2_SHADER_WRITE_BIT;
+  default:
+    return 0;
+  }
+}
 } // namespace Graphics::Reflect

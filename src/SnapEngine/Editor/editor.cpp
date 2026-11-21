@@ -29,6 +29,7 @@
 #include "Scene/Geometry/geometry.hpp"
 #include "Scene/Geometry/rigidbody.hpp"
 #include "Scene/cameraMatrices.hpp"
+#include "Scene/displayName.hpp"
 #include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
 #include "flecs/addons/cpp/c_types.hpp"

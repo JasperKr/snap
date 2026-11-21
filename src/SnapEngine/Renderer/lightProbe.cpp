@@ -4,6 +4,7 @@
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Renderer/prefilterManager.hpp"
+#include "Scene/displayName.hpp"
 #include "Scene/scene.hpp"
 #include "Scene/transform.hpp"
 #include "Scene/userdata.hpp"

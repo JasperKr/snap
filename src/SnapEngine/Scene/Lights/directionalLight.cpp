@@ -1,7 +1,7 @@
 #include "directionalLight.hpp"
-#include "Modules/console.hpp"
 #include "Modules/object.hpp"
 #include "Scene/Lights/light.hpp"
+#include "Scene/displayName.hpp"
 #include "Scene/frustum.hpp"
 #include "Scene/scene.hpp"
 #include "Scene/transform.hpp"

@@ -7,6 +7,7 @@
 #include "Graphics/texture.hpp"
 #include "Modules/color.hpp"
 #include "Modules/error.hpp"
+#include "Modules/filesystem.hpp"
 #include "Modules/imageData.hpp"
 #include "Renderer/rendertargetManager.hpp"
 #include "Renderer/shaderManager.hpp"
@@ -99,7 +100,7 @@ auto Renderer::AssureModelTransformBufferSize(size_t minimumSize) -> Error {
   return {};
 }
 
-auto Renderer::InitializeMaterialBuffer(Graphics::GraphicsContext &context, size_t initialSize) -> Error {
+auto Renderer::InitializeMaterialBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error {
   const Graphics::StructuredBufferCreationInfo materialBufferCreateInfo{
       .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -114,7 +115,7 @@ auto Renderer::InitializeMaterialBuffer(Graphics::GraphicsContext &context, size
   return {};
 }
 
-auto Renderer::InitializeLightBuffers(Graphics::GraphicsContext &context) -> Error {
+auto Renderer::InitializeLightBuffers(const Graphics::GraphicsContext &context) -> Error {
   Graphics::StructuredBufferCreationInfo bufferCreateInfo{
       .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       .usageFlags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -147,7 +148,7 @@ auto Renderer::InitializeLightBuffers(Graphics::GraphicsContext &context) -> Err
   return {};
 }
 
-auto Renderer::InitializeModelTransformsBuffer(Graphics::GraphicsContext &context, size_t initialSize) -> Error {
+auto Renderer::InitializeModelTransformsBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error {
   const Graphics::StructuredBufferCreationInfo bufferCreateInfo{
       .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       .usageFlags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -232,4 +233,61 @@ void Renderer::Deinitialize() {
   // It is valid never to destroy the pool as long as all objects are removed, no references will dangle.
 }
 
+auto Renderer::NewFrame(const Graphics::GraphicsContext &context) -> Error {
+  CHECK_ERR(NoMaterial.Update(context));
+  CHECK_ERR(DefaultMaterial.Update(context));
+
+  ModelTransformBufferElementCount = 0;
+
+  return {};
+}
+auto Renderer::Initialize(Graphics::GraphicsContext &context) -> Error {
+  constexpr size_t InitialMaterialBufferSize = 1024UL;
+  constexpr size_t InitialModelTransformBufferSize = 4096UL;
+
+  CHECK_ERR(InitializeDefaultMaterial(context));
+
+  CHECK_ERR(InitializeMaterialBuffer(context, InitialMaterialBufferSize));
+  CHECK_ERR(InitializeModelTransformsBuffer(context, InitialModelTransformBufferSize));
+
+  CHECK_ERR(InitializeLightBuffers(context));
+  CHECK_ERR(PrefilterManager.Initialize(context));
+
+  LightProbeBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(context, LightProbeBufferFormat, 64UL,
+                                                                  Graphics::StructuredBufferCreationInfo{
+                                                                      .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                                                      .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) |
+                                                                                    static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
+                                                                                    static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+                                                                      .debugName = "Light Probe Buffer",
+                                                                  }));
+
+  CHECK_ERR(LineDrawer.Initialize(context));
+  CHECK_ERR(PrimitiveDrawer.Initialize(context));
+  CHECK_ERR(BloomManager.Initialize(context));
+  SceneTLAS = CHECK_RES(Graphics::TLAS::Create(context));
+  BlueNoiseTexture = CHECK_RES(Graphics::Texture::FromFile(context, "src/Scripting/Graphics/Assets/blue_noise_128.bmp", VK_IMAGE_USAGE_SAMPLED_BIT,
+                                                           Graphics::TextureMipmapOption::None));
+  BlueNoiseTexture->SetWrapmode(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT);
+
+  auto samples = CHECK_RES(Filesystem::ReadFile("src/Snap/Graphics/Assets/pmj_samples.bin"));
+  Graphics::BufferCreationInfo info = {
+      .size = samples.size(),
+      .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .stagingBuffer = false,
+      .persistentMapping = false,
+      .debugName = "Progressive Multi-Jittered (0,2) Blue Noise Samples",
+  };
+
+  PMJ02bnSamples = CHECK_RES(Graphics::Buffer::Create(context, info));
+  CHECK_ERR(PMJ02bnSamples->SetData(context, samples))
+
+  CHECK_ERR(ShaderManager.Preload());
+  BLASPool = {};
+  CHECK_ERR(VolumeManager.Initialize(context));
+
+  initialized = true;
+  return {};
+}
 } // namespace Engine::Renderer

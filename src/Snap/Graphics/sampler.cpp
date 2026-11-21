@@ -1,6 +1,7 @@
 #include "sampler.hpp"
 #include "Graphics/descriptorHeap.hpp"
 #include "Graphics/graphicsContext.hpp"
+#include "Modules/Helpers/hasher.hpp"
 #include "Modules/error.hpp"
 #include <public/tracy/Tracy.hpp>
 #include <unordered_map>
@@ -50,4 +51,24 @@ auto DestroySamplers(const GraphicsContext &context) -> void {
   SamplerCache.clear();
 }
 
+auto SamplerDescHash::operator()(const SamplerDescription &desc) const -> size_t {
+  Hash::Hasher hash;
+
+  hash.Add(desc.magFilter);
+  hash.Add(desc.minFilter);
+  hash.Add(desc.mipmapMode);
+  hash.Add(desc.addressModeU);
+  hash.Add(desc.addressModeV);
+  hash.Add(desc.addressModeW);
+  hash.Add(desc.mipLodBias);
+  hash.Add((int)desc.anisotropyEnable);
+  hash.Add(desc.maxAnisotropy);
+  hash.Add((int)desc.compareEnable);
+  hash.Add(desc.compareOp);
+  hash.Add(desc.minLod);
+  hash.Add(desc.maxLod);
+  hash.Add(desc.borderColor);
+
+  return hash.Get();
+}
 } // namespace Graphics

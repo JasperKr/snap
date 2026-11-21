@@ -3,17 +3,13 @@
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
-#include "Modules/Helpers/hasher.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <array>
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <utility>
 
-#include "Scene/displayName.hpp"
-#include "Scene/userdata.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
 #include "lua.hpp"
@@ -80,32 +76,9 @@ struct Material : Identifiable {
   // NOLINTNEXTLINE (magic numbers)
   std::array<int, 7> textureUVIndices = {0};
 
-  [[nodiscard]] auto GetMainSortKey() const -> uint64_t {
-    Hash::Hasher hasher;
+  [[nodiscard]] auto GetMainSortKey() const -> uint64_t;
 
-    hasher.Add(shader ? shader->hash() : 0);
-    hasher.Add(albedoTexture ? (void *)albedoTexture->view : nullptr);
-    hasher.Add(metallicRoughnessTexture ? (void *)metallicRoughnessTexture->view : nullptr);
-    hasher.Add(ambientOcclusionTexture ? (void *)ambientOcclusionTexture->view : nullptr);
-    hasher.Add(reflectanceTexture ? (void *)reflectanceTexture->view : nullptr);
-    hasher.Add(emissiveTexture ? (void *)emissiveTexture->view : nullptr);
-
-    return hasher.Get();
-  }
-
-  [[nodiscard]] auto GetSecondarySortKey() const -> uint64_t {
-    Hash::Hasher hasher;
-
-    hasher.Add(cullMode);
-    hasher.Add((uint32_t)alphaMode);
-    hasher.Add(albedoFactor.Hash());
-    hasher.Add(std::hash<float>()(roughnessFactor));
-    hasher.Add(std::hash<float>()(metallicFactor));
-    hasher.Add(std::hash<float>()(reflectanceFactor));
-    hasher.Add(emissiveFactor.Hash());
-
-    return hasher.Get();
-  }
+  [[nodiscard]] auto GetSecondarySortKey() const -> uint64_t;
 
   auto DrawGUI(flecs::entity entity) -> void;
   auto Update(const Graphics::GraphicsContext &context) -> Error;
@@ -132,22 +105,6 @@ struct LuaMaterial : LuaWrap::LuaECSObject {
   static auto wrap_getTextureUVIndex(lua_State *state) -> int;
 };
 
-inline auto GetMaterialClass() -> ::LuaWrap::LuaClass {
-  return {.Name = "Material",
-          .Type = LuaMaterial::GetType(),
-          .Methods =
-              {
-                  {"setCullMode", LuaMaterial::wrap_setCullMode},
-                  {"getCullMode", LuaMaterial::wrap_getCullMode},
-                  {"setAlphaMode", LuaMaterial::wrap_setAlphaMode},
-                  {"getAlphaMode", LuaMaterial::wrap_getAlphaMode},
-                  {"setTextureUVIndex", LuaMaterial::wrap_setTextureUVIndex},
-                  {"getTextureUVIndex", LuaMaterial::wrap_getTextureUVIndex},
-              },
-          .Components = {
-              DisplayNameComponent,
-              UserdataComponent,
-          }};
-}
+auto GetMaterialClass() -> ::LuaWrap::LuaClass;
 
 } // namespace Engine::Renderer

@@ -238,4 +238,51 @@ const ::LuaWrap::LuaComponent FrustumComponent{{
     {"getCorner", LuaFrustum::GetCorner},
 }};
 
+[[nodiscard]] auto Frustum::GetPlane(size_t index) const -> const Math::Plane & {
+  assert(index < PlaneCount && "Frustum plane index out of range");
+  assert(index >= 0 && "Frustum plane index out of range");
+
+  switch (index) {
+  case 0:
+    return Near;
+  case 1:
+    return Far;
+  case 2:
+    return Left;
+  case 3:
+    return Right;
+  case 4:
+    return Top;
+  default:
+    return Bottom;
+  }
+}
+
+[[nodiscard]] auto Frustum::GetPlane(size_t index) -> Math::Plane & {
+  assert(index < PlaneCount && "Frustum plane index out of range");
+  assert(index >= 0 && "Frustum plane index out of range");
+
+  switch (index) {
+  case 0:
+    return Near;
+  case 1:
+    return Far;
+  case 2:
+    return Left;
+  case 3:
+    return Right;
+  case 4:
+    return Top;
+  default:
+    return Bottom;
+  }
+}
+
+[[nodiscard]] auto Frustum::IntersectsSphere(const Math::Vec3 &center, float radius) const -> bool {
+  return std::ranges::all_of(GetPlanes(), [center, radius](const Math::Plane &plane) -> bool { return plane.DistanceToPoint(center) >= -radius; });
+}
+
+[[nodiscard]] auto Frustum::ContainsPoint(const Math::Vec3 &point) const -> bool {
+  return std::ranges::all_of(GetPlanes(), [point](const Math::Plane &plane) -> bool { return plane.DistanceToPoint(point) >= 0.0F; });
+}
 } // namespace Engine

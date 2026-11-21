@@ -10,8 +10,8 @@
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/error.hpp"
-#include "Modules/filesystem.hpp"
 #include "Modules/object.hpp"
+#include "Modules/stackVector.hpp"
 #include "Renderer/bloomManager.hpp"
 #include "Renderer/prefilterManager.hpp"
 #include "Renderer/shaderManager.hpp"
@@ -62,7 +62,7 @@ const std::vector<Graphics::BufferComponent> MaterialBufferComponents = {
         .format = VK_FORMAT_R32_SFLOAT,
     },
     Graphics::BufferComponent{
-        .name = "Padding1",
+        .name = "CullMode",
         .format = VK_FORMAT_R32_UINT,
     },
     Graphics::BufferComponent{
@@ -153,55 +153,13 @@ struct Renderer {
     int DirectionalLightCount = 0;
   };
 
-  auto Initialize(Graphics::GraphicsContext &context) -> Error {
-    constexpr size_t InitialMaterialBufferSize = 1024UL;
-    constexpr size_t InitialModelTransformBufferSize = 4096UL;
+  struct DrawBuffers {
+    Math::StackVector<Ref<Graphics::Buffer>, 9> DrawLists;    // 9x draw lists
+    Ref<Graphics::Buffer> DrawIndices;                        // 9 element uint buffer
+    Math::StackVector<Ref<Graphics::Buffer>, 9> DrawCommands; // 9x draw commands
+  };
 
-    CHECK_ERR(InitializeDefaultMaterial(context));
-
-    CHECK_ERR(InitializeMaterialBuffer(context, InitialMaterialBufferSize));
-    CHECK_ERR(InitializeModelTransformsBuffer(context, InitialModelTransformBufferSize));
-
-    CHECK_ERR(InitializeLightBuffers(context));
-    CHECK_ERR(PrefilterManager.Initialize(context));
-
-    LightProbeBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(context, LightProbeBufferFormat, 64UL,
-                                                                    Graphics::StructuredBufferCreationInfo{
-                                                                        .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                                                        .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) |
-                                                                                      static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_DST_BIT) |
-                                                                                      static_cast<uint32_t>(VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-                                                                        .debugName = "Light Probe Buffer",
-                                                                    }));
-
-    CHECK_ERR(LineDrawer.Initialize(context));
-    CHECK_ERR(PrimitiveDrawer.Initialize(context));
-    CHECK_ERR(BloomManager.Initialize(context));
-    SceneTLAS = CHECK_RES(Graphics::TLAS::Create(context));
-    BlueNoiseTexture = CHECK_RES(Graphics::Texture::FromFile(context, "src/Scripting/Graphics/Assets/blue_noise_128.bmp", VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                             Graphics::TextureMipmapOption::None));
-    BlueNoiseTexture->SetWrapmode(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT);
-
-    auto samples = CHECK_RES(Filesystem::ReadFile("src/Snap/Graphics/Assets/pmj_samples.bin"));
-    Graphics::BufferCreationInfo info = {
-        .size = samples.size(),
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        .stagingBuffer = false,
-        .persistentMapping = false,
-        .debugName = "Progressive Multi-Jittered (0,2) Blue Noise Samples",
-    };
-
-    PMJ02bnSamples = CHECK_RES(Graphics::Buffer::Create(context, info));
-    CHECK_ERR(PMJ02bnSamples->SetData(context, samples))
-
-    CHECK_ERR(ShaderManager.Preload());
-    BLASPool = {};
-    CHECK_ERR(VolumeManager.Initialize(context));
-
-    initialized = true;
-    return {};
-  }
+  auto Initialize(Graphics::GraphicsContext &context) -> Error;
 
   void Deinitialize();
 
@@ -221,14 +179,7 @@ struct Renderer {
   auto GetPrefilterManager() -> LightprobePrefilterManager & { return PrefilterManager; }
   auto GetPrefilterManager() const -> const LightprobePrefilterManager & { return PrefilterManager; }
 
-  auto NewFrame(const Graphics::GraphicsContext &context) -> Error {
-    CHECK_ERR(NoMaterial.Update(context));
-    CHECK_ERR(DefaultMaterial.Update(context));
-
-    ModelTransformBufferElementCount = 0;
-
-    return {};
-  }
+  auto NewFrame(const Graphics::GraphicsContext &context) -> Error;
 
   auto GetLightProbeBuffer() -> Ref<Graphics::StructuredBuffer> { return LightProbeBuffer; }
 
@@ -288,9 +239,12 @@ private:
   VolumeManager VolumeManager;
   Graphics::BLASPool BLASPool;
 
-  auto InitializeMaterialBuffer(Graphics::GraphicsContext &context, size_t initialSize) -> Error;
-  auto InitializeLightBuffers(Graphics::GraphicsContext &context) -> Error;
-  auto InitializeModelTransformsBuffer(Graphics::GraphicsContext &context, size_t initialSize) -> Error;
+  DrawBuffers DrawBuffers;
+
+  auto InitializeMaterialBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error;
+  auto InitializeLightBuffers(const Graphics::GraphicsContext &context) -> Error;
+  auto InitializeModelTransformsBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error;
+  auto InitializeDrawBuffers(const Graphics::GraphicsContext &context, size_t initialSize) -> Error;
 
   auto InitializeDefaultMaterial(Graphics::GraphicsContext &context) -> Error;
 };

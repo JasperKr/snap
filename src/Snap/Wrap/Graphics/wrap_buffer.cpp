@@ -1,5 +1,6 @@
 #include "Wrap/Graphics/wrap_buffer.hpp"
 
+#include "Graphics/graphics.hpp"
 #include "Graphics/snapshot.hpp"
 #include "Modules/Helpers/utils.hpp"
 #include "Modules/error.hpp"

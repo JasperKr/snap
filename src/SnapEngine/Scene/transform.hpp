@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Modules/Math/mathTypes.hpp"
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/quaternion.hpp"
 #include "Modules/Math/vector.hpp"
@@ -28,42 +27,22 @@ public:
   [[nodiscard]] auto GetLocalMatrix() const -> const Math::Matrix4x4 & { return LocalMatrix; }
   [[nodiscard]] auto GetWorldMatrix() const -> const Math::Matrix4x4 & { return WorldMatrix; }
   [[nodiscard]] auto GetNormalMatrix() const -> const Math::Matrix3x3 & { return NormalMatrix; }
+
   [[nodiscard]] auto GetPosition() const -> Math::Vec3 { return Position; }
   [[nodiscard]] auto GetRotation() const -> Math::Quaternion { return Rotation; }
   [[nodiscard]] auto GetScale() const -> Math::Vec3 { return Scale; }
-  auto SetPosition(const Math::Vec3 &position) -> void {
-    Position = position;
-    LocalDirty = true;
-  }
-  auto SetRotation(const Math::Quaternion &rotation) -> void {
-    Rotation = rotation;
-    LocalDirty = true;
-  }
-  auto SetScale(const Math::Vec3 &scale) -> void {
-    Scale = scale;
-    LocalDirty = true;
-  }
+
+  auto SetPosition(const Math::Vec3 &position) -> void;
+  auto SetRotation(const Math::Quaternion &rotation) -> void;
+  auto SetScale(const Math::Vec3 &scale) -> void;
 
   auto SetPosition(float xPos, float yPos, float zPos) -> void { SetPosition(Math::Vec3(xPos, yPos, zPos)); }
-
   auto SetRotation(float xRot, float yRot, float zRot, float wRot) -> void { SetRotation(Math::Quaternion(xRot, yRot, zRot, wRot)); }
-
   auto SetScale(float xScale, float yScale, float zScale) -> void { SetScale(Math::Vec3(xScale, yScale, zScale)); }
 
-  auto ApplyTranslation(const Math::Vec3 &translation) -> void {
-    Position += translation;
-    LocalDirty = true;
-  }
-
-  auto ApplyRotation(const Math::Quaternion &rotation) -> void {
-    Rotation = rotation * Rotation;
-    LocalDirty = true;
-  }
-
-  auto ApplyScaling(const Math::Vec3 &scale) -> void {
-    Scale *= scale;
-    LocalDirty = true;
-  }
+  auto ApplyTranslation(const Math::Vec3 &translation) -> void;
+  auto ApplyRotation(const Math::Quaternion &rotation) -> void;
+  auto ApplyScaling(const Math::Vec3 &scale) -> void;
 
   auto UpdateLocalMatrix() -> void;
   auto UpdateWorldMatrix(const Transform *parent) -> void;

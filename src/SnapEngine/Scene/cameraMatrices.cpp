@@ -165,4 +165,41 @@ const ::LuaWrap::LuaComponent CameraMatricesComponent{{
     {"getInverseRotationProjectionMatrix", LuaCameraMatrices::GetInverseRotationProjectionMatrix},
 }};
 
+[[nodiscard]] auto CameraMatrices::Project(Math::Vec3 position) const -> Math::Vec3 {
+  Math::Vec4 clip = ViewProjectionMatrix.Transpose() * Math::Vec4(position, 1.0F);
+  clip /= clip.w;
+  clip *= 0.5F;
+  clip += 0.5F;
+  return Math::Vec3(clip);
+}
+
+[[nodiscard]] auto CameraMatrices::InverseProject(Math::Vec3 uvs) const -> Math::Vec3 {
+  uvs *= 2.0F;
+  uvs -= 1.0F;
+  Math::Vec4 world = InverseViewProjectionMatrix.Transpose() * Math::Vec4(uvs, 1.0F);
+  world /= world.w;
+  return Math::Vec3(world);
+}
+
+[[nodiscard]] auto CameraMatrices::InverseProject_Rotation(Math::Vec3 uvs) const -> Math::Vec3 {
+  uvs *= 2.0F;
+  uvs -= 1.0F;
+  Math::Vec4 world = InverseRotationProjectionMatrix.Transpose() * Math::Vec4(uvs, 1.0F);
+  world /= world.w;
+  return Math::Vec3(world);
+}
+
+[[nodiscard]] auto CameraMatrices::GetRay(Math::Vec2 uvs) const -> Math::Ray {
+  return Math::Ray(GetPosition(), InverseProject_Rotation(Math::Vec3{uvs, 1.0F}));
+}
+
+[[nodiscard]] auto CameraMatrices::GetForward() const -> Math::Vec3 { return Math::Vec3{-ViewMatrix.At(2, 0), -ViewMatrix.At(2, 1), -ViewMatrix.At(2, 2)}; }
+
+[[nodiscard]] auto CameraMatrices::GetUp() const -> Math::Vec3 { return Math::Vec3{ViewMatrix.At(1, 0), ViewMatrix.At(1, 1), ViewMatrix.At(1, 2)}; }
+
+[[nodiscard]] auto CameraMatrices::GetRight() const -> Math::Vec3 { return Math::Vec3{ViewMatrix.At(0, 0), ViewMatrix.At(0, 1), ViewMatrix.At(0, 2)}; }
+
+[[nodiscard]] auto CameraMatrices::GetPosition() const -> Math::Vec3 {
+  return Math::Vec3{InverseViewMatrix.At(3, 0), InverseViewMatrix.At(3, 1), InverseViewMatrix.At(3, 2)};
+}
 } // namespace Engine

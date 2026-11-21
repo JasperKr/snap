@@ -30,6 +30,8 @@ public struct _CameraData {
 
   public float2 Jitter;
 
+  public float4 Frustum[6];
+
   public float3 GetForward() { return -normalize(ViewMatrix[2].xyz); }
   public float3 GetRight() { return normalize(ViewMatrix[0].xyz); }
   public float3 GetUp() { return normalize(ViewMatrix[1].xyz); }
@@ -40,6 +42,13 @@ public struct _CameraData {
     float4 clipPos = float4(uv * 2.0 - 1.0, depth, 1.0);
     float4 worldPos = mul(clipPos, InverseViewProjectionMatrix);
     return worldPos.xyz / worldPos.w;
+  }
+
+  public float4 Project(float3 position) { return mul(ViewProjectionMatrix, float4(position, 1.0)); }
+  public float3 ProjectToClip(float3 position) {
+    float4 ndc = mul(ViewProjectionMatrix, float4(position, 1.0));
+    float3 clip = ndc.xyz / ndc.w;
+    return clip * 0.5 + 0.5;
   }
 
   public float3 GetRayDirection(float2 uv) {

@@ -29,30 +29,9 @@ public:
   auto GetSpan() -> std::span<uint8_t> { return {internalData->GetData(), internalData->GetSize()}; }
   auto GetSpan() const -> std::span<const uint8_t> { return {internalData->GetData(), internalData->GetSize()}; }
   auto GetMipmapCount() const -> int { return mipmapCount; }
-  auto GetMipSize(int mipmap) const -> size_t {
-    auto size = GetDimensions(mipmap);
-    auto blocksX = (size.width + 3) / 4;
-    auto blocksY = (size.height + 3) / 4;
-    return static_cast<size_t>(blocksX) * static_cast<size_t>(blocksY) * Graphics::Format::GetSize(format);
-  }
-  auto GetMipSpan(int mipmap) const -> std::span<uint8_t> {
-    assert(mipmap >= 0 && mipmap < mipmapCount);
-    size_t offset = 0;
-    for (int i = 0; i < mipmap; ++i) {
-      offset += GetMipSize(i);
-    }
-    // NOLINTNEXTLINE
-    return {internalData->GetData() + offset, GetMipSize(mipmap)};
-  }
-  auto GetMipPtr(int mipmap) const -> uint8_t * {
-    assert(mipmap >= 0 && mipmap < mipmapCount);
-    size_t offset = 0;
-    for (int i = 0; i < mipmap; ++i) {
-      offset += GetMipSize(i);
-    }
-    // NOLINTNEXTLINE
-    return internalData->GetData() + offset;
-  }
+  auto GetMipSize(int mipmap) const -> size_t;
+  auto GetMipSpan(int mipmap) const -> std::span<uint8_t>;
+  auto GetMipPtr(int mipmap) const -> uint8_t *;
   [[nodiscard]] auto GetSize() const -> size_t { return internalData->GetSize(); }
   [[nodiscard]] auto GetWidth() const -> uint32_t { return size.width; }
   [[nodiscard]] auto GetHeight() const -> uint32_t { return size.height; }

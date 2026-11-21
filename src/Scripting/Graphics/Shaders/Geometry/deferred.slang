@@ -4,10 +4,9 @@ import utils;
 import Lighting.pixel;
 import Lighting.physicallyBased;
 import constants;
+import Indirect.drawlists;
 
 import transform;
-
-uniform uint2 ModelInfo;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -19,36 +18,31 @@ struct VertexStageOutput {
   float4 previousClip : PREV_CLIP;
 };
 
-struct VertexInput {
-  float3 Position : POSITION;
-  float2 TexCoords : TEXCOORD;
-  uint Normal : NORMAL;
-  uint Tangent : TANGENT;
-  float4 Color : COLOR;
-};
+uniform RWStructuredBuffer<DrawItem>.Handle DrawItems;
 
 [shader("vertex")]
-VertexStageOutput vertexMain(VertexInput input) {
+VertexStageOutput vertexMain(uint instance: SV_InstanceID, uint vertexID: SV_VertexID) {
   VertexStageOutput out;
+  DrawItem item = DrawItems[instance];
 
-  Transform transform = GetModelTransform(ModelInfo.x);
+  Transform transform = GetModelTransform(item.TransformIndex);
+  Vertex vertex = item.Vertices[vertexID];
 
-  float4 worldPos = mul(float4(input.Position, 1.0), transform.ModelMatrix);
+  float4 worldPos = mul(float4(vertex.Position, 1.0), transform.ModelMatrix);
   out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
   out.currentClip = out.sv_position;
   out.previousClip = mul(CameraData[1].ViewProjectionMatrix, worldPos);
 
   float3x3 NormalMatrix = float3x3(transform.NormalMatrix);
 
-  out.tex_coord = input.TexCoords;
-  float3 normal = UnpackNormal(input.Normal).xyz;
-  out.normal = normalize(mul(NormalMatrix, normal).xyz);
+  out.tex_coord = vertex.TexCoords;
+  out.normal = normalize(mul(NormalMatrix, vertex.GetNormal()).xyz);
 
-  float4 tangent = UnpackTangent(input.Tangent);
+  float4 tangent = vertex.GetTangent();
   out.tangent.xyz = normalize(mul(NormalMatrix, tangent.xyz));
   out.tangent.w = tangent.w;
 
-  out.color = input.Color;
+  out.color = vertex.GetColor();
 
   return out;
 }
@@ -72,7 +66,7 @@ struct FragmentOutput {
 }
 
 [shader("fragment")]
-FragmentOutput fragmentMain(FragmentInput input) {
+FragmentOutput fragmentMain(FragmentInput input, uint instance: SV_InstanceID) {
   float3 normal = normalize(input.normal);
   float4 tangent = float4(normalize(input.tangent.xyz), input.tangent.w);
 
@@ -81,7 +75,7 @@ FragmentOutput fragmentMain(FragmentInput input) {
     tangent = -tangent;
   }
 
-  MaterialData matData = MaterialBuffer[ModelInfo.y];
+  MaterialData matData = DrawItems[instance].GetMaterial();
   float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float3 albedo = texColor.rgb * matData.albedoFactor.rgb;

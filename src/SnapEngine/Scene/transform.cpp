@@ -1,7 +1,6 @@
 #include "transform.hpp"
 #include "Modules/Math/eulerAngle.hpp"
 #include "Modules/Math/math.hpp"
-#include "Modules/Math/mathTypes.hpp"
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/quaternion.hpp"
 #include "Wrap/wrap.hpp"
@@ -12,7 +11,6 @@
 #include <lua.hpp>
 
 namespace Engine {
-// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
 auto LuaTransform::SetPosition(lua_State *state) -> int {
   auto *entity = ::LuaWrap::EntityFromLua(state, 1);
@@ -509,5 +507,34 @@ extern const ::LuaWrap::LuaComponent TransformComponent{{
     {"getInverseForward", LuaTransform::GetInverseForward},
 }};
 
-// NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
+auto Transform::SetPosition(const Math::Vec3 &position) -> void {
+  Position = position;
+  LocalDirty = true;
+}
+
+auto Transform::SetRotation(const Math::Quaternion &rotation) -> void {
+  Rotation = rotation;
+  LocalDirty = true;
+}
+
+auto Transform::SetScale(const Math::Vec3 &scale) -> void {
+  Scale = scale;
+  LocalDirty = true;
+}
+
+auto Transform::ApplyTranslation(const Math::Vec3 &translation) -> void {
+  Position += translation;
+  LocalDirty = true;
+}
+
+auto Transform::ApplyRotation(const Math::Quaternion &rotation) -> void {
+  Rotation = rotation * Rotation;
+  LocalDirty = true;
+}
+
+auto Transform::ApplyScaling(const Math::Vec3 &scale) -> void {
+  Scale *= scale;
+  LocalDirty = true;
+}
+
 } // namespace Engine

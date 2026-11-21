@@ -266,6 +266,7 @@ add_library(snap_core OBJECT
     Modules/config.cpp
     Modules/event.cpp
     Modules/object.cpp
+    Modules/bytedata.cpp
     Modules/imageData.cpp
     Modules/compressedImageData.cpp
     Modules/Peripherals/mouse.cpp

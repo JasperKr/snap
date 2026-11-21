@@ -3,7 +3,6 @@
 #include "Scene/Geometry/boundingBox.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <lua.hpp>
@@ -49,54 +48,14 @@ struct Frustum {
   // Near, Far, Left, Right, Top, Bottom
   [[nodiscard]] auto GetPlanes() const -> std::array<Math::Plane, PlaneCount> { return {Near, Far, Left, Right, Top, Bottom}; }
 
-  [[nodiscard]] auto GetPlane(size_t index) -> Math::Plane & {
-    assert(index < PlaneCount && "Frustum plane index out of range");
-    assert(index >= 0 && "Frustum plane index out of range");
+  [[nodiscard]] auto GetPlane(size_t index) -> Math::Plane &;
 
-    switch (index) {
-    case 0:
-      return Near;
-    case 1:
-      return Far;
-    case 2:
-      return Left;
-    case 3:
-      return Right;
-    case 4:
-      return Top;
-    default:
-      return Bottom;
-    }
-  }
-
-  [[nodiscard]] auto GetPlane(size_t index) const -> const Math::Plane & {
-    assert(index < PlaneCount && "Frustum plane index out of range");
-    assert(index >= 0 && "Frustum plane index out of range");
-
-    switch (index) {
-    case 0:
-      return Near;
-    case 1:
-      return Far;
-    case 2:
-      return Left;
-    case 3:
-      return Right;
-    case 4:
-      return Top;
-    default:
-      return Bottom;
-    }
-  }
+  [[nodiscard]] auto GetPlane(size_t index) const -> const Math::Plane &;
 
   // Returns true if the point is inside the frustum
-  [[nodiscard]] auto ContainsPoint(const Math::Vec3 &point) const -> bool {
-    return std::ranges::all_of(GetPlanes(), [point](const Math::Plane &plane) -> bool { return plane.DistanceToPoint(point) >= 0.0F; });
-  }
+  [[nodiscard]] auto ContainsPoint(const Math::Vec3 &point) const -> bool;
 
-  [[nodiscard]] auto IntersectsSphere(const Math::Vec3 &center, float radius) const -> bool {
-    return std::ranges::all_of(GetPlanes(), [center, radius](const Math::Plane &plane) -> bool { return plane.DistanceToPoint(center) >= -radius; });
-  }
+  [[nodiscard]] auto IntersectsSphere(const Math::Vec3 &center, float radius) const -> bool;
 
   [[nodiscard]] auto IntersectsAABB(const Math::Vec3 &min, const Math::Vec3 &max, bool precise = true) const -> bool;
 

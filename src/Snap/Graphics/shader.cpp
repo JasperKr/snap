@@ -744,4 +744,62 @@ auto Shader::GetSlotDescription(DescriptorSlot slot) -> Reflect::ResourceInfo * 
   return &iter->second;
 }
 
+constexpr auto ShaderStageFlagsToPipelineStageFlags(VkShaderStageFlags shaderStages) -> VkPipelineStageFlags2 {
+  VkPipelineStageFlags2 pipelineStages = 0;
+
+  if (shaderStages == VK_SHADER_STAGE_ALL) {
+    return VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+  }
+
+  if ((shaderStages & VK_SHADER_STAGE_VERTEX_BIT) != 0U) {
+    pipelineStages |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+  }
+  if ((shaderStages & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT) != 0U) {
+    pipelineStages |= VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT;
+  }
+  if ((shaderStages & VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT) != 0U) {
+    pipelineStages |= VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT;
+  }
+  if ((shaderStages & VK_SHADER_STAGE_GEOMETRY_BIT) != 0U) {
+    pipelineStages |= VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT;
+  }
+  if ((shaderStages & VK_SHADER_STAGE_FRAGMENT_BIT) != 0U) {
+    pipelineStages |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+  }
+  if ((shaderStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0U) {
+    pipelineStages |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+  }
+
+  return pipelineStages;
+}
+Shader::~Shader() {
+  auto *ctx = GetCurrentGraphicsContext();
+
+  auto &state = GetState();
+  state.userBoundBuffers.clear();
+  state.userBoundTextures.clear();
+
+  BoundStateManager.EraseState(*this);
+
+  if (GetVirtualCommandBuffer() == nullptr) {
+    std::lock_guard<std::mutex> lock(GraphicsContext::mutexes.device);
+
+    vkDestroyShaderModule(ctx->device, module, GetAllocationCallbacks());
+
+    return;
+  }
+
+  ScheduleDestruction<VkShaderModule>(
+      [](const GraphicsContext &context, VkShaderModule &module) -> auto { vkDestroyShaderModule(context.device, module, GetAllocationCallbacks()); },
+      SemaphoreManager::GetSemaphoreValue(), module);
+}
+[[nodiscard]] auto Shader::GetState() const -> BoundState & {
+  auto &state = BoundStateManager.GetState(*this);
+
+  if (state.uniforms.empty()) {
+    state.uniforms.resize(uniformsSize);
+  }
+
+  return state;
+}
 } // namespace Graphics

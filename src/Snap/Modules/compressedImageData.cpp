@@ -1,5 +1,4 @@
 #include "compressedImageData.hpp"
-#include "Modules/console.hpp"
 #include "Modules/dds.hpp"
 #include "Modules/error.hpp"
 #include "Modules/filesystem.hpp"
@@ -107,4 +106,28 @@ auto CompressedImageData::Create(const std::span<uint8_t> &data) -> Result<Ref<C
 
 auto CompressedImageData::Create(const Data::ByteData &byteData) -> Result<Ref<CompressedImageData>> { return Create(byteData.GetDataSpan()); }
 
+auto CompressedImageData::GetMipSpan(int mipmap) const -> std::span<uint8_t> {
+  assert(mipmap >= 0 && mipmap < mipmapCount);
+  size_t offset = 0;
+  for (int i = 0; i < mipmap; ++i) {
+    offset += GetMipSize(i);
+  }
+  // NOLINTNEXTLINE
+  return {internalData->GetData() + offset, GetMipSize(mipmap)};
+}
+auto CompressedImageData::GetMipPtr(int mipmap) const -> uint8_t * {
+  assert(mipmap >= 0 && mipmap < mipmapCount);
+  size_t offset = 0;
+  for (int i = 0; i < mipmap; ++i) {
+    offset += GetMipSize(i);
+  }
+  // NOLINTNEXTLINE
+  return internalData->GetData() + offset;
+}
+auto CompressedImageData::GetMipSize(int mipmap) const -> size_t {
+  auto size = GetDimensions(mipmap);
+  auto blocksX = (size.width + 3) / 4;
+  auto blocksY = (size.height + 3) / 4;
+  return static_cast<size_t>(blocksX) * static_cast<size_t>(blocksY) * Graphics::Format::GetSize(format);
+}
 } // namespace Image

@@ -18,35 +18,11 @@ struct DeferredManager {
   std::vector<Deferred> actions;
   std::mutex mutex;
 
-  void Register(const Deferred &action) {
-    std::lock_guard<std::mutex> lock(mutex);
-    actions.emplace_back(action);
-  }
+  void Register(const Deferred &action);
 
-  void Update() {
-    std::lock_guard<std::mutex> lock(mutex);
+  void Update();
 
-    for (auto &action : actions) {
-      if (action.frames == 0) {
-        action.action();
-        action.frames = UINT64_MAX;
-      } else {
-        action.frames--;
-      }
-    }
-
-    Utils::UnorderedErase(actions, [](const Deferred &action) -> bool { return action.frames == UINT64_MAX; });
-  }
-
-  void Shutdown() {
-    for (auto &action : actions) {
-      if (action.callOnShutdown) {
-        action.action();
-      }
-    }
-
-    actions.clear();
-  }
+  void Shutdown();
 
   static DeferredManager Instance;
 };

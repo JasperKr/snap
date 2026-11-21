@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Modules/console.hpp"
 #include <condition_variable>
 #include <optional>
 #include <queue>
@@ -62,8 +61,6 @@ public:
   }
 
   auto DestroyImmediately() -> void {
-    PrintDebug("Destroying channel immediately.");
-
     {
       std::lock_guard<std::mutex> lock(mutex);
       // Iterate through messages and release references
