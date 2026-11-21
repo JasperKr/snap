@@ -13,13 +13,13 @@
 #include "Modules/object.hpp"
 #include <cstdint>
 #include <functional>
+#include <utility>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace Graphics {
 
 std::atomic<size_t> TLAS::TotalAllocatedMemory;
-std::atomic<size_t> BLAS::TotalAllocatedMemory;
 
 std::mutex BVHManager::ScratchBufferMutex;
 std::mutex BVHManager::CompactionMutex;
@@ -92,7 +92,9 @@ auto InitializeBVHModule(const GraphicsContext &context) -> Error {
 
 auto DeInitializeBVHModule() -> void { BVHManagerInstance.DeInitialize(); }
 
-auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh) -> Result<Ref<BLAS>> {
+auto BLAS::Create(const GraphicsContext &context, BLASPool *pool, const Mesh &mesh) -> Result<Ref<BLAS>> {
+  CHECK_NULL(pool);
+
   std::lock_guard<std::mutex> lock(BVHManager::ScratchBufferMutex);
 
   const auto *positionAttribute = mesh.GetVertexFormat().GetAttribute("POSITION");
@@ -173,25 +175,23 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh) -> Result<Re
   meshInfo.vertexOffset = positionAttribute->offset;
   bvh->geometryInfo = meshInfo;
 
+  auto info = pool->Allocate(context, sizeInfo.accelerationStructureSize);
+
   // Create AS storage buffer
-  bvh->accelerationStructureBuffer =
-      CHECK_RES(Buffer::Create(context, {
-                                            .size = sizeInfo.accelerationStructureSize,
-                                            .usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                            .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                            .stagingBuffer = false,
-                                            .persistentMapping = false,
-                                            .debugName = "BLAS Buffer",
-                                        }));
-  BLAS::TotalAllocatedMemory.fetch_add(sizeInfo.accelerationStructureSize);
+  bvh->accelerationStructureBuffer = info->buffer;
 
   // Create VkAccelerationStructureKHR
   VkAccelerationStructureCreateInfoKHR asCreateInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
       .buffer = bvh->accelerationStructureBuffer->handle,
+      .offset = info->offset,
       .size = sizeInfo.accelerationStructureSize,
       .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
   };
+
+  bvh->poolAddress = info->deviceAddress;
+  bvh->poolOffset = info->offset;
+  bvh->pool = pool;
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
@@ -241,7 +241,9 @@ auto BLAS::Create(const GraphicsContext &context, const Mesh &mesh) -> Result<Re
   return bvh;
 }
 
-auto BLAS::Create(const GraphicsContext &context, const Ref<Buffer> &aabbs, uint32_t count) -> Result<Ref<BLAS>> {
+auto BLAS::Create(const GraphicsContext &context, BLASPool *pool, const Ref<Buffer> &aabbs, uint32_t count) -> Result<Ref<BLAS>> {
+  CHECK_NULL(pool);
+
   std::lock_guard<std::mutex> lock(BVHManager::ScratchBufferMutex);
 
   VkAccelerationStructureGeometryKHR geometry{};
@@ -285,25 +287,23 @@ auto BLAS::Create(const GraphicsContext &context, const Ref<Buffer> &aabbs, uint
       .aabbCount = count,
   };
 
+  auto info = pool->Allocate(context, sizeInfo.accelerationStructureSize);
+
   // Create AS storage buffer
-  bvh->accelerationStructureBuffer =
-      CHECK_RES(Buffer::Create(context, {
-                                            .size = sizeInfo.accelerationStructureSize,
-                                            .usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                            .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                            .stagingBuffer = false,
-                                            .persistentMapping = false,
-                                            .debugName = "BLAS Buffer",
-                                        }));
-  BLAS::TotalAllocatedMemory.fetch_add(sizeInfo.accelerationStructureSize);
+  bvh->accelerationStructureBuffer = info->buffer;
 
   // Create VkAccelerationStructureKHR
   VkAccelerationStructureCreateInfoKHR asCreateInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
       .buffer = bvh->accelerationStructureBuffer->handle,
+      .offset = info->offset,
       .size = sizeInfo.accelerationStructureSize,
       .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
   };
+
+  bvh->poolAddress = info->deviceAddress;
+  bvh->poolOffset = info->offset;
+  bvh->pool = pool;
 
   {
     std::lock_guard<std::mutex> lock(Graphics::GraphicsContext::mutexes.device);
@@ -451,21 +451,10 @@ auto BLAS::Rebuild(const GraphicsContext &context) -> Error {
         },
         SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
 
-    accelerationStructureBuffer =
-        CHECK_RES(Buffer::Create(context, {
-                                              .size = sizeInfo.accelerationStructureSize,
-                                              .usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                              .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                              .stagingBuffer = false,
-                                              .persistentMapping = false,
-                                              .debugName = "BLAS Buffer",
-                                          }));
-    BLAS::TotalAllocatedMemory.fetch_sub(oldSize);
-    BLAS::TotalAllocatedMemory.fetch_add(sizeInfo.accelerationStructureSize);
-
     VkAccelerationStructureCreateInfoKHR asCreateInfo{
         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
         .buffer = accelerationStructureBuffer->handle,
+        .offset = poolOffset,
         .size = sizeInfo.accelerationStructureSize,
         .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
     };
@@ -757,6 +746,7 @@ auto BLAS::FinalizeCompaction(const GraphicsContext &context, VkDeviceSize compa
   VkAccelerationStructureCreateInfoKHR asCreateInfo{
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
       .buffer = compactedBuffer->handle,
+      .offset = poolOffset,
       .size = compactedSize,
       .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
   };
@@ -784,12 +774,7 @@ auto BLAS::FinalizeCompaction(const GraphicsContext &context, VkDeviceSize compa
       },
       SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
 
-  BLAS::TotalAllocatedMemory.fetch_sub(accelerationStructureBuffer->size);
-  BLAS::TotalAllocatedMemory.fetch_add(compactedSize);
-
   accelerationStructure = compactedAccelerationStructure;
-  accelerationStructureBuffer->MarkUse();
-
   accelerationStructureBuffer = compactedBuffer;
   accelerationStructureBuffer->MarkUse();
 
@@ -1195,4 +1180,69 @@ auto TLAS::Rebuild(const GraphicsContext &context) -> Error {
   return Error::Success();
 }
 
+auto BLASPool::Allocate(const GraphicsContext &context, VkDeviceSize size) -> Result<AllocationInfo> {
+  for (auto &entry : entries) {
+    if (entry.allocator.HasSpaceFor(size)) {
+      auto address = CHECK_RES(entry.allocator.Allocate(size));
+
+      return AllocationInfo{
+          .deviceAddress = entry.deviceAddress + address,
+          .offset = address,
+          .buffer = entry.buffer,
+      };
+    }
+  }
+
+  CHECK_ERR(CreateEntry(context));
+
+  auto &entry = entries.back();
+  auto address = CHECK_RES(entry.allocator.Allocate(size));
+
+  return AllocationInfo{
+      .deviceAddress = entry.deviceAddress + address,
+      .offset = address,
+      .buffer = entry.buffer,
+  };
+}
+
+auto BLASPool::DeAllocate(VkDeviceSize address) -> Error {
+  for (auto &entry : entries) {
+    // Within the address range of the buffer
+    if (address >= entry.deviceAddress && address < (entry.deviceAddress + EntrySize)) {
+      CHECK_ERR(entry.allocator.DeAllocate(address - entry.deviceAddress));
+
+      if (entry.allocator.IsEmpty()) {
+        Utils::UnorderedErase(entries, entry);
+      }
+
+      return {};
+    }
+  }
+
+  return Error::Createf("Allocation {} not found", address);
+}
+
+auto BLASPool::CreateEntry(const GraphicsContext &context) -> Error {
+  auto buffer =
+      CHECK_RES(Buffer::Create(context, {
+                                            .size = EntrySize,
+                                            .usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                            .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                            .stagingBuffer = false,
+                                            .persistentMapping = false,
+                                            .debugName = "BLAS Pool",
+                                        }));
+
+  VkDeviceAddress deviceAddress = CHECK_RES(buffer->GetDeviceAddress(context));
+
+  entries.emplace_back(Entry{
+      .buffer = buffer,
+      .deviceAddress = deviceAddress,
+      .allocator = PoolAllocator(EntrySize, ChunkSize, AllocationAlignment),
+  });
+
+  return {};
+}
+
+auto BLASPool::DeInitialize() -> void { entries.clear(); }
 } // namespace Graphics

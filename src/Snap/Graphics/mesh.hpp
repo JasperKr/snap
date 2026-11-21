@@ -107,7 +107,7 @@ struct Mesh : Object, Identifiable {
 
   auto GetBindingRanges() const -> Math::StackVector<VertexBindingRange, MAX_BOUND_VERTEX_BUFFERS> const & { return BindingRanges; }
 
-  auto CreateBLAS(const GraphicsContext &context) -> Error;
+  auto CreateBLAS(const GraphicsContext &context, BLASPool *pool) -> Error;
   auto GetBLAS() const -> Ref<BLAS> { return BottomLevelAS; }
 
 private:

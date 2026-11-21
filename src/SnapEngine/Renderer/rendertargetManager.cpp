@@ -168,7 +168,8 @@ auto RendertargetHandle::GetTexture(const Graphics::GraphicsContext &context, Vk
   }
 
   if (view == nullptr) {
-    view = CHECK_RES(Graphics::Texture::Create(context, texture.get(), VK_IMAGE_VIEW_TYPE_2D, range));
+    view =
+        CHECK_RES(Graphics::Texture::Create(context, texture.get(), descriptor.arrayLayers == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY, range));
     views.emplace_back(view);
   }
 
@@ -222,7 +223,8 @@ auto RenderTargetManager::GetRendertarget(const struct ::Graphics::GraphicsConte
     }
 
     if (!foundViewMatchingDescriptor) {
-      auto view = CHECK_RES(Graphics::Texture::Create(context, bestEntry->handle.texture.get(), VK_IMAGE_VIEW_TYPE_2D,
+      auto view = CHECK_RES(Graphics::Texture::Create(context, bestEntry->handle.texture.get(),
+                                                      descriptor.arrayLayers == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY,
                                                       VkImageSubresourceRange{
                                                           .baseMipLevel = 0,
                                                           .levelCount = descriptor.GetMipmapCount(),
@@ -277,7 +279,7 @@ auto RenderTargetManager::GetRendertarget(const struct ::Graphics::GraphicsConte
       .originalDescriptor = descriptor,
   });
 
-  auto view = CHECK_RES(Graphics::Texture::Create(context, texture.get(), VK_IMAGE_VIEW_TYPE_2D,
+  auto view = CHECK_RES(Graphics::Texture::Create(context, texture.get(), descriptor.arrayLayers == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY,
                                                   VkImageSubresourceRange{
                                                       .baseMipLevel = 0,
                                                       .levelCount = descriptor.GetMipmapCount(),

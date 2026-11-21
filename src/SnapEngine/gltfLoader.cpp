@@ -19,7 +19,8 @@
 #include "Scene/transform.hpp"
 #include "Scene/userdata.hpp"
 #include "material.hpp"
-#include "mikkTSpace.hpp"      // IWYU pragma: keep
+#include "mikkTSpace.hpp" // IWYU pragma: keep
+#include "renderer.hpp"
 #include "simdjson/simdjson.h" // IWYU pragma: keep; Forces the use of project simdjson instead of system simdjson
 #include <algorithm>
 #include <array>
@@ -267,7 +268,7 @@ inline auto LoadMaterial(const Graphics::GraphicsContext &context, const fastglt
     material->alphaMode = Engine::Renderer::AlphaMode::Opaque;
     break;
   case fastgltf::AlphaMode::Mask:
-    material->alphaMode = Engine::Renderer::AlphaMode::Mask;
+    material->alphaMode = Engine::Renderer::AlphaMode::Opaque;
     break;
   case fastgltf::AlphaMode::Blend:
     material->alphaMode = Engine::Renderer::AlphaMode::Blend;
@@ -1159,7 +1160,7 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context, flecs::world *wor
     CHECK_ERR(mesh->SetIndices(context, info.Indices, info.IndexType));
   }
 
-  CHECK_ERR(mesh->CreateBLAS(context));
+  CHECK_ERR(mesh->CreateBLAS(context, Engine::Renderer::RendererInstance.GetBLASPool()));
 
   info.Parent.set<Engine::Geometry>(Engine::Geometry{.mesh = mesh});
 

@@ -1,19 +1,16 @@
 {
-    "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build/",
-    ],
-    // Set default indentation to 2 spaces
-
-    "editor.tabSize": 2,
-
-    "[glsl]": {
-        "editor.formatOnSave": false
-    },
-
-    "files.exclude": {
-        // "include/": true,
-        // "external/": true,
-        "third_party/": true
-    },
-    "chat.disableAIFeatures": true
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build/",
+  ],
+  // Set default indentation to 2 spaces
+  "editor.tabSize": 2,
+  "[glsl]": {
+    "editor.formatOnSave": false
+  },
+  "files.exclude": {
+    "include/": true,
+    "external/": true,
+    "third_party/": true
+  },
+  "chat.disableAIFeatures": true
 }

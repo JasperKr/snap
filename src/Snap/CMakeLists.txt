@@ -242,6 +242,7 @@ add_library(snap_core OBJECT
     Graphics/vkAccessHelpers.cpp
     Graphics/vkPipelineHelpers.cpp
     Graphics/descriptorHeap.cpp
+    Graphics/allocator.cpp
 
 # Frame Graph
     Graphics/FrameGraph/framegraph.cpp

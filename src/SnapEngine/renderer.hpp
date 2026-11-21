@@ -196,6 +196,7 @@ struct Renderer {
     CHECK_ERR(PMJ02bnSamples->SetData(context, samples))
 
     CHECK_ERR(ShaderManager.Preload());
+    BLASPool = {};
     CHECK_ERR(VolumeManager.Initialize(context));
 
     initialized = true;
@@ -249,8 +250,8 @@ struct Renderer {
   auto GetSamplesBuffer() const -> const Ref<Graphics::Buffer> & { return PMJ02bnSamples; }
 
   auto GetMaterialUploadManager() -> BufferUploadManager & { return MaterialUploadManager; }
-
   auto GetVolumeManager() -> VolumeManager & { return VolumeManager; }
+  auto GetBLASPool() -> Graphics::BLASPool * { return &BLASPool; }
 
   auto GetIsInitialized() const -> bool { return initialized; }
 
@@ -285,6 +286,7 @@ private:
   Ref<Graphics::Buffer> PMJ02bnSamples;
 
   VolumeManager VolumeManager;
+  Graphics::BLASPool BLASPool;
 
   auto InitializeMaterialBuffer(Graphics::GraphicsContext &context, size_t initialSize) -> Error;
   auto InitializeLightBuffers(Graphics::GraphicsContext &context) -> Error;

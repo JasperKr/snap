@@ -228,6 +228,8 @@ void Renderer::Deinitialize() {
 
   BlueNoiseTexture = nullptr;
   PMJ02bnSamples = nullptr;
+  // BLASPool.DeInitialize(); Deletes the pool before the objects, causes issues.
+  // It is valid never to destroy the pool as long as all objects are removed, no references will dangle.
 }
 
 } // namespace Engine::Renderer

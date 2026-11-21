@@ -897,7 +897,7 @@ auto wrap_GetStats(lua_State *state) -> int {
   lua_pushinteger(state, static_cast<lua_Integer>(::Graphics::Buffer::TotalAllocatedMemory));
   lua_setfield(state, -2, "buffermemory");
 
-  lua_pushinteger(state, static_cast<lua_Integer>(::Graphics::BLAS::TotalAllocatedMemory));
+  lua_pushinteger(state, 0);
   lua_setfield(state, -2, "blasmemory");
 
   lua_pushinteger(state, static_cast<lua_Integer>(::Graphics::TLAS::TotalAllocatedMemory));

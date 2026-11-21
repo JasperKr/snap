@@ -1,13 +1,17 @@
 #pragma once
 
 #include "Graphics/allocations.hpp"
+#include "Graphics/allocator.hpp"
 #include "Graphics/buffer.hpp"
+#include "Graphics/graphicsContext.hpp"
 #include "Graphics/resource.hpp"
 #include "Graphics/semaphoreManager.hpp"
+#include "Modules/Helpers/units.hpp"
 #include "Modules/Math/matrix.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <atomic>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -21,6 +25,37 @@ namespace Graphics {
 struct CompactionEvent {
   VkDeviceSize compactedSize;
   struct BLAS *blas;
+};
+
+struct BLASPool {
+private:
+  struct Entry {
+    Ref<Buffer> buffer;
+    VkDeviceAddress deviceAddress;
+    PoolAllocator allocator;
+
+    auto operator==(const Entry &other) const -> bool { return other.buffer->handle == buffer->handle; }
+  };
+
+  std::vector<Entry> entries;
+
+public:
+  struct AllocationInfo {
+    VkDeviceAddress deviceAddress;
+    VkDeviceSize offset;
+    Ref<Buffer> buffer;
+  };
+
+  auto Allocate(const GraphicsContext &context, VkDeviceSize size) -> Result<AllocationInfo>;
+  auto DeAllocate(VkDeviceSize address) -> Error;
+  auto DeInitialize() -> void;
+
+private:
+  static constexpr VkDeviceSize EntrySize = Units::Memory::MiBToBytes(64);
+  static constexpr VkDeviceSize AllocationAlignment = 256; // Bytes
+  static constexpr VkDeviceSize ChunkSize = EntrySize / 256;
+
+  auto CreateEntry(const GraphicsContext &context) -> Error;
 };
 
 struct BVHManager {
@@ -68,20 +103,20 @@ struct BLAS : Object, Identifiable {
   auto operator=(BLAS &&) -> BLAS & = delete;
 
   ~BLAS() override {
-    if (accelerationStructureBuffer != nullptr) {
-      TotalAllocatedMemory.fetch_sub(accelerationStructureBuffer->size);
-    }
-
     ScheduleDestruction<VkAccelerationStructureKHR>(
         [](const GraphicsContext &context, VkAccelerationStructureKHR accelerationStructure) -> auto {
           vkDestroyAccelerationStructureKHR(context.device, accelerationStructure, GetAllocationCallbacks());
         },
         SemaphoreManager::GetSemaphoreValue(), accelerationStructure);
+
+    assert(pool != nullptr);
+
+    auto result = pool->DeAllocate(poolAddress);
   }
 
-  static auto Create(const GraphicsContext &context, const struct Mesh &mesh) -> Result<Ref<BLAS>>;
+  static auto Create(const GraphicsContext &context, BLASPool *pool, const struct Mesh &mesh) -> Result<Ref<BLAS>>;
 
-  static auto Create(const GraphicsContext &context, const Ref<Buffer> &aabbs, uint32_t count) -> Result<Ref<BLAS>>;
+  static auto Create(const GraphicsContext &context, BLASPool *pool, const Ref<Buffer> &aabbs, uint32_t count) -> Result<Ref<BLAS>>;
 
   static auto GetType() -> Type const * { return &LuaBLASType; }
   auto GetInstanceType() const -> Type const * override { return BLAS::GetType(); }
@@ -95,10 +130,11 @@ struct BLAS : Object, Identifiable {
   // DO NOT USE. INTERNAL
   auto FinalizeCompaction(const GraphicsContext &context, VkDeviceSize compactedSize) -> Error;
 
-  static std::atomic<size_t> TotalAllocatedMemory;
-
 private:
   Ref<Buffer> accelerationStructureBuffer;
+  VkDeviceSize poolAddress{};
+  VkDeviceSize poolOffset{};
+  BLASPool *pool = nullptr;
   VkDeviceAddress accelerationStructureAddress = 0;
   VkAccelerationStructureKHR accelerationStructure = VK_NULL_HANDLE;
 

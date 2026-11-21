@@ -6,6 +6,7 @@
 #include <string>
 #include <sys/types.h>
 
+#include "Graphics/bvh.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
@@ -251,10 +252,10 @@ auto Mesh::SetTopology(VkPrimitiveTopology topology) -> Error {
   return Error::Success();
 }
 
-auto Mesh::CreateBLAS(const GraphicsContext &context) -> Error {
+auto Mesh::CreateBLAS(const GraphicsContext &context, BLASPool *pool) -> Error {
   ZoneScoped;
 
-  BottomLevelAS = CHECK_RES(BLAS::Create(context, *this));
+  BottomLevelAS = CHECK_RES(BLAS::Create(context, pool, *this));
   // CHECK_ERR(BottomLevelAS->Compact(context));
 
   return Error::Success();

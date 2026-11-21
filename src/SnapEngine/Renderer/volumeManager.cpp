@@ -8,6 +8,7 @@
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Scene/volume.hpp"
+#include "renderer.hpp"
 #include <cstdint>
 #include <span>
 #include <vulkan/vulkan_core.h>
@@ -40,7 +41,7 @@ auto VolumeManager::Initialize(const Graphics::GraphicsContext &context) -> Erro
 
   CHECK_ERR(CubeBuffer->SetData(context, span));
 
-  InstanceBLAS = CHECK_RES(Graphics::BLAS::Create(context, CubeBuffer, 1));
+  InstanceBLAS = CHECK_RES(Graphics::BLAS::Create(context, RendererInstance.GetBLASPool(), CubeBuffer, 1));
   VolumeInstanceData = CHECK_RES(Graphics::Buffer::Create(context, {
                                                                        .size = sizeof(VolumeData) * InitialVolumeBufferSize,
                                                                        .usage = VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT,

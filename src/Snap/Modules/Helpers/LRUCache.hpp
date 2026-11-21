@@ -14,7 +14,15 @@ public:
   LRUCache(LRUCache &&) = default;
   auto operator=(const LRUCache &) -> LRUCache & = default;
   auto operator=(LRUCache &&) -> LRUCache & = default;
-  ~LRUCache() = default;
+  ~LRUCache() {
+    if (!m_onEvict) {
+      return;
+    }
+
+    for (auto &item : m_list) {
+      m_onEvict(item.key, item.value);
+    }
+  }
 
   explicit LRUCache(size_t capacity, EvictionCallback onEvict = {}) : m_capacity(capacity), m_onEvict(std::move(onEvict)) {}
 
