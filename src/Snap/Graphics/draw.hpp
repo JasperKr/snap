@@ -30,6 +30,9 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> 
                   VkDeviceSize offset = 0, // NOLINT
                   uint32_t count = 1) -> Error;
 
+auto DrawIndirectCount(const GraphicsContext &context, const Ref<Buffer> &buffer, uint32_t offset, const Ref<Buffer> &countBuffer, uint32_t countBufferOffset,
+                       uint32_t maxDraws, uint32_t stride) -> Error;
+
 // Vertex shader generated versions
 
 auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology, uint32_t vertexCount, uint32_t instanceCount = 1) -> Error;

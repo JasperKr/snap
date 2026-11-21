@@ -158,7 +158,7 @@ auto BindMesh(const GraphicsContext &context, const Mesh &mesh) -> Error {
 
   RenderState::SetTopology(mesh.GetTopology());
 
-  return Error::Success();
+  return {};
 }
 
 inline auto IsHazard(const Ref<Graphics::Texture> &first, const Ref<Graphics::Texture> &second) {
@@ -213,22 +213,15 @@ auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount) ->
   }
 
   {
-    ZoneScopedN("Resource management")
+    ZoneScopedN("Resource management");
 
-    {
-      const auto &vertexBuffer = mesh.GetVertexBuffer();
-      // std::lock_guard<std::mutex> lock(vertexBuffer->mutex);
-      vertexBuffer->MarkUse();
-    }
-
+    mesh.GetVertexBuffer()->MarkUse();
     if (mesh.GetIndexCount() > 0) {
-      const auto &indexBuffer = mesh.GetIndexBuffer();
-      // std::lock_guard<std::mutex> lock(indexBuffer->mutex);
-      indexBuffer->MarkUse();
+      mesh.GetIndexBuffer()->MarkUse();
     }
   }
 
-  return Error::Success();
+  return {};
 }
 
 auto Draw(const GraphicsContext &context, const Ref<Texture> &texture, uint32_t instanceCount) -> Error {
@@ -247,9 +240,7 @@ auto Draw(const GraphicsContext &context, const Ref<Texture> &texture, uint32_t 
 
 auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups) -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetVirtualCommandBuffer();
-
-  ERR_ASSERT(commandBuffer != nullptr);
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -264,16 +255,13 @@ auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups) -
   CaptureEvent(DispatchEvent(threadgroups.x, threadgroups.y, threadgroups.z));
 #endif
 
-  return Error::Success();
+  return {};
 }
 
 auto DispatchWithin(const GraphicsContext &context, Math::Uvec3 dimensions) -> Error {
   ZoneScoped;
 
-  const auto &shader = RenderState::GetUserShader();
-  if (shader == nullptr) {
-    return Error::Create("No shader bound for dispatch call.");
-  }
+  const auto &shader = CHECK_NULL(RenderState::GetUserShader());
 
   const auto &threadgroupSize = CHECK_RES(shader->GetThreadgroupSize());
 
@@ -293,11 +281,7 @@ auto DispatchWithin(const GraphicsContext &context, Math::Uvec3 dimensions) -> E
 
 auto DispatchIndirect(const GraphicsContext &context, const Ref<Buffer> &indirectBuffer, VkDeviceSize offset) -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetVirtualCommandBuffer();
-
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for dispatch indirect.");
-  }
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_COMPUTE);
 
@@ -310,18 +294,14 @@ auto DispatchIndirect(const GraphicsContext &context, const Ref<Buffer> &indirec
   CaptureEvent(DispatchIndirectEvent(indirectBuffer->handle, offset));
 #endif
 
-  return Error::Success();
+  return {};
 }
 
 auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> &indirectBuffer,
                   VkDeviceSize offset, // NOLINT
                   uint32_t count) -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetVirtualCommandBuffer();
-
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for draw indirect.");
-  }
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   CHECK_ERR(BindMesh(context, mesh));
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
@@ -340,31 +320,55 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> 
   CaptureEvent(DrawIndirectEvent(indirectBuffer->handle, offset, count, sizeof(VkDrawIndirectCommand)));
 #endif
 
-  {
-    std::lock_guard<std::mutex> lock(mesh.GetVertexBuffer()->mutex);
-    mesh.GetVertexBuffer()->MarkUse();
-  }
+  mesh.GetVertexBuffer()->MarkUse();
+  indirectBuffer->MarkUse();
+
   if (mesh.GetIndexCount() > 0) {
-    std::lock_guard<std::mutex> lock(mesh.GetIndexBuffer()->mutex);
     mesh.GetIndexBuffer()->MarkUse();
   }
-  {
-    std::lock_guard<std::mutex> lock(indirectBuffer->mutex);
-    indirectBuffer->MarkUse();
-  }
 
-  return Error::Success();
+  return {};
+}
+
+auto DrawIndirectCount(const GraphicsContext &context, const Ref<Buffer> &buffer, uint32_t offset, const Ref<Buffer> &countBuffer, uint32_t countBufferOffset,
+                       uint32_t maxDraws, uint32_t stride) -> Error {
+  ZoneScoped;
+  auto *commandBuffer = GetVirtualCommandBuffer();
+
+  buffer->MarkUse();
+  countBuffer->MarkUse();
+
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
+  commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
+
+  CHECK_ERR(commandBuffer->DrawIndirectCount(buffer->handle, offset, countBuffer->handle, countBufferOffset, maxDraws, stride));
+
+  return {};
+}
+
+auto DrawIndexedIndirectCount(const GraphicsContext &context, const Ref<Buffer> &buffer, uint32_t offset, const Ref<Buffer> &countBuffer,
+                              uint32_t countBufferOffset, uint32_t maxDraws, uint32_t stride) -> Error {
+  ZoneScoped;
+  auto *commandBuffer = GetVirtualCommandBuffer();
+
+  buffer->MarkUse();
+  countBuffer->MarkUse();
+
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
+  commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
+
+  CHECK_ERR(commandBuffer->DrawIndexedIndirectCount(buffer->handle, offset, countBuffer->handle, countBufferOffset, maxDraws, stride));
+
+  return {};
 }
 
 // Vertex shader generated versions
 
 auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology, uint32_t vertexCount, uint32_t instanceCount) -> Error { // NOLINT
   ZoneScoped;
-  auto *commandBuffer = GetVirtualCommandBuffer();
-
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for draw call.");
-  }
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
   commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
@@ -382,29 +386,21 @@ auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology, u
   CaptureEvent(DrawEvent(vertexCount, instanceCount, 0, 0));
 #endif
 
-  return Error::Success();
+  return {};
 }
 
 auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer, const VkPrimitiveTopology &topology, uint32_t indexCount, // NOLINT
           uint32_t instanceCount) -> Error {
   ZoneScoped;
-  auto *commandBuffer = GetVirtualCommandBuffer();
-
-  if (commandBuffer == nullptr) {
-    return Error::Create("Failed to get command buffer for draw call.");
-  }
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
   commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
   commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
   RenderState::SetTopology(topology);
 
-  {
-    std::lock_guard<std::mutex> lock(indexBuffer->mutex);
-
-    commandBuffer->BindIndexBuffer({indexBuffer->handle, 0, VK_INDEX_TYPE_UINT32});
-    indexBuffer->MarkUse();
-  }
+  commandBuffer->BindIndexBuffer({indexBuffer->handle, 0, VK_INDEX_TYPE_UINT32});
+  indexBuffer->MarkUse();
 
   RenderState::CurrentStats.drawCalls++;
   RenderState::CurrentStats.triangleCount += static_cast<uint64_t>(indexCount * instanceCount);
@@ -416,7 +412,7 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer, const 
   CaptureEvent(DrawIndexedEvent(indexCount, instanceCount, 0, 0, 0));
 #endif
 
-  return Error::Success();
+  return {};
 }
 
 } // namespace Graphics

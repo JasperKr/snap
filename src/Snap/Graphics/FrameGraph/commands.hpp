@@ -53,6 +53,8 @@ enum class CommandType : uint8_t {
   vkCmdDrawIndexed,
   vkCmdDrawIndirect,
   vkCmdDrawIndexedIndirect,
+  vkCmdDrawIndirectCount,
+  vkCmdDrawIndexedIndirectCount,
   vkCmdDispatch,
   vkCmdDispatchIndirect,
   vkCmdBlitImage,
@@ -81,6 +83,8 @@ static const Utils::EnumStringHelper<CommandType> CommandTypeEnumHelper{{
     "vkCmdDrawIndexed",
     "vkCmdDrawIndirect",
     "vkCmdDrawIndexedIndirect",
+    "vkCmdDrawIndirectCount",
+    "vkCmdDrawIndexedIndirectCount",
     "vkCmdDispatch",
     "vkCmdDispatchIndirect",
     "vkCmdBlitImage",
@@ -217,6 +221,42 @@ struct VkCmdDrawIndexedIndirect : Callable, DrawState, BoundResources {
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
     vkCmdDrawIndexedIndirect(cmdBuffer, buffer, offset, drawCount, stride);
+    return {};
+  }
+};
+
+struct VkCmdDrawIndirectCount : Callable, DrawState, BoundResources {
+  VkCmdDrawIndirectCount() = default;
+
+  static const CommandType type = CommandType::vkCmdDrawIndirectCount;
+
+  VkBuffer buffer{};
+  VkDeviceSize offset{};
+  VkBuffer countBuffer{};
+  VkDeviceSize countBufferOffset{};
+  uint32_t maxDrawCount{};
+  uint32_t stride{};
+
+  auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
+    vkCmdDrawIndirectCount(cmdBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
+    return {};
+  }
+};
+
+struct VkCmdDrawIndexedIndirectCount : Callable, DrawState, BoundResources {
+  VkCmdDrawIndexedIndirectCount() = default;
+
+  static const CommandType type = CommandType::vkCmdDrawIndexedIndirectCount;
+
+  VkBuffer buffer{};
+  VkDeviceSize offset{};
+  VkBuffer countBuffer{};
+  VkDeviceSize countBufferOffset{};
+  uint32_t maxDrawCount{};
+  uint32_t stride{};
+
+  auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
+    vkCmdDrawIndexedIndirectCount(cmdBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
     return {};
   }
 };
@@ -572,7 +612,8 @@ struct VkCmdPipelineBarrier2 : Callable, BoundResources {
 
 auto GetRequiresRendering(CommandType type) -> bool;
 
-using RenderPassCommands = std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect>;
+using RenderPassCommands = std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect,
+                                        Args::VkCmdDrawIndirectCount, Args::VkCmdDrawIndexedIndirectCount>;
 
 struct RenderPass : BoundResources {
   static const CommandType type = CommandType::renderPass;
@@ -618,11 +659,12 @@ template <typename T, typename... Ts> auto get_if_derived(const std::variant<Ts.
   return result;
 }
 
-using ArgVariants = std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect, Args::VkCmdDispatch,
-                                 Args::VkCmdDispatchIndirect, Args::VkCmdBlitImage, Args::VkCmdCopyBuffer, Args::VkCmdCopyImage, Args::VkCmdCopyBufferToImage,
-                                 Args::VkCmdCopyImageToBuffer, Args::MipmapTexture, Args::VkCmdFillBuffer, Args::VkCmdBuildAccelerationStructuresKHR,
-                                 Args::VkCmdCopyAccelerationStructureKHR, Args::VkCmdResetQueryPool, Args::VkCmdWriteAccelerationStructuresPropertiesKHR,
-                                 Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2, RenderPass>;
+using ArgVariants =
+    std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect, Args::VkCmdDrawIndirectCount,
+                 Args::VkCmdDrawIndexedIndirectCount, Args::VkCmdDispatch, Args::VkCmdDispatchIndirect, Args::VkCmdBlitImage, Args::VkCmdCopyBuffer,
+                 Args::VkCmdCopyImage, Args::VkCmdCopyBufferToImage, Args::VkCmdCopyImageToBuffer, Args::MipmapTexture, Args::VkCmdFillBuffer,
+                 Args::VkCmdBuildAccelerationStructuresKHR, Args::VkCmdCopyAccelerationStructureKHR, Args::VkCmdResetQueryPool,
+                 Args::VkCmdWriteAccelerationStructuresPropertiesKHR, Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2, RenderPass>;
 
 struct Command {
   CommandIndex id = UINT16_MAX;
@@ -749,6 +791,10 @@ struct VirtualCommandBuffer { // NOLINT
   auto DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) -> Error;
   auto DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error;
   auto DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error;
+  auto DrawIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t drawCount, uint32_t stride)
+      -> Error;
+  auto DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t drawCount, uint32_t stride)
+      -> Error;
   auto Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) -> Error;
   auto DispatchIndirect(VkBuffer buffer, VkDeviceSize offsets) -> Error;
   auto BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount,

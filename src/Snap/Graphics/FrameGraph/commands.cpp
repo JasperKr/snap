@@ -244,6 +244,10 @@ inline auto GetNewEmptyArgs(CommandType type) -> ArgVariants {
     return Args::VkCmdDrawIndirect();
   case CommandType::vkCmdDrawIndexedIndirect:
     return Args::VkCmdDrawIndexedIndirect();
+  case CommandType::vkCmdDrawIndirectCount:
+    return Args::VkCmdDrawIndirectCount();
+  case CommandType::vkCmdDrawIndexedIndirectCount:
+    return Args::VkCmdDrawIndexedIndirectCount();
   case CommandType::vkCmdDispatch:
     return Args::VkCmdDispatch();
   case CommandType::vkCmdDispatchIndirect:
@@ -495,6 +499,35 @@ auto VirtualCommandBuffer::DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize off
   commandInfo.buffer = buffer;
   commandInfo.offset = offset;
   commandInfo.drawCount = drawCount;
+  commandInfo.stride = stride;
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::DrawIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t drawCount,
+                                             uint32_t stride) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdDrawIndirectCount);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndirectCount>(GetCommand(command).data);
+
+  commandInfo.buffer = buffer;
+  commandInfo.offset = offset;
+  commandInfo.countBuffer = countBuffer;
+  commandInfo.countBufferOffset = countBufferOffset;
+  commandInfo.maxDrawCount = drawCount;
+  commandInfo.stride = stride;
+
+  return AddCommand(command);
+}
+auto VirtualCommandBuffer::DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset,
+                                                    uint32_t drawCount, uint32_t stride) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdDrawIndexedIndirectCount);
+  auto &commandInfo = std::get<Args::VkCmdDrawIndexedIndirectCount>(GetCommand(command).data);
+
+  commandInfo.buffer = buffer;
+  commandInfo.offset = offset;
+  commandInfo.countBuffer = countBuffer;
+  commandInfo.countBufferOffset = countBufferOffset;
+  commandInfo.maxDrawCount = drawCount;
   commandInfo.stride = stride;
 
   return AddCommand(command);
@@ -827,6 +860,8 @@ auto GetRequiresRendering(CommandType type) -> bool {
   case CommandType::vkCmdDrawIndexed:
   case CommandType::vkCmdDrawIndirect:
   case CommandType::vkCmdDrawIndexedIndirect:
+  case CommandType::vkCmdDrawIndirectCount:
+  case CommandType::vkCmdDrawIndexedIndirectCount:
   case CommandType::vkCmdDispatch:
   case CommandType::vkCmdDispatchIndirect:
   case CommandType::vkCmdClearAttachments:
