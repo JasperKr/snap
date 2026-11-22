@@ -61,6 +61,7 @@ struct StorageTexture : BoundShaderResource<Texture> {
   enum StorageRW : uint64_t {
     read = VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
     write = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+    readwrite = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
   };
 
   StorageTexture(const Ref<Texture> &texture, uint64_t access) {
@@ -97,6 +98,7 @@ struct StorageBuffer : BoundShaderResource<Buffer> {
   enum StorageRW : uint64_t {
     read = VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
     write = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+    readwrite = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
   };
 
   StorageBuffer(const Ref<Buffer> &buffer, uint64_t access) {

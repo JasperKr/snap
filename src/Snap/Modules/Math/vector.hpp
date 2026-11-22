@@ -266,6 +266,8 @@ struct Uvec2 {
   auto operator[](uint32_t index) const -> uint32_t;
   auto operator[](uint32_t index) -> uint32_t &;
 
+  explicit Uvec2(uint64_t data) : x(data & 0xFFFFFFFFU), y((data >> UINT32_WIDTH) & 0xFFFFFFFFU) {}
+
   constexpr Uvec2(uint32_t x_val, uint32_t y_val) : x(x_val), y(y_val) {}
   constexpr explicit Uvec2(uint32_t val) : x(val), y(val) {}
   constexpr Uvec2() = default;

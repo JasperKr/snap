@@ -14,7 +14,6 @@
 #include "Scene/Geometry/boundingBox.hpp"
 #include "Scene/Geometry/geometry.hpp"
 #include "Scene/Geometry/levelOfDetail.hpp"
-#include "Scene/Geometry/shape.hpp"
 #include "Scene/node.hpp"
 #include "Scene/transform.hpp"
 #include "Scene/userdata.hpp"
@@ -1161,8 +1160,14 @@ inline auto LoadMesh(const Graphics::GraphicsContext &context, flecs::world *wor
   }
 
   CHECK_ERR(mesh->CreateBLAS(context, Engine::Renderer::RendererInstance.GetBLASPool()));
+  uint32_t transformIndex = CHECK_RES(Engine::Renderer::RendererInstance.TransformAllocator.Allocate());
+  uint32_t meshIndex = CHECK_RES(Engine::Renderer::RendererInstance.MeshAllocator.Allocate());
 
-  info.Parent.set<Engine::Geometry>(Engine::Geometry{.mesh = mesh});
+  info.Parent.set<Engine::Geometry>(Engine::Geometry{
+      .mesh = mesh,
+      .transformIndex = transformIndex,
+      .meshIndex = meshIndex,
+  });
 
   // auto geometry = world->entity(GetUniqueName("Geometry").c_str());
   // geometry.set<Engine::Geometry>(Engine::Geometry{.mesh = mesh});

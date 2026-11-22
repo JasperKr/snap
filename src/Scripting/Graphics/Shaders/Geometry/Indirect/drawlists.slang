@@ -3,7 +3,7 @@ module drawlists;
 import utils;
 import constants;
 import camera;
-import transform;
+import Geometry.transform;
 import material;
 
 static const uint MaxLods = 8;
@@ -18,7 +18,7 @@ public struct Vertex {
 
   public half3 GetNormal() { return UnpackNormal(Normal); }
   public half4 GetTangent() { return UnpackTangent(Tangent); }
-  public half4 GetColor() { unpackUnorm4x8ToHalf(Color); }
+  public half4 GetColor() { return UnpackColor(Color); }
 };
 
 // A mesh is part of one buffer, lod's are ranges into that buffer
@@ -112,10 +112,11 @@ public struct Mesh {
 
 public struct DrawItem {
   public StructuredBuffer<Vertex> Vertices;
-
   public uint2 DrawRange;
+
   public uint MaterialIndex;
   public uint TransformIndex;
+  public uint2 padding;
 
   public float4x4 GetTransform() { return ModelTransforms[TransformIndex].ModelMatrix; }
   public float4x4 GetNormalMatrix() { return ModelTransforms[TransformIndex].NormalMatrix; }
@@ -126,11 +127,8 @@ public void TransformBounds(inout float3 bmin, inout float3 bmax, float4x4 trans
   float3 center = (bmin + bmax) * 0.5F;
   float3 extents = (bmax - bmin) * 0.5F;
 
-  float4x4 transposed = transpose(transform);
-
-  float3 worldCenter = mul(transposed, float4(center, 1.0F)).xyz;
-  float3x3 absoluteMatrix = abs(float3x3(transposed));
-  float3 worldExtents = mul(absoluteMatrix, extents);
+  float3 worldCenter = mul(float4(center, 1.0F), transform).xyz;
+  float3 worldExtents = mul(float4(extents, 0.0F), abs(transform)).xyz;
 
   bmin = worldCenter - worldExtents;
   bmax = worldCenter + worldExtents;

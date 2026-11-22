@@ -246,29 +246,7 @@ inline auto WriteAddress(const Graphics::GraphicsContext &context, Ref<Graphics:
 }
 
 auto Material::Write(const Graphics::GraphicsContext &context) -> Error {
-
-  struct MaterialData {
-    Math::Vec4 albedoFactor;
-
-    float roughnessFactor{};
-    float metallicFactor{};
-    float reflectanceFactor{};
-    uint32_t padding0{};
-
-    Math::Vec3 emissiveFactor;
-    uint32_t alphaMode{};
-
-    float alphaCutoff{};
-    uint padding1{};
-    Math::Uvec2 textureUVIndices{};
-
-    Math::Uvec2 AlbedoAddress{};
-    Math::Uvec2 NormalAddress{};
-    Math::Uvec2 MetallicRoughnessAddress{};
-    Math::Uvec2 AmbientOcclusionAddress{};
-    Math::Uvec2 ReflectanceAddress{};
-    Math::Uvec2 EmissiveAddress{};
-  } materialData{};
+  MaterialData materialData{};
 
   materialData.albedoFactor[0] = albedoFactor.x;
   materialData.albedoFactor[1] = albedoFactor.y;

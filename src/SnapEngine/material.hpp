@@ -29,6 +29,29 @@ using TexRef = Ref<Graphics::Texture>;
 const Type materialType = Type("Material");
 
 struct Material : Identifiable {
+  struct MaterialData {
+    Math::Vec4 albedoFactor;
+
+    float roughnessFactor{};
+    float metallicFactor{};
+    float reflectanceFactor{};
+    uint32_t padding0{};
+
+    Math::Vec3 emissiveFactor;
+    uint32_t alphaMode{};
+
+    float alphaCutoff{};
+    uint padding1{};
+    Math::Uvec2 textureUVIndices{};
+
+    Math::Uvec2 AlbedoAddress{};
+    Math::Uvec2 NormalAddress{};
+    Math::Uvec2 MetallicRoughnessAddress{};
+    Math::Uvec2 AmbientOcclusionAddress{};
+    Math::Uvec2 ReflectanceAddress{};
+    Math::Uvec2 EmissiveAddress{};
+  } materialData;
+
   Material(std::string name, Ref<Graphics::Shader> shader, TexRef preview, TexRef albedoTexture, TexRef normalTexture, TexRef metallicRoughnessTexture,
            TexRef ambientOcclusionTexture, TexRef reflectanceTexture, TexRef emissiveTexture)
       : name(std::move(name)), shader(std::move(shader)), preview(std::move(preview)), albedoTexture(std::move(albedoTexture)),

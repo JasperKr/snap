@@ -46,25 +46,26 @@ namespace Engine {
 
 using namespace Graphics;
 
-const auto CameraBufferFormat = Graphics::BufferFormat({
-    {"ViewMatrix", "floatmat4"},
-    {"InverseViewMatrix", "floatmat4"},
-    {"ProjectionMatrix", "floatmat4"},
-    {"InverseProjectionMatrix", "floatmat4"},
-    {"ViewProjectionMatrix", "floatmat4"},
-    {"InverseViewProjectionMatrix", "floatmat4"},
-    {"RotationProjectionMatrix", "floatmat4"},
-    {"InverseRotationProjectionMatrix", "floatmat4"},
+const std::vector<BufferComponent> CameraBufferComponents{
+    Graphics::BufferComponent{.name = "ViewMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "InverseViewMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "ProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "InverseProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "ViewProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "InverseViewProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "RotationProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "InverseRotationProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "Position", .format = VK_FORMAT_R32G32B32_SFLOAT},
+    Graphics::BufferComponent{.name = "Near", .format = VK_FORMAT_R32_SFLOAT},
+    Graphics::BufferComponent{.name = "Far", .format = VK_FORMAT_R32_SFLOAT},
+    Graphics::BufferComponent{.name = "NearMulFar", .format = VK_FORMAT_R32_SFLOAT},
+    Graphics::BufferComponent{.name = "FarMinusNear", .format = VK_FORMAT_R32_SFLOAT},
+    Graphics::BufferComponent{.name = "Settings", .format = VK_FORMAT_R32_UINT},
+    Graphics::BufferComponent{.name = "Jitter", .format = VK_FORMAT_R32G32_SFLOAT},
+    Graphics::BufferComponent{.name = "Frustum", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 6},
+};
 
-    {"Position", "floatvec3"},
-    {"Near", "float"},
-
-    {"Far", "float"},
-    {"NearMulFar", "float"},
-    {"FarMinusNear", "float"},
-    {"Settings", "uint32"},
-    {"Jitter", "floatvec2"},
-});
+const auto CameraBufferFormat = Graphics::BufferFormat(CameraBufferComponents);
 
 struct CameraBufferStruct {
   Math::Matrix4x4 ViewMatrix;
@@ -86,6 +87,8 @@ struct CameraBufferStruct {
 
   Math::Vec2 Jitter;
   Math::Uvec2 padding{};
+
+  std::array<Math::Plane, 6> Frustum;
 };
 
 static constexpr std::array<Math::Vec2, 4> JitterPattern = {
@@ -155,13 +158,7 @@ auto Camera::Create(const Graphics::GraphicsContext &context, float verticalFOVD
       .debugName = "Camera Buffer",
   };
 
-  auto bufferResult = Graphics::StructuredBuffer::Create(context, CameraBufferFormat, 2, info);
-
-  if (Error::IsError(bufferResult)) {
-    return bufferResult.error();
-  }
-
-  camera.CameraBuffer = bufferResult.value();
+  camera.CameraBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(context, CameraBufferFormat, 2, info));
 
   camera.ConfigureRendertargets();
   return camera;
@@ -1033,6 +1030,7 @@ auto Camera::WriteToBuffer(const CameraMatrices &cameraMatrices, const Transform
       .FarMinusNear = FarPlane - NearPlane,
       .Settings = settings,
       .Jitter = Jitter,
+      .Frustum = cameraMatrices.GetFrustum().GetPlanes(),
   };
 
   const auto *uint8Ptr = reinterpret_cast<const uint8_t *>(&data); // NOLINT

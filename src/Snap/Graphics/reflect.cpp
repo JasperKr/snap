@@ -19,26 +19,13 @@
 
 namespace Graphics::Reflect {
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto SetupVariant(slang::VariableLayoutReflection *layout) -> Result<std::variant<StructInfo, ScalarInfo, VectorInfo, MatrixInfo>> {
-
-  auto *baseType = layout->getTypeLayout();
-
+auto SetupType(slang::TypeLayoutReflection *baseType) -> Result<std::variant<StructInfo, ScalarInfo, VectorInfo, MatrixInfo>> {
   switch (baseType->getKind()) {
   case slang::TypeReflection::Kind::Struct: {
     auto structInfo = StructInfo{};
 
     structInfo.size = static_cast<uint32_t>(baseType->getSize());
     structInfo.alignment = static_cast<uint32_t>(baseType->getAlignment());
-    structInfo.offset = static_cast<uint32_t>(layout->getOffset());
-
-    assert(layout != nullptr);
-
-    if (layout->getName() == nullptr) {
-      structInfo.name = "Unnamed Struct";
-    } else {
-      structInfo.name = layout->getName();
-    }
 
     auto fieldCount = baseType->getFieldCount();
 
@@ -87,11 +74,12 @@ auto SetupVariant(slang::VariableLayoutReflection *layout) -> Result<std::varian
         break;
       }
       case slang::TypeReflection::Kind::Struct: {
-        auto structFieldInfo = CHECK_RES(SetupVariant(fieldVariable));
+        auto structFieldInfo = CHECK_RES(SetupType(fieldType));
 
         ResourceInfo fieldInfo(fieldVariable->getName());
 
         if (std::holds_alternative<StructInfo>(structFieldInfo)) {
+          std::get<StructInfo>(structFieldInfo).name = fieldVariable->getName();
           fieldInfo.info = std::get<StructInfo>(structFieldInfo);
         } else if (std::holds_alternative<ScalarInfo>(structFieldInfo)) {
           fieldInfo.info = std::get<ScalarInfo>(structFieldInfo);
@@ -148,7 +136,6 @@ auto SetupVariant(slang::VariableLayoutReflection *layout) -> Result<std::varian
     PrintError("Unsupported type kind in SetupVariant: {}", kindInt);
     PrintError("Field name: {}", baseType->getName() == nullptr ? "Unnamed" : baseType->getName());
     PrintError("Type name: {}", baseType->getType()->getName() == nullptr ? "Unnamed" : baseType->getType()->getName());
-    PrintError("layout name: {}", layout->getName() == nullptr ? "Unnamed" : layout->getName());
     return Error::Unexpectedf("Unsupported buffer element type in Buffer reflection: {}", kindInt);
   }
   }
@@ -156,6 +143,18 @@ auto SetupVariant(slang::VariableLayoutReflection *layout) -> Result<std::varian
   int kind = static_cast<int>(baseType->getKind());
 
   return Error::Unexpectedf("Unsupported type layout kind for Buffer reflection: {}", kind);
+}
+
+auto SetupVariant(slang::VariableLayoutReflection *layout) -> Result<std::variant<StructInfo, ScalarInfo, VectorInfo, MatrixInfo>> {
+  auto *baseType = layout->getTypeLayout();
+
+  auto result = CHECK_RES(SetupType(baseType));
+
+  if (baseType->getKind() == slang::TypeReflection::Kind::Struct) {
+    std::get<StructInfo>(result).name = layout->getName();
+  }
+
+  return result;
 }
 
 inline auto SlangImageFormatToVkFormat(SlangImageFormat format) {
@@ -468,7 +467,27 @@ auto SetupFromType(slang::VariableLayoutReflection *variableLayout, ShaderReflec
     break;
   }
   case slang::TypeReflection::Kind::Array: {
-    return Error::Unexpected("Top-level arrays are not supported in reflection.");
+    auto info = CHECK_RES(SetupType(typeLayout->getElementTypeLayout()));
+    resourceInfo.name = variableLayout->getName();
+
+    if (resourceInfo.IsStruct()) {
+      resourceInfo.info = std::get<StructInfo>(info);
+      std::get<StructInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
+    }
+    if (resourceInfo.IsScalar()) {
+      resourceInfo.info = std::get<ScalarInfo>(info);
+      std::get<ScalarInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
+    }
+    if (resourceInfo.IsVector()) {
+      resourceInfo.info = std::get<VectorInfo>(info);
+      std::get<VectorInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
+    }
+    if (resourceInfo.IsMatrix()) {
+      resourceInfo.info = std::get<MatrixInfo>(info);
+      std::get<MatrixInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
+    }
+
+    break;
   }
   case slang::TypeReflection::Kind::Matrix: {
     auto matrixInfo = MatrixInfo{};

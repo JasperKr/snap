@@ -51,10 +51,6 @@ struct Scene : Object {
   flecs::entity currentEnvironment;
   std::unordered_map<flecs::id_t, DrawGuiFuncStorage> drawFunctions;
 
-  std::vector<DrawItem> OpaqueDrawItems;
-  std::vector<DrawItem> MaskedDrawItems;
-  std::vector<DrawItem> TransparentDrawItems;
-
   JPH::PhysicsSystem PhysicsSystem;
   Physics::BPLayerInterfaceImpl PhysicsBroadPhaseLayer;
   Physics::ObjectVsBroadPhaseLayerFilterImpl PhysicsObjectBroadphaseFilter;
@@ -66,8 +62,8 @@ struct Scene : Object {
   auto GetInstanceType() const -> const Type * override { return &SceneType; }
 
   auto DrawUiElement() const -> Error;
-  auto DrawOpaqueModels(const Graphics::GraphicsContext &context, struct Camera &camera) -> Error;
-  auto DrawTransparentModels(const Graphics::GraphicsContext &context, struct Camera &camera) -> Error;
+  static auto DrawOpaqueModels(const Graphics::GraphicsContext &context, struct Camera &camera) -> Error;
+  static auto DrawTransparentModels(const Graphics::GraphicsContext &context, struct Camera &camera) -> Error;
   auto PrepareDrawLists(const Graphics::GraphicsContext &context, struct Frustum &frustum) -> Error;
   auto Update(double deltaTime) const -> Error;
 

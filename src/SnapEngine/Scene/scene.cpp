@@ -13,7 +13,6 @@
 #include "Jolt/Jolt.h" // IWYU pragma: keep
 #include "Jolt/Physics/PhysicsSystem.h"
 
-#include "Modules/Helpers/utils.hpp"
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/bindings.hpp"
@@ -56,10 +55,9 @@
 #include "defer.hpp"
 #include "material.hpp"
 #include "renderer.hpp"
-#include <algorithm>
-#include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <flecs.h>
 #include <imgui.h>
 #include <lua.hpp>
@@ -108,116 +106,67 @@ inline auto RenderDrawItem(const DrawItem &item, const Ref<Shader> &shader, cons
   return {};
 }
 
-inline auto AddDrawItem(std::vector<DrawItem> &OpaqueDrawItems, std::vector<DrawItem> &MaskedDrawItems, std::vector<DrawItem> &TransparentDrawItems,
-                        flecs::entity entity, const Geometry &geometry, const Frustum &frustum) -> void {
-  const Renderer::Material *material = nullptr;
-  material = entity.try_get<Renderer::Material>();
-
-  if (material == nullptr) {
-    material = &Renderer::RendererInstance.GetNoMaterial();
-  }
-
-  const auto *worldBounds = entity.try_get<WorldBounds>();
-
-  [[unlikely]]
-  if (worldBounds == nullptr) {
-    return;
-  }
-
-  const auto &boundingBox = worldBounds->Bounds;
-
-  if (!frustum.IntersectsAABB(boundingBox)) {
-    return; // Skip entities that are outside the camera frustum
-  }
-
-  auto drawItem = DrawItem{.geom_entity = entity,
-                           .geometry = geometry,
-                           .material = material,
-                           .primaryKey = material->getID(),
-                           .secondaryKey = geometry.mesh->getID(),
-                           .tertiaryKey = material->GetSecondarySortKey()};
-
-  switch (material->alphaMode) {
-  case Renderer::AlphaMode::Opaque:
-    OpaqueDrawItems.emplace_back(drawItem);
-    break;
-  case Renderer::AlphaMode::Mask:
-    MaskedDrawItems.emplace_back(drawItem);
-    break;
-  case Renderer::AlphaMode::Blend:
-    TransparentDrawItems.emplace_back(drawItem);
-    break;
-  }
-}
-
 auto Scene::PrepareDrawLists(const GraphicsContext &context, Frustum &frustum) -> Error {
   auto &renderer = Renderer::RendererInstance;
+  auto &manager = renderer.GetShaderManager();
 
   CHECK_ERR(renderer.NewFrame(context));
+  CHECK_ERR(renderer.DrawBuffers.DrawIndices->Clear(context, 0));
 
   for (const auto &system : preRender) {
     system.run();
   }
   finalizePreRenderUploads.run();
 
-  OpaqueDrawItems.clear();
-  MaskedDrawItems.clear();
-  TransparentDrawItems.clear();
-
-  world.each<Geometry>([&](flecs::entity entity, const Geometry &geometry) -> void {
-    bool hasChildren = false;
-    entity.children([&](flecs::entity child) -> void {
-      hasChildren = true;
-
-      AddDrawItem(OpaqueDrawItems, MaskedDrawItems, TransparentDrawItems, child, geometry, frustum);
-    });
-
-    if (!hasChildren) {
-      AddDrawItem(OpaqueDrawItems, MaskedDrawItems, TransparentDrawItems, entity, geometry, frustum);
-    }
-  });
-
-  std::ranges::sort(OpaqueDrawItems, CompareDrawItems);
-  std::ranges::sort(MaskedDrawItems, CompareDrawItems);
-  std::ranges::sort(TransparentDrawItems, CompareDrawItems);
-
   // Prepare model transform buffer
 
   struct ModelTransformData {
+    ModelTransformData() = default;
+
     Math::Matrix4x4 modelMatrix{};  // NOLINT
     Math::Matrix4x4 normalMatrix{}; // NOLINT
 
-    constexpr explicit ModelTransformData(Transform transform) : modelMatrix(transform.GetWorldMatrix()) {
+    constexpr explicit ModelTransformData(const Transform &transform) : modelMatrix(transform.GetWorldMatrix()) {
       normalMatrix = Math::Matrix4x4(transform.GetNormalMatrix());
     }
   };
 
   static std::vector<ModelTransformData> modelTransforms;
-  snap_defer(modelTransforms.clear());
-  size_t transformCount = 0UL;
-  modelTransforms.reserve(OpaqueDrawItems.size() + MaskedDrawItems.size() + TransparentDrawItems.size());
+  size_t count = renderer.TransformAllocator.backingAllocationSize / renderer.TransformAllocator.itemSize;
+  modelTransforms.resize(count);
 
-  for (auto &item : OpaqueDrawItems) {
-    item.transformIndex = transformCount++;
-    modelTransforms.emplace_back(item.geom_entity.get<Transform>());
-  }
+  world.each<Geometry>([&](flecs::entity entity, const Geometry &geometry) -> void {
+    modelTransforms.at(geometry.transformIndex) = ModelTransformData(entity.get_mut<Transform>());
+  });
 
-  for (auto &item : MaskedDrawItems) {
-    item.transformIndex = transformCount++;
-    modelTransforms.emplace_back(item.geom_entity.get<Transform>());
-  }
-
-  for (auto &item : TransparentDrawItems) {
-    item.transformIndex = transformCount++;
-    modelTransforms.emplace_back(item.geom_entity.get<Transform>());
-  }
-
-  CHECK_ERR(renderer.AssureModelTransformBufferSize(transformCount));
+  CHECK_ERR(renderer.AssureModelTransformBufferSize(count));
 
   if (!modelTransforms.empty()) {
     auto span = std::span<const ModelTransformData>(modelTransforms.data(), modelTransforms.size());
     CHECK_ERR(renderer.GetModelTransformsBuffer()->GetBuffer()->SetData(context, span));
   }
+
+  auto generateDrawlists = CHECK_RES(manager.GetShader(Renderer::ShaderKey::DrawLists));
+  auto indirect = CHECK_RES(manager.GetShader(Renderer::ShaderKey::Indirect));
+  RenderState::SetShader(generateDrawlists);
+
+  for (uint32_t i = 0; i < renderer.DrawBuffers.DrawLists.size(); i++) {
+    CHECK_ERR(generateDrawlists->Send(context, KeyElement{"DrawItems", i}, {renderer.DrawBuffers.DrawLists.at(i), StorageBuffer::write}));
+    CHECK_ERR(generateDrawlists->Send(context, KeyElement{"MeshIndices", i}, {renderer.DrawBuffers.MeshIndices.at(i), StorageBuffer::write}));
+
+    CHECK_ERR(indirect->Send(context, KeyElement{"DrawInfo", i}, {renderer.DrawBuffers.DrawCommands.at(i), StorageBuffer::write}));
+  }
+
+  CHECK_ERR(generateDrawlists->Send(context, "DrawItemCount", {renderer.DrawBuffers.DrawIndices, StorageBuffer::readwrite}));
+  CHECK_ERR(indirect->Send(context, "DrawItemCount", {renderer.DrawBuffers.DrawIndices, StorageBuffer::read}));
+
+  CHECK_ERR(generateDrawlists->Send(context, "Meshes", {renderer.MeshBuffer->GetBuffer(), StorageBuffer::read}));
+  CHECK_ERR(UniformWriter::Send(generateDrawlists, "MeshCount", (uint32_t)count));
+
+  CHECK_ERR(DispatchWithin(context, {static_cast<uint32_t>(count), 1, 1}));
+
+  RenderState::SetShader(indirect);
+  CHECK_ERR(DispatchWithin(context, {renderer.DrawBuffers.DrawLists.size(), 1, 1}));
 
   return {};
 }
@@ -269,23 +218,35 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
                                                    }}));
 
   Graphics::RenderState::PushDebugMarker("Depth Opaque Prepass");
-
   RenderState::SetShader(depthOpaque);
-  auto key = CHECK_RES(depthOpaque->ResolveKey("ModelInfo"));
 
-  for (const auto &item : OpaqueDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, depthOpaque, context, key));
-  }
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
+  CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(0), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(0)));
+
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
+  CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(1), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(1)));
+
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
+  CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(2), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(2)));
 
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Depth Masked Prepass");
 
   RenderState::SetShader(depthMasked);
-  key = CHECK_RES(depthMasked->ResolveKey("ModelInfo"));
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
+  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(3), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(3)));
 
-  for (const auto &item : MaskedDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, depthMasked, context, key));
-  }
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
+  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(4), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(4)));
+
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
+  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(5), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(5)));
 
   Graphics::RenderState::PopDebugMarker();
 
@@ -329,37 +290,35 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
                                                     }}));
 
   Graphics::RenderState::PushDebugMarker("Opaque Materials");
-  key = CHECK_RES(deferred->ResolveKey("ModelInfo"));
+  CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(0), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(0)));
 
-  for (const auto &item : OpaqueDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, deferred, context, key));
-  }
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
+  CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(1), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(1)));
+
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
+  CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(2), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(2)));
 
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Masked Materials");
 
-  for (const auto &item : MaskedDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, deferred, context, key));
-  }
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
+  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(3), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(3)));
 
-  if (OpaqueDrawItems.empty() && MaskedDrawItems.empty()) {
-    std::array<VkClearColorValue, 5> colors = {
-        VkClearColorValue{0.0F, 0.0F, 0.0F, 1.0F}, // Albedo
-        VkClearColorValue{0.0F, 0.0F, 0.0F, 1.0F}, // Normal
-        VkClearColorValue{0.0F, 0.0F, 0.0F, 1.0F}, // Material
-        VkClearColorValue{0.0F, 0.0F, 0.0F, 1.0F}, // Emissive
-        VkClearColorValue{0.0F, 0.0F, 0.0F, 1.0F}, // Motion
-    };
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
+  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(4), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(4)));
 
-    CHECK_ERR(RenderState::Clear(context, colors.data(), colors.size(), VkClearDepthStencilValue{.depth = 0.0F}, true, false));
-  }
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
+  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(5), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(5)));
 
   Graphics::RenderState::PopDebugMarker();
 
   RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
-
-  OpaqueDrawItems.clear();
-  MaskedDrawItems.clear();
 
   return {};
 }
@@ -401,16 +360,21 @@ auto Scene::DrawTransparentModels(const GraphicsContext &context, Camera &camera
                                                         .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                                                     }}));
 
-  auto key = CHECK_RES(forward->ResolveKey("ModelInfo"));
-  for (const auto &item : TransparentDrawItems) {
-    CHECK_ERR(RenderDrawItem(item, forward, context, key));
-  }
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
+  CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(6), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(6)));
+
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
+  CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(7), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(7)));
+
+  Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
+  CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(8), StorageBuffer::read}));
+  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(8)));
 
   RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
   Graphics::RenderState::PopDebugMarker();
-
-  TransparentDrawItems.clear();
 
   return {};
 }
@@ -490,57 +454,43 @@ Scene::Scene(std::string name) : name(std::move(name)) {
   auto &buffers = instance.GetSceneLightBuffers();
 
   preRender.emplace_back(world.system<Renderer::Material>().kind(0).each([this](Renderer::Material &material) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     lastUpdateResult = material.Update(*GetCurrentGraphicsContext());
   }));
 
   preRender.emplace_back(world.system<DirectionalLight>().kind(0).each([this, &buffers](flecs::entity entity, const DirectionalLight &light) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     lastUpdateResult = light.Write(buffers.DirectionalLightData, entity);
   }));
 
   preRender.emplace_back(world.system<PointLight>().kind(0).each([this, &buffers](flecs::entity entity, const PointLight &light) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     lastUpdateResult = light.Write(buffers.PointLightData, entity);
   }));
 
   preRender.emplace_back(world.system<SpotLight>().kind(0).each([this, &buffers](flecs::entity entity, const SpotLight &light) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     lastUpdateResult = light.Write(buffers.SpotLightData, entity);
   }));
 
   preRender.emplace_back(world.system<RectangleLight>().kind(0).each([this, &buffers](flecs::entity entity, const RectangleLight &light) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     lastUpdateResult = light.Write(buffers.RectangleLightData, entity);
   }));
 
   preRender.emplace_back(world.system<SphereLight>().kind(0).each([this, &buffers](flecs::entity entity, const SphereLight &light) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     lastUpdateResult = light.Write(buffers.SphereLightData, entity);
   }));
 
   preRender.emplace_back(world.system<Camera>().kind(0).each([this](flecs::entity entity, const Camera &camera) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     auto &transform = entity.get_mut<Transform>();
     auto &cameraMatrices = entity.get_mut<CameraMatrices>();
@@ -550,9 +500,7 @@ Scene::Scene(std::string name) : name(std::move(name)) {
 
   preRender.emplace_back(
       world.system<Geometry, Renderer::Material>().kind(0).each([this](flecs::entity entity, Geometry &geometry, Renderer::Material &material) -> auto {
-        if (lastUpdateResult.IsError()) {
-          return;
-        }
+        [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
         auto &transform = entity.get_mut<Transform>();
         const auto &worldMatrix = transform.GetWorldMatrix();
@@ -585,10 +533,54 @@ Scene::Scene(std::string name) : name(std::move(name)) {
         }
       }));
 
-  preRender.emplace_back(world.system<Volume>().kind(0).each([this](flecs::entity entity, Volume &volume) -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
+  preRender.emplace_back(world.system<Geometry>().kind(0).each([this](flecs::entity entity, Geometry &geometry) -> auto {
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
+
+    auto &renderer = Renderer::RendererInstance;
+
+    [[unlikely]]
+    if (geometry.dirty) {
+      geometry.dirty = false;
+
+      [[unlikely]]
+      if (geometry.meshIndex == UINT32_MAX) {
+        lastUpdateResult = Error::Create("Invalid mesh index");
+        return;
+      }
+
+      const auto *material = entity.try_get<Renderer::Material>(entity);
+      const auto *worldBounds = entity.try_get<WorldBounds>(entity);
+      auto drawRange = geometry.mesh->GetDrawRange();
+      auto &context = *GetCurrentGraphicsContext();
+      auto bufferAddressResult = geometry.mesh->GetVertexBuffer()->GetAddress(context, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+      if (!bufferAddressResult.has_value()) {
+        lastUpdateResult = bufferAddressResult.error();
+      }
+
+      [[unlikely]] if (lastUpdateResult.IsError()) { return; }
+
+      Renderer::GPUMesh meshInfo{
+          .Lod =
+              Renderer::GPULOD{
+                  .VerticesBuffer = Math::Uvec2(bufferAddressResult.value()),
+                  .DrawRanges = {Math::Uvec2(drawRange.Offset, drawRange.Count)},
+                  .LODRanges = {0.0},
+                  .BoundsMin = Math::Vec4(worldBounds->Bounds.Min, 0.0),
+                  .BoundsMax = Math::Vec4(worldBounds->Bounds.Max, 0.0),
+              },
+          .MaterialIndex = material != nullptr ? material->materialSSBOIndex : renderer.NoMaterial.materialSSBOIndex,
+          .TransformIndex = geometry.transformIndex,
+      };
+
+      auto span = std::span<Renderer::GPUMesh>(&meshInfo, 1);
+
+      lastUpdateResult = renderer.MeshBuffer->GetBuffer()->SetData(context, span, geometry.meshIndex * renderer.MeshAllocator.itemSize);
+      [[unlikely]] if (lastUpdateResult.IsError()) { return; }
     }
+  }));
+
+  preRender.emplace_back(world.system<Volume>().kind(0).each([this](flecs::entity entity, Volume &volume) -> auto {
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     auto &transform = entity.get_mut<Transform>();
     const auto &worldMatrix = transform.GetWorldMatrix();
@@ -607,15 +599,11 @@ Scene::Scene(std::string name) : name(std::move(name)) {
 
     lastUpdateResult = renderer.GetVolumeManager().UpdateInstance(ctx, volume.tlasIndex, volume, worldBox.Min, worldBox.Max);
 
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
   }));
 
   finalizePreRenderUploads = world.system().kind(0).each([this, &buffers]() -> auto {
-    if (lastUpdateResult.IsError()) {
-      return;
-    }
+    [[unlikely]] if (lastUpdateResult.IsError()) { return; }
 
     auto &ctx = *GetCurrentGraphicsContext();
     auto &renderer = Renderer::RendererInstance;

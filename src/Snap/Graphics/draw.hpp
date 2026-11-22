@@ -13,22 +13,14 @@ namespace Graphics {
 extern thread_local Ref<Mesh> QuadMesh;
 
 auto CreateQuad01Mesh(const Graphics::GraphicsContext &context) -> Result<Ref<Graphics::Mesh>>;
-
 auto BindMesh(const GraphicsContext &context, VkCommandBuffer cmdBuffer, const Mesh &mesh) -> Error;
-
 auto Draw(const GraphicsContext &context, Mesh &mesh, uint32_t instanceCount = 1) -> Error;
-
 auto Draw(const GraphicsContext &context, const Ref<Texture> &texture, uint32_t instanceCount = 1) -> Error;
-
 auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups) -> Error;
-
 auto DispatchWithin(const GraphicsContext &context, Math::Uvec3 dimensions) -> Error;
-
 auto DispatchIndirect(const GraphicsContext &context, const Ref<Buffer> &indirectBuffer, VkDeviceSize offset) -> Error;
-
-auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> &indirectBuffer,
-                  VkDeviceSize offset = 0, // NOLINT
-                  uint32_t count = 1) -> Error;
+auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> &indirectBuffer, VkDeviceSize offset = 0, uint32_t count = 1) -> Error;
+auto DrawIndirect(const GraphicsContext &context, const Ref<Buffer> &indirectBuffer, VkDeviceSize offset = 0, uint32_t count = 1) -> Error;
 
 auto DrawIndirectCount(const GraphicsContext &context, const Ref<Buffer> &buffer, uint32_t offset, const Ref<Buffer> &countBuffer, uint32_t countBufferOffset,
                        uint32_t maxDraws, uint32_t stride) -> Error;

@@ -2,37 +2,33 @@ import drawlists;
 import utils;
 import constants;
 import camera;
-import transform;
+import Geometry.transform;
 import material;
 
 static const uint DrawLayers = 3U;         // Opaque, Masked, Blend
 static const uint PipelineStateCount = 3U; // Only varies in cull mode. Front, Back, None
 
-struct VkDrawIndexedIndirectCommand {
-  uint32_t indexCount;
-  uint32_t instanceCount;
-  uint32_t firstIndex;
-  int32_t vertexOffset;
-  uint32_t firstInstance;
-};
-
-uniform RWStructuredBuffer<DrawItem>.Handle DrawItems[DrawLayers * PipelineStateCount];
-uniform RWStructuredBuffer<VkDrawIndexedIndirectCommand>.Handle DrawInfo[DrawLayers * PipelineStateCount];
+uniform RWStructuredBuffer<DrawItem>.Handle DrawItems[9];
+uniform RWStructuredBuffer<uint>.Handle MeshIndices[9];
 uniform RWStructuredBuffer<uint>.Handle DrawItemCount;
 
-uint GetBufferIndex(AlphaMode alphaMode, CullMode cullMode) { return alphaMode * DrawLayers + cullMode; }
+uint GetBufferIndex(AlphaMode alphaMode, CullMode cullMode) { return alphaMode * 3 + cullMode; }
 
 uniform StructuredBuffer<Mesh>.Handle Meshes;
 uniform uint MeshCount;
 
 uint SubgroupAtomicIndex(uint bufferIdx) {
-  uint count = WaveActiveSum(1U);
-  uint idx;
-  if (WaveIsFirstLane()) {
-    InterlockedAdd(DrawItemCount[bufferIdx], count, idx);
-  }
+  // uint count = WaveActiveSum(1U);
+  uint idx = 0;
+  // if (WaveIsFirstLane()) {
+  // InterlockedAdd(DrawItemCount[bufferIdx], count, idx);
+  // }
 
-  return WaveReadLaneFirst(idx) + WavePrefixSum(1U);
+  // return WaveReadLaneFirst(idx) + WavePrefixSum(1U);
+
+  InterlockedAdd(DrawItemCount[bufferIdx], 1, idx);
+
+  return idx;
 }
 
 bool InsideFrustum(float3 bmin, float3 bmax) {
@@ -88,5 +84,9 @@ void computeMain(uint3 invocationID: SV_DispatchThreadID) {
 
   uint2 drawRange = mesh.Lod.DrawRanges[lodIndex];
   DrawItemBuffer[index] = DrawItem(mesh.Lod.Vertices, drawRange, mesh.MaterialIndex, mesh.TransformIndex);
-  DrawInfo[bufferIdx][index] = VkDrawIndexedIndirectCommand(drawRange.y - drawRange.x, 1, drawRange.x, 0, 0);
+
+  // TODO: Wait on thread idx - 1 to be done and add that to drawRange.y, to have an incrementing draw range
+  // say we draw 4x 9 triangles, first one is 9, second 18, 27, 36.. , then we can binary search in the vtx shader
+  // for the mesh info, (we could subgroup elect one to wait, then do the rest of the sum in subgroup ops)
+  MeshIndices[bufferIdx][index] = drawRange.y;
 }

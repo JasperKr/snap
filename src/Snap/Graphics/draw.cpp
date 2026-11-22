@@ -330,6 +330,31 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> 
   return {};
 }
 
+auto DrawIndirect(const GraphicsContext &context, const Ref<Buffer> &indirectBuffer,
+                  VkDeviceSize offset, // NOLINT
+                  uint32_t count) -> Error {
+  ZoneScoped;
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
+
+  ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+  if (offset % 4 != 0) {
+    return Error::Create("Offset for vkCmdDrawIndirect must be a multiple of 4.");
+  }
+
+  RenderState::CurrentStats.drawCalls++;
+
+  CHECK_ERR(commandBuffer->DrawIndirect(indirectBuffer->handle, offset, count, sizeof(VkDrawIndirectCommand)));
+
+#if Enable_Snapshots
+  CaptureEvent(DrawIndirectEvent(indirectBuffer->handle, offset, count, sizeof(VkDrawIndirectCommand)));
+#endif
+
+  indirectBuffer->MarkUse();
+
+  return {};
+}
+
 auto DrawIndirectCount(const GraphicsContext &context, const Ref<Buffer> &buffer, uint32_t offset, const Ref<Buffer> &countBuffer, uint32_t countBufferOffset,
                        uint32_t maxDraws, uint32_t stride) -> Error {
   ZoneScoped;

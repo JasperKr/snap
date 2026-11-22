@@ -247,7 +247,10 @@ auto BufferFormat::CalculateStride(Standard std) const -> size_t {
     // Get base alignment of component
     if (std::holds_alternative<VkFormat>(format.format)) {
       auto vulkanFormat = std::get<VkFormat>(format.format);
-      VkFormat alignFormat = format.arraySize == 1 ? vulkanFormat : Graphics::Format::GetVec4Variant(vulkanFormat);
+      VkFormat alignFormat = vulkanFormat;
+      if (std == Standard::Std140) {
+        alignFormat = format.arraySize == 1 ? vulkanFormat : Graphics::Format::GetVec4Variant(vulkanFormat);
+      }
 
       auto alignResult = GetAlignment(alignFormat);
       if (Error::IsError(alignResult)) {

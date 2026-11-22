@@ -1,4 +1,5 @@
 #include "renderer.hpp"
+#include "Graphics/buffer.hpp"
 #include "Graphics/draw.hpp"
 #include "Graphics/graphics.hpp"
 #include "Graphics/graphicsContext.hpp"
@@ -6,6 +7,7 @@
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
 #include "Modules/color.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/filesystem.hpp"
 #include "Modules/imageData.hpp"
@@ -26,7 +28,7 @@
 namespace Engine::Renderer {
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-Renderer RendererInstance{};
+Renderer RendererInstance;
 
 auto Renderer::InitializeDefaultMaterial(Graphics::GraphicsContext &context) -> Error {
   constexpr uint32_t CheckerboardTextureSize = 8;
@@ -73,11 +75,7 @@ auto Renderer::InitializeDefaultMaterial(Graphics::GraphicsContext &context) -> 
 }
 
 auto Renderer::GetNewMaterialIndex() -> Result<size_t> {
-  size_t newIndex = 0;
-  while (UsedMaterialIndices.contains(newIndex)) {
-    newIndex++;
-  }
-  UsedMaterialIndices.insert(newIndex);
+  size_t newIndex = CHECK_RES(MaterialAllocator.Allocate());
 
   if (newIndex >= MaterialsBuffer->GetElementCount()) {
     auto newElementCount = MaterialsBuffer->GetElementCount() * 2;
@@ -111,6 +109,20 @@ auto Renderer::InitializeMaterialBuffer(const Graphics::GraphicsContext &context
 
   MaterialsBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(context, format, initialSize, materialBufferCreateInfo));
   MaterialUploadManager = BufferUploadManager(MaterialsBuffer->GetBuffer(), MaterialsBuffer->GetStride());
+
+  return {};
+}
+
+auto Renderer::InitializeMeshBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error {
+  const Graphics::StructuredBufferCreationInfo meshBufferCreateInfo{
+      .memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .usageFlags = static_cast<uint32_t>(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      .debugName = "Mesh Buffer",
+  };
+
+  auto format = Graphics::BufferFormat(MeshBufferComponents);
+
+  MeshBuffer = CHECK_RES(Graphics::StructuredBuffer::Create(context, format, initialSize, meshBufferCreateInfo));
 
   return {};
 }
@@ -221,6 +233,7 @@ void Renderer::Deinitialize() {
   MaterialsBuffer.reset();
   MaterialUploadManager = {};
   ModelTransformsBuffer.reset();
+  MeshBuffer.reset();
 
   SceneLightBuffers = Lights();
   LightProbeBuffer = nullptr;
@@ -237,18 +250,24 @@ auto Renderer::NewFrame(const Graphics::GraphicsContext &context) -> Error {
   CHECK_ERR(NoMaterial.Update(context));
   CHECK_ERR(DefaultMaterial.Update(context));
 
-  ModelTransformBufferElementCount = 0;
-
   return {};
 }
 auto Renderer::Initialize(Graphics::GraphicsContext &context) -> Error {
-  constexpr size_t InitialMaterialBufferSize = 1024UL;
-  constexpr size_t InitialModelTransformBufferSize = 4096UL;
+  const size_t InitialMaterialBufferSize = 1024UL;
+  const size_t InitialModelTransformBufferSize = 4096UL;
+  const size_t InitialMeshBufferSize = 4096UL;
 
   CHECK_ERR(InitializeDefaultMaterial(context));
 
   CHECK_ERR(InitializeMaterialBuffer(context, InitialMaterialBufferSize));
   CHECK_ERR(InitializeModelTransformsBuffer(context, InitialModelTransformBufferSize));
+  CHECK_ERR(InitializeMeshBuffer(context, InitialMeshBufferSize));
+
+  CHECK_ERR(MaterialAllocator.Resize(InitialMaterialBufferSize * MaterialsBuffer->GetStride()));
+  CHECK_ERR(TransformAllocator.Resize(InitialModelTransformBufferSize * ModelTransformsBuffer->GetStride()));
+
+  PrintInfo("Stride: {}", MeshBuffer->GetStride());
+  CHECK_ERR(MeshAllocator.Resize(InitialMeshBufferSize * MeshBuffer->GetStride()));
 
   CHECK_ERR(InitializeLightBuffers(context));
   CHECK_ERR(PrefilterManager.Initialize(context));
@@ -286,6 +305,52 @@ auto Renderer::Initialize(Graphics::GraphicsContext &context) -> Error {
   CHECK_ERR(ShaderManager.Preload());
   BLASPool = {};
   CHECK_ERR(VolumeManager.Initialize(context));
+
+  for (int i = 0; i < DrawBuffers.DrawCommands.size(); i++) {
+    Graphics::BufferCreationInfo drawCommandInfo = {
+        .size = sizeof(VkDrawIndirectCommand),
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+        .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .stagingBuffer = false,
+        .persistentMapping = false,
+        .debugName = "Draw commands",
+    };
+
+    DrawBuffers.DrawCommands.at(i) = CHECK_RES(Graphics::Buffer::Create(context, drawCommandInfo));
+
+    Graphics::BufferCreationInfo drawListsInfo = {
+        .size = MaxDrawsPerPass * sizeof(uint32_t) * 8,
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .stagingBuffer = false,
+        .persistentMapping = false,
+        .debugName = "Draw lists",
+    };
+
+    DrawBuffers.DrawLists.at(i) = CHECK_RES(Graphics::Buffer::Create(context, drawListsInfo));
+
+    Graphics::BufferCreationInfo meshIndicesInfo = {
+        .size = MaxDrawsPerPass * sizeof(uint32_t) * 2,
+        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        .stagingBuffer = false,
+        .persistentMapping = false,
+        .debugName = "Mesh indices",
+    };
+
+    DrawBuffers.MeshIndices.at(i) = CHECK_RES(Graphics::Buffer::Create(context, meshIndicesInfo));
+  }
+
+  Graphics::BufferCreationInfo drawCountsInfo = {
+      .size = sizeof(uint32_t) * 9,
+      .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+      .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .stagingBuffer = false,
+      .persistentMapping = false,
+      .debugName = "Draw command counts",
+  };
+
+  DrawBuffers.DrawIndices = CHECK_RES(Graphics::Buffer::Create(context, drawCountsInfo));
 
   initialized = true;
   return {};

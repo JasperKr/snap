@@ -96,21 +96,21 @@ struct KeyElement {
   KeyElement() = default;
   KeyElement(const char *key) : Key(key) {}             // NOLINT
   KeyElement(std::string_view key) : Key(key.data()) {} // NOLINT
-  explicit KeyElement(std::string_view key, uint64_t index) : Key(key.data()), Index(index) {}
+  explicit KeyElement(std::string_view key, uint32_t index) : Key(key.data()), Index(index) {}
 
   const char *Key = nullptr;
-  uint64_t Index = UINT64_MAX;
+  uint32_t Index = UINT32_MAX;
 
   [[nodiscard]] auto Matches(std::string_view key) const -> bool { return Key == key; }
 
   [[nodiscard]] auto Matches(const char *key) const -> bool { return Matches(std::string_view{key}); }
 
-  [[nodiscard]] auto GetIndex() const -> std::optional<uint64_t> { return Index == UINT64_MAX ? std::nullopt : std::optional<uint64_t>{Index}; }
+  [[nodiscard]] auto GetIndex() const -> std::optional<uint32_t> { return Index == UINT32_MAX ? std::nullopt : std::optional<uint32_t>{Index}; }
 
-  [[nodiscard]] auto IsIndexingKey() const -> bool { return Index != UINT64_MAX; }
+  [[nodiscard]] auto IsIndexingKey() const -> bool { return Index != UINT32_MAX; }
 
   [[nodiscard]] auto ToString() const -> std::string {
-    if (Index != UINT64_MAX) {
+    if (Index != UINT32_MAX) {
       return std::string(Key) + "[" + std::to_string(Index) + "]";
     }
 

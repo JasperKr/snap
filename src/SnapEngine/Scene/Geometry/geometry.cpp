@@ -5,6 +5,7 @@
 #include "Scene/transform.hpp"
 #include "Wrap/wrap.hpp"
 #include "Wrap/wrap_engine.hpp"
+#include "renderer.hpp"
 #include <imgui.h>
 
 namespace Engine {
@@ -31,8 +32,17 @@ auto LuaGeometry::Create(lua_State *state) -> int {
 
   auto mesh = LUA_CK_NULL(::LuaWrap::ObjectFromLua<Graphics::Mesh>(state, 3));
 
+  auto &renderer = Renderer::RendererInstance;
+
   auto entity = scene->world.entity(name);
-  entity.set<Geometry>(Geometry{.mesh = mesh});
+  uint32_t transformIndex = LUA_CK_RES(renderer.TransformAllocator.Allocate());
+  uint32_t meshIndex = LUA_CK_RES(renderer.MeshAllocator.Allocate());
+
+  entity.set<Geometry>(Geometry{
+      .mesh = mesh,
+      .transformIndex = static_cast<uint32_t>(transformIndex / renderer.TransformAllocator.itemSize),
+      .meshIndex = static_cast<uint32_t>(meshIndex / renderer.MeshAllocator.itemSize),
+  });
   entity.add<Transform>();
 
   auto luaGeometry = LuaGeometry::FromEntity(entity);
@@ -46,4 +56,15 @@ const ::LuaWrap::LuaComponent GeometryComponent = {{
     {"create", LuaGeometry::Create},
 }};
 
+Geometry::~Geometry() {
+  auto &renderer = Renderer::RendererInstance;
+
+  if (transformIndex != UINT32_MAX) {
+    auto err = Renderer::RendererInstance.TransformAllocator.DeAllocate(transformIndex * renderer.TransformAllocator.itemSize);
+  }
+
+  if (meshIndex != UINT32_MAX) {
+    auto err = Renderer::RendererInstance.MeshAllocator.DeAllocate(meshIndex * renderer.MeshAllocator.itemSize);
+  }
+}
 } // namespace Engine

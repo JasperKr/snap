@@ -3,24 +3,26 @@
 #include "Editor/lineDrawer.hpp"
 #include "Editor/primitiveDrawer.hpp"
 #include "Graphics/Buffers/structured.hpp"
+#include "Graphics/allocator.hpp"
 #include "Graphics/buffer.hpp"
 #include "Graphics/bufferformat.hpp"
 #include "Graphics/bvh.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/shader.hpp"
 #include "Graphics/texture.hpp"
+#include "Modules/Math/matrix.hpp"
+#include "Modules/Math/vector.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
-#include "Modules/stackVector.hpp"
 #include "Renderer/bloomManager.hpp"
 #include "Renderer/prefilterManager.hpp"
 #include "Renderer/shaderManager.hpp"
 #include "Renderer/volumeManager.hpp"
 #include "bufferUploadManager.hpp"
 #include "material.hpp"
+#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <unordered_set>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 namespace Engine::Renderer {
@@ -130,9 +132,66 @@ const std::vector<Graphics::BufferComponent> LightProbeBufferComponents = {
     },
 };
 
+const std::vector<Graphics::BufferComponent> LODComponents = {
+    Graphics::BufferComponent{
+        .name = "Vertices",
+        .format = VK_FORMAT_R32G32_UINT,
+    },
+    Graphics::BufferComponent{
+        .name = "DrawRanges",
+        .format = VK_FORMAT_R32G32_UINT,
+        .arraySize = 8,
+    },
+    Graphics::BufferComponent{
+        .name = "LodRanges",
+        .format = VK_FORMAT_R32_SFLOAT,
+        .arraySize = 8,
+    },
+    Graphics::BufferComponent{
+        .name = "BoundsMin",
+        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+    },
+    Graphics::BufferComponent{
+        .name = "BoundsMax",
+        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+    },
+};
+
+const std::vector<Graphics::BufferComponent> MeshBufferComponents = {
+    Graphics::BufferComponent{
+        .name = "Lod",
+        .format = Graphics::BufferFormat(LODComponents),
+    },
+    Graphics::BufferComponent{
+        .name = "MaterialIndex",
+        .format = VK_FORMAT_R32_UINT,
+    },
+    Graphics::BufferComponent{
+        .name = "TransformIndex",
+        .format = VK_FORMAT_R32_UINT,
+    },
+};
+
+struct GPULOD {
+  Math::Uvec2 VerticesBuffer{};
+  std::array<Math::Uvec2, 8> DrawRanges{};
+  std::array<float, 8> LODRanges{};
+
+  Math::Vec4 BoundsMin;
+  Math::Vec4 BoundsMax;
+};
+
+struct GPUMesh {
+  GPULOD Lod;
+  uint32_t MaterialIndex{};
+  uint32_t TransformIndex{};
+};
+
 const Graphics::BufferFormat LightProbeBufferFormat{LightProbeBufferComponents};
 
 struct Renderer {
+  static constexpr uint32_t MaxDrawsPerPass = 1024UL * 32U; // n opaque front facing, n opaque back facing, n masked none, etc
+
   struct Lights {
     Ref<Graphics::StructuredBuffer> PointLightsBuffer;
     Ref<Graphics::StructuredBuffer> SpotLightsBuffer;
@@ -153,10 +212,16 @@ struct Renderer {
     int DirectionalLightCount = 0;
   };
 
+  /*
+    opaque prepass: NONE, BACK, FRONT
+    masked prepass: NONE, BACK, FRONT
+    transparency  : NONE, BACK, FRONT
+  */
   struct DrawBuffers {
-    Math::StackVector<Ref<Graphics::Buffer>, 9> DrawLists;    // 9x draw lists
-    Ref<Graphics::Buffer> DrawIndices;                        // 9 element uint buffer
-    Math::StackVector<Ref<Graphics::Buffer>, 9> DrawCommands; // 9x draw commands
+    std::array<Ref<Graphics::Buffer>, 9> DrawLists;    // 9x draw lists
+    Ref<Graphics::Buffer> DrawIndices;                 // 9 element uint buffer
+    std::array<Ref<Graphics::Buffer>, 9> DrawCommands; // 9x draw commands
+    std::array<Ref<Graphics::Buffer>, 9> MeshIndices;  // Vertex range -> mesh index
   };
 
   auto Initialize(Graphics::GraphicsContext &context) -> Error;
@@ -181,7 +246,7 @@ struct Renderer {
 
   auto NewFrame(const Graphics::GraphicsContext &context) -> Error;
 
-  auto GetLightProbeBuffer() -> Ref<Graphics::StructuredBuffer> { return LightProbeBuffer; }
+  auto GetLightProbeBuffer() const -> Ref<Graphics::StructuredBuffer> { return LightProbeBuffer; }
 
   auto GetLineDrawer() -> LineDrawer & { return LineDrawer; }
   auto GetLineDrawer() const -> const LineDrawer & { return LineDrawer; }
@@ -206,18 +271,29 @@ struct Renderer {
 
   auto GetIsInitialized() const -> bool { return initialized; }
 
-private:
+  /*
+  opaque prepass: NONE, BACK, FRONT
+
+  masked prepass: NONE, BACK, FRONT
+
+  transparency  : NONE, BACK, FRONT
+  */
+  DrawBuffers DrawBuffers;
+
   bool initialized = false;
 
   Material NoMaterial;
   Material DefaultMaterial;
 
+  Graphics::GapAllocator MaterialAllocator{112, sizeof(Material::MaterialData)};
   Ref<Graphics::StructuredBuffer> MaterialsBuffer;
-  std::unordered_set<size_t> UsedMaterialIndices;
   BufferUploadManager MaterialUploadManager;
 
+  Graphics::GapAllocator TransformAllocator{128, sizeof(Math::Matrix4x4) * 2};
   Ref<Graphics::StructuredBuffer> ModelTransformsBuffer;
-  size_t ModelTransformBufferElementCount = 0;
+
+  Graphics::GapAllocator MeshAllocator{160, 160}; // 160 is the stride of GPUMesh with std430
+  Ref<Graphics::StructuredBuffer> MeshBuffer;
 
   Ref<Graphics::StructuredBuffer> LightProbeBuffer;
 
@@ -239,12 +315,10 @@ private:
   VolumeManager VolumeManager;
   Graphics::BLASPool BLASPool;
 
-  DrawBuffers DrawBuffers;
-
   auto InitializeMaterialBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error;
   auto InitializeLightBuffers(const Graphics::GraphicsContext &context) -> Error;
   auto InitializeModelTransformsBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error;
-  auto InitializeDrawBuffers(const Graphics::GraphicsContext &context, size_t initialSize) -> Error;
+  auto InitializeMeshBuffer(const Graphics::GraphicsContext &context, size_t initialSize) -> Error;
 
   auto InitializeDefaultMaterial(Graphics::GraphicsContext &context) -> Error;
 };

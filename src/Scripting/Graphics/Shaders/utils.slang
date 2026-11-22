@@ -27,6 +27,21 @@ public half4 UnpackTangent(uint packedTangent) {
   return tangent;
 }
 
+public half4 UnpackColor(uint packedColor) {
+  uint x = (packedColor >> 0) & 0xFF;
+  uint y = (packedColor >> 8) & 0xFF;
+  uint z = (packedColor >> 16) & 0xFF;
+  uint w = (packedColor >> 24) & 0xFF;
+
+  half4 color;
+  color.x = half(x) * half(1.0f / 255.0f);
+  color.y = half(y) * half(1.0f / 255.0f);
+  color.z = half(z) * half(1.0f / 255.0f);
+  color.w = half(w) * half(1.0f / 255.0f);
+
+  return color;
+}
+
 public float2 UnpackMotionVector(const float2 packedMotionVector) {
 
   float2 unsignedMotion = packedMotionVector * packedMotionVector;

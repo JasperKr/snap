@@ -13,10 +13,13 @@ struct AllocatorInterface {
   virtual ~AllocatorInterface();
 
   virtual auto Allocate(VkDeviceSize size) -> Result<VkDeviceSize>;
+  virtual auto Allocate() -> Result<VkDeviceSize>;
+
   virtual auto DeAllocate(VkDeviceSize offset) -> Error;
   virtual auto Defragment() -> Error;
   virtual auto HasSpaceFor(VkDeviceSize size) -> bool;
   virtual auto IsEmpty() -> bool;
+  virtual auto Resize(VkDeviceSize newSize) -> Error;
 
   AllocatorInterface(const AllocatorInterface &) = default;
   AllocatorInterface(AllocatorInterface &&) = delete;
@@ -40,11 +43,12 @@ struct LinearAllocator : AllocatorInterface {
   ~LinearAllocator() override = default;
 
   auto Allocate(VkDeviceSize size) -> Result<VkDeviceSize> override;
-
+  auto Allocate() -> Result<VkDeviceSize> override;
   auto DeAllocate(VkDeviceSize offset) -> Error override;
   auto Defragment() -> Error override;
   auto HasSpaceFor(VkDeviceSize size) -> bool override { return (pointer + size) < backingAllocationSize; }
   auto IsEmpty() -> bool override { return pointer == 0UL; }
+  auto Resize(VkDeviceSize newSize) -> Error override;
 };
 
 struct StackAllocator : AllocatorInterface {
@@ -59,10 +63,12 @@ struct StackAllocator : AllocatorInterface {
   ~StackAllocator() override = default;
 
   auto Allocate(VkDeviceSize size) -> Result<VkDeviceSize> override;
+  auto Allocate() -> Result<VkDeviceSize> override;
   auto DeAllocate(VkDeviceSize offset) -> Error override;
   auto Defragment() -> Error override;
   auto HasSpaceFor(VkDeviceSize size) -> bool override { return (pointer + size) < backingAllocationSize; }
   auto IsEmpty() -> bool override { return allocationAddresses.empty(); }
+  auto Resize(VkDeviceSize newSize) -> Error override;
 };
 
 struct PoolAllocator : AllocatorInterface {
@@ -78,14 +84,38 @@ struct PoolAllocator : AllocatorInterface {
   ~PoolAllocator() override = default;
 
   auto Allocate(VkDeviceSize size) -> Result<VkDeviceSize> override;
+  auto Allocate() -> Result<VkDeviceSize> override;
   auto DeAllocate(VkDeviceSize offset) -> Error override;
   auto Defragment() -> Error override;
   auto HasSpaceFor(VkDeviceSize size) -> bool override;
   auto IsEmpty() -> bool override;
+  auto Resize(VkDeviceSize newSize) -> Error override;
 
 private:
   // Find a space for an allocation of a specific size, returning the chunk idx, count
   auto FindSpace(VkDeviceSize size) -> std::optional<std::pair<uint32_t, uint32_t>>;
+};
+
+struct GapAllocator : AllocatorInterface {
+  VkDeviceSize itemSize;
+
+  VkDeviceSize pointer{};
+  std::vector<uint32_t> gaps;
+
+  GapAllocator(const GapAllocator &) = default;
+  GapAllocator(GapAllocator &&) = delete;
+  auto operator=(const GapAllocator &) -> GapAllocator & = default;
+  auto operator=(GapAllocator &&) -> GapAllocator & = delete;
+  GapAllocator(VkDeviceSize size, VkDeviceSize itemSize);
+  ~GapAllocator() override = default;
+
+  auto Allocate(VkDeviceSize size) -> Result<VkDeviceSize> override;
+  auto Allocate() -> Result<VkDeviceSize> override;
+  auto DeAllocate(VkDeviceSize offset) -> Error override;
+  auto Defragment() -> Error override;
+  auto HasSpaceFor(VkDeviceSize size) -> bool override;
+  auto IsEmpty() -> bool override;
+  auto Resize(VkDeviceSize newSize) -> Error override;
 };
 
 // struct LinkedListAllocator : AllocatorInterface {};

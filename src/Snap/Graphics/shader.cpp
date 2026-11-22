@@ -142,7 +142,8 @@ auto LoadShaderModule() -> Error {
   ERR_ASSERT(SpvTargetDesc.profile != SLANG_PROFILE_UNKNOWN);
 
   auto *options = GetCompilerOptions();
-  const std::vector<string_view> capabilities = {"spvRayQueryKHR", "spvDescriptorHeapEXT", "spvRayTracingKHR"};
+  const std::vector<string_view> capabilities = {"spvRayQueryKHR",     "spvDescriptorHeapEXT",     "spvRayTracingKHR",
+                                                 "spvGroupNonUniform", "spvGroupNonUniformBallot", "spvGroupNonUniformArithmetic"};
 
   for (auto capability : capabilities) {
     auto &option = options->emplace_back();
