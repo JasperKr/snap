@@ -86,7 +86,7 @@ add_subdirectory(
   ${CMAKE_BINARY_DIR}/include/meshoptimizer
 )
 
-set(USE_AVX512 ON)
+set(USE_AVX512 OFF)
 set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF)
 set(JPH_USE_DX12 OFF)
 set(JPH_USE_VK OFF)

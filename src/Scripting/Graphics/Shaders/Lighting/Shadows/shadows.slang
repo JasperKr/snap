@@ -52,7 +52,7 @@ void computeMain(uint3 id: SV_DispatchThreadID) {
 
   float3 worldPosition = CameraData[0].GetWorldPosition(uv, depth);
   uint2 screenCoords = uint2(id.xy);
-  uint randomState = FrameRandomState + screenCoords.x * 1702 + screenCoords.y * 40301;
+  uint randomState = FrameRandomState;
 
 #ifdef SHADER_LIGHT_TYPE_DIRECTIONAL
   var light = DirectionalLights.Load(LightIndex + id.z);
