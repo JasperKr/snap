@@ -171,8 +171,6 @@ struct Shader : Object, Identifiable {
 
   auto ResolveKey(const ResourceKey &key) const -> Result<ResolvedKey>;
 
-  auto GetSlotDescription(DescriptorSlot slot) -> Reflect::ResourceInfo *;
-
   auto GetThreadgroupSize() const -> Result<Math::Uvec3>;
   auto GetWaveSize() const -> uint32_t;
 

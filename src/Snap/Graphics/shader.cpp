@@ -736,15 +736,6 @@ auto Shader::GetThreadgroupSize() const -> Result<Math::Uvec3> {
 
 auto Shader::GetWaveSize() const -> uint32_t { return waveSize; }
 
-auto Shader::GetSlotDescription(DescriptorSlot slot) -> Reflect::ResourceInfo * {
-  auto iter = reflection.slotToInfo.find(slot);
-  if (iter == reflection.slotToInfo.end()) {
-    return nullptr;
-  }
-
-  return &iter->second;
-}
-
 constexpr auto ShaderStageFlagsToPipelineStageFlags(VkShaderStageFlags shaderStages) -> VkPipelineStageFlags2 {
   VkPipelineStageFlags2 pipelineStages = 0;
 

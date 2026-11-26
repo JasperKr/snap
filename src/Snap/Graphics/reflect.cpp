@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <memory>
 #include <public/tracy/Tracy.hpp>
 #include <variant>
 #include <vector>
@@ -284,8 +285,7 @@ inline auto SlangStageToVkStage(SlangStage stage) -> VkShaderStageFlags {
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto SetupResource(slang::VariableLayoutReflection *variableLayout, ShaderReflection &reflection) -> Result<ResourceInfo> {
-
+auto SetupResource(slang::VariableLayoutReflection *variableLayout) -> Result<ResourceInfo> {
   auto *typeLayout = variableLayout->getTypeLayout();
   auto kind = typeLayout->getKind();
   auto shape = typeLayout->getResourceShape();
@@ -309,8 +309,6 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout, ShaderReflec
     resourceInfo.name = variableLayout->getName();
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
     resourceInfo.info = samplerInfo;
-
-    reflection.slotToInfo[DescriptorSlot(samplerInfo.set, samplerInfo.binding)] = resourceInfo;
   } else if (maskedShape == SLANG_STRUCTURED_BUFFER || maskedShape == SLANG_BYTE_ADDRESS_BUFFER) {
     // SSBO
     auto bufferInfo = BufferInfo{};
@@ -326,7 +324,8 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout, ShaderReflec
     auto *elementVarLayout = bufferLayout->getElementVarLayout();
 
     if (elementVarLayout != nullptr) {
-      bufferInfo.info = CHECK_RES(SetupVariant(elementVarLayout));
+      const auto &resource = CHECK_RES(SetupResource(elementVarLayout));
+      bufferInfo.info = std::make_shared<ResourceInfo>(resource);
     } else {
       StructInfo structInfo{};
       structInfo.size = static_cast<uint32_t>(bufferLayout->getSize());
@@ -357,14 +356,15 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout, ShaderReflec
         structInfo.fields.emplace_back(fieldInfo);
       }
 
-      bufferInfo.info = structInfo;
+      bufferInfo.info->info = structInfo;
+      bufferInfo.info->arraySize = bufferLayout->getElementCount();
+      bufferInfo.info->offset = elementVarLayout->getOffset();
+      bufferInfo.info->stages = SlangStageToVkStage(elementVarLayout->getStage());
     }
 
     resourceInfo.name = variableLayout->getName();
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
     resourceInfo.info = bufferInfo;
-
-    reflection.slotToInfo[DescriptorSlot(bufferInfo.set, bufferInfo.binding)] = resourceInfo;
   } else if (maskedShape == SLANG_ACCELERATION_STRUCTURE) {
     auto asInfo = AccelerationStructureInfo{};
     asInfo.set = variableLayout->getBindingSpace();
@@ -377,8 +377,6 @@ auto SetupResource(slang::VariableLayoutReflection *variableLayout, ShaderReflec
     resourceInfo.name = variableLayout->getName();
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
     resourceInfo.info = asInfo;
-
-    reflection.slotToInfo[DescriptorSlot(asInfo.set, asInfo.binding)] = resourceInfo;
   } else {
     return Error::Unexpected("Unsupported resource shape in reflection.");
   }
@@ -449,43 +447,35 @@ auto SetupFromType(slang::VariableLayoutReflection *variableLayout, ShaderReflec
       bufferInfo.accessFlags = VK_ACCESS_2_UNIFORM_READ_BIT;
     }
 
-    bufferInfo.info = CHECK_RES(SetupVariant(bufferLayout));
+    const auto &resource = CHECK_RES(SetupResource(bufferLayout));
+    bufferInfo.info = std::make_shared<ResourceInfo>(resource);
 
     resourceInfo.name = variableLayout->getName();
 
     resourceInfo.stages = SlangStageToVkStage(variableLayout->getStage());
     resourceInfo.info = bufferInfo;
-
-    if (!isPushConstant) {
-      reflection.slotToInfo[DescriptorSlot(bufferInfo.set, bufferInfo.binding)] = resourceInfo;
-    }
     break;
   }
   case slang::TypeReflection::Kind::Resource: {
-    resourceInfo = CHECK_RES(SetupResource(variableLayout, reflection));
-
+    resourceInfo = CHECK_RES(SetupResource(variableLayout));
     break;
   }
   case slang::TypeReflection::Kind::Array: {
-    auto info = CHECK_RES(SetupType(typeLayout->getElementTypeLayout()));
+    const auto &info = CHECK_RES(SetupType(typeLayout->getElementTypeLayout()));
     resourceInfo.name = variableLayout->getName();
+    resourceInfo.arraySize = typeLayout->getElementCount();
 
     if (resourceInfo.IsStruct()) {
       resourceInfo.info = std::get<StructInfo>(info);
-      std::get<StructInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
-    }
-    if (resourceInfo.IsScalar()) {
+    } else if (resourceInfo.IsScalar()) {
       resourceInfo.info = std::get<ScalarInfo>(info);
-      std::get<ScalarInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
-    }
-    if (resourceInfo.IsVector()) {
+    } else if (resourceInfo.IsVector()) {
       resourceInfo.info = std::get<VectorInfo>(info);
-      std::get<VectorInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
-    }
-    if (resourceInfo.IsMatrix()) {
+    } else if (resourceInfo.IsMatrix()) {
       resourceInfo.info = std::get<MatrixInfo>(info);
-      std::get<MatrixInfo>(resourceInfo.info).arraySize = typeLayout->getElementCount();
     }
+
+    PrintWarning("Array {}[{}]", variableLayout->getName(), typeLayout->getElementCount());
 
     break;
   }
@@ -578,7 +568,7 @@ auto BufferInfo::ToString() const -> std::string {
   result += " Size: " + std::to_string(size) + " Set: " + std::to_string(set) + " Binding: " + std::to_string(binding) + "\n";
 
   if (IsStruct()) {
-    const auto &structInfo = std::get<StructInfo>(info);
+    const auto &structInfo = std::get<StructInfo>(info->info);
     result += "  Struct Size: " + std::to_string(structInfo.size) + "\n";
     result += "  Fields:\n";
     for (const auto &field : structInfo.fields) {
@@ -641,16 +631,16 @@ auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std) -> Resul
     const auto &bufferInfo = std::get<BufferInfo>(info.info);
 
     if (bufferInfo.IsStruct()) {
-      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<StructInfo>(bufferInfo.info)), std);
+      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<StructInfo>(bufferInfo.info->info)), std);
     }
     if (bufferInfo.IsScalar()) {
-      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<ScalarInfo>(bufferInfo.info)), std);
+      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<ScalarInfo>(bufferInfo.info->info)), std);
     }
     if (bufferInfo.IsVector()) {
-      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<VectorInfo>(bufferInfo.info)), std);
+      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<VectorInfo>(bufferInfo.info->info)), std);
     }
     if (bufferInfo.IsMatrix()) {
-      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<MatrixInfo>(bufferInfo.info)), std);
+      return ResourceInfoToBufferFormat(ResourceInfo(bufferInfo.name, info.stages, std::get<MatrixInfo>(bufferInfo.info->info)), std);
     }
 
     return Error::Unexpected("Unsupported buffer info type for buffer format conversion.");
@@ -746,10 +736,8 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding) -> Err
       .binding = binding,
       .access = SlangResourceAccess::SLANG_RESOURCE_ACCESS_READ,
       .bufferType = BufferType::Uniform,
-      .info = globalUBOStruct,
+      .info = std::make_shared<ResourceInfo>(globalUBOInfo),
   };
-
-  slotToInfo.emplace(DescriptorSlot(set, binding), globalUBOInfo);
 
   const auto &infoResult = ResourceInfoToBufferFormat(globalUBOInfo, Standard::Std140);
   if (Error::IsError(infoResult)) {
@@ -775,8 +763,6 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding) -> Err
 auto ShaderReflection::FlattenResource(ResourceInfo &resource, FlatteningState &state, std::vector<ResourceInfo> &children, bool mapToGlobals) -> Error {
   if (resource.IsBuffer()) {
     const auto &bufferInfo = std::get<BufferInfo>(resource.info);
-    resource.set = bufferInfo.set;
-    resource.binding = bufferInfo.binding;
     resource.offset = bufferInfo.offset;
 
     switch (bufferInfo.bufferType) {
@@ -791,45 +777,32 @@ auto ShaderReflection::FlattenResource(ResourceInfo &resource, FlatteningState &
       state.std = Standard::Std140;
       break;
     }
-
   } else if (resource.IsSampler()) {
     const auto &samplerInfo = std::get<SamplerInfo>(resource.info);
-    resource.set = samplerInfo.set;
-    resource.binding = samplerInfo.binding;
   } else if (resource.IsAccelerationStructure()) {
     const auto &asInfo = std::get<AccelerationStructureInfo>(resource.info);
-    resource.set = asInfo.set;
-    resource.binding = asInfo.binding;
-  } else {
-    resource.set = state.parentSet;
-    resource.binding = state.parentBinding;
   }
 
   if (!resource.IsBuffer() && strcmp(resource.name, "Globals") != 0) {
-    if (state.arraySize > 1) {
+    if (resource.arraySize > 1) {
+      PrintWarning("Array var: {}[{}]", resource.name, state.idx);
       state.currentKey->emplace_back(resource.name, state.idx);
     } else {
       state.currentKey->emplace_back(resource.name);
     }
   }
 
-  state.parentBinding = resource.binding;
-  state.parentSet = resource.set;
   size_t baseAlign = 0;
 
   for (uint32_t i = 0; i < std::max(resource.GetArraySize(), 1U); i++) {
     resource.offset = resource.GetOffset() + state.currentOffset;
 
     if (resource.IsStruct()) {
-      state.parentSet = resource.set;
-      state.parentBinding = resource.binding;
-
       auto &structInfo = std::get<StructInfo>(resource.info);
       for (auto &field : structInfo.fields) {
         FlatteningState newState = state;
         newState.currentOffset += resource.offset;
         newState.idx = i;
-        newState.arraySize = resource.GetArraySize();
         CHECK_ERR(FlattenResource(field, newState, children, mapToGlobals));
       }
 
@@ -837,23 +810,20 @@ auto ShaderReflection::FlattenResource(ResourceInfo &resource, FlatteningState &
       auto &bufferInfo = std::get<BufferInfo>(resource.info);
       FlatteningState newState = state;
       newState.idx = i;
-      newState.arraySize = resource.GetArraySize();
 
       ResourceInfo info;
-      if (std::holds_alternative<StructInfo>(bufferInfo.info)) {
-        info.info = std::get<StructInfo>(bufferInfo.info);
-      } else if (std::holds_alternative<ScalarInfo>(bufferInfo.info)) {
-        info.info = std::get<ScalarInfo>(bufferInfo.info);
-      } else if (std::holds_alternative<VectorInfo>(bufferInfo.info)) {
-        info.info = std::get<VectorInfo>(bufferInfo.info);
-      } else if (std::holds_alternative<MatrixInfo>(bufferInfo.info)) {
-        info.info = std::get<MatrixInfo>(bufferInfo.info);
+      if (std::holds_alternative<StructInfo>(bufferInfo.info->info)) {
+        info.info = std::get<StructInfo>(bufferInfo.info->info);
+      } else if (std::holds_alternative<ScalarInfo>(bufferInfo.info->info)) {
+        info.info = std::get<ScalarInfo>(bufferInfo.info->info);
+      } else if (std::holds_alternative<VectorInfo>(bufferInfo.info->info)) {
+        info.info = std::get<VectorInfo>(bufferInfo.info->info);
+      } else if (std::holds_alternative<MatrixInfo>(bufferInfo.info->info)) {
+        info.info = std::get<MatrixInfo>(bufferInfo.info->info);
       } else {
         PrintError("Unsupported buffer info type for flattening.");
         continue;
       }
-      info.binding = bufferInfo.binding;
-      info.set = bufferInfo.set;
       info.stages = resource.stages;
       info.name = resource.name;
 
@@ -891,23 +861,16 @@ auto ShaderReflection::FlattenReflection() -> Error {
     FlatteningState state{
         .currentKey = &currentKey,
         .idx = 0,
-        .arraySize = resource.GetArraySize(),
     };
 
     std::vector<ResourceInfo> children;
+
+    PrintInfo("Flattening: {} {}", resource.name, resource.arraySize);
 
     CHECK_ERR(FlattenResource(resource, state, children, false));
 
     for (auto &entry : children) {
       state.size = std::max<VkDeviceSize>(state.size, entry.GetOffset() + entry.GetSize());
-    }
-
-    if (resource.IsBuffer() && !isPushConstant) {
-      bufferSlotsBySet[resource.set].emplace_back(DescriptorSlot(resource.set, resource.binding));
-    } else if (resource.IsSampler()) {
-      textureSlotsBySet[resource.set].emplace_back(DescriptorSlot(resource.set, resource.binding));
-    } else if (resource.IsAccelerationStructure()) {
-      accelerationStructureSlotsBySet[resource.set].emplace_back(DescriptorSlot(resource.set, resource.binding));
     }
   }
 
@@ -915,25 +878,20 @@ auto ShaderReflection::FlattenReflection() -> Error {
   FlatteningState state{
       .currentKey = &currentKey,
       .idx = 0,
-      .arraySize = 1,
-      .parentSet = globals.set,
-      .parentBinding = globals.binding,
   };
 
   ResourceInfo info;
-  if (std::holds_alternative<StructInfo>(globals.info)) {
-    info.info = std::get<StructInfo>(globals.info);
-  } else if (std::holds_alternative<ScalarInfo>(globals.info)) {
-    info.info = std::get<ScalarInfo>(globals.info);
-  } else if (std::holds_alternative<VectorInfo>(globals.info)) {
-    info.info = std::get<VectorInfo>(globals.info);
-  } else if (std::holds_alternative<MatrixInfo>(globals.info)) {
-    info.info = std::get<MatrixInfo>(globals.info);
+  if (std::holds_alternative<StructInfo>(globals.info->info)) {
+    info.info = std::get<StructInfo>(globals.info->info);
+  } else if (std::holds_alternative<ScalarInfo>(globals.info->info)) {
+    info.info = std::get<ScalarInfo>(globals.info->info);
+  } else if (std::holds_alternative<VectorInfo>(globals.info->info)) {
+    info.info = std::get<VectorInfo>(globals.info->info);
+  } else if (std::holds_alternative<MatrixInfo>(globals.info->info)) {
+    info.info = std::get<MatrixInfo>(globals.info->info);
   } else {
     PrintError("Unsupported buffer info type for flattening.");
   }
-  info.binding = globals.binding;
-  info.set = globals.set;
   info.stages = VK_SHADER_STAGE_ALL;
   info.name = "Globals";
 
@@ -1140,4 +1098,8 @@ constexpr auto SlangResourceAccessToVkAccessFlags_Sampler(SlangResourceAccess ac
     return 0;
   }
 }
+[[nodiscard]] constexpr auto BufferInfo::IsStruct() const -> bool { return std::holds_alternative<StructInfo>(info->info); }
+[[nodiscard]] constexpr auto BufferInfo::IsScalar() const -> bool { return std::holds_alternative<ScalarInfo>(info->info); }
+[[nodiscard]] constexpr auto BufferInfo::IsVector() const -> bool { return std::holds_alternative<VectorInfo>(info->info); }
+[[nodiscard]] constexpr auto BufferInfo::IsMatrix() const -> bool { return std::holds_alternative<MatrixInfo>(info->info); }
 } // namespace Graphics::Reflect

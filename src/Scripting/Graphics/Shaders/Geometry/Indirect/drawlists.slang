@@ -111,7 +111,7 @@ public struct Mesh {
 };
 
 public struct DrawItem {
-  public StructuredBuffer<Vertex> Vertices;
+  public StructuredBuffer<Vertex>.Handle Vertices;
   public uint2 DrawRange;
 
   public uint MaterialIndex;

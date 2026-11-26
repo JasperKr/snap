@@ -8,6 +8,7 @@
 #include "Modules/stackVector.hpp"
 #include "slang/slang.h"
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <sys/types.h>
@@ -65,9 +66,6 @@ struct ResourceBase {
 
   // Offset in parent structure, if applicable
   uint32_t offset;
-
-  // yeah
-  uint32_t arraySize;
 };
 
 struct SamplerInfo : ResourceBase {
@@ -140,17 +138,17 @@ struct BufferInfo : ResourceBase {
   VkAccessFlags2 accessFlags;
   BufferType bufferType;
 
-  [[nodiscard]] constexpr auto IsStruct() const -> bool { return std::holds_alternative<StructInfo>(info); }
-  [[nodiscard]] constexpr auto IsScalar() const -> bool { return std::holds_alternative<ScalarInfo>(info); }
-  [[nodiscard]] constexpr auto IsVector() const -> bool { return std::holds_alternative<VectorInfo>(info); }
-  [[nodiscard]] constexpr auto IsMatrix() const -> bool { return std::holds_alternative<MatrixInfo>(info); }
+  [[nodiscard]] constexpr auto IsStruct() const -> bool;
+  [[nodiscard]] constexpr auto IsScalar() const -> bool;
+  [[nodiscard]] constexpr auto IsVector() const -> bool;
+  [[nodiscard]] constexpr auto IsMatrix() const -> bool;
 
   template <typename T> [[nodiscard]] constexpr auto GetInfo() const -> const T & { return std::get<T>(info); }
   template <typename T> [[nodiscard]] constexpr auto GetInfo() -> T & { return std::get<T>(info); }
 
   template <typename T> [[nodiscard]] constexpr auto Is() const -> bool { return std::holds_alternative<T>(info); }
 
-  std::variant<StructInfo, ScalarInfo, VectorInfo, MatrixInfo> info;
+  std::shared_ptr<ResourceInfo> info;
 
   [[nodiscard]] auto ToString() const -> std::string;
 };
@@ -163,8 +161,7 @@ struct ResourceInfo {
   ResourceInfo(const char *name, ResourceVariant info) : name(name), info(std::move(info)) {}
   ResourceInfo(const char *name, VkShaderStageFlags stages, ResourceVariant info) : name(name), stages(stages), info(std::move(info)) {}
   ResourceInfo(const ResourceInfo &other) = default;
-  ResourceInfo(ResourceInfo &&other) noexcept
-      : name(other.name), stages(other.stages), info(std::move(other.info)), offset(other.offset), set(other.set), binding(other.binding) {}
+  ResourceInfo(ResourceInfo &&other) noexcept : name(other.name), stages(other.stages), info(std::move(other.info)), offset(other.offset) {}
   auto operator=(const ResourceInfo &other) -> ResourceInfo & {
     if (this != &other) {
       name = other.name;
@@ -186,8 +183,7 @@ struct ResourceInfo {
   const char *name{};
   VkShaderStageFlags stages = VK_SHADER_STAGE_ALL;
   uint32_t offset{};
-  uint32_t set{};
-  uint32_t binding{};
+  uint32_t arraySize = 1;
 
   [[nodiscard]] constexpr auto IsBuffer() const -> bool { return std::holds_alternative<BufferInfo>(info); }
   [[nodiscard]] constexpr auto IsSampler() const -> bool { return std::holds_alternative<SamplerInfo>(info); }
@@ -207,9 +203,7 @@ struct ResourceInfo {
   [[nodiscard]] auto GetOffset() const -> uint32_t {
     return std::visit([](const auto &data) -> uint32_t { return data.offset; }, info);
   }
-  [[nodiscard]] auto GetArraySize() const -> uint32_t {
-    return std::visit([](const auto &data) -> uint32_t { return data.arraySize; }, info);
-  }
+  [[nodiscard]] auto GetArraySize() const -> uint32_t { return arraySize; }
   [[nodiscard]] constexpr auto GetSize() const -> uint32_t {
     return std::visit([](const auto &data) -> uint32_t { return data.size; }, info);
   }
@@ -229,9 +223,6 @@ struct FlatteningState {
 
   ResourceKey *currentKey = nullptr;
   uint32_t idx{};
-  uint32_t arraySize{};
-  uint32_t parentSet{};
-  uint32_t parentBinding{};
   uint32_t currentOffset{};
   Standard std = Standard::Std140;
 };
@@ -245,7 +236,6 @@ struct ShaderReflection {
   std::unordered_map<ResourceKey, ResolvedKey, ResourceKeyHash> keyMapping;
 
   std::vector<ResourceInfo> resources;
-  std::unordered_map<DescriptorSlot, ResourceInfo> slotToInfo;
   BufferInfo globals;
   Graphics::BufferFormat globalBufferFormat;
   bool hasGlobals{false};
@@ -253,13 +243,6 @@ struct ShaderReflection {
   // NOLINTNEXTLINE
   auto ConstructUBOStruct(uint32_t set, uint32_t binding) -> Error;
   auto FlattenReflection() -> Error;
-
-  using SlotsStorage = std::unordered_map<uint32_t, Math::StackVector<DescriptorSlot, 16>>; // NOLINT
-
-  // All buffers and textures corresponding to a given set, for quick lookup when binding descriptors
-  SlotsStorage bufferSlotsBySet;
-  SlotsStorage textureSlotsBySet;
-  SlotsStorage accelerationStructureSlotsBySet;
 
 private:
   auto FlattenResource(ResourceInfo &resource, FlatteningState &state, std::vector<ResourceInfo> &children, bool mapToGlobals) -> Error;
