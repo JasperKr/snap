@@ -68,28 +68,6 @@ struct ResourceBase {
   uint32_t offset;
 };
 
-struct SamplerInfo : ResourceBase {
-  uint32_t set;
-  uint32_t binding;
-
-  SlangResourceShape shape;
-  SlangResourceAccess access;
-
-  VkAccessFlags2 accessFlags;
-
-  VkFormat format;
-};
-
-struct AccelerationStructureInfo : ResourceBase {
-  uint32_t set;
-  uint32_t binding;
-
-  SlangResourceShape shape;
-  SlangResourceAccess access;
-
-  VkAccessFlags2 accessFlags;
-};
-
 struct ScalarInfo : ResourceBase {
   ScalarType type;
 };
@@ -153,45 +131,23 @@ struct BufferInfo : ResourceBase {
   [[nodiscard]] auto ToString() const -> std::string;
 };
 
-using ResourceVariant = std::variant<SamplerInfo, ScalarInfo, VectorInfo, MatrixInfo, BufferInfo, StructInfo, AccelerationStructureInfo>;
+using ResourceVariant = std::variant<ScalarInfo, VectorInfo, MatrixInfo, StructInfo>;
 
 struct ResourceInfo {
   ResourceInfo() = default;
   explicit ResourceInfo(const char *name) : name(name) {}
   ResourceInfo(const char *name, ResourceVariant info) : name(name), info(std::move(info)) {}
   ResourceInfo(const char *name, VkShaderStageFlags stages, ResourceVariant info) : name(name), stages(stages), info(std::move(info)) {}
-  ResourceInfo(const ResourceInfo &other) = default;
-  ResourceInfo(ResourceInfo &&other) noexcept : name(other.name), stages(other.stages), info(std::move(other.info)), offset(other.offset) {}
-  auto operator=(const ResourceInfo &other) -> ResourceInfo & {
-    if (this != &other) {
-      name = other.name;
-      stages = other.stages;
-      info = other.info;
-    }
-    return *this;
-  }
-  auto operator=(ResourceInfo &&other) noexcept -> ResourceInfo & {
-    if (this != &other) {
-      name = other.name;
-      stages = other.stages;
-      info = std::move(other.info);
-    }
-    return *this;
-  }
-  ~ResourceInfo() = default;
 
   const char *name{};
   VkShaderStageFlags stages = VK_SHADER_STAGE_ALL;
   uint32_t offset{};
   uint32_t arraySize = 1;
 
-  [[nodiscard]] constexpr auto IsBuffer() const -> bool { return std::holds_alternative<BufferInfo>(info); }
-  [[nodiscard]] constexpr auto IsSampler() const -> bool { return std::holds_alternative<SamplerInfo>(info); }
   [[nodiscard]] constexpr auto IsStruct() const -> bool { return std::holds_alternative<StructInfo>(info); }
   [[nodiscard]] constexpr auto IsScalar() const -> bool { return std::holds_alternative<ScalarInfo>(info); }
   [[nodiscard]] constexpr auto IsVector() const -> bool { return std::holds_alternative<VectorInfo>(info); }
   [[nodiscard]] constexpr auto IsMatrix() const -> bool { return std::holds_alternative<MatrixInfo>(info); }
-  [[nodiscard]] constexpr auto IsAccelerationStructure() const -> bool { return std::holds_alternative<AccelerationStructureInfo>(info); }
   template <typename T> [[nodiscard]] constexpr auto GetInfo() const -> const T & { return std::get<T>(info); }
   template <typename T> [[nodiscard]] constexpr auto GetInfoPtr() const -> const T * {
     if (std::holds_alternative<T>(info)) {

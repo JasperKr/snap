@@ -146,13 +146,12 @@ auto Scene::PrepareDrawLists(const GraphicsContext &context, Frustum &frustum) -
     CHECK_ERR(renderer.GetModelTransformsBuffer()->GetBuffer()->SetData(context, span));
   }
 
-  auto generateDrawlists = CHECK_RES(manager.GetShader(Renderer::ShaderKey::DrawLists));
+  auto generateDrawlists = CHECK_RES(manager.GetShader(Renderer::ShaderKey::CullRough));
   auto indirect = CHECK_RES(manager.GetShader(Renderer::ShaderKey::Indirect));
   RenderState::SetShader(generateDrawlists);
 
   for (uint32_t i = 0; i < renderer.DrawBuffers.DrawLists.size(); i++) {
     CHECK_ERR(generateDrawlists->Send(context, KeyElement{"DrawItems", i}, {renderer.DrawBuffers.DrawLists.at(i), StorageBuffer::write}));
-    CHECK_ERR(generateDrawlists->Send(context, KeyElement{"MeshIndices", i}, {renderer.DrawBuffers.MeshIndices.at(i), StorageBuffer::write}));
 
     CHECK_ERR(indirect->Send(context, KeyElement{"DrawInfo", i}, {renderer.DrawBuffers.DrawCommands.at(i), StorageBuffer::write}));
   }
@@ -161,7 +160,6 @@ auto Scene::PrepareDrawLists(const GraphicsContext &context, Frustum &frustum) -
   CHECK_ERR(indirect->Send(context, "DrawItemCount", {renderer.DrawBuffers.DrawIndices, StorageBuffer::read}));
 
   CHECK_ERR(generateDrawlists->Send(context, "Meshes", {renderer.MeshBuffer->GetBuffer(), StorageBuffer::read}));
-  CHECK_ERR(UniformWriter::Send(generateDrawlists, "MeshCount", (uint32_t)count));
 
   CHECK_ERR(DispatchWithin(context, {static_cast<uint32_t>(count), 1, 1}));
 

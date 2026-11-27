@@ -413,12 +413,13 @@ auto Error::Create(const std::string &message, ErrorCode code, ErrorLevel level)
     return Error(message, "", code);
   }
 
-  Error err = Error(message, GetStackTrace(level), code);
 #if defined(LOG_ERRORS)
   if (code < 0) {
-    PrintError("{}", err.ToString());
+    PrintError("{}", message);
   }
 #endif
+
+  Error err = Error(message, GetStackTrace(level), code);
   return err;
 }
 

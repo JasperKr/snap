@@ -342,6 +342,7 @@ static auto CreateDevice(GraphicsContext &context, const DeviceSettings &setting
       {VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, extRequired},
       {VK_EXT_DESCRIPTOR_HEAP_EXTENSION_NAME, extRequired},
       {VK_KHR_SHADER_UNTYPED_POINTERS_EXTENSION_NAME, extRequired},
+      {VK_EXT_MESH_SHADER_EXTENSION_NAME, extRequired},
 
       {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
        settings.hardwareRaytracing},

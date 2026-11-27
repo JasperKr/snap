@@ -41,7 +41,8 @@ enum class ShaderKey : uint8_t {
   AO_Denoise,
   Variance,
 
-  DrawLists,
+  CullRough,
+  CullPrecise,
   Indirect,
 
   TAA,

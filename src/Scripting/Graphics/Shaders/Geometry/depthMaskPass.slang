@@ -2,26 +2,50 @@ import camera;
 import material;
 import Indirect.drawlists;
 import transform;
+import Indirect.meshletPayload;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
   float2 tex_coord : TEXCOORDS;
 };
 
-uniform RWStructuredBuffer<DrawItem>.Handle DrawItems;
+uniform StructuredBuffer<DrawItem>.Handle DrawItems;
 
-[shader("vertex")]
-VertexStageOutput vertexMain(uint instance: SV_InstanceID, uint vertexID: SV_VertexID) {
-  VertexStageOutput out;
-  DrawItem item = DrawItems[instance];
+[shader("mesh")]
+[numthreads(128, 1, 1)]
+[outputtopology("triangle")]
+void meshMain(in payload TaskPayload payload, uint instance: SV_GroupThreadID, uint group: SV_GroupID, out vertices VertexStageOutput vertices[64],
+              out indices uint3 triangles[126]) {
 
-  Vertex vertex = item.Vertices[vertexID];
-  float4 worldPos = mul(float4(vertex.Position, 1.0), item.GetTransform());
+  uint meshletIndex = payload.MeshletOffset[group];
 
-  out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
-  out.tex_coord = vertex.TexCoords;
+  if (meshletIndex >= payload.MeshletCount) {
+    return;
+  }
 
-  return out;
+  uint meshIdx = payload.MeshIndices[group];
+  DrawItem item = DrawItems[meshIdx];
+  Meshlet meshlet = item.Meshlets[meshletIndex];
+
+  SetMeshOutputCounts(meshlet.VertexCount, meshlet.PrimitiveCount);
+
+  Transform transform = GetModelTransform(item.TransformIndex);
+
+  if (instance < meshlet.VertexCount) {
+    uint vertexIndex = meshlet.Indices[instance];
+    Vertex vertex = item.Vertices[vertexIndex];
+
+    VertexStageOutput outVtx;
+
+    float4 worldPos = mul(float4(vertex.Position, 1.0), transform.ModelMatrix);
+    outVtx.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
+    outVtx.tex_coord = vertex.TexCoords;
+    vertices[instance] = outVtx;
+  }
+
+  if (instance < meshlet.PrimitiveCount) {
+    triangles[instance] = meshlet.LocalIndices[instance];
+  }
 }
 
 struct FragmentInput {

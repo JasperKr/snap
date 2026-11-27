@@ -230,7 +230,7 @@ inline auto SlangStageToString(SlangStage stage) -> std::string_view {
   case SLANG_STAGE_MESH:
     return "mesh";
   case SLANG_STAGE_AMPLIFICATION:
-    return "task";
+    return "amplification";
   case SLANG_STAGE_RAY_GENERATION:
     return "rayGeneration";
   case SLANG_STAGE_ANY_HIT:
@@ -381,7 +381,7 @@ static inline auto LoadSlang(const GraphicsContext &context, Ref<Shader> &shader
 
     if (diagnosticsBlob != nullptr) {
       auto diagnostics = std::string_view(static_cast<const char *>(diagnosticsBlob->getBufferPointer()), diagnosticsBlob->getBufferSize());
-      return Error::Createf("Diagnostics:\n{}", diagnostics);
+      return Error::Createf("Shader: {}, Diagnostics:\n{}", shader->moduleName, diagnostics);
     }
   }
 
@@ -447,7 +447,10 @@ static inline auto LoadSlang(const GraphicsContext &context, Ref<Shader> &shader
     auto result = shader->linkedProgram->getTargetCode(0, // targetIndex
                                                        spirvCode.writeRef(), diagnosticsBlob.writeRef());
 
-    CHECK_ERR(Error::Create(result, diagnosticsBlob, spirvCode.readRef()));
+    if (diagnosticsBlob != nullptr) {
+      auto diagnostics = std::string_view(static_cast<const char *>(diagnosticsBlob->getBufferPointer()), diagnosticsBlob->getBufferSize());
+      return Error::Createf("Shader: {}, Diagnostics:\n{}", shader->moduleName, diagnostics);
+    }
   }
 
   ReleaseGlobalSlangSession();

@@ -55,8 +55,6 @@ Matrix4x4::Matrix4x4() {
 auto Matrix4x4::Determinant() const -> std::pair<float, Matrix4x4> {
   Matrix4x4 inv;
 
-  // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
-
   inv[0] = (At(5) * At(10) * At(15)) - (At(5) * At(11) * At(14)) - (At(9) * At(6) * At(15)) + (At(9) * At(7) * At(14)) + (At(13) * At(6) * At(11)) -
            (At(13) * At(7) * At(10));
 
@@ -106,8 +104,6 @@ auto Matrix4x4::Determinant() const -> std::pair<float, Matrix4x4> {
             ((At(8) * At(2) * At(5)));
 
   float det = (At(0) * inv[0]) + (At(1) * inv[4]) + (At(2) * inv[8]) + (At(3) * inv[12]);
-
-  // NOLINTEND(cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
   return {det, inv};
 }

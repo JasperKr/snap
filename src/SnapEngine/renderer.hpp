@@ -221,7 +221,6 @@ struct Renderer {
     std::array<Ref<Graphics::Buffer>, 9> DrawLists;    // 9x draw lists
     Ref<Graphics::Buffer> DrawIndices;                 // 9 element uint buffer
     std::array<Ref<Graphics::Buffer>, 9> DrawCommands; // 9x draw commands
-    std::array<Ref<Graphics::Buffer>, 9> MeshIndices;  // Vertex range -> mesh index
   };
 
   auto Initialize(Graphics::GraphicsContext &context) -> Error;

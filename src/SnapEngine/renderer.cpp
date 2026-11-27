@@ -328,17 +328,6 @@ auto Renderer::Initialize(Graphics::GraphicsContext &context) -> Error {
     };
 
     DrawBuffers.DrawLists.at(i) = CHECK_RES(Graphics::Buffer::Create(context, drawListsInfo));
-
-    Graphics::BufferCreationInfo meshIndicesInfo = {
-        .size = MaxDrawsPerPass * sizeof(uint32_t) * 2,
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        .stagingBuffer = false,
-        .persistentMapping = false,
-        .debugName = "Mesh indices",
-    };
-
-    DrawBuffers.MeshIndices.at(i) = CHECK_RES(Graphics::Buffer::Create(context, meshIndicesInfo));
   }
 
   Graphics::BufferCreationInfo drawCountsInfo = {

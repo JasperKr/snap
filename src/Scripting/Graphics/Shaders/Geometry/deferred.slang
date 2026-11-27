@@ -5,8 +5,9 @@ import Lighting.pixel;
 import Lighting.physicallyBased;
 import constants;
 import Indirect.drawlists;
-
 import transform;
+
+import Indirect.meshletPayload;
 
 struct VertexStageOutput {
   float4 sv_position : SV_Position;
@@ -18,33 +19,61 @@ struct VertexStageOutput {
   float4 previousClip : PREV_CLIP;
 };
 
-uniform RWStructuredBuffer<DrawItem>.Handle DrawItems;
+struct PrimitiveAttribute {
+  uint meshIndex : MESHIDX;
+};
 
-[shader("vertex")]
-VertexStageOutput vertexMain(uint instance: SV_InstanceID, uint vertexID: SV_VertexID) {
-  VertexStageOutput out;
-  DrawItem item = DrawItems[instance];
+uniform StructuredBuffer<DrawItem>.Handle DrawItems;
+
+[shader("mesh")]
+[numthreads(128, 1, 1)]
+[outputtopology("triangle")]
+void meshMain(in payload TaskPayload payload, uint instance: SV_GroupThreadID, uint group: SV_GroupID, out vertices VertexStageOutput vertices[64],
+              out indices uint3 triangles[126], out primitives PrimitiveAttribute primdata[126]) {
+
+  uint meshletIndex = payload.MeshletOffset[group];
+
+  if (meshletIndex >= payload.MeshletCount) {
+    return;
+  }
+
+  uint meshIdx = payload.MeshIndices[group];
+  DrawItem item = DrawItems[meshIdx];
+  Meshlet meshlet = item.Meshlets[meshletIndex];
+
+  SetMeshOutputCounts(meshlet.VertexCount, meshlet.PrimitiveCount);
 
   Transform transform = GetModelTransform(item.TransformIndex);
-  Vertex vertex = item.Vertices[vertexID];
 
-  float4 worldPos = mul(float4(vertex.Position, 1.0), transform.ModelMatrix);
-  out.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
-  out.currentClip = out.sv_position;
-  out.previousClip = mul(CameraData[1].ViewProjectionMatrix, worldPos);
+  if (instance < meshlet.VertexCount) {
+    uint vertexIndex = meshlet.Indices[instance];
+    Vertex vertex = item.Vertices[vertexIndex];
 
-  float3x3 NormalMatrix = float3x3(transform.NormalMatrix);
+    VertexStageOutput outVtx;
 
-  out.tex_coord = vertex.TexCoords;
-  out.normal = normalize(mul(NormalMatrix, vertex.GetNormal()).xyz);
+    float4 worldPos = mul(float4(vertex.Position, 1.0), transform.ModelMatrix);
+    outVtx.sv_position = mul(CameraData[0].ViewProjectionMatrix, worldPos);
+    outVtx.currentClip = outVtx.sv_position;
+    outVtx.previousClip = mul(CameraData[1].ViewProjectionMatrix, worldPos);
 
-  float4 tangent = vertex.GetTangent();
-  out.tangent.xyz = normalize(mul(NormalMatrix, tangent.xyz));
-  out.tangent.w = tangent.w;
+    float3x3 NormalMatrix = float3x3(transform.NormalMatrix);
 
-  out.color = vertex.GetColor();
+    outVtx.tex_coord = vertex.TexCoords;
+    outVtx.normal = normalize(mul(NormalMatrix, vertex.GetNormal()).xyz);
 
-  return out;
+    float4 tangent = vertex.GetTangent();
+    outVtx.tangent.xyz = normalize(mul(NormalMatrix, tangent.xyz));
+    outVtx.tangent.w = tangent.w;
+
+    outVtx.color = vertex.GetColor();
+
+    vertices[instance] = outVtx;
+  }
+
+  if (instance < meshlet.PrimitiveCount) {
+    triangles[instance] = meshlet.LocalIndices[instance];
+    primdata[instance] = PrimitiveAttribute(meshletIndex);
+  }
 }
 
 struct FragmentInput {
@@ -55,6 +84,7 @@ struct FragmentInput {
   float4 currentClip : CURRENT_CLIP;
   float4 previousClip : PREV_CLIP;
   bool isFrontFace : SV_IsFrontFace;
+  uint meshIndex : MESHIDX;
 };
 
 struct FragmentOutput {
@@ -66,7 +96,7 @@ struct FragmentOutput {
 }
 
 [shader("fragment")]
-FragmentOutput fragmentMain(FragmentInput input, uint instance: SV_InstanceID) {
+FragmentOutput fragmentMain(FragmentInput input) {
   float3 normal = normalize(input.normal);
   float4 tangent = float4(normalize(input.tangent.xyz), input.tangent.w);
 
@@ -75,7 +105,7 @@ FragmentOutput fragmentMain(FragmentInput input, uint instance: SV_InstanceID) {
     tangent = -tangent;
   }
 
-  MaterialData matData = DrawItems[instance].GetMaterial();
+  MaterialData matData = DrawItems[input.meshIndex].GetMaterial();
   float4 texColor = matData.AlbedoOrDefault(input.tex_coord);
 
   float3 albedo = texColor.rgb * matData.albedoFactor.rgb;
