@@ -3,6 +3,7 @@
 #include "Graphics/buffer.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Modules/Math/vector.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include <cstddef>

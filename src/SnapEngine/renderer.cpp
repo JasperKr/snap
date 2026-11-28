@@ -75,15 +75,16 @@ auto Renderer::InitializeDefaultMaterial(Graphics::GraphicsContext &context) -> 
 }
 
 auto Renderer::GetNewMaterialIndex() -> Result<size_t> {
-  size_t newIndex = CHECK_RES(MaterialAllocator.Allocate());
-
-  if (newIndex >= MaterialsBuffer->GetElementCount()) {
+  if (!MaterialAllocator.HasSpaceFor(MaterialAllocator.itemSize)) {
     auto newElementCount = MaterialsBuffer->GetElementCount() * 2;
 
     MaterialsBuffer = CHECK_RES(MaterialsBuffer->Grow(*Graphics::GetCurrentGraphicsContext(), newElementCount));
 
+    CHECK_ERR(MaterialAllocator.Resize(newElementCount * MaterialAllocator.itemSize));
     CHECK_ERR(MaterialUploadManager.SetNewBuffer(MaterialsBuffer->GetBuffer()));
   }
+
+  size_t newIndex = CHECK_RES(MaterialAllocator.Allocate()) / MaterialAllocator.itemSize;
 
   return newIndex;
 }
@@ -306,20 +307,9 @@ auto Renderer::Initialize(Graphics::GraphicsContext &context) -> Error {
   BLASPool = {};
   CHECK_ERR(VolumeManager.Initialize(context));
 
-  for (int i = 0; i < DrawBuffers.DrawCommands.size(); i++) {
-    Graphics::BufferCreationInfo drawCommandInfo = {
-        .size = sizeof(VkDrawIndirectCommand),
-        .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-        .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        .stagingBuffer = false,
-        .persistentMapping = false,
-        .debugName = "Draw commands",
-    };
-
-    DrawBuffers.DrawCommands.at(i) = CHECK_RES(Graphics::Buffer::Create(context, drawCommandInfo));
-
+  for (auto &DrawList : DrawBuffers.DrawLists) {
     Graphics::BufferCreationInfo drawListsInfo = {
-        .size = MaxDrawsPerPass * sizeof(uint32_t) * 8,
+        .size = MaxDrawsPerPass * sizeof(uint32_t) * 16,
         .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         .stagingBuffer = false,
@@ -327,12 +317,23 @@ auto Renderer::Initialize(Graphics::GraphicsContext &context) -> Error {
         .debugName = "Draw lists",
     };
 
-    DrawBuffers.DrawLists.at(i) = CHECK_RES(Graphics::Buffer::Create(context, drawListsInfo));
+    DrawList = CHECK_RES(Graphics::Buffer::Create(context, drawListsInfo));
   }
+
+  Graphics::BufferCreationInfo drawCommandInfo = {
+      .size = sizeof(VkDrawMeshTasksIndirectCommandEXT) * 9,
+      .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+      .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .stagingBuffer = false,
+      .persistentMapping = false,
+      .debugName = "Draw commands",
+  };
+
+  DrawBuffers.DrawCommands = CHECK_RES(Graphics::Buffer::Create(context, drawCommandInfo));
 
   Graphics::BufferCreationInfo drawCountsInfo = {
       .size = sizeof(uint32_t) * 9,
-      .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+      .usage = (uint32_t)VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT,
       .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       .stagingBuffer = false,
       .persistentMapping = false,

@@ -14,6 +14,7 @@
 #include "Modules/Math/math.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/Peripherals/keyboard.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/stackVector.hpp"
@@ -47,14 +48,14 @@ namespace Engine {
 using namespace Graphics;
 
 const std::vector<BufferComponent> CameraBufferComponents{
-    Graphics::BufferComponent{.name = "ViewMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
-    Graphics::BufferComponent{.name = "InverseViewMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
-    Graphics::BufferComponent{.name = "ProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
-    Graphics::BufferComponent{.name = "InverseProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
-    Graphics::BufferComponent{.name = "ViewProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
-    Graphics::BufferComponent{.name = "InverseViewProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
-    Graphics::BufferComponent{.name = "RotationProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
-    Graphics::BufferComponent{.name = "InverseRotationProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .arraySize = 4, .isMatrix = true},
+    Graphics::BufferComponent{.name = "ViewMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
+    Graphics::BufferComponent{.name = "InverseViewMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
+    Graphics::BufferComponent{.name = "ProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
+    Graphics::BufferComponent{.name = "InverseProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
+    Graphics::BufferComponent{.name = "ViewProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
+    Graphics::BufferComponent{.name = "InverseViewProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
+    Graphics::BufferComponent{.name = "RotationProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
+    Graphics::BufferComponent{.name = "InverseRotationProjectionMatrix", .format = VK_FORMAT_R32G32B32A32_SFLOAT, .rowCount = 4},
     Graphics::BufferComponent{.name = "Position", .format = VK_FORMAT_R32G32B32_SFLOAT},
     Graphics::BufferComponent{.name = "Near", .format = VK_FORMAT_R32_SFLOAT},
     Graphics::BufferComponent{.name = "Far", .format = VK_FORMAT_R32_SFLOAT},
@@ -715,7 +716,7 @@ auto Camera::Render(const Graphics::GraphicsContext &context, const DrawData &dr
 
   auto frustum = drawData.Matrices.GetFrustum();
 
-  CHECK_ERR(scene.PrepareDrawLists(context, frustum));
+  CHECK_ERR(scene.PrepareDrawLists(context, frustum, *this));
 
   Graphics::RenderState::PushDebugMarker("Draw Models");
 

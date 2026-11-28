@@ -1,6 +1,7 @@
 #include "bufferformat.hpp"
 #include "Graphics/format.hpp"
 #include "Modules/Helpers/hasher.hpp"
+#include "Modules/Helpers/utils.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include <algorithm>
@@ -27,22 +28,19 @@ BufferFormat::BufferFormat(const std::vector<std::pair<std::string, std::variant
     if (std::holds_alternative<const char *>(format)) {
       const auto *formatStr = std::get<const char *>(format);
       auto vulkanFormat = Format::FromString(formatStr);
-      auto arraySize = Format::StringToArraySize(formatStr);
+      auto rowCount = Format::StringToRowCount(formatStr);
       assert(vulkanFormat != VK_FORMAT_UNDEFINED);
 
       bufferComponents.emplace_back(BufferComponent{
           .name = name,
           .format = vulkanFormat,
-          .arraySize = arraySize,
-          .isMatrix = arraySize > 1,
+          .rowCount = rowCount,
       });
     } else if (std::holds_alternative<BufferFormat>(format)) {
       const auto &nestedFormat = std::get<BufferFormat>(format);
       bufferComponents.emplace_back(BufferComponent{
           .name = name,
           .format = nestedFormat,
-          .arraySize = 1,
-          .isMatrix = false,
       });
     } else {
       PrintWarning("Invalid format for component {}: {}", name,
@@ -70,7 +68,7 @@ auto BufferFormat::FindComponent(ResourceKey::const_iterator iterator, ResourceK
       }
 
       // Array in Struct
-      if (Component.arraySize > 1 && !Component.isMatrix) {
+      if (Component.arraySize > 1) {
         auto indexOpt = key.GetIndex();
         if (!indexOpt.has_value()) {
           return nullptr;
@@ -238,91 +236,82 @@ auto BufferFormat::CalculateStride(Standard std) const -> size_t {
     PrintWarning("Buffer format has no components, stride will be 0");
   }
 
-  size_t offset = 0;
+  uint32_t offset = 0;
 
-  size_t maxAlignment = 0;
   for (const auto &format : Components) {
-    size_t baseAlign = 0;
+    for (int i = 0; i < format.arraySize; i++) {
+      uint32_t compAlignment = 0;
 
-    // Get base alignment of component
-    if (std::holds_alternative<VkFormat>(format.format)) {
-      auto vulkanFormat = std::get<VkFormat>(format.format);
-      VkFormat alignFormat = vulkanFormat;
-      if (std == Standard::Std140) {
-        alignFormat = format.arraySize == 1 ? vulkanFormat : Graphics::Format::GetVec4Variant(vulkanFormat);
+      // Get base alignment of component
+      if (std::holds_alternative<VkFormat>(format.format)) {
+        auto vulkanFormat = std::get<VkFormat>(format.format);
+        VkFormat alignFormat = vulkanFormat;
+        if (std == Standard::Std140) {
+          alignFormat = format.arraySize == 1 ? vulkanFormat : Graphics::Format::GetVec4Variant(vulkanFormat);
+        }
+
+        auto alignResult = GetAlignment(alignFormat);
+        if (Error::IsError(alignResult)) {
+          return 0;
+        }
+
+        compAlignment = alignResult.value();
+      } else if (std::holds_alternative<BufferFormat>(format.format)) {
+        auto bufferFormat = std::get<BufferFormat>(format.format);
+        bufferFormat.CalculateStride(std);
+
+        compAlignment = bufferFormat.baseAlignment;
       }
 
-      auto alignResult = GetAlignment(alignFormat);
-      if (Error::IsError(alignResult)) {
-        return 0;
-      }
-
-      baseAlign = alignResult.value();
-    } else if (std::holds_alternative<BufferFormat>(format.format)) {
-      auto bufferFormat = std::get<BufferFormat>(format.format);
-      bufferFormat.CalculateStride(std);
-
-      baseAlign = bufferFormat.alignment;
-    }
-
-    size_t compAlignment = 0;
-
-    // Get allowed alignment based on standard
-    switch (std) {
-    case Standard::Std140:
-      compAlignment = (format.arraySize == 1) ? baseAlign : std::max(baseAlign, 16UL); // NOLINT
-      break;
-    case Standard::Std430:
-      compAlignment = baseAlign;
-      break;
-    }
-    maxAlignment = std::max(maxAlignment, compAlignment);
-    size_t size = 0;
-
-    // Get size of component
-    if (std::holds_alternative<VkFormat>(format.format)) {
-      auto vulkanFormat = std::get<VkFormat>(format.format);
-      size = Graphics::Format::GetSize(vulkanFormat);
-    } else if (std::holds_alternative<BufferFormat>(format.format)) {
-      auto bufferFormat = std::get<BufferFormat>(format.format);
-      size = bufferFormat.CalculateStride(std);
-    }
-
-    // Align component
-    offset = AlignUp(offset, compAlignment);
-    format.offset = offset;
-
-    if (std::holds_alternative<BufferFormat>(format.format)) {
-      const auto &bufferFormat = std::get<BufferFormat>(format.format);
-      bufferFormat.Offset(offset);
-    }
-
-    // Add padding
-    if (format.arraySize == 1) {
-      offset += size;
-    } else {
+      // Get allowed alignment based on standard
       switch (std) {
       case Standard::Std140:
-        offset += AlignUp(size, 16) * format.arraySize; // NOLINT
+        compAlignment = (format.arraySize == 1) ? compAlignment : Utils::AlignUp(compAlignment, 16U);
         break;
       case Standard::Std430:
-        offset += AlignUp(size, compAlignment) * format.arraySize;
         break;
+      }
+
+      baseAlignment = std::max(baseAlignment, compAlignment);
+      uint32_t size = 0;
+
+      // Get size of component
+      if (std::holds_alternative<VkFormat>(format.format)) {
+        auto vulkanFormat = std::get<VkFormat>(format.format);
+        size = Graphics::Format::GetSize(vulkanFormat);
+      } else if (std::holds_alternative<BufferFormat>(format.format)) {
+        auto bufferFormat = std::get<BufferFormat>(format.format);
+        size = bufferFormat.CalculateStride(std);
+      }
+
+      size *= format.rowCount;
+
+      // Align component
+      offset = AlignUp(offset, compAlignment);
+      format.offset = offset;
+
+      if (std::holds_alternative<BufferFormat>(format.format)) {
+        const auto &bufferFormat = std::get<BufferFormat>(format.format);
+        bufferFormat.Offset(offset);
+      }
+
+      // Add padding
+      if (format.arraySize == 1) {
+        offset += size;
+      } else {
+        offset += AlignUp(size, compAlignment);
       }
     }
   }
 
-  // Pad final structure
   switch (std) {
   case Standard::Std140: {
-    size_t finalAlignment = std::max(maxAlignment, 16UL); // NOLINT
-    alignment = finalAlignment;
-    stride = AlignUp(offset, finalAlignment);
+    baseAlignment = AlignUp(baseAlignment, 16U);
+    stride = AlignUp(offset, baseAlignment);
     break;
   }
   case Standard::Std430: {
-    alignment = maxAlignment;
-    stride = AlignUp(offset, maxAlignment);
+    stride = AlignUp(offset, baseAlignment);
     break;
   }
   }

@@ -55,6 +55,9 @@ enum class CommandType : uint8_t {
   vkCmdDrawIndexedIndirect,
   vkCmdDrawIndirectCount,
   vkCmdDrawIndexedIndirectCount,
+  vkCmdDrawMeshTasks,
+  vkCmdDrawMeshTasksIndirect,
+  vkCmdDrawMeshTasksIndirectCount,
   vkCmdDispatch,
   vkCmdDispatchIndirect,
   vkCmdBlitImage,
@@ -85,6 +88,9 @@ static const Utils::EnumStringHelper<CommandType> CommandTypeEnumHelper{{
     "vkCmdDrawIndexedIndirect",
     "vkCmdDrawIndirectCount",
     "vkCmdDrawIndexedIndirectCount",
+    "vkCmdDrawMeshTasks",
+    "vkCmdDrawMeshTasksIndirect",
+    "vkCmdDrawMeshTasksIndirectCount",
     "vkCmdDispatch",
     "vkCmdDispatchIndirect",
     "vkCmdBlitImage",
@@ -257,6 +263,55 @@ struct VkCmdDrawIndexedIndirectCount : Callable, DrawState, BoundResources {
 
   auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
     vkCmdDrawIndexedIndirectCount(cmdBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
+    return {};
+  }
+};
+
+struct VkCmdDrawMeshTasks : Callable, DrawState, BoundResources {
+  VkCmdDrawMeshTasks() = default;
+
+  static const CommandType type = CommandType::vkCmdDrawMeshTasks;
+
+  uint32_t groupCountX{};
+  uint32_t groupCountY{};
+  uint32_t groupCountZ{};
+
+  auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
+    vkCmdDrawMeshTasksEXT(cmdBuffer, groupCountX, groupCountY, groupCountZ);
+    return {};
+  }
+};
+
+struct VkCmdDrawMeshTasksIndirect : Callable, DrawState, BoundResources {
+  VkCmdDrawMeshTasksIndirect() = default;
+
+  static const CommandType type = CommandType::vkCmdDrawMeshTasksIndirect;
+
+  VkBuffer buffer{};
+  VkDeviceSize offset{};
+  uint32_t drawCount{};
+  uint32_t stride{};
+
+  auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
+    vkCmdDrawMeshTasksIndirectEXT(cmdBuffer, buffer, offset, drawCount, stride);
+    return {};
+  }
+};
+
+struct VkCmdDrawMeshTasksIndirectCount : Callable, DrawState, BoundResources {
+  VkCmdDrawMeshTasksIndirectCount() = default;
+
+  static const CommandType type = CommandType::vkCmdDrawMeshTasksIndirectCount;
+
+  VkBuffer buffer{};
+  VkDeviceSize offset{};
+  VkBuffer countBuffer{};
+  VkDeviceSize countBufferOffset{};
+  uint32_t maxDrawCount{};
+  uint32_t stride{};
+
+  auto Call(VkCommandBuffer cmdBuffer) const -> Error override {
+    vkCmdDrawMeshTasksIndirectCountEXT(cmdBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
     return {};
   }
 };
@@ -661,8 +716,9 @@ template <typename T, typename... Ts> auto get_if_derived(const std::variant<Ts.
 
 using ArgVariants =
     std::variant<Args::VkCmdDraw, Args::VkCmdDrawIndexed, Args::VkCmdDrawIndirect, Args::VkCmdDrawIndexedIndirect, Args::VkCmdDrawIndirectCount,
-                 Args::VkCmdDrawIndexedIndirectCount, Args::VkCmdDispatch, Args::VkCmdDispatchIndirect, Args::VkCmdBlitImage, Args::VkCmdCopyBuffer,
-                 Args::VkCmdCopyImage, Args::VkCmdCopyBufferToImage, Args::VkCmdCopyImageToBuffer, Args::MipmapTexture, Args::VkCmdFillBuffer,
+                 Args::VkCmdDrawIndexedIndirectCount, Args::VkCmdDrawMeshTasks, Args::VkCmdDrawMeshTasksIndirect, Args::VkCmdDrawMeshTasksIndirectCount,
+                 Args::VkCmdDispatch, Args::VkCmdDispatchIndirect, Args::VkCmdBlitImage, Args::VkCmdCopyBuffer, Args::VkCmdCopyImage,
+                 Args::VkCmdCopyBufferToImage, Args::VkCmdCopyImageToBuffer, Args::MipmapTexture, Args::VkCmdFillBuffer,
                  Args::VkCmdBuildAccelerationStructuresKHR, Args::VkCmdCopyAccelerationStructureKHR, Args::VkCmdResetQueryPool,
                  Args::VkCmdWriteAccelerationStructuresPropertiesKHR, Args::VkCmdClearAttachments, Args::VkCmdPipelineBarrier2, RenderPass>;
 
@@ -795,6 +851,10 @@ struct VirtualCommandBuffer { // NOLINT
       -> Error;
   auto DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t drawCount, uint32_t stride)
       -> Error;
+  auto DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) -> Error;
+  auto DrawMeshTasksIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error;
+  auto DrawMeshTasksIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t drawCount,
+                                  uint32_t stride) -> Error;
   auto Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) -> Error;
   auto DispatchIndirect(VkBuffer buffer, VkDeviceSize offsets) -> Error;
   auto BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount,

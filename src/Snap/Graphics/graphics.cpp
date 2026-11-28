@@ -234,6 +234,12 @@ static auto CreateDevice(GraphicsContext &context, const DeviceSettings &setting
   rayQueryFeatures.rayQuery = settings.inlineRaytracing == ExtensionRequirement::Required ? VK_TRUE : VK_FALSE;
   accelStructFeatures.pNext = &rayQueryFeatures;
 
+  VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeatures{};
+  meshShaderFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
+  meshShaderFeatures.meshShader = VK_TRUE; // TODO: Make configureable in the lua config file.
+  meshShaderFeatures.taskShader = VK_TRUE;
+  rayQueryFeatures.pNext = &meshShaderFeatures;
+
   VkPhysicalDeviceVertexAttributeDivisorFeaturesKHR vertexAttributeDivisorProperties{};
   vertexAttributeDivisorProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_KHR;
   vertexAttributeDivisorProperties.vertexAttributeInstanceRateDivisor = VK_TRUE;
@@ -265,6 +271,8 @@ static auto CreateDevice(GraphicsContext &context, const DeviceSettings &setting
   VkPhysicalDeviceVulkan12Features features12{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
       .pNext = &features13,
+      .storageBuffer8BitAccess = VK_TRUE,
+      .uniformAndStorageBuffer8BitAccess = VK_TRUE,
       .shaderFloat16 = VK_TRUE,
       .shaderInt8 = VK_TRUE,
       .descriptorIndexing = VK_TRUE,

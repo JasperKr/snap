@@ -243,6 +243,7 @@ auto Dispatch(const GraphicsContext &context, const Math::Uvec3 &threadgroups) -
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_COMPUTE);
+  ERR_ASSERT(RenderState::HasStage(VK_SHADER_STAGE_COMPUTE_BIT));
 
   {
     ZoneScopedN("Vk Dispatch");
@@ -305,7 +306,9 @@ auto DrawIndirect(const GraphicsContext &context, Mesh &mesh, const Ref<Buffer> 
 
   CHECK_ERR(BindMesh(context, mesh));
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  ERR_ASSERT(RenderState::HasStage(VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT));
 
+  [[unlikely]]
   if (offset % 4 != 0) {
     return Error::Create("Offset for vkCmdDrawIndirect must be a multiple of 4.");
   }
@@ -337,6 +340,7 @@ auto DrawIndirect(const GraphicsContext &context, const Ref<Buffer> &indirectBuf
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  ERR_ASSERT(RenderState::HasStage(VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT));
 
   if (offset % 4 != 0) {
     return Error::Create("Offset for vkCmdDrawIndirect must be a multiple of 4.");
@@ -364,6 +368,7 @@ auto DrawIndirectCount(const GraphicsContext &context, const Ref<Buffer> &buffer
   countBuffer->MarkUse();
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  ERR_ASSERT(RenderState::HasStage(VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT));
   commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
   commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
 
@@ -381,6 +386,7 @@ auto DrawIndexedIndirectCount(const GraphicsContext &context, const Ref<Buffer> 
   countBuffer->MarkUse();
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  ERR_ASSERT(RenderState::HasStage(VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT));
   commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
   commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
 
@@ -396,6 +402,7 @@ auto Draw(const GraphicsContext &context, const VkPrimitiveTopology &topology, u
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  ERR_ASSERT(RenderState::HasStage(VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT));
   commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
   commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
   commandBuffer->BindIndexBuffer({nullptr, 0, VK_INDEX_TYPE_UINT32});
@@ -420,6 +427,7 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer, const 
   auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
 
   ERR_ASSERT(RenderState::GetBindPoint() == VK_PIPELINE_BIND_POINT_GRAPHICS);
+  ERR_ASSERT(RenderState::HasStage(VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT));
   commandBuffer->SetVertexInputEXT(0, nullptr, 0, nullptr);
   commandBuffer->BindVertexBuffers(0, 0, nullptr, nullptr);
   RenderState::SetTopology(topology);
@@ -436,6 +444,35 @@ auto Draw(const GraphicsContext &context, const Ref<Buffer> &indexBuffer, const 
 #if Enable_Snapshots
   CaptureEvent(DrawIndexedEvent(indexCount, instanceCount, 0, 0, 0));
 #endif
+
+  return {};
+}
+
+auto DrawMeshTasks(const Ctx &context, const Math::Uvec3 &threadgroups) -> Error {
+  ZoneScoped;
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
+
+  CHECK_ERR(commandBuffer->DrawMeshTasks(threadgroups.x, threadgroups.y, threadgroups.z));
+
+  return {};
+}
+
+auto DrawMeshTasksIndirect(const Ctx &context, const Ref<Buffer> &buffer, VkDeviceSize offset, uint32_t count) -> Error {
+  ZoneScoped;
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
+
+  CHECK_ERR(commandBuffer->DrawMeshTasksIndirect(buffer->handle, offset, count, sizeof(VkDrawMeshTasksIndirectCommandEXT)));
+
+  return {};
+}
+
+auto DrawMeshTasksIndirectCount(const Ctx &context, const Ref<Buffer> &buffer, uint32_t offset, const Ref<Buffer> &countBuffer, uint32_t countBufferOffset,
+                                uint32_t maxDraws, uint32_t stride) -> Error {
+  ZoneScoped;
+  auto *commandBuffer = CHECK_NULL(GetVirtualCommandBuffer());
+
+  CHECK_ERR(commandBuffer->DrawMeshTasksIndirectCount(buffer->handle, offset, countBuffer->handle, countBufferOffset, maxDraws,
+                                                      sizeof(VkDrawMeshTasksIndirectCommandEXT)));
 
   return {};
 }

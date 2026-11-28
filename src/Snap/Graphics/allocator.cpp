@@ -178,7 +178,7 @@ auto GapAllocator::Allocate() -> Result<VkDeviceSize> {
 }
 auto GapAllocator::DeAllocate(VkDeviceSize offset) -> Error {
   // Technically offset could be uint64_max - size.. :p
-  if (offset < pointer && offset == pointer - itemSize) {
+  if (offset < pointer && offset == pointer - itemSize && !gaps.empty()) {
     pointer = offset;
 
     while (pointer - itemSize == gaps.back()) {
@@ -237,7 +237,6 @@ auto LinearAllocator::Resize(VkDeviceSize size) -> Error {
 
 auto GapAllocator::Resize(VkDeviceSize size) -> Error {
   ERR_ASSERT(pointer <= size);
-  PrintInfo("{} % {} = {}", size, itemSize, size % itemSize);
   ERR_ASSERT(size % itemSize == 0);
 
   backingAllocationSize = size;

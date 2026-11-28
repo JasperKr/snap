@@ -5,7 +5,6 @@
 #include "Modules/Helpers/utils.hpp"
 #include <unordered_set>
 #include <utility>
-#include <variant>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -86,6 +85,17 @@ inline auto GetReadsFromDrawState(Command &command, DrawState &state, std::vecto
   }
   case CommandType::vkCmdDrawIndexedIndirectCount: {
     const auto &args = std::get<Args::VkCmdDrawIndexedIndirectCount>(command.data);
+    reads.emplace_back(args.buffer);
+    reads.emplace_back(args.countBuffer);
+    return;
+  }
+  case CommandType::vkCmdDrawMeshTasksIndirect: {
+    const auto &args = std::get<Args::VkCmdDrawMeshTasksIndirect>(command.data);
+    reads.emplace_back(args.buffer);
+    return;
+  }
+  case CommandType::vkCmdDrawMeshTasksIndirectCount: {
+    const auto &args = std::get<Args::VkCmdDrawMeshTasksIndirectCount>(command.data);
     reads.emplace_back(args.buffer);
     reads.emplace_back(args.countBuffer);
     return;
@@ -262,24 +272,40 @@ auto GetResourceAccesses(const Command &command,
   case CommandType::vkCmdDrawIndirect: {
     const auto &args = std::get<Args::VkCmdDrawIndirect>(command.data);
     addAccess(VulkanResource(args.buffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    return;
   }
   case CommandType::vkCmdDrawIndexedIndirect: {
     const auto &args = std::get<Args::VkCmdDrawIndexedIndirect>(command.data);
     addAccess(VulkanResource(args.buffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    return;
   }
   case CommandType::vkCmdDrawIndirectCount: {
     const auto &args = std::get<Args::VkCmdDrawIndirectCount>(command.data);
     addAccess(VulkanResource(args.buffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
     addAccess(VulkanResource(args.countBuffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    return;
   }
   case CommandType::vkCmdDrawIndexedIndirectCount: {
     const auto &args = std::get<Args::VkCmdDrawIndexedIndirectCount>(command.data);
     addAccess(VulkanResource(args.buffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
     addAccess(VulkanResource(args.countBuffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    return;
+  }
+  case CommandType::vkCmdDrawMeshTasksIndirect: {
+    const auto &args = std::get<Args::VkCmdDrawMeshTasksIndirect>(command.data);
+    addAccess(VulkanResource(args.buffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    return;
+  }
+  case CommandType::vkCmdDrawMeshTasksIndirectCount: {
+    const auto &args = std::get<Args::VkCmdDrawMeshTasksIndirectCount>(command.data);
+    addAccess(VulkanResource(args.buffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    addAccess(VulkanResource(args.countBuffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    return;
   }
   case CommandType::vkCmdDispatchIndirect: {
     const auto &args = std::get<Args::VkCmdDispatchIndirect>(command.data);
     addAccess(VulkanResource(args.buffer), std::make_pair(VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT));
+    return;
   }
   case CommandType::vkCmdBlitImage: {
     const auto &args = std::get<Args::VkCmdBlitImage>(command.data);

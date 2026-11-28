@@ -64,7 +64,7 @@ struct Scene : Object {
   auto DrawUiElement() const -> Error;
   static auto DrawOpaqueModels(const Graphics::GraphicsContext &context, struct Camera &camera) -> Error;
   static auto DrawTransparentModels(const Graphics::GraphicsContext &context, struct Camera &camera) -> Error;
-  auto PrepareDrawLists(const Graphics::GraphicsContext &context, struct Frustum &frustum) -> Error;
+  auto PrepareDrawLists(const Graphics::GraphicsContext &context, const struct Frustum &frustum, const struct Camera &camera) -> Error;
   auto Update(double deltaTime) const -> Error;
 
   auto UpdateTransforms() const -> void;

@@ -11,7 +11,7 @@ auto StringToImageFormat(const std::string &format) -> VkFormat;
 auto ImageFormatToString(VkFormat format) -> std::string_view;
 auto ToString(VkFormat format, size_t arraySize = 1) -> std::string_view;
 auto FromString(const std::string &format) -> VkFormat;
-auto StringToArraySize(const std::string &format) -> size_t;
+auto StringToRowCount(const std::string &format) -> size_t;
 auto GetVec4Variant(VkFormat format) -> VkFormat;
 auto GetBaseFormat(VkFormat format) -> VkFormat;
 
@@ -122,6 +122,7 @@ constexpr auto GetSize(VkFormat format) -> uint32_t {
   };
 
   auto iter = FormatSizes.find(format);
+  [[likely]]
   if (iter != FormatSizes.end()) {
     return iter->second;
   }

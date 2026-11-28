@@ -133,6 +133,8 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
   copyRegion.dstOffset = offset;
   copyRegion.size = size;
 
+  ERR_ASSERT(size + offset <= this->size);
+
   if (commandBuffer != nullptr) {
     CHECK_ERR(commandBuffer->CopyBuffer(stagingBuffer->handle, handle, 1, &copyRegion));
   } else {
@@ -149,10 +151,11 @@ auto Buffer::UploadLarge(const GraphicsContext &context,
 
 auto Buffer::UploadRing(const GraphicsContext &context,
                         std::span<const uint8_t> data, // NOLINTNEXTLINE
-                        VkDeviceSize offset, VkDeviceSize size) const -> Error {
+                        VkDeviceSize offset, VkDeviceSize uploadSize) const -> Error {
   ZoneScoped;
 
-  if (size > this->size) {
+  [[unlikely]]
+  if (uploadSize + offset > size) {
     return Error::Create("Error uploading ring data, cannot upload more data "
                          "than is allocated.");
   }
@@ -160,9 +163,9 @@ auto Buffer::UploadRing(const GraphicsContext &context,
   // Use upload buffer
   auto uploadBuffer = UploadBuffers.at(context.frameIndex);
   size_t &uploadOffset = UploadBufferOffsets.at(context.frameIndex);
-  if (uploadBuffer.get() == nullptr || uploadBuffer->size < size + uploadOffset) {
+  if (uploadBuffer.get() == nullptr || uploadBuffer->size < uploadSize + uploadOffset) {
     size_t newSize = UploadBufferSize;
-    while (newSize < size + uploadOffset) {
+    while (newSize < uploadSize + uploadOffset) {
       newSize *= 2;
     }
 
@@ -189,7 +192,7 @@ auto Buffer::UploadRing(const GraphicsContext &context,
   {
     ZoneScoped;
     // NOLINTNEXTLINE, because of pointer arithmetic
-    std::memcpy(static_cast<uint8_t *>(uploadBuffer->mappedData) + uploadOffset, data.data(), size);
+    std::memcpy(static_cast<uint8_t *>(uploadBuffer->mappedData) + uploadOffset, data.data(), uploadSize);
   }
   uploadBuffer->UnmapMemory(context);
 
@@ -199,7 +202,10 @@ auto Buffer::UploadRing(const GraphicsContext &context,
   VkBufferCopy copyRegion = {};
   copyRegion.srcOffset = uploadOffset;
   copyRegion.dstOffset = offset;
-  copyRegion.size = size;
+  copyRegion.size = uploadSize;
+
+  ERR_ASSERT(uploadSize + offset <= size);
+  ERR_ASSERT(uploadSize + uploadOffset <= uploadBuffer->size);
 
   if (commandBuffer != nullptr) {
     CHECK_ERR(commandBuffer->CopyBuffer(uploadBuffer->handle, handle, 1, &copyRegion));
@@ -208,7 +214,7 @@ auto Buffer::UploadRing(const GraphicsContext &context,
     EndRendering(context, cmdBuffer);
     vkCmdCopyBuffer(cmdBuffer, uploadBuffer->handle, handle, 1, &copyRegion);
   }
-  uploadOffset += size;
+  uploadOffset += uploadSize;
 
   uploadBuffer->MarkUse();
   MarkUse();

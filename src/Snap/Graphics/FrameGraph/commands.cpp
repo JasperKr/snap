@@ -176,29 +176,35 @@ auto DrawState::Initialize(CommandType type) -> Error {
 
   int index = 0;
   for (const auto &texture : shaderState.userBoundTextures) {
-    boundImages.at(index++) = BoundResource{
-        .resource = ImageSubresource{texture.second.resource},
-        .access = texture.second.access,
-        .pipelines = pipelines,
-    };
+    if (texture.resource) {
+      boundImages.at(index++) = BoundResource{
+          .resource = ImageSubresource{texture.resource},
+          .access = texture.access,
+          .pipelines = pipelines,
+      };
+    }
   }
 
   index = 0;
   for (const auto &buffer : shaderState.userBoundBuffers) {
-    boundBuffers.at(index++) = BoundResource{
-        .resource = buffer.second.resource->handle,
-        .access = buffer.second.access,
-        .pipelines = pipelines,
-    };
+    if (buffer.resource) {
+      boundBuffers.at(index++) = BoundResource{
+          .resource = buffer.resource->handle,
+          .access = buffer.access,
+          .pipelines = pipelines,
+      };
+    }
   }
 
   index = 0;
   for (const auto &accelerationStructure : shaderState.userBoundAccelerationStructures) {
-    boundASs.at(index++) = BoundResource{
-        .resource = accelerationStructure.second.resource->GetAccelerationStructure(),
-        .access = accelerationStructure.second.access,
-        .pipelines = pipelines,
-    };
+    if (accelerationStructure.resource) {
+      boundASs.at(index++) = BoundResource{
+          .resource = accelerationStructure.resource->GetAccelerationStructure(),
+          .access = accelerationStructure.access,
+          .pipelines = pipelines,
+      };
+    }
   }
 
   VirtualState &currentState = GetVirtualCommandBuffer()->currentState;
@@ -248,6 +254,12 @@ inline auto GetNewEmptyArgs(CommandType type) -> ArgVariants {
     return Args::VkCmdDrawIndirectCount();
   case CommandType::vkCmdDrawIndexedIndirectCount:
     return Args::VkCmdDrawIndexedIndirectCount();
+  case CommandType::vkCmdDrawMeshTasks:
+    return Args::VkCmdDrawMeshTasks();
+  case CommandType::vkCmdDrawMeshTasksIndirect:
+    return Args::VkCmdDrawMeshTasksIndirect();
+  case CommandType::vkCmdDrawMeshTasksIndirectCount:
+    return Args::VkCmdDrawMeshTasksIndirectCount();
   case CommandType::vkCmdDispatch:
     return Args::VkCmdDispatch();
   case CommandType::vkCmdDispatchIndirect:
@@ -518,10 +530,49 @@ auto VirtualCommandBuffer::DrawIndirectCount(VkBuffer buffer, VkDeviceSize offse
 
   return AddCommand(command);
 }
+
 auto VirtualCommandBuffer::DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset,
                                                     uint32_t drawCount, uint32_t stride) -> Error {
   CommandID command = GetNewCommand(CommandType::vkCmdDrawIndexedIndirectCount);
   auto &commandInfo = std::get<Args::VkCmdDrawIndexedIndirectCount>(GetCommand(command).data);
+
+  commandInfo.buffer = buffer;
+  commandInfo.offset = offset;
+  commandInfo.countBuffer = countBuffer;
+  commandInfo.countBufferOffset = countBufferOffset;
+  commandInfo.maxDrawCount = drawCount;
+  commandInfo.stride = stride;
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::DrawMeshTasks(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdDrawMeshTasks);
+  auto &commandInfo = std::get<Args::VkCmdDrawMeshTasks>(GetCommand(command).data);
+
+  commandInfo.groupCountX = groupCountX;
+  commandInfo.groupCountY = groupCountY;
+  commandInfo.groupCountZ = groupCountZ;
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::DrawMeshTasksIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdDrawMeshTasksIndirect);
+  auto &commandInfo = std::get<Args::VkCmdDrawMeshTasksIndirect>(GetCommand(command).data);
+
+  commandInfo.buffer = buffer;
+  commandInfo.offset = offset;
+  commandInfo.drawCount = drawCount;
+  commandInfo.stride = stride;
+
+  return AddCommand(command);
+}
+
+auto VirtualCommandBuffer::DrawMeshTasksIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset,
+                                                      uint32_t drawCount, uint32_t stride) -> Error {
+  CommandID command = GetNewCommand(CommandType::vkCmdDrawMeshTasksIndirectCount);
+  auto &commandInfo = std::get<Args::VkCmdDrawMeshTasksIndirectCount>(GetCommand(command).data);
 
   commandInfo.buffer = buffer;
   commandInfo.offset = offset;
@@ -862,6 +913,9 @@ auto GetRequiresRendering(CommandType type) -> bool {
   case CommandType::vkCmdDrawIndexedIndirect:
   case CommandType::vkCmdDrawIndirectCount:
   case CommandType::vkCmdDrawIndexedIndirectCount:
+  case CommandType::vkCmdDrawMeshTasks:
+  case CommandType::vkCmdDrawMeshTasksIndirect:
+  case CommandType::vkCmdDrawMeshTasksIndirectCount:
   case CommandType::vkCmdDispatch:
   case CommandType::vkCmdDispatchIndirect:
   case CommandType::vkCmdClearAttachments:

@@ -45,7 +45,7 @@ private:
       return true;
     }
 
-    bool invalid = stride == 0 || alignment == 0;
+    bool invalid = stride == 0 || baseAlignment == 0;
     return !invalid;
   }
 
@@ -107,7 +107,7 @@ private:
 
   // The stride of the element, including any padding between components
   mutable size_t stride = 0;
-  mutable uint32_t alignment{};
+  mutable uint32_t baseAlignment{};
 };
 
 struct BufferComponent {
@@ -115,13 +115,13 @@ struct BufferComponent {
   mutable uint32_t offset; // Offset is mutable because it is calculated after the fact
   BufferTreeComponent format;
   size_t arraySize = 1;
-  bool isMatrix;
+  size_t rowCount = 1;
 
   // Vertex format only
   uint32_t location;
 
   [[nodiscard]] auto InternalOffsetAt(size_t index) const -> size_t {
-    if (index >= arraySize || isMatrix) {
+    if (index >= arraySize) {
       return 0;
     }
 

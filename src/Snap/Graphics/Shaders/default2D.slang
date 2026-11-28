@@ -12,7 +12,8 @@ struct VertexInput {
   float4 Color : COLOR;
 };
 
-[shader("vertex")] VertexStageOutput vertexMain(VertexInput input) {
+[shader("vertex")]
+VertexStageOutput vertexMain(VertexInput input) {
   VertexStageOutput out;
   out.sv_position = float4(input.Position * 2.0 - 1.0, 0.0, 1.0);
   out.color = input.Color;
@@ -25,6 +26,7 @@ struct FragmentInput {
   float4 color : COLOR;
 };
 
-uniform DescriptorHandle<Sampler2D> MainTexture;
+uniform Sampler2D.Handle MainTexture;
 
-[shader("fragment")] float4 fragmentMain(FragmentInput input) { return input.color * MainTexture.Sample(input.tex_coord); }
+[shader("fragment")]
+float4 fragmentMain(FragmentInput input) { return input.color * MainTexture.Sample(input.tex_coord); }

@@ -19,6 +19,10 @@
 
 #include "vulkan/vulkan_core.h"
 
+namespace Graphics {
+struct Shader;
+}
+
 namespace Graphics::Reflect {
 
 enum class ScalarType : uint8_t {
@@ -143,6 +147,7 @@ struct ResourceInfo {
   VkShaderStageFlags stages = VK_SHADER_STAGE_ALL;
   uint32_t offset{};
   uint32_t arraySize = 1;
+  uint32_t alignment = 1;
 
   [[nodiscard]] constexpr auto IsStruct() const -> bool { return std::holds_alternative<StructInfo>(info); }
   [[nodiscard]] constexpr auto IsScalar() const -> bool { return std::holds_alternative<ScalarInfo>(info); }
@@ -204,6 +209,6 @@ private:
   auto FlattenResource(ResourceInfo &resource, FlatteningState &state, std::vector<ResourceInfo> &children, bool mapToGlobals) -> Error;
 };
 
-auto ReflectShader(const Graphics::GraphicsContext &context, slang::ProgramLayout *programLayout, ShaderReflection &outReflection) -> Error;
+auto ReflectShader(const Graphics::GraphicsContext &context, Shader &shader) -> Error;
 
 } // namespace Graphics::Reflect

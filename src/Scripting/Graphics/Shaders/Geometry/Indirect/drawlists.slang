@@ -122,14 +122,19 @@ public struct Mesh {
 public struct DrawItem {
   public StructuredBuffer<Vertex>.Handle Vertices;
   public StructuredBuffer<Meshlet>.Handle Meshlets;
+
   public StructuredBuffer<CullData>.Handle MeshletCullData;
+  uint2 padding0;
 
   public uint ArrayOffset;
   public uint MeshletCount;
   public uint PrefixOffset; // Offset into global draw array
+  uint padding1;
 
   public uint MaterialIndex;
   public uint TransformIndex;
+  uint padding2;
+  uint padding3;
 
   public float4x4 GetTransform() { return ModelTransforms[TransformIndex].ModelMatrix; }
   public float4x4 GetNormalMatrix() { return ModelTransforms[TransformIndex].NormalMatrix; }

@@ -3,6 +3,8 @@
 #include "Graphics/descriptorSlots.hpp"
 #include "Graphics/graphicsContext.hpp"
 #include "Graphics/graphicsState.hpp"
+#include "Graphics/shader.hpp"
+#include "Modules/Helpers/utils.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "slang/slang.h"
@@ -330,6 +332,7 @@ auto SetupFromType(slang::VariableLayoutReflection *variableLayout) -> Result<Re
 
     resourceInfo.name = variableLayout->getName();
     resourceInfo.arraySize = typeLayout->getElementCount();
+    resourceInfo.alignment = typeLayout->getAlignment();
     resourceInfo.info = info;
 
     return resourceInfo;
@@ -383,21 +386,28 @@ auto SetupFromType(slang::VariableLayoutReflection *variableLayout) -> Result<Re
   }
 }
 
-auto ReflectShader(const Graphics::GraphicsContext &context, slang::ProgramLayout *programLayout, ShaderReflection &outReflection) -> Error {
+auto ReflectShader(const Graphics::GraphicsContext &context, Shader &shader) -> Error {
   ZoneScoped;
 
   /// Search parameters ///
-  auto parameterCount = programLayout->getParameterCount();
+  auto parameterCount = shader.programLayout->getParameterCount();
 
   for (int i = 0; i < parameterCount; ++i) {
-    auto *param = programLayout->getParameterByIndex(i);
+    auto *param = shader.programLayout->getParameterByIndex(i);
     const auto resourceInfo = CHECK_RES(SetupFromType(param));
 
-    outReflection.resources.emplace_back(resourceInfo);
+    shader.reflection.resources.emplace_back(resourceInfo);
   }
 
-  auto *globalParamsLayout = programLayout->getGlobalParamsVarLayout();
-  return outReflection.ConstructUBOStruct(globalParamsLayout->getBindingSpace(), globalParamsLayout->getBindingIndex());
+  auto *globalParamsLayout = shader.programLayout->getGlobalParamsVarLayout();
+  CHECK_ERR(shader.reflection.ConstructUBOStruct(globalParamsLayout->getBindingSpace(), globalParamsLayout->getBindingIndex()));
+
+  PrintInfo("Shader: {}, Calculated: {}, Slang: {}", shader.moduleName, shader.reflection.globalBufferFormat.GetStride(),
+            shader.programLayout->getGlobalConstantBufferSize());
+
+  ERR_ASSERT(shader.reflection.globalBufferFormat.GetStride() == shader.programLayout->getGlobalConstantBufferSize());
+
+  return {};
 }
 
 auto BufferInfo::ToString() const -> std::string {
@@ -512,6 +522,7 @@ auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std) -> Resul
     auto component = Graphics::BufferComponent{};
     component.name = info.name;
     component.format = ScalarTypeToVkFormat(scalarInfo.type, 1);
+    component.arraySize = info.arraySize;
     return component;
   }
 
@@ -520,6 +531,7 @@ auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std) -> Resul
     auto component = Graphics::BufferComponent{};
     component.name = info.name;
     component.format = ScalarTypeToVkFormat(vectorInfo.scalarType, VectorChannelCount(vectorInfo.vectorType));
+    component.arraySize = info.arraySize;
     return component;
   }
 
@@ -530,7 +542,8 @@ auto ResourceInfoToBufferFormat(const ResourceInfo &info, Standard std) -> Resul
 
     auto [colums, rows] = MatrixDimensions(matrixInfo.matrixType);
     component.format = ScalarTypeToVkFormat(ScalarType::Float, colums);
-    component.arraySize = rows;
+    component.rowCount = rows;
+    component.arraySize = info.arraySize;
 
     return component;
   }
@@ -561,11 +574,8 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding) -> Err
       .info = std::make_shared<ResourceInfo>(globalUBOInfo),
   };
 
-  const auto &infoResult = ResourceInfoToBufferFormat(globalUBOInfo, Standard::Std140);
-  if (Error::IsError(infoResult)) {
-    return infoResult.error();
-  }
-  auto formatOrComponent = infoResult.value();
+  const auto &formatOrComponent = CHECK_RES(ResourceInfoToBufferFormat(globalUBOInfo, Standard::Std140));
+
   if (std::holds_alternative<Graphics::BufferFormat>(formatOrComponent)) {
     globalBufferFormat = std::get<Graphics::BufferFormat>(formatOrComponent);
   } else {
@@ -583,10 +593,11 @@ auto ShaderReflection::ConstructUBOStruct(uint32_t set, uint32_t binding) -> Err
 
 // NOLINTNEXTLINE
 auto ShaderReflection::FlattenResource(ResourceInfo &resource, FlatteningState &state, std::vector<ResourceInfo> &children, bool mapToGlobals) -> Error {
+  uint32_t offset = 0;
+
   for (uint32_t i = 0; i < std::max(resource.arraySize, 1U); i++) {
     if (strcmp(resource.name, "Globals") != 0) {
       if (resource.arraySize > 1) {
-        PrintInfo("{} #{}", resource.name, i);
         state.currentKey->emplace_back(resource.name, i);
       } else {
         state.currentKey->emplace_back(resource.name);
@@ -603,15 +614,18 @@ auto ShaderReflection::FlattenResource(ResourceInfo &resource, FlatteningState &
         newState.idx = i;
         CHECK_ERR(FlattenResource(field, newState, children, mapToGlobals));
       }
-
     } else {
       if (mapToGlobals) {
         keyMapping.emplace(*state.currentKey, keyToInfo.size());
         keyToInfo.emplace_back(resource);
+        keyToInfo.back().offset += offset;
       }
 
       children.emplace_back(resource);
+      children.back().offset += offset;
     }
+
+    offset = Utils::AlignUp(offset + resource.GetSize(), resource.alignment);
 
     if (strcmp(resource.name, "Globals") != 0) {
       state.currentKey->pop_back();

@@ -43,9 +43,9 @@ template <typename T> struct BoundShaderResource {
 using BoundASPair = Ref<TLAS>;
 
 struct BoundState {
-  std::unordered_map<uint32_t, BoundShaderResource<Buffer>> userBoundBuffers;
-  std::unordered_map<uint32_t, BoundShaderResource<Texture>> userBoundTextures;
-  std::unordered_map<uint32_t, BoundShaderResource<TLAS>> userBoundAccelerationStructures;
+  std::vector<BoundShaderResource<Buffer>> userBoundBuffers;
+  std::vector<BoundShaderResource<Texture>> userBoundTextures;
+  std::vector<BoundShaderResource<TLAS>> userBoundAccelerationStructures;
   std::vector<uint8_t> uniforms;
 };
 

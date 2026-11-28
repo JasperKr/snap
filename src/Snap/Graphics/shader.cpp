@@ -18,6 +18,7 @@
 #include "slang/slang-com-ptr.h"
 #include "slang/slang.h"
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <cstring>
 #include <format>
@@ -39,7 +40,7 @@ namespace Graphics {
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 thread_local std::unordered_map<VkShaderModule, BoundState> BoundStates;
 
-static const uint32_t MaxConcurrentSlangSessionCount = 6;
+static const uint32_t MaxConcurrentSlangSessionCount = 1;
 
 static std::vector<slang::IGlobalSession *> SessionStorage; // For destruction
 static std::vector<slang::IGlobalSession *> UnusedGlobalSlangSessions;
@@ -281,6 +282,8 @@ static inline auto LoadSlang(const GraphicsContext &context, Ref<Shader> &shader
 
   auto *globalSession = CHECK_RES(GetGlobalSlangSession());
 
+  PrintInfo("Compiling shader: {}", shader->moduleName);
+
   Slang::ComPtr<slang::ISession> session;
   {
     ZoneScopedN("Create session");
@@ -336,7 +339,7 @@ static inline auto LoadSlang(const GraphicsContext &context, Ref<Shader> &shader
 
     auto vkStage = SlangStageToVkStage(stage);
     shader->entryPoints.emplace_back(entryPointName, vkStage);
-    shader->combinedShaderStages = static_cast<VkShaderStageFlagBits>(static_cast<uint32_t>(shader->combinedShaderStages) | (uint)vkStage);
+    shader->combinedShaderStages = static_cast<VkShaderStageFlagBits>(static_cast<uint32_t>(shader->combinedShaderStages) | (uint32_t)vkStage);
 
     stages.emplace_back(stage);
 
@@ -499,7 +502,6 @@ auto Shader::Create(const Graphics::GraphicsContext &context, const std::string 
   ZoneScoped;
 
   ZoneName(modulename.c_str(), modulename.size());
-  PrintInfo("Compiling shader: {}", modulename);
 
   Ref<Shader> shader = Ref<Shader>::Make();
   shader->name = name;
@@ -528,7 +530,7 @@ auto Shader::Create(const Graphics::GraphicsContext &context, const std::string 
   // Compile Slang to SPIR-V and create shader module
   CHECK_ERR(LoadSlang(context, shader));
 
-  CHECK_ERR(ReflectShader(context, shader->programLayout, shader->reflection));
+  CHECK_ERR(Reflect::ReflectShader(context, *shader.get()));
 
 #if Enable_Snapshots
   Snapshot::CaptureEvent(Snapshot::ShaderModuleCreateEvent(shader->module, shader->moduleName));
@@ -791,8 +793,16 @@ Shader::~Shader() {
 [[nodiscard]] auto Shader::GetState() const -> BoundState & {
   auto &state = BoundStateManager.GetState(*this);
 
+  [[unlikely]]
   if (state.uniforms.empty()) {
     state.uniforms.resize(uniformsSize);
+  }
+
+  [[unlikely]]
+  if (state.userBoundBuffers.empty()) {
+    state.userBoundBuffers.resize(reflection.keyToInfo.size());
+    state.userBoundAccelerationStructures.resize(reflection.keyToInfo.size());
+    state.userBoundTextures.resize(reflection.keyToInfo.size());
   }
 
   return state;

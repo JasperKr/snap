@@ -7,9 +7,9 @@ struct VkDrawMeshTasksIndirectCommandEXT {
   uint32_t groupCountZ;
 };
 
-uniform RWStructuredBuffer<VkDrawMeshTasksIndirectCommandEXT>.Handle DrawInfo[DrawLayers * PipelineStateCount];
+uniform RWStructuredBuffer<VkDrawMeshTasksIndirectCommandEXT>.Handle DrawInfo;
 uniform StructuredBuffer<uint>.Handle DrawItemCount;
 
 [shader("compute")]
 [numthreads(DrawLayers * PipelineStateCount, 1, 1)]
-void computeMain(uint invocationID: SV_DispatchThreadID) { DrawInfo[invocationID.x][0] = VkDrawMeshTasksIndirectCommandEXT(DrawItemCount[invocationID], 1, 1); }
+void computeMain(uint invocationID: SV_DispatchThreadID) { DrawInfo[invocationID.x] = VkDrawMeshTasksIndirectCommandEXT(DrawItemCount[invocationID], 1, 1); }

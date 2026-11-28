@@ -29,7 +29,7 @@ auto ComponentFromLua(lua_State *state, int index) -> Result<::Graphics::BufferC
   if (lua_type(state, -1) == LUA_TSTRING) {
     const auto &str = luaL_checkstring(state, -1);
     component.format = ::Graphics::Format::FromString(str);
-    component.arraySize *= ::Graphics::Format::StringToArraySize(str);
+    component.arraySize *= ::Graphics::Format::StringToRowCount(str);
     lua_pop(state, 1);
     return component;
   }

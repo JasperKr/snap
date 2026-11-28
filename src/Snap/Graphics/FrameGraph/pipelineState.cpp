@@ -7,6 +7,7 @@
 #include "Graphics/renderState.hpp"
 #include "Modules/console.hpp"
 #include "Modules/error.hpp"
+#include <array>
 #include <cassert>
 #include <format>
 #include <mutex>
@@ -256,11 +257,12 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context, RecordingStat
   VkPipelineDynamicStateCreateInfo dynamicState = {};
   dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 
-  // NOLINTNEXTLINE
-  std::array<VkDynamicState, 11> dynamicStates = {
+  // TODO: Make this match the frame graph render state dynamic state scope
+  // I'm pretty sure write changes invalidate caching there, might as well here?
+  // (for driver optimisations I'm hoping)
+  std::vector<VkDynamicState> dynamicStates = {
       VK_DYNAMIC_STATE_VIEWPORT,
       VK_DYNAMIC_STATE_SCISSOR,
-      VK_DYNAMIC_STATE_VERTEX_INPUT_EXT,
 
       VK_DYNAMIC_STATE_CULL_MODE,
       VK_DYNAMIC_STATE_FRONT_FACE,
@@ -273,6 +275,10 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context, RecordingStat
       VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE,
       VK_DYNAMIC_STATE_DEPTH_COMPARE_OP,
   };
+
+  if ((state.renderState->shader->combinedShaderStages & VK_SHADER_STAGE_VERTEX_BIT) != 0) {
+    dynamicStates.emplace_back(VK_DYNAMIC_STATE_VERTEX_INPUT_EXT);
+  }
 
   dynamicState.pDynamicStates = dynamicStates.data();
   dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
@@ -321,6 +327,7 @@ inline auto CreateGraphicsPipeline(const GraphicsContext &context, RecordingStat
     formats.at(location) = rendertarget.texture->GetFormat();
   }
 
+  [[unlikely]]
   if (hasImplicitLocation && hasExplicitLocation) {
     return Error::Unexpected("Cannot mix explicit and implicit render target locations.");
   }

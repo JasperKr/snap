@@ -20,9 +20,6 @@ struct VertexStageOutput {
   float4 color : COLOR;
   float4 currentClip : CURRENT_CLIP;
   float4 previousClip : PREV_CLIP;
-};
-
-struct PrimitiveAttribute {
   uint meshIndex : MESHIDX;
 };
 
@@ -31,8 +28,8 @@ uniform StructuredBuffer<DrawItem>.Handle DrawItems;
 [shader("mesh")]
 [numthreads(128, 1, 1)]
 [outputtopology("triangle")]
-void meshMain(in payload TaskPayload payload, uint instance: SV_GroupThreadID, uint group: SV_GroupID, out vertices VertexStageOutput vertices[64],
-              out indices uint3 triangles[126], out primitives PrimitiveAttribute primdata[126]) {
+void meshMain(uint instance: SV_GroupThreadID, uint group: SV_GroupID, in payload TaskPayload payload, out vertices VertexStageOutput vertices[64],
+              out indices uint3 triangles[126], out primitives uint primdata[126]) {
 
   uint meshletIndex = payload.MeshletOffset[group];
 
@@ -69,6 +66,7 @@ void meshMain(in payload TaskPayload payload, uint instance: SV_GroupThreadID, u
     outVtx.tangent.w = tangent.w;
 
     outVtx.color = vertex.GetColor();
+    outVtx.meshIndex = meshIdx;
 
     vertices[instance] = outVtx;
   }

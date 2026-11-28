@@ -16,6 +16,7 @@
 #include "Modules/Math/matrix.hpp"
 #include "Modules/Math/vector.hpp"
 #include "Modules/bindings.hpp"
+#include "Modules/console.hpp"
 #include "Modules/error.hpp"
 #include "Modules/object.hpp"
 #include "Modules/reflectBindings.hpp"
@@ -106,7 +107,7 @@ inline auto RenderDrawItem(const DrawItem &item, const Ref<Shader> &shader, cons
   return {};
 }
 
-auto Scene::PrepareDrawLists(const GraphicsContext &context, Frustum &frustum) -> Error {
+auto Scene::PrepareDrawLists(const GraphicsContext &context, const Frustum &frustum, const Camera &camera) -> Error {
   auto &renderer = Renderer::RendererInstance;
   auto &manager = renderer.GetShaderManager();
 
@@ -146,20 +147,24 @@ auto Scene::PrepareDrawLists(const GraphicsContext &context, Frustum &frustum) -
     CHECK_ERR(renderer.GetModelTransformsBuffer()->GetBuffer()->SetData(context, span));
   }
 
-  auto generateDrawlists = CHECK_RES(manager.GetShader(Renderer::ShaderKey::CullRough));
+  auto cullRough = CHECK_RES(manager.GetShader(Renderer::ShaderKey::CullRough));
+
   auto indirect = CHECK_RES(manager.GetShader(Renderer::ShaderKey::Indirect));
-  RenderState::SetShader(generateDrawlists);
+  RenderState::SetShader(cullRough);
 
   for (uint32_t i = 0; i < renderer.DrawBuffers.DrawLists.size(); i++) {
-    CHECK_ERR(generateDrawlists->Send(context, KeyElement{"DrawItems", i}, {renderer.DrawBuffers.DrawLists.at(i), StorageBuffer::write}));
-
-    CHECK_ERR(indirect->Send(context, KeyElement{"DrawInfo", i}, {renderer.DrawBuffers.DrawCommands.at(i), StorageBuffer::write}));
+    CHECK_ERR(cullRough->Send(context, KeyElement{"DrawItems", i}, {renderer.DrawBuffers.DrawLists.at(i), StorageBuffer::write}));
   }
 
-  CHECK_ERR(generateDrawlists->Send(context, "DrawItemCount", {renderer.DrawBuffers.DrawIndices, StorageBuffer::readwrite}));
+  CHECK_ERR(cullRough->Send(context, "DrawItemCount", {renderer.DrawBuffers.DrawIndices, StorageBuffer::readwrite}));
   CHECK_ERR(indirect->Send(context, "DrawItemCount", {renderer.DrawBuffers.DrawIndices, StorageBuffer::read}));
 
-  CHECK_ERR(generateDrawlists->Send(context, "Meshes", {renderer.MeshBuffer->GetBuffer(), StorageBuffer::read}));
+  CHECK_ERR(indirect->Send(context, "DrawInfo", {renderer.DrawBuffers.DrawCommands, StorageBuffer::write}));
+
+  CHECK_ERR(cullRough->Send(context, "Meshes", {renderer.MeshBuffer->GetBuffer(), StorageBuffer::read}));
+  CHECK_ERR(cullRough->Send(context, "CameraData", {camera.GetBuffer(), StorageBuffer::read}));
+  CHECK_ERR(cullRough->Send(context, "MaterialBuffer", {renderer.GetMaterialsBuffer()->GetBuffer(), StorageBuffer::read}));
+  CHECK_ERR(cullRough->Send(context, "ModelTransforms", {renderer.GetModelTransformsBuffer()->GetBuffer(), StorageBuffer::read}));
 
   CHECK_ERR(DispatchWithin(context, {static_cast<uint32_t>(count), 1, 1}));
 
@@ -218,17 +223,19 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
   Graphics::RenderState::PushDebugMarker("Depth Opaque Prepass");
   RenderState::SetShader(depthOpaque);
 
+  const auto stride = sizeof(VkDrawMeshTasksIndirectCommandEXT);
+
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
   CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(0), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(0)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 0 * stride));
 
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
   CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(1), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(1)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 1 * stride));
 
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
   CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(2), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(2)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 2 * stride));
 
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Depth Masked Prepass");
@@ -236,15 +243,15 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
   RenderState::SetShader(depthMasked);
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
   CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(3), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(3)));
+  // CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 3 * stride));
 
-  Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
-  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(4), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(4)));
+  // Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
+  // CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(4), StorageBuffer::read}));
+  // CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 4 * stride));
 
-  Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
-  CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(5), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(5)));
+  // Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
+  // CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(5), StorageBuffer::read}));
+  // CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 5 * stride));
 
   Graphics::RenderState::PopDebugMarker();
 
@@ -289,30 +296,30 @@ auto Scene::DrawOpaqueModels(const GraphicsContext &context, Camera &camera) -> 
 
   Graphics::RenderState::PushDebugMarker("Opaque Materials");
   CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(0), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(0)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 0 * stride));
 
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
   CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(1), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(1)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 1 * stride));
 
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
   CHECK_ERR(depthOpaque->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(2), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(2)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 2 * stride));
 
   Graphics::RenderState::PopDebugMarker();
   Graphics::RenderState::PushDebugMarker("Masked Materials");
 
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
   CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(3), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(3)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 3 * stride));
 
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
   CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(4), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(4)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 4 * stride));
 
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
   CHECK_ERR(depthMasked->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(5), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(5)));
+  CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 5 * stride));
 
   Graphics::RenderState::PopDebugMarker();
 
@@ -358,17 +365,19 @@ auto Scene::DrawTransparentModels(const GraphicsContext &context, Camera &camera
                                                         .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
                                                     }}));
 
+  const auto stride = sizeof(VkDrawMeshTasksIndirectCommandEXT);
+
   Graphics::RenderState::SetCullMode(VK_CULL_MODE_NONE);
-  CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(6), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(6)));
+  // CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(6), StorageBuffer::read}));
+  // CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 6 * stride));
 
-  Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
-  CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(7), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(7)));
+  // Graphics::RenderState::SetCullMode(VK_CULL_MODE_BACK_BIT);
+  // CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(7), StorageBuffer::read}));
+  // CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 7 * stride));
 
-  Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
-  CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(8), StorageBuffer::read}));
-  CHECK_ERR(DrawIndirect(context, renderer.DrawBuffers.DrawCommands.at(8)));
+  // Graphics::RenderState::SetCullMode(VK_CULL_MODE_FRONT_BIT);
+  // CHECK_ERR(forward->Send(context, "DrawItems", {renderer.DrawBuffers.DrawLists.at(8), StorageBuffer::read}));
+  // CHECK_ERR(DrawMeshTasksIndirect(context, renderer.DrawBuffers.DrawCommands, 8 * stride));
 
   RenderState::SetWindingOrder(VK_FRONT_FACE_CLOCKWISE);
 
@@ -548,6 +557,11 @@ Scene::Scene(std::string name) : name(std::move(name)) {
 
       const auto *material = entity.try_get<Renderer::Material>(entity);
       const auto *worldBounds = entity.try_get<WorldBounds>(entity);
+
+      if (worldBounds == nullptr) {
+        return;
+      }
+
       auto drawRange = geometry.mesh->GetDrawRange();
       auto &context = *GetCurrentGraphicsContext();
       auto bufferAddressResult = geometry.mesh->GetVertexBuffer()->GetAddress(context, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);

@@ -583,4 +583,11 @@ auto RenderTarget::GetHash() const -> uint64_t {
 
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables, readability-function-cognitive-complexity, cppcoreguidelines-avoid-magic-numbers, readability-magic-numbers)
 
+auto HasStage(VkShaderStageFlags stages) -> bool {
+  if (!TopOfStack->shader.isValid()) {
+    return false;
+  }
+
+  return (TopOfStack->shader->combinedShaderStages & stages) == stages;
+}
 } // namespace Graphics::RenderState

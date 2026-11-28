@@ -525,7 +525,7 @@ auto FromString(const std::string &format) -> VkFormat {
   return VK_FORMAT_UNDEFINED;
 }
 
-auto StringToArraySize(const std::string &format) -> size_t {
+auto StringToRowCount(const std::string &format) -> size_t {
   static const std::unordered_map<std::string, size_t> FormatToArraySize = {
       {"floatmat2", 2},   {"floatmat2x2", 2}, {"floatmat3", 3},   {"floatmat3x3", 3}, {"floatmat4", 4},   {"floatmat4x4", 4},
       {"halfmat2", 2},    {"halfmat2x2", 2},  {"halfmat3", 3},    {"halfmat3x3", 3},  {"halfmat4", 4},    {"halfmat4x4", 4},

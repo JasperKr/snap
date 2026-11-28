@@ -179,6 +179,7 @@ auto GetMaximumAllowedViewport() -> VkViewport;
 auto GetScissor() -> VkRect2D;
 auto GetUserShader() -> Ref<Shader>;
 auto GetShader() -> Ref<Shader>;
+auto HasStage(VkShaderStageFlags stages) -> bool;
 auto GetRenderTargets() -> std::vector<RenderTarget>;
 auto GetWindingOrder() -> VkFrontFace;
 auto GetTopology() -> VkPrimitiveTopology;

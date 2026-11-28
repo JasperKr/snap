@@ -102,14 +102,12 @@ const std::vector<Graphics::BufferComponent> ModelTransformBufferComponents = {
     Graphics::BufferComponent{
         .name = "ModelMatrix",
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-        .arraySize = 4,
-        .isMatrix = true,
+        .rowCount = 4,
     },
     Graphics::BufferComponent{
         .name = "NormalMatrix",
         .format = VK_FORMAT_R32G32B32_SFLOAT,
-        .arraySize = 3,
-        .isMatrix = true,
+        .rowCount = 3,
     },
 };
 
@@ -218,9 +216,9 @@ struct Renderer {
     transparency  : NONE, BACK, FRONT
   */
   struct DrawBuffers {
-    std::array<Ref<Graphics::Buffer>, 9> DrawLists;    // 9x draw lists
-    Ref<Graphics::Buffer> DrawIndices;                 // 9 element uint buffer
-    std::array<Ref<Graphics::Buffer>, 9> DrawCommands; // 9x draw commands
+    std::array<Ref<Graphics::Buffer>, 9> DrawLists; // 9x draw lists
+    Ref<Graphics::Buffer> DrawIndices;              // 9 element uint buffer
+    Ref<Graphics::Buffer> DrawCommands;             // 9x element command buffer
   };
 
   auto Initialize(Graphics::GraphicsContext &context) -> Error;

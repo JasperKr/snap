@@ -480,63 +480,63 @@ auto BufferUploadEvent::DrawVariantImGui(ThreadSnapshot const *parent) const -> 
   ImGui::Text("Data Size: %zu bytes", data.size());
 };
 
-inline auto DrawComponentData(const std::span<const uint8_t> &data,
-                              const BufferComponent &component, // NOLINTNEXTLINE
-                              VkDeviceSize offset, VkDeviceSize rawOffset) -> void {
-  auto format = std::get<VkFormat>(component.format);
-  auto formatSize = Format::GetSize(format);
+// inline auto DrawComponentData(const std::span<const uint8_t> &data,
+//                               const BufferComponent &component, // NOLINTNEXTLINE
+//                               VkDeviceSize offset, VkDeviceSize rawOffset) -> void {
+//   auto format = std::get<VkFormat>(component.format);
+//   auto formatSize = Format::GetSize(format);
 
-  bool withinSpan = offset + (formatSize * component.arraySize) <= data.size();
-  if (offset < rawOffset || !withinSpan) {
-    ImGui::Text("No data available.");
-    return;
-  }
+//   bool withinSpan = offset + (formatSize * component.arraySize) <= data.size();
+//   if (offset < rawOffset || !withinSpan) {
+//     ImGui::Text("No data available.");
+//     return;
+//   }
 
-  auto span = Utils::Subspan(data, offset, formatSize * component.arraySize);
+//   auto span = Utils::Subspan(data, offset, formatSize * component.arraySize);
 
-  if (component.arraySize > 1) {
-    if (component.isMatrix) {
-      auto rowCount = component.arraySize;
-      auto columnCount = Format::GetChannelCount(format);
+//   if (component.arraySize > 1) {
+//     if (component.rowCount > 1) {
+//       auto rowCount = component.arraySize;
+//       auto columnCount = Format::GetChannelCount(format);
 
-      const auto &firstRow = Format::ToString(format, span.data());
-      ImGui::Text("/ %s \\", firstRow.c_str());
+//       const auto &firstRow = Format::ToString(format, span.data());
+//       ImGui::Text("/ %s \\", firstRow.c_str());
 
-      for (size_t row = 1; row < rowCount - 1; row++) {
-        auto rowSpan = Utils::Subspan(span, row * formatSize, formatSize);
-        auto rowStr = Format::ToString(format, rowSpan.data());
-        ImGui::Text("| %s |", rowStr.c_str());
-      }
+//       for (size_t row = 1; row < rowCount - 1; row++) {
+//         auto rowSpan = Utils::Subspan(span, row * formatSize, formatSize);
+//         auto rowStr = Format::ToString(format, rowSpan.data());
+//         ImGui::Text("| %s |", rowStr.c_str());
+//       }
 
-      if (rowCount > 1) {
-        auto lastRowSpan = Utils::Subspan(span, (rowCount - 1) * formatSize, formatSize);
-        auto lastRowStr = Format::ToString(format, lastRowSpan.data());
-        ImGui::Text("\\ %s /", lastRowStr.c_str());
-      }
-    } else {
-      std::string listStr;
-      auto channelCount = Format::GetChannelCount(format);
+//       if (rowCount > 1) {
+//         auto lastRowSpan = Utils::Subspan(span, (rowCount - 1) * formatSize, formatSize);
+//         auto lastRowStr = Format::ToString(format, lastRowSpan.data());
+//         ImGui::Text("\\ %s /", lastRowStr.c_str());
+//       }
+//     } else {
+//       std::string listStr;
+//       auto channelCount = Format::GetChannelCount(format);
 
-      for (size_t i = 0; i < component.arraySize; i++) {
-        auto elementSpan = Utils::Subspan(span, i * formatSize, formatSize);
-        auto elementStr = Format::ToString(format, elementSpan.data());
+//       for (size_t i = 0; i < component.arraySize; i++) {
+//         auto elementSpan = Utils::Subspan(span, i * formatSize, formatSize);
+//         auto elementStr = Format::ToString(format, elementSpan.data());
 
-        if (channelCount == 1) {
-          listStr += "  " + elementStr;
-        } else {
-          listStr += "  (" + elementStr + ")";
-        }
+//         if (channelCount == 1) {
+//           listStr += "  " + elementStr;
+//         } else {
+//           listStr += "  (" + elementStr + ")";
+//         }
 
-        listStr += ";\n";
-      }
+//         listStr += ";\n";
+//       }
 
-      ImGui::Text("[#%zu:\n%s]", component.arraySize, listStr.c_str());
-    }
-  } else {
-    auto elementStr = Format::ToString(format, span.data());
-    ImGui::Text("%s", elementStr.c_str());
-  }
-}
+//       ImGui::Text("[#%zu:\n%s]", component.arraySize, listStr.c_str());
+//     }
+//   } else {
+//     auto elementStr = Format::ToString(format, span.data());
+//     ImGui::Text("%s", elementStr.c_str());
+//   }
+// }
 
 inline auto DrawBufferData(const std::span<const uint8_t> &data, const BufferFormat &format,
                            VkDeviceSize offset, // NOLINTNEXTLINE
@@ -559,7 +559,7 @@ inline auto DrawBufferData(const std::span<const uint8_t> &data, const BufferFor
     ImGui::SameLine();
 
     if (std::holds_alternative<VkFormat>(component.format)) {
-      DrawComponentData(data, component, componentOffset, rawOffset);
+      // DrawComponentData(data, component, componentOffset, rawOffset);
     } else {
       auto nestedFormat = std::get<BufferFormat>(component.format);
 
